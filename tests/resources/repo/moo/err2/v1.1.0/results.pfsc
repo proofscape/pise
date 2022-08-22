@@ -1,0 +1,27 @@
+
+deduc Thm1 {
+
+    asrt C {
+        en="C"
+    }
+    meson="C"
+}
+
+# We try to rename an existing entity, even though this is only a minor
+# version increment. This should not be allowed.
+deduc Thm3 {
+
+    asrt C {
+        en="C"
+    }
+    meson="C"
+}
+
+deduc Pf of Thm1.C {
+
+    asrt A {
+        en="A"
+    }
+
+    meson="Thm1.C by A."
+}

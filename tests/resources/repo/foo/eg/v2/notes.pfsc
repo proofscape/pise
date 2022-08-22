@@ -1,0 +1,198 @@
+anno Notes @@@
+
+<param:eg1_n>[]{
+    ptype: "Integer",
+    name: "n",
+    default: 12,
+    args: {
+        gt: 5,
+    },
+}
+
+<param:eg1_d1>[]{
+    ptype: "Divisor",
+    name: "d1",
+    tex: "d_1",
+    default: 3,
+    import: {
+        dividing: eg1_n,
+    },
+}
+
+<param:eg1_d2>[]{
+    ptype: "Divisor",
+    name: "d2",
+    tex: "d_2",
+    args: {
+        dividing: 18,
+        sign: -1,
+    },
+}
+
+<param:eg1_d3>[]{
+    ptype: "Divisor",
+    name: "d3",
+    tex: "d_3",
+    import: {
+        n: eg1_n,
+    },
+    args: {
+        dividing: "n + 2",
+    },
+}
+
+<param:eg1_p1>[]{
+    ptype: "Prime",
+    name: "p1",
+    tex: "p_1",
+    default: 11,
+}
+
+<param:eg1_p2>[]{
+    ptype: "Prime",
+    name: "p2",
+}
+
+<param:eg1_p3>[]{
+    ptype: "Prime",
+    name: "p3",
+    args: {
+        odd: true,
+    }
+}
+
+<param:eg1_p4>[]{
+    ptype: "Prime",
+    name: "p4",
+    default: 13,
+    args: {
+        chooser_upper_bound: 71,
+    }
+}
+
+<param:eg1_p5>[]{
+    ptype: "Prime",
+    name: "p5",
+    default: 17,
+    args: {
+        chooser_upper_bound: 163,
+    }
+}
+
+<param:eg1_p6>[]{
+    ptype: "Prime",
+    name: "p6",
+    default: 101,
+    args: {
+        chooser_upper_bound: 163,
+    }
+}
+
+<param:eg1_p7>[]{
+    ptype: "Prime",
+    name: "p7",
+    default: 23,
+    import: {
+        n: eg1_n,
+    },
+    args: {
+        chooser_upper_bound: "n + 100",
+    }
+}
+
+<param:eg1_r1>[]{
+    ptype: "PrimRes",
+    name: "r1",
+    args: {
+        m: 49,
+    }
+}
+
+<param:eg1_r2>[]{
+    ptype: "PrimRes",
+    name: "r2",
+    args: {
+        m: 343,
+    }
+}
+
+<param:eg1_r3>[]{
+    ptype: "PrimRes",
+    name: "r3",
+    args: {
+        m: 2401,
+    }
+}
+
+<param:eg1_r4>[]{
+    ptype: "PrimRes",
+    name: "r4",
+    import: {
+        p1: eg1_p1,
+    },
+    args: {
+        m: "2*p1^2",
+    }
+}
+
+<param:eg1_K1>[]{
+    ptype: "NumberField",
+    name: "K1",
+    default: "cyc(7)",
+    args: {
+        gen: "zeta",
+    }
+}
+
+<param:eg1_K2>[]{
+    ptype: "NumberField",
+    name: "K2",
+    default: "cyclotomic_poly(7)",
+    args: {
+        gen: "zeta",
+    }
+}
+
+<param:eg1_K3>[]{
+    ptype: "NumberField",
+    name: "K3",
+    default: "x^2 + 5",
+    args: {
+        gen: "alpha",
+        var: "t",
+    }
+}
+
+<param:eg1_K4>[]{
+    ptype: "NumberField",
+    name: "K4",
+    default: "y^3 + 4*y - 7",
+    args: {
+        var: "u",
+    }
+}
+
+<param:eg1_P1>[]{
+    ptype: "PrimeIdeal",
+    name: "P1",
+    tex: "\mathfrak{p}_1",
+    import: {
+        k: eg1_K1,
+    },
+    args: {
+        p: 11,
+    }
+}
+
+<param:eg1_P2>[]{
+    ptype: "PrimeIdeal",
+    name: "P2",
+    tex: "\mathfrak{p}_2",
+    default: 2,
+    import: {
+        k: eg1_K1,
+        p: eg1_p4,
+    }
+}
+
+@@@

@@ -1,0 +1,7 @@
+# Change log contains a malformed libpath.
+
+change_log = {
+    moved: {
+        "foo+bar": "spam"
+    }
+}

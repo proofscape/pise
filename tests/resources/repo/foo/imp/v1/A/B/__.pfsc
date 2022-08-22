@@ -1,0 +1,7 @@
+# Attempt to import self, using plain absolute import.
+
+import test.foo.imp.A.B
+
+anno b @@@
+b
+@@@

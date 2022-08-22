@@ -1,0 +1,123 @@
+/* ------------------------------------------------------------------------- *
+ *  Proofscape Server                                                        *
+ *                                                                           *
+ *  Copyright (c) 2011-2022 Proofscape contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+@import 'centered.css';
+
+p {
+    margin-block-end: 0.5em;
+    margin-block-start: 0.5em;
+}
+
+ul {
+    margin-block-end: 0;
+    margin-block-start: 0;
+}
+
+#brandingBox img {
+    width: 100%;
+}
+
+#agreements {
+    margin-top: 12px;
+}
+
+.agreement {
+    font-size: 14px;
+    text-align: left;
+    padding-left: 14px;
+    margin-top: 4px;
+}
+
+.agreement a {
+    text-decoration: underline;
+}
+
+#oauthBox {
+    text-align: center;
+}
+
+a.oAuthButton {
+    text-decoration: none;
+    display: block;
+    margin-top: 21px;
+    filter: drop-shadow(2px 4px 6px black);
+}
+
+a.oAuthButton:hover {
+    filter: drop-shadow(2px 4px 6px #08c);
+}
+
+svg {
+    border-radius: 8px;
+}
+
+text {
+    font-size: 22px;
+    font-family: Helvetica;
+}
+
+#ghbutton svg {
+    background: #25292e;
+}
+
+#bbbutton svg {
+    background: #fff;
+}
+
+#testLogins {
+    border: 2px solid #ccc;
+    color: #ccc;
+    text-align: center;
+    margin-top: 50px;
+}
+
+#testLogins .title {
+    position: relative;
+    left: -80px;
+    top: -15px;
+    border: 2px solid #ccc;
+    padding: 2px 5px;
+    background: #484848;
+}
+
+#testLogins form {
+    margin-top: -17px;
+}
+
+#testLogins label {
+    font-size: 20px;
+}
+
+#testLogins input {
+    margin-left: 16px;
+}
+
+.org_box {
+    padding-right: 140px;
+    padding-top: 12px;
+    font-size: 12px;
+    display: block;
+}
+
+.help_tip {
+    cursor: help;
+    font-weight: bold;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 0 3px;
+}

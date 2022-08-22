@@ -1,0 +1,18 @@
+
+from test.brook.math.exp1 import X1
+
+deduc W1 of X1.B1 {
+
+    asrt C1 {}
+
+    meson = "C1 implies X1.B1."
+
+}
+
+deduc W2 of X1.B2 {
+
+    asrt C2 {}
+
+    meson = "C2 implies X1.B2."
+
+}

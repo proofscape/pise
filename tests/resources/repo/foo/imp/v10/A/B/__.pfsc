@@ -1,0 +1,7 @@
+# Import submodule from self, using absolute path.
+
+from test.foo.imp.A.B import C
+
+anno b @@@
+b
+@@@

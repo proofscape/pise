@@ -1,0 +1,75 @@
+from test.moo.bar.results import Thm, Pf
+
+anno Notes @@@
+# Great Title
+
+Let's take a look at <chart:w1>[the proof]{view: Pf}.
+
+## Interesting Section Heading
+
+The title of this section should not have a number.
+
+* <goal:w2>[]{} Here's a goal for you.
+
+@@@
+
+deduc x1 of Pf.U {
+
+    exis E10 {
+        en="There exists % such that"
+        intr I {
+            sy="$I$"
+        }
+        asrt A1 {
+            sy="$A1$"
+        }
+        asrt A2 {
+            sy="$A2$"
+        }
+    }
+
+    subdeduc SD20 {
+        asrt A10 {
+            sy="A10"
+        }
+        asrt A20 {
+            sy="A20"
+        }
+        asrt A30 {
+            sy="A30"
+        }
+        meson="A10 and A20, so A30."
+    }
+
+    meson="E10, so Pf.U, using SD20.A30."
+
+}
+
+deduc Prop1 {
+    asrt C {
+        sy="C"
+    }
+    meson="C"
+}
+
+deduc Pf1 of Prop1.C {
+
+    asrt A10 {
+        en="
+        This node makes [a reference](x1.E10)
+        to an `exin` node.
+        "
+    }
+
+    asrt A20 {
+        en="
+        This node makes [a reference](x1.SD20)
+        to a `subdeduc` node.
+        "
+    }
+
+    meson="Prop1.C by A10 and A20 and x1.E10 and x1.SD20."
+}
+
+
+

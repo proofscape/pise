@@ -1,0 +1,7 @@
+# Attempt to import self, using plain absolute import with local name.
+
+import test.foo.imp.A.B as bar
+
+anno b @@@
+b
+@@@

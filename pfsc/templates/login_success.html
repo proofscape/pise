@@ -1,0 +1,40 @@
+{# -------------------------------------------------------------------------- #
+#   Proofscape Server                                                         #
+#                                                                             #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# -------------------------------------------------------------------------- #}
+{% extends "fbase.html" %}
+{% block before_flash %}
+{% if branding_img_url %}
+<div id="brandingBox">
+  <img src="{{branding_img_url}}"/>
+</div>
+{% endif %}
+{% endblock %}
+{% block app_content %}
+{% if auto_close %}
+<p>This window should close automatically.
+If not, you may close it at any time.</p>
+{% endif %}
+<script type="text/javascript">
+  const bc = new BroadcastChannel('login-messages');
+  bc.postMessage("login-successful");
+  {% if auto_close %}
+  setTimeout(() => {
+    window.close();
+  }, {{auto_close_delay}});
+  {% endif %}
+</script>
+{% endblock %}

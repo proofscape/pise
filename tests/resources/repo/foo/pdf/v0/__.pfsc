@@ -1,0 +1,21 @@
+
+# Missing fingerprint
+pdf0 = {
+}
+
+# Malformed fingerprint
+pdf1 = {
+  fingerprint: "abcdef'0123456789"
+}
+
+# Bad URL
+pdf2 = {
+  url: "javascript:alert('foo');",
+  fingerprint: "abcdef0123456789"
+}
+
+# Well-formed
+pdf3 = {
+  url: "https://example.org/pdf/foo.pdf",
+  fingerprint: "abcdef0123456789"
+}

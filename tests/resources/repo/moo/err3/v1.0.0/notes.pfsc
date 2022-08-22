@@ -1,0 +1,5 @@
+from test.moo.bar.results import Pf
+
+anno Notes @@@
+Let's look at <chart:w1>[the proof]{view: Pf}.
+@@@

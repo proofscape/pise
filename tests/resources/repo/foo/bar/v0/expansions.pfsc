@@ -1,0 +1,25 @@
+
+from ..results import Pf
+
+deduc X of Pf.S {
+
+    asrt A1 {
+        en = "A thing that helps to clarify"
+    }
+
+    asrt A2 {
+        en = "Another thing"
+    }
+
+    meson="
+    Pf.S by A1 and A2 and Pf.R.
+    "
+
+}
+
+anno Notes1 @@@
+Some enlightening notes...
+with a <chart:w10>[chart widget with *cool equation* $@e sup i pie; + 1 = 0$ in the label]{
+    "view": "Pf"
+}
+@@@

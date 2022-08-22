@@ -1,0 +1,10 @@
+
+# This is only a patch increment, but we're under Maj = 0, so we are
+# allowed to make breaking changes, such as renaming this theorem.
+
+deduc Thm1 {
+    asrt C {
+        sy="C"
+    }
+    meson="C"
+}

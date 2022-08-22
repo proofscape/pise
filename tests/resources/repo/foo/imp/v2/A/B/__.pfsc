@@ -1,0 +1,7 @@
+# Attempt to import self, using plain relative import with local name.
+
+import ..B as bar
+
+anno b @@@
+b
+@@@

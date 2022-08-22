@@ -1,0 +1,90 @@
+# Top-level run requirements
+#   These packages are required for a working app.
+#   Each of these has been installed deliberately, to serve some purpose within
+#   the app. In other words, we do not list recursive requirements here.
+#
+# To build requirements.txt, run:
+#
+#   $ pip-compile --generate-hashes requirements.in
+#
+# See https://pypi.org/project/pip-tools/
+
+# It's a Flask app.
+# Users can log in; we send error emails to operators, and transactional emails
+# to users; we use websockets to emit results of long-running jobs like
+# building a pfsc repo.
+Flask==2.1.2
+Flask-Login==0.6.1
+Flask-Mail==0.9.1
+Flask-SocketIO==5.1.2
+
+# We use the Eventlet web server to support websockets via Flask-SocketIO.
+eventlet==0.33.1
+
+# We need to talk to graph databases.
+neo4j==4.2.1
+redisgraph==2.4.4
+# We want the `gremlinpython` package, but don't want to install all of its
+# dependencies, since our use of `wsc-grempy-transport` obviates a substantial
+# number of them. So we list these in the `requirements.nodeps` file instead.
+# However, this means we must list here those of their dependencies that we do
+# want to install.
+# NOTE: Any time you upgrade `gremlinpython`, you must review its latest
+# dependencies, and update this list accordingly.
+# For gremlinpython==3.6.0:
+aenum>=1.4.5,<4.0.0
+isodate>=0.6.0,<1.0.0
+# For wsc-grempy-transport==0.1.0:
+websocket-client==1.3.2
+
+# Lark parses all of our basic languages, such as the pfsc module syntax,
+# and the Meson proof script language.
+# See branch `lark070` for attempts to upgrade to Lark 0.7.0.
+# For now, we are stuck at 0.6.7.
+# For Pyodide, we need this to be available via wheel, but lark-parser does not
+# publish a wheel at this version. We've made a special package that does:
+lark067==0.6.7
+
+# Mistletoe turns Markdown into HTML, thus is essential in compiling pfsc
+# annotations.
+mistletoe==0.7.2
+
+# VerTeX can be used in pfsc modules!
+vertex2tex==0.3.3
+
+# The Flask app is a web server that handles some easy jobs itself, but hands
+# off long-running jobs to an RQ worker.
+# We use pottery for the Redlock algorithm, which allows us to use Redis to
+# ensure that jobs that aim to modify the same resource are only done one at
+# a time, even in deployments that are running multiple RQ workers.
+# See `pfsc.handlers.RepoTaskHandler.process()`.
+rq==1.8.0
+pottery==1.1.7
+
+# Dill was included in order to support pickling of SymPy types, for
+# use with the math worker. This was before we moved to Pyodide. We keep
+# the requirement though, since at this time the server is still _capable_ of
+# running math jobs (if so configured).
+dill==0.3.4
+
+# The server needs to be able to perform Git actions on the repos under the
+# `PFSC_ROOT/lib` directory. Mainly, we need to be able to checkout a branch
+# when you ask to build a numbered release.
+pygit2==1.7.2
+
+# We use .env files for configuration.
+python-dotenv==0.17.0
+
+# We need to make http(s) requests for:
+#  * OAuth logins
+#  * the PDF proxy service
+#  * a few places where you can configure a URL to replace some built-in HTML
+requests==2.25.1
+
+# At this time, our only use of `tenacity` is to ensure that calls to Redis's
+# BGSAVE capture all updates, in cases where RedisGraph is being used as the
+# graph database.
+tenacity==6.2.0
+
+# We have a utility library
+pfsc-util==0.22.8

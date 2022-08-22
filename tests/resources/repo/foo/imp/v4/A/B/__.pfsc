@@ -1,0 +1,7 @@
+# Attempt to import * from self, using relative path.
+
+from ..B import *
+
+anno b @@@
+b
+@@@

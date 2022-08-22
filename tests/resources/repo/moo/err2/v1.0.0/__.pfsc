@@ -1,0 +1,4 @@
+# This repo, test.moo.err2, starts out with v1.0.0 that build correctly,
+# but then goes on to try to make changes in later versions that raise exceptions.
+
+change_log = {}

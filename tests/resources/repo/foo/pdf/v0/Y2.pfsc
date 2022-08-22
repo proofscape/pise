@@ -1,0 +1,12 @@
+from .. import pdf3
+from ..results import Pf
+
+# Here we try well-formed pdf info, but malformed combiner codes.
+
+# Version number other than 2. (For now that's the only one we know.)
+deduc Y2 of Pf.S {
+    asrt A1 {
+        pdfL = "pdf3#v1.4;s3;(146:1758:2666:814:390:279:45);n;x+35;y+4;(146:1758:2666:1095:386:205:49)"
+    }
+    meson="Pf.S by A1 and Pf.R."
+}

@@ -1,0 +1,7 @@
+# Attempt to import self from parent, using relative path.
+
+from .. import B
+
+anno b @@@
+b
+@@@

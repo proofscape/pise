@@ -1,0 +1,123 @@
+{# -------------------------------------------------------------------------- #
+#   Proofscape Server                                                         #
+#                                                                             #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# -------------------------------------------------------------------------- #}
+
+{% extends "fbase.html" %}
+{% block before_flash %}
+{% if branding_img_url %}
+<div id="brandingBox">
+  <img src="{{branding_img_url}}"/>
+</div>
+{% endif %}
+{% endblock %}
+{% block app_content %}
+<div id="oauthBox">
+  <h2>Sign in to Proofscape</h2>
+  {% if allow_github_logins %}
+  <a id="ghbutton" class="oAuthButton" href="#" onclick="gotoCond('{{ url_for('auth.login_with_provider', prov='gh', level='user') }}')">
+    <svg width="300px" height="60px" xmlns="http://www.w3.org/2000/svg">
+      <image x="3" y="3" height="53px" width="53px" href="{{ url_for('static', filename='img/ghlogo.png') }}"/>
+      <text x="80" y="38" fill="#ddd">Sign in with GitHub</text>
+    </svg>
+  </a>
+  <label class="org_box">
+    <input id="gh_orgs" type="checkbox" name="gh_orgs">
+    Include organizations
+    <span class="help_tip" title="Check this box if you want to prove ownership of organizations.">?</span>
+  </label>
+  {% endif %}
+  {% if allow_bitbucket_logins %}
+  <a id="bbbutton" class="oAuthButton" href="#" onclick="gotoCond('{{ url_for('auth.login_with_provider', prov='bb', level='user') }}')">
+    <svg width="300px" height="60px" xmlns="http://www.w3.org/2000/svg">
+      <image x="8" y="8" height="43px" width="44px" href="{{ url_for('static', filename='img/bblogo.png') }}"/>
+      <text x="65" y="38" fill="#222">Sign in with BitBucket</text>
+    </svg>
+  </a>
+  {% endif %}
+  {% if tos_js or prpo_js %}
+  <div id="agreements">
+    {% if use_checkboxes %}
+      {% if tos_js %}
+      <div class="agreement">
+        <label>
+          <input type="checkbox" name="cb_tos">
+          I have read and agree to the <a href="#" onclick="{{tos_js}}">Terms of Service</a>.
+        </label>
+      </div>
+      {% endif %}
+      {% if prpo_js %}
+      <div class="agreement">
+        <label>
+          <input type="checkbox" name="cb_prpo">
+          I have read and agree to the <a href="#" onclick="{{prpo_js}}">Privacy Policy</a>.
+        </label>
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="agreement">
+        By signing in you agree to the
+        {% if tos_js %}<a href="#" onclick="{{tos_js}}">Terms of Service</a>{% endif %}
+        {% if tos_js and prpo_js %}and{% endif %}
+        {% if prpo_js %}<a href="#" onclick="{{prpo_js}}">Privacy Policy</a>{% endif %}
+        .
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% if allow_test_repo_logins %}
+<div id="testLogins">
+  <span class="title">test.user.repo</span>
+  <form action="{{ url_for('auth.login_as_test_repo_owner') }}" method="POST">
+    <p>
+        <label>Username:<input type="text" name="username"></label>
+    </p>
+    <p>
+        <label>Password:<input type="text" name="password"></label>
+    </p>
+    <p>
+        <label title="Comma-separated list, no spaces">Owned Orgs:<input type="text" name="orgs"></label>
+    </p>
+    <p>
+      <input type="submit" value="Submit">
+    </p>
+  </form>
+</div>
+{% endif %}
+<script type="text/javascript">
+  function gotoCond(path) {
+    if (path.endsWith('/gh/user')) {
+      const cb = document.querySelector('#gh_orgs');
+      if (cb.checked) {
+        path = path.slice(0, -4) + 'owner';
+      }
+    }
+    const cba = Array.from(document.querySelectorAll('.agreement input[type=checkbox]'));
+    if (cba.every(cb => cb.checked)) {
+      window.location.pathname = path;
+    } else {
+      cba.forEach(cb => {
+        if (!cb.checked) {
+          const L = cb.parentElement;
+          L.style.background = 'yellow';
+          setTimeout(() => { L.style.background = 'none'; }, 300);
+        }
+      });
+    }
+  }
+</script>
+{% endblock %}

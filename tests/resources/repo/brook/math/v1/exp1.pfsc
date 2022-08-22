@@ -1,0 +1,13 @@
+
+from test.alex.math.thm1 import Pf
+
+deduc X1 of Pf.A2 {
+
+    asrt B1 {
+        en = "Some new label text"
+    }
+
+    meson = "From B1 get Pf.A2."
+
+}
+

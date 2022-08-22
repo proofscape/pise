@@ -1,0 +1,10 @@
+# These packages are required for a working app.
+# However, we do not want `pip` to automatically install their dependencies.
+# These have to be listed in a separate file, because `pip` does not allow
+# you to apply the `--no-deps` option on a per-requirement basis; it applies
+# to a whole run, or not at all.
+
+# NOTE: If you upgrade gremlinpython, you must review its latest dependencies,
+# and update the corresponding list in the `requirements.in` file accordingly.
+gremlinpython==3.6.0
+wsc-grempy-transport==0.1.0

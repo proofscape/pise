@@ -1,0 +1,26 @@
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm.C {
+
+    asrt R {
+        en = "Something self-evident"
+    }
+
+    asrt S {
+        en = "An easy consequence"
+    }
+
+    meson = "
+    R, so S, therefore Thm.C
+    "
+
+}

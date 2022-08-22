@@ -1,0 +1,6 @@
+[run]
+omit =
+    pfsc/examp/*
+    pfsc/handlers/examp.py
+    pfsc/blueprints/testbp.py
+    venv/*

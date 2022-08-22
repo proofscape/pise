@@ -1,0 +1,43 @@
+anno Notes1 @@@
+
+Cyclic dependency between param widgets?
+
+<param:eg1_f>[]{
+    ptype: "Foo",
+    name: "f",
+    import: {
+        b: eg1_b,
+    },
+}
+
+<param:eg1_b>[]{
+    ptype: "Bar",
+    name: "b",
+    import: {
+        f: eg1_f,
+    },
+}
+
+Ans: No, can't even get past build, because the first widget tries
+to reference the second, which hasn't been defined yet.
+
+@@@
+
+anno Notes2 @@@
+
+This time both widgets should build.
+
+<param:eg1_f>[]{
+    ptype: "Prime",
+    name: "f",
+}
+
+<param:eg1_b>[]{
+    ptype: "Prime",
+    name: "b",
+    import: {
+        f: eg1_f,
+    },
+}
+
+@@@

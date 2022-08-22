@@ -1,0 +1,81 @@
+
+from ..results import Pf
+
+deduc X of Pf.S {
+
+    asrt A1 {
+        en = "A thing that helps to clarify"
+    }
+
+    asrt A2 {
+        en = "Another thing"
+    }
+
+    meson="
+    Pf.S by A1 and A2 and Pf.R.
+    "
+
+}
+
+anno Notes1 @@@
+Some enlightening notes...
+with a <chart:w10>[chart widget with *cool equation* $@e sup i pie; + 1 = 0$ in the label]{
+    "view": "Pf"
+}
+This time we give it its own name, and even put it in a different pane group.
+Now let's add checkboxes.
+<chart:w20>[]{
+    "view": "X",
+    "group": 2,
+    "checkboxes": {
+        "deducs": "Pf"
+    }
+}
+@@@
+
+anno Notes2 @@@
+And let's also add another annotation. This time, let's have
+<qna:q1>[a widget where]{
+    "question":"one of the strings",
+    "answer":"has an unmatched open brace ({) in it"
+}
+and
+<qna:q2>[another widget where]{
+    "question":"one of the strings",
+    "answer":"has an unmatched close brace (}) in it"
+}
+and while we're at it, let's have
+<qna:q3>[a widget where]{
+    "question":"one of the strings",
+    "answer":"is
+             multiline,
+             and has an escaped quotation mark (\") within it.
+             "
+}
+and just for good measure, let's have
+<qna:q4>[a widget where]{
+    "question":"one of the strings",
+    "answer":"combines
+          several
+               of
+                   these
+               }}}{{{{}{}{ \"\"   {\"  }}} \" {{{{}} }{ {{ \"
+             things.
+             "
+}
+@@@
+
+anno Notes3 @@@
+# Testing goal widget altpaths
+
+<goal:w1>[This is a goal]{
+    altpath: "Notes3.w2"
+}
+
+<goal:w2>[This is another goal]{
+    altpath: "w2"
+}
+
+<goal:w3>[This is yet another goal]{
+}
+@@@

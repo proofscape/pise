@@ -1,0 +1,15 @@
+# Top-level dev requirements
+#   These packages are useful or required in development, but are not
+#   necessary for a working app.
+
+# Ensure consistency:
+-c requirements.txt
+
+pytest==6.2.3
+pytest-cov==2.11.1
+
+# While pfsc-server does not need pfsc-examp in order to run (pfsc-examp
+# is instead delivered to the user's browser via Pyodide) we do have unit
+# tests here in pfsc-server that help test code living in the pfsc-examp
+# project. So for testing we do install it.
+pfsc-examp==0.22.8

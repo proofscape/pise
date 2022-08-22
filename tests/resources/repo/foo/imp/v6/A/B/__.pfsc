@@ -1,0 +1,7 @@
+# Attempt to import something from self, using relative path.
+
+from ..B import b
+
+anno b @@@
+b
+@@@

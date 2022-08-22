@@ -1,0 +1,10 @@
+# Testing requirements that are installed without a hash, either because
+# their source is a local dir, or because it is from a github tag.
+
+# During development, may need some editable, local installs.
+#-e ../pfsc-test-modules/
+#-e ../pfsc-examp
+#-e ../displaylang
+#-e ../sympy
+
+git+https://github.com/proofscape/pfsc-test-modules.git@v0.22.9

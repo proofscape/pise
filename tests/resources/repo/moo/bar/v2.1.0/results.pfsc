@@ -1,0 +1,42 @@
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm.C {
+
+    asrt R {
+        en = "Something self-evident"
+    }
+
+    asrt U {
+        en = "Another necessary ingredient"
+    }
+
+    exis E {
+        en = "There exists % such that"
+        intr I1 {
+            sy="I1"
+        }
+        intr I2 {
+            sy="I2"
+        }
+        asrt A1 {
+            sy="A1"
+        }
+        asrt A2 {
+            sy="A2"
+        }
+    }
+
+    meson = "
+    R, therefore Thm.C by U and E.
+    "
+
+}

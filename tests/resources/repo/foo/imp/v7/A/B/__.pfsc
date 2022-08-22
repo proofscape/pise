@@ -1,0 +1,7 @@
+# Attempt to import something from self, using absolute path.
+
+from test.foo.imp.A.B import b
+
+anno b @@@
+b
+@@@

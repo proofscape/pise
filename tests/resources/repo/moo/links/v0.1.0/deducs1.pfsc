@@ -1,0 +1,81 @@
+deduc Thm {
+
+   asrt A10 {
+       en="Foo!"
+   }
+
+   meson="A10."
+
+}
+
+anno Foo @@@
+Bar!
+
+This is <goal:w1>[a goal]{}.
+@@@
+
+
+defn K '$K$' 'a Galois\' field'
+defn E "$E$" "an \"extension\" over $K$"
+
+deduc Pf1 of Thm.A10 with K, E {
+
+   asrt A20 {
+       en="
+       [extlink](https://proofscape.org) **and**
+       [nodelink](Thm.A10) _and_
+       [`annolink`](notes:Foo) and
+       [`widgetlink`](notes:Foo.w1).
+       "
+   }
+
+   asrt A40 {
+       en="<script>alert('foo');</script>"
+   }
+
+   asrt A50 {
+       en="
+       Here is an icosahedron:
+       ![icosahedron](https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Uniform_polyhedron-33-s012.svg/75px-Uniform_polyhedron-33-s012.svg.png)
+       and here is an image that doesn't load:
+       ![nosuchimg](https://example.com/idontexist.png)
+       "
+   }
+
+   meson="Thm.A10 by A20 and A40 and A50."
+
+}
+
+deduc Pf2 of Thm.A10 {
+
+    subdeduc Cs1 {
+        supp S {
+            en="Case 1"
+        }
+        flse F contra S {}
+        meson="Suppose S. then F."
+    }
+
+    subdeduc Cs2 {
+        supp S {
+            en="Case 2"
+        }
+        flse F contra S {}
+        meson="Suppose S. then F."
+    }
+
+    subdeduc Cs3 {
+        supp S versus Cs1.S, Cs2.S {
+            en="Case 3"
+        }
+        flse F contra S {}
+        meson="Suppose S. then F."
+    }
+
+    flse F {}
+
+    meson="
+    F by Cs1.F and Cs2.F and Cs3.F,
+    hence Thm.A10.
+    "
+}

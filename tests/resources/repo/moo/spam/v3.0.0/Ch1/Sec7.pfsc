@@ -1,0 +1,64 @@
+anno Notes @@@
+Discussion...
+@@@
+
+deduc Thm14 {
+    asrt C {
+        en="C"
+    }
+    meson="C"
+}
+
+deduc Thm15 {
+
+    supp S {
+        en="S"
+    }
+
+    asrt C {
+        en="C"
+    }
+
+    meson="Suppose S. Then C."
+}
+
+deduc Pf15 of Thm15.C {
+
+    asrt A10 {
+        en="A10"
+    }
+
+    exis E20 {
+        en="There exists % such that"
+        intr I1 {
+            en="I1"
+        }
+        intr I2 {
+            en="I2"
+        }
+        asrt A3 {
+            en="A3"
+        }
+        asrt A4 {
+            en="A4"
+        }
+    }
+
+    asrt A30 {
+        en="A30"
+    }
+
+    asrt A40 {
+        en="A40"
+    }
+
+    asrt A60 {
+        en="A60"
+    }
+
+    meson="
+    From A10 and E20 get A30.
+    But A60 by A40.
+    So Thm15.C using A30.
+    "
+}

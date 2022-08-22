@@ -1,0 +1,10 @@
+# Top-level dev requirements
+#   These packages are useful or required in development, but are not
+#   necessary for a working app.
+
+# Ensure consistency:
+-c requirements.txt
+-c test-requirements.txt
+
+pip-tools==6.6.2
+rq-dashboard==0.6.1

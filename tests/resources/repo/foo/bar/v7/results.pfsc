@@ -1,0 +1,40 @@
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+    }
+
+    meson = "C"
+
+}
+
+# This time suppose it was a proof by contradiction, broken into two cases.
+
+deduc Pf of Thm.C {
+
+    supp S { en="Suppose not C." }
+
+    supp T wolog { en="Consider a case to which all others obviously reduce." }
+
+    subdeduc Case1 {
+        supp S { en="The assumption of the first case." }
+        flse F contra S {}
+        meson="Suppose S. Then F."
+    }
+
+    subdeduc Case2 {
+        supp S versus Case1.S { en="The assumption of the second case." }
+        flse F contra S {}
+        meson="Suppose S. Then F."
+    }
+
+    flse F contra S {}
+
+    meson="
+    Suppose S. Suppose T.
+    Next Case1.
+    From Case1.F and Case2.F get F.
+    Therefore Thm.C.
+    "
+}

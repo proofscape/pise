@@ -1,0 +1,7 @@
+
+from test.moo.bar.results import Pf
+
+anno Notes @@@
+The import should fail, because we're trying to import from
+a release of test.moo.bar (v3.0.0) that doesn't exist yet.
+@@@

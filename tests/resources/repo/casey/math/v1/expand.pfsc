@@ -1,0 +1,13 @@
+
+from test.brook.math.exp1 import X1
+
+deduc W1 of X1.B1 {
+
+    asrt C1 {}
+
+    meson = "C1 implies X1.B1."
+
+}
+
+# We had to delete our expansion on X1.B2,
+# since that node was removed.

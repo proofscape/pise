@@ -1,0 +1,13 @@
+{{branding_img_title}} logo <{{branding_img_url}}>
+
+Hi {{userpath}},
+
+We have received your request for hosting {{hosting_phrase}}:
+
+Repo: {{repopath}}
+Version: {{version}}
+Comment: {{comment}}
+
+We'll try to get back to you as soon as possible!
+
+*Please do not reply to this automated email.*

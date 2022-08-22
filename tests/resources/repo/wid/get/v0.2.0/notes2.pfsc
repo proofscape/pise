@@ -1,0 +1,19 @@
+from ..notes import Notes
+
+anno Notes2 @@@
+# Great Title Again
+
+<ctl:>[]{
+    section_numbers: {
+        top_level: 2
+    }
+}
+
+Earlier we gave <link:w1>[some commentary]{ref: Notes} on the proof.
+
+## Another Cool Section Title
+
+While the main title of these notes should _not_ have a section
+number, the title of this section _should_ have one.
+
+@@@

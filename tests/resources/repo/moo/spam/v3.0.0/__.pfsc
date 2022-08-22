@@ -1,0 +1,8 @@
+change_log={
+    moved: {
+        "Ch1.Sec8": null,
+        "Ch1.Sec8.Thm15": "Ch1.Sec7.Thm15",
+        "Ch1.Sec8.Pf": "Ch1.Sec7.Pf15",
+        "Ch1.Sec8.Pf.A50": null,
+    }
+}

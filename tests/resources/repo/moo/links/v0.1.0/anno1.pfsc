@@ -1,0 +1,7 @@
+from ..deducs1 import Foo
+
+anno Notes @@@
+
+This is <link:w1>[a link]{ref: Foo} to another annotation.
+
+@@@

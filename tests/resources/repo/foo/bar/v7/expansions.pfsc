@@ -1,0 +1,59 @@
+
+from ..results import Thm
+
+# An alternative proof of the same theorem, in three cases:
+
+deduc Pf1 of Thm.C {
+
+    subdeduc Case1 {
+        supp S { en="Case1" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    subdeduc Case2 {
+        supp S versus Case1.S { en="Case2" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    subdeduc Case3 {
+        supp S versus Case2.S { en="Case3" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    meson="
+    Thm.C by Case1.A and Case2.A and Case3.A.
+    "
+
+}
+
+# And another, this time using different syntax to link the cases
+# (namely, `versus` declared only in the third case):
+
+deduc Pf2 of Thm.C {
+
+    subdeduc Case1 {
+        supp S { en="Case1" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    subdeduc Case2 {
+        supp S { en="Case2" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    subdeduc Case3 {
+        supp S versus Case1.S, Case2.S { en="Case3" }
+        asrt A { en="Yup" }
+        meson="Suppose S. Then A."
+    }
+
+    meson="
+    Thm.C by Case1.A and Case2.A and Case3.A.
+    "
+
+}

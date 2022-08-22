@@ -1,0 +1,7 @@
+from ..notes import Notes
+
+anno Notes2 @@@
+
+Earlier we gave <link:w1>[some commentary]{ref: Notes} on the proof.
+
+@@@

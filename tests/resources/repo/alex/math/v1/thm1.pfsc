@@ -1,0 +1,25 @@
+
+deduc Thm1 {
+
+    asrt C {
+        en="Theorem statement"
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm1.C {
+
+    asrt A1 {
+        en="Reason1"
+    }
+
+    asrt A2 {
+        en="Reason2"
+    }
+
+    meson = "Thm1.C by A1 and A2."
+
+}
+

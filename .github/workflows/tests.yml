@@ -1,0 +1,56 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  unit-tests:
+    runs-on: ubuntu-22.04
+    services:
+      redis:
+        image: "redis:6.2.1"
+        ports:
+          - "6379:6379"
+      redisgraph:
+        image: "redislabs/redisgraph:2.4.13"
+        ports: 
+          - "6381:6379"
+      tinkergraph:
+        image: "tinkerpop/gremlin-server:3.6.0"
+        ports: 
+          - "8182:8182"
+    strategy:
+      matrix:
+        graphdb: ['Cypher: RedisGraph', 'Gremlin: TinkerGraph']
+    defaults:
+      run:
+        shell: bash
+        working-directory: src/pfsc-server
+    env:
+      REDIS_URI: redis://localhost:6379
+      GRAPHDB_URI: ${{ startsWith(matrix.graphdb, 'C') && 'redis://localhost:6381' || 'ws://localhost:8182/gremlin' }}
+      PFSC_LIB_ROOT: ${{ format('{0}/lib', github.workspace) }}
+      PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
+      SECRET_KEY: fixed_value_for_testing
+    steps:
+      - name: Make directory structure
+        working-directory: .
+        run: mkdir -p {lib,build,src/pfsc-server}
+      - name: Checkout pfsc-server
+        uses: actions/checkout@v3
+        with:
+          path: 'src/pfsc-server'
+      - name: Install Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+      - name: Install pfsc-server requirements
+        run: |
+          python -m pip install --upgrade pip
+          ./req/install_testing.sh
+      - name: Make test repos
+        run: |
+          git config --global user.email "pfsc.unit.tester@localhost"
+          git config --global user.name "pfsc unit tester"
+          python -m tests.util.make_repos
+      - name: Build test repos
+        run : python -m tests.util.build_repos
+      - name: Run unit tests
+        run: pytest tests

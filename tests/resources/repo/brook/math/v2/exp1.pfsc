@@ -1,0 +1,29 @@
+
+from test.alex.math.thm1 import Pf
+from test.alex.math.thm2 import Pf2
+
+deduc X1 of Pf.A2 {
+
+    asrt B1 {}
+
+    asrt B2 {}
+
+    meson = "From B1 and B2 get Pf.A2."
+
+}
+
+deduc X2 of Pf.A1 {
+
+    asrt B3 {}
+
+    meson = "From B3 get Pf.A1."
+
+}
+
+deduc X3 of Pf2.A4 {
+
+    asrt B4 {}
+
+    meson = "From B4 get Pf2.A4."
+
+}

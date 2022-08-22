@@ -1,0 +1,9 @@
+change_log = {
+    moved: {
+        "expand.W2": null,
+    }
+}
+
+dependencies = {
+    "test.brook.math": "v1.0.0",
+}

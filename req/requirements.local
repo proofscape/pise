@@ -1,0 +1,8 @@
+# Run requirements that are being installed locally,
+# i.e. from a neighboring directory, during development.
+
+# For now we don't have any of these, but we keep in commented form those we
+# used to have. During development, may once again need to install these
+# editable, from local, working copy.
+
+#-e ../pfsc-util

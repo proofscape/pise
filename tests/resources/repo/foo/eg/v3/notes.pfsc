@@ -1,0 +1,45 @@
+anno Notes @@@
+
+<param:eg1_theta>[]{
+    ptype: "Integer",
+    name: "theta",
+    tex: "n",
+    default: 12,
+    args: {
+        gt: 5,
+    },
+}
+
+This parameter references parameter `theta` via import. It wants to say that
+this divisor shall divide the integer `theta`.
+
+<param:eg1_d>[]{
+    ptype: "Divisor",
+    name: "d",
+    default: 3,
+    import: {
+        theta: eg1_theta,
+    },
+    args: {
+        dividing: "theta",
+    },
+}
+
+This parameter wants to specify that the numberfield shall use `"theta"` as the
+symbol for a primitive element of the field. So it does _not_ want to refer to
+the parameter widget `theta`, and does not import it.
+
+<param:eg1_K>[]{
+    ptype: "NumberField",
+    name: "K",
+    default: "x^2 + 5",
+    args: {
+        gen: "theta",
+    }
+}
+
+In both d and K we used the string "theta" as the value of an arg. But the
+interpretation was different because in one case we had imported a parameter
+under this name, and in the other case we had not.
+
+@@@

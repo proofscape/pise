@@ -1,0 +1,15 @@
+{{branding_img_title}} logo <{{branding_img_url}}>
+
+Dear reviewer:
+
+A request has been received for hosting {{ hosting_phrase }}:
+
+User: {{userpath}}
+User email: {{user_email_addr}}
+Repo: {{repopath}}
+Version: {{version}}
+Comment: {{comment}}
+
+Please try to review and make a decision as soon as possible!
+
+*Please do not reply to this automated email.*

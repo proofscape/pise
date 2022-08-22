@@ -1,0 +1,7 @@
+# Attempt to do a plain relative import with no local name.
+
+import ...A
+
+anno b @@@
+b
+@@@

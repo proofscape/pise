@@ -1,0 +1,28 @@
+
+deduc foo {
+
+    asrt A10 {
+        sy="A10"
+    }
+
+    intr I20 {
+        sy="I20"
+    }
+
+    asrt A30 {
+        sy="A30"
+    }
+
+    asrt A40 {
+        sy="A40"
+    }
+
+    asrt A50 {
+        sy="A50"
+    }
+
+    meson = "
+    A10. Now let I20. ..> A30 --> A40 <-- A50.
+    "
+
+}

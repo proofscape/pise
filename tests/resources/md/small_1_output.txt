@@ -1,0 +1,4 @@
+<p>This one does not use VerTeX: $x &lt; 3$.
+This one does: $x&lt;3$.
+Let's see an array: $\begin{array}{cc} a &amp; b \\ c &amp; d \end{array}$
+And let's see how to do that in VerTeX: $\begin{array}{cc} a&amp; b\\ c&amp; d\\\end{array}$</p>

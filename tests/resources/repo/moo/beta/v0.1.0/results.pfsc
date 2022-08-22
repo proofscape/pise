@@ -1,0 +1,7 @@
+
+deduc Thm {
+    asrt C {
+        sy="C"
+    }
+    meson="C"
+}

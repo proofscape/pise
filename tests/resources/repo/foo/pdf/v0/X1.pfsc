@@ -1,0 +1,11 @@
+from .. import pdf1
+from ..results import Pf
+
+# Here the combiner code is fine, but the pdf info is malformed.
+
+deduc X1 of Pf.S {
+    asrt A1 {
+        pdfL = "pdf1#v2;s3;(146:1758:2666:814:390:279:45);n;x+35;y+4;(146:1758:2666:1095:386:205:49)"
+    }
+    meson="Pf.S by A1 and Pf.R."
+}

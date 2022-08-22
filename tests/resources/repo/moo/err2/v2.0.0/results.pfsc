@@ -1,0 +1,33 @@
+
+deduc Thm1 {
+
+    asrt C {
+        en="C"
+    }
+    meson="C"
+}
+
+deduc Thm2 {
+
+    asrt C {
+        en="C"
+    }
+    meson="C"
+}
+
+# We try to retarget `Pf` at `Thm2` instead of `Thm1`.
+# By doing this, we want to raise the exception that says that
+# no node can have multiple `EXPANDS` edges leaving it.
+# A subtle point: In order to trigger the exception we want, we
+# have to ensure that this proof still contains the ghost node
+# `Pf.Thm1.C`. Otherwise the disappearance of that ghost node
+# will be caught as an exception (since we didn't mention it in
+# our change log), before we can hit the exception we want.
+deduc Pf of Thm2.C {
+
+    asrt A {
+        en="A"
+    }
+
+    meson="Thm2.C by A and Thm1.C."
+}

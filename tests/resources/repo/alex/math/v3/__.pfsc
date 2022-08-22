@@ -1,0 +1,5 @@
+change_log = {
+    moved: {
+        "thm2.Pf": "thm2.Pf13",
+    }
+}

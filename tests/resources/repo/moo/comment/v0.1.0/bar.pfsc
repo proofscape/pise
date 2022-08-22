@@ -1,0 +1,37 @@
+# This module contains commentary on the theorems presented in
+# the repo `test.moo.bar`.
+
+from test.moo.bar.results import Pf
+
+anno NotesS on Pf.S @@@
+These are some notes on node `S` in the proof.
+
+And <goal:>[this]{} is a goal widget.
+@@@
+
+deduc xpan_S of Pf.S {
+
+    asrt A {
+        en = "A supporting fact."
+    }
+
+    meson = "
+    Pf.S by A and Pf.R.
+    "
+}
+
+anno NotesT on Pf.T @@@
+These are some notes on node `T` in the proof.
+@@@
+
+deduc xpan_T of Pf.T {
+
+    asrt B {
+        en = "An underlying observation."
+    }
+
+    meson = "
+    Pf.T by B.
+    "
+
+}

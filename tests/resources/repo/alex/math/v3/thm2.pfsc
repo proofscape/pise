@@ -1,0 +1,44 @@
+
+deduc Thm2 {
+
+    intr I {
+        en="Define some stuff."
+    }
+
+    asrt C1 {
+        en="This is a..."
+    }
+
+    asrt C2 {
+        en="...multi-conclusion..."
+    }
+
+    asrt C3 {
+        en="...theorem statement."
+    }
+
+    meson = "Let I. Then C1 and C2 and C3."
+
+}
+
+# Now we decide to rename this proof.
+# The indexer will see this as the deletion of the old one plus
+# the creation of a new one.
+deduc Pf13 of Thm2.C1, Thm2.C3 {
+
+    asrt A3 {
+        en="ReasonA3"
+    }
+
+    meson = "From A3 get Thm2.C1 and Thm2.C3."
+}
+
+deduc Pf2 of Thm2.C2 {
+
+    asrt A4 {
+        en="ReasonA4"
+    }
+
+    meson = "A4 implies Thm2.C2."
+
+}
