@@ -23,7 +23,7 @@ import sys
 from collections import defaultdict
 
 from lark import Lark, Transformer
-from lark.exceptions import VisitError, UnexpectedInput
+from lark.exceptions import VisitError, LarkError
 
 from pfsc.excep import PfscExcep, PECode
 
@@ -845,13 +845,13 @@ def build_graph_from_arcs(arc_listing):
         tree = arc_parser.parse(arc_listing)
         alt = ArcLangTransformer()
         graph = alt.transform(tree)
-    except UnexpectedInput as u:
-        msg = 'Arclang parsing error: ' + str(u)
-        raise PfscExcep(msg, PECode.ARCLANG_ERROR) from u
     except VisitError as v:
         # Lark traps our PfscExceps, re-raising them within a VisitError.
         # We want to see the PfscExcep.
         raise v.orig_exc from v
+    except LarkError as e:
+        msg = 'Arclang parsing error: ' + str(e)
+        raise PfscExcep(msg, PECode.ARCLANG_ERROR) from e
     return graph
 
 def build_graph_from_meson(meson_script):
@@ -862,11 +862,11 @@ def build_graph_from_meson(meson_script):
         tree = meson_parser.parse(meson_script)
         mt = MesonTransformer()
         graph = mt.transform(tree)
-    except UnexpectedInput as u:
-        msg = 'Meson parsing error: ' + str(u)
-        raise PfscExcep(msg, PECode.MESON_ERROR) from u
     except VisitError as v:
         # Lark traps our PfscExceps, re-raising them within a VisitError.
         # We want to see the PfscExcep.
         raise v.orig_exc from v
+    except LarkError as e:
+        msg = 'Meson parsing error: ' + str(e)
+        raise PfscExcep(msg, PECode.MESON_ERROR) from e
     return graph
