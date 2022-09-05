@@ -33,7 +33,7 @@ if bool(int(os.getenv("LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR", 0))):
 
 # Default versions for supporting software are set in pfsc.ini
 cp = ConfigParser()
-cp.read('pfsc.ini')
+cp.read(os.path.join(BASE_DIR, 'pfsc.ini'))
 DEFAULT_VERSIONS = {
     name: cp.get('versions', name)
     for name in ['ise', 'elkjs', 'mathjax', 'pyodide', 'examp']
