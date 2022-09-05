@@ -281,6 +281,17 @@ deduc Thm {
 def test_strip_comments(text, expected):
     assert strip_comments(text) == expected
 
+
+@pytest.mark.psm
+def test_empty_meson_script(app):
+    with app.app_context():
+        ri = RepoInfo('test.foo.bar')
+        ri.checkout('v15')
+        with pytest.raises(PfscExcep) as ei:
+            load_module('test.foo.bar.results', caching=0)
+        assert ei.value.code() == PECode.DEDUCTION_DEFINES_NO_GRAPH
+
+
 ######################################################################
 # Manual testing
 

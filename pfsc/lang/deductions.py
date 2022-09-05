@@ -608,8 +608,8 @@ class Deduction(Enrichment, NodeLikeObj):
 
     def buildGraph(self):
         # Every deduc must define either a Meson Script, or an Arc Listing.
-        meson_script = self.get('meson')
-        arc_listing  = self.get('arcs')
+        meson_script = self.get('meson', '').strip()
+        arc_listing  = self.get('arcs', '').strip()
         # All free strings in pfsc modules are HTML-escaped at parse time,
         # and come to us as instances of the `Markdown` class. Arc listings
         # use angle brackets, and even Meson scripts now allow arrows as
