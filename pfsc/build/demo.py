@@ -43,8 +43,8 @@ demo_repo_lead_comment_template = """\
 # %(delta)s from the time this module was created.
 # Please plan accordingly!
 #
-# Also if you close your browser (or delete your cookies) you will not be able
-# to access this demo repo again, even if it has not been deleted yet.
+# Also, if you close your browser (or delete your cookies) you will not be able
+# to access this copy of the demo repo again, even if it has not been deleted yet.
 #
 # Tips:
 #   * Right-click tree items for many options
