@@ -835,7 +835,7 @@ class Node(NodeLikeObj):
         self.textRange = (row0, col0, row1, col1)
 
     def resolvePdfRefs(self):
-        pdf_reference_names = ['pdfL']
+        pdf_reference_names = ['pdf']
         mod = self.getModule()
         for name in pdf_reference_names:
             ref_text = self.get(name)
@@ -844,8 +844,8 @@ class Node(NodeLikeObj):
                 self.pdfReferences[name] = ref
 
     def getReferencedPdfInfos(self):
-        if 'pdfL' in self.pdfReferences:
-            ref = self.pdfReferences['pdfL']
+        if 'pdf' in self.pdfReferences:
+            ref = self.pdfReferences['pdf']
             return ref.get_info_lookup()
         return {}
 
@@ -913,8 +913,8 @@ class Node(NodeLikeObj):
         dg['intraDeducPath'] = self.getIntradeducPath()
         dg['textRange'] = self.textRange
 
-        if 'pdfL' in self.pdfReferences:
-            ref = self.pdfReferences['pdfL']
+        if 'pdf' in self.pdfReferences:
+            ref = self.pdfReferences['pdf']
             dg['pdfRef'] = ref.combiner_code
             dg['pdfFingerprint'] = ref.fingerprint
 
@@ -991,8 +991,8 @@ class Node(NodeLikeObj):
         text = mistletoe.markdown(text, renderer)
 
         # Add a PDF label if defined.
-        if 'pdfL' in self.pdfReferences:
-            ref = self.pdfReferences['pdfL']
+        if 'pdf' in self.pdfReferences:
+            ref = self.pdfReferences['pdf']
             text += ref.write_pdf_render_div()
 
         return text

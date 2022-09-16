@@ -30,7 +30,7 @@ class PdfReference:
     def __init__(self, full_code, context):
         """
         :param full_code: a code such as may appear in a Node, as the
-          value of its `pdfL` attribute.
+          value of its `pdf` attribute.
         :param context: a PfscObj in which to search for referenced pdf info.
         """
         if not isinstance(full_code, str): raise malformedReferenceCodeError(full_code)
