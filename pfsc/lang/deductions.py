@@ -924,7 +924,9 @@ class Node(NodeLikeObj):
             # Prescribed size for the node:
             'size',
             # Formal representation using SymPy:
-            'py',
+            'sympy',
+            # Formal representation using Lean:
+            'lean',
         ]
         for k in optional:
             v = self.get(k)
