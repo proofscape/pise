@@ -313,10 +313,6 @@ class SourceLoader(Handler):
             self.check_repo_read_permission(rp, pfsc.constants.WIP_TAG,
                                             action='load work in progress from')
 
-    def confirm(self, versions):
-        for vers in versions:
-            self.check_wip_mode(vers, subject='Modules', verb='loaded')
-
     def go_ahead(self, libpaths, versions, cache_code):
         source_lookup = {}
         for libpath, vers in zip(libpaths, versions):

@@ -18,9 +18,11 @@
 
 import os
 from datetime import datetime, timedelta, timezone
+import json
 
 import pytest
 
+from tests import handleAsJson
 from pfsc import check_config
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (
@@ -31,6 +33,8 @@ from pfsc.build.demo import (
     cancel_scheduled_demo_repo_deletion,
 )
 from pfsc.util import count_pfsc_modules
+from pfsc.constants import ISE_PREFIX, SYNC_JOB_RESPONSE_KEY
+
 
 # Is there a way to reference fixtures (like `app`) in a `skipif`?
 #@pytest.mark.skipif(not app.config.get("PFSC_DEMO_ROOT"))
@@ -47,6 +51,7 @@ def test_make_and_delete_demo_repo(app):
         assert count_pfsc_modules(ri.abs_fs_path_to_dir) > 0
         delete_demo_repo(repopath)
         assert not os.path.exists(ri.abs_fs_path_to_dir)
+
 
 def test_schedule_demo_repo_deletion(app):
     if not app.config.get("PFSC_DEMO_ROOT"):
@@ -80,6 +85,7 @@ def test_schedule_demo_repo_deletion(app):
         delete_demo_repo(repopath)
         assert not os.path.exists(ri.abs_fs_path_to_dir)
 
+
 @pytest.mark.parametrize('user, repo', [
     ['D935MN8', 'workbook'],
 ])
@@ -93,4 +99,58 @@ def test_delete_demo_repo(app, user, repo):
     print()
     with app.app_context():
         repopath = f'demo.{user}.{repo}'
+        delete_demo_repo(repopath)
+
+
+@pytest.mark.wip(False)
+def test_work_when_wip_not_allowed(client, repos_ready):
+    """
+    Not logged in, WIP not allowed.
+    Test that we can:
+    * Build and load a demo repo
+    * Load source from the new demo repo
+    * Rebuild a module from the new demo repo
+    """
+    if not client.app.config.get("PFSC_DEMO_ROOT"):
+        return
+
+    # Build and load repo
+    repopath = 'demo._.workbook'
+    resp = client.get(f'{ISE_PREFIX}/loadRepoTree?repopath={repopath}')
+    d = handleAsJson(resp)
+    print()
+    print(json.dumps(d, indent=4))
+    assert d['built'] is False
+    assert d[SYNC_JOB_RESPONSE_KEY]['built'] is True
+    assert d[SYNC_JOB_RESPONSE_KEY]['made_demo'] is True
+    repopath = d['repopath']
+
+    # Load source
+    resp = client.get(f'{ISE_PREFIX}/loadSource?libpaths={repopath}&versions=WIP')
+    d = handleAsJson(resp)
+    print()
+    print(json.dumps(d, indent=4))
+    assert d['err_lvl'] == 0
+    assert repopath in d['source']
+    src = d['source'][repopath]
+
+    # Rebuild module
+    r = {
+        'writepaths': [repopath],
+        'writetexts': [src + '\n# Foo!\n'],
+        'buildpaths': [repopath],
+        'recursives': [False],
+    }
+    j = json.dumps(r)
+    resp = client.post(f'{ISE_PREFIX}/writeAndBuild', data={
+        'info': j,
+    })
+    d = handleAsJson(resp)
+    print()
+    print(json.dumps(d, indent=4))
+    assert d['err_lvl'] == 0
+    assert d[SYNC_JOB_RESPONSE_KEY]['write'][0].startswith("Wrote")
+
+    # Clean up
+    with client.app.app_context():
         delete_demo_repo(repopath)
