@@ -106,8 +106,6 @@ class RepoLoader(RepoTaskHandler):
         self.version = vers.full
         self.is_wip = vers.isWIP
 
-        self.check_wip_mode(vers, subject='Repos', verb='opened')
-
         if ri.is_demo():
             msg = None
             if not check_config("PROVIDE_DEMO_REPOS"):
@@ -120,6 +118,8 @@ class RepoLoader(RepoTaskHandler):
             ri.user = demo_username
             true_repopath = ri.rebuild_libpath()
             self.repo_info = RepoInfo(true_repopath)
+        else:
+            self.check_wip_mode(vers, subject='Repos', verb='opened')
 
         # Both the repopath and the version we're finally ready to try to load
         # can be different from the values the user passed. The repopath can
@@ -191,6 +191,10 @@ class RepoLoader(RepoTaskHandler):
         elif is_demo:
             self.will_make_demo = True
             self.will_build = True
+            self.require_in_session(
+                pfsc.constants.DEMO_USERNAME_SESSION_KEY,
+                self.repo_info.user
+            )
         elif is_clonable and doClone:
             self.will_clone = True
             if doBuild:

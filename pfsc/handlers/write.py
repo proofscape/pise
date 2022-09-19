@@ -18,6 +18,8 @@
 
 import time
 
+from flask import has_request_context
+
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler, SocketHandler, Handler
@@ -246,6 +248,12 @@ class WriteHandler(RepoTaskHandler):
         ir = self.writerepos | self.buildrepos
         for aw in self.autowriters:
             ir |= aw.get_implicated_repopaths()
+        if ir and has_request_context():
+            # Only need this for demo repos, but doesn't hurt in other cases,
+            # so don't waste time checking if any repo is a demo repo.
+            self.require_in_session(
+                pfsc.constants.DEMO_USERNAME_SESSION_KEY
+            )
         self.implicated_repopaths = ir
 
     def go_ahead(self, writepaths, writetexts, shadowonly, buildpaths, recursives, autowrites):

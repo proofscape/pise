@@ -23,7 +23,7 @@ import inspect
 from uuid import uuid4
 
 from rq import get_current_job
-from flask import redirect, flash
+from flask import redirect, flash, has_request_context, session
 from flask_socketio import SocketIO
 from pottery import Redlock
 
@@ -685,8 +685,14 @@ def finish_socket_handler_process_with_app(handler):
         # By the time a job reaches them, we are past all questions of permissions.
         app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
-        handler.proceed()
-        handler.emit_standard_response()
+        d = getattr(handler, 'required_phony_session_dict', {})
+        need_rc = d and not has_request_context()
+        ctx_mgr = app.test_request_context() if need_rc else nullcontext()
+        with ctx_mgr:
+            for k, v in d.items():
+                session[k] = v
+            handler.proceed()
+            handler.emit_standard_response()
 
 
 class RepoTaskHandler(SocketHandler):
@@ -704,6 +710,28 @@ class RepoTaskHandler(SocketHandler):
         SocketHandler.__init__(self, request_info, room, recipSID=recipSID, namespace=namespace)
         self.implicated_repopaths = set()
         self.post_preparation_hooks.append(self.compute_implicated_repopaths)
+        self.required_phony_session_dict = {}
+
+    def require_in_session(self, *args):
+        """
+        If the handler is going to do delayed processing in a worker, that
+        processing will take place outside of a true Flask request context.
+        However, some handlers may need session variables, despite the lack of
+        a true request context. They can use this method to set session
+        variables they will require, and then the delayed processing will be
+        given a phony request context, in which these session vars are set.
+
+        :param args: Pass key and value, or just key. If just key, we read the
+            value from the current session.
+        """
+        if len(args) == 2:
+            k, v = args
+        elif len(args) == 1:
+            k = args[0]
+            v = session.get(k)
+        else:
+            raise ValueError('Must pass one or two args')
+        self.required_phony_session_dict[k] = v
 
     def get_implicated_repopaths(self):
         return self.implicated_repopaths
