@@ -545,6 +545,19 @@ class StateArgMaker(Handler):
             self.set_response_field('args', j_args)
 
 
+def logins_are_possible():
+    """
+    Say whether there is any way to log in, under the current configuration.
+    """
+    return any(
+        current_app.config[v] for v in [
+            "ALLOW_GITHUB_LOGINS",
+            "ALLOW_BITBUCKET_LOGINS",
+            "ALLOW_TEST_REPO_LOGINS",
+        ]
+    )
+
+
 class AppLoader(Handler):
     """
     Load the one-page ISE app.
@@ -736,6 +749,7 @@ class AppLoader(Handler):
             'tosVersion': current_app.config.get("TOS_VERSION"),
             'prpoURL': current_app.config.get("PRPO_URL"),
             'prpoVersion': current_app.config.get("PRPO_VERSION"),
+            'loginsPossible': logins_are_possible(),
         }
 
         if current_app.config["IS_OCA"]:

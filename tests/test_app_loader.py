@@ -48,6 +48,7 @@ state_0 = """\
     "tosVersion": null,
     "prpoURL": null,
     "prpoVersion": null,
+    "loginsPossible": true,
     "err_lvl": 0,
     "theme": "dark",
     "zoom": 120,
@@ -162,6 +163,7 @@ state_1 = """\
     "tosVersion": null,
     "prpoURL": null,
     "prpoVersion": null,
+    "loginsPossible": true,
     "err_lvl": 0,
     "content": {
         "tctStructure": [
@@ -222,6 +224,7 @@ state_2 = """\
     "tosVersion": null,
     "prpoURL": null,
     "prpoVersion": null,
+    "loginsPossible": true,
     "err_lvl": 0,
     "content": {
         "tctStructure": [
@@ -282,6 +285,7 @@ state_3 = """\
     "tosVersion": null,
     "prpoURL": null,
     "prpoVersion": null,
+    "loginsPossible": true,
     "err_lvl": 0,
     "content": {
         "tctStructure": [
@@ -378,6 +382,7 @@ state_4 = """\
     "tosVersion": null,
     "prpoURL": null,
     "prpoVersion": null,
+    "loginsPossible": true,
     "err_lvl": 0,
     "content": {
         "tctStructure": [
