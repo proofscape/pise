@@ -1,3 +1,10 @@
+## 0.23.5 (220920)
+
+Features:
+
+* Add `loginsPossible` to served state.
+
+
 ## 0.23.4 (220919)
 
 Bug Fixes:
