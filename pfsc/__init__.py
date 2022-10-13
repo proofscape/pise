@@ -196,6 +196,9 @@ def make_app(config_name=None):
     from . import rq
     rq.init_app(app)
 
+    from pfsc.blueprints import vstat
+    app.register_blueprint(vstat.bp, url_prefix=PREFIX)
+
     from pfsc.blueprints import root
     app.register_blueprint(root.bp, url_prefix=PREFIX)
 
@@ -235,9 +238,9 @@ def make_app(config_name=None):
         html = proxy_or_render("ERR_404_PROXY_URL", "error.html",
             title="Proofscape Error",
             css=[
-                url_for('static', filename='css/base.css'),
+                url_for('vstat.static', filename='css/base.css'),
             ],
-            img_src=url_for('static', filename='img/404.png'),
+            img_src=url_for('vstat.static', filename='img/404.png'),
             msg="Page not found!",
         )
         return html, 404
@@ -255,9 +258,9 @@ def make_app(config_name=None):
         html = proxy_or_render("ERR_500_PROXY_URL", "error.html",
             title="Proofscape Error",
             css=[
-                url_for('static', filename='css/base.css'),
+                url_for('vstat.static', filename='css/base.css'),
             ],
-            img_src=url_for('static', filename='img/500.png'),
+            img_src=url_for('vstat.static', filename='img/500.png'),
             msg="Internal System Error!",
         )
         return html, 500

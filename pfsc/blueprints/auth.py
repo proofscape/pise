@@ -67,7 +67,7 @@ def login_page():
         allow_github_logins=check_config("ALLOW_GITHUB_LOGINS"),
         allow_bitbucket_logins=check_config("ALLOW_BITBUCKET_LOGINS"),
         css=[
-            url_for('static', filename='css/login.css'),
+            url_for('vstat.static', filename='css/login.css'),
         ]
     )
 
@@ -101,7 +101,7 @@ def login_success():
         auto_close=auto_close,
         auto_close_delay=auto_close_delay,
         css=[
-            url_for('static', filename='css/login.css'),
+            url_for('vstat.static', filename='css/login.css'),
         ]
     )
 

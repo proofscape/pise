@@ -30,7 +30,7 @@
   {% if allow_github_logins %}
   <a id="ghbutton" class="oAuthButton" href="#" onclick="gotoCond('{{ url_for('auth.login_with_provider', prov='gh', level='user') }}')">
     <svg width="300px" height="60px" xmlns="http://www.w3.org/2000/svg">
-      <image x="3" y="3" height="53px" width="53px" href="{{ url_for('static', filename='img/ghlogo.png') }}"/>
+      <image x="3" y="3" height="53px" width="53px" href="{{ url_for('vstat.static', filename='img/ghlogo.png') }}"/>
       <text x="80" y="38" fill="#ddd">Sign in with GitHub</text>
     </svg>
   </a>
@@ -43,7 +43,7 @@
   {% if allow_bitbucket_logins %}
   <a id="bbbutton" class="oAuthButton" href="#" onclick="gotoCond('{{ url_for('auth.login_with_provider', prov='bb', level='user') }}')">
     <svg width="300px" height="60px" xmlns="http://www.w3.org/2000/svg">
-      <image x="8" y="8" height="43px" width="44px" href="{{ url_for('static', filename='img/bblogo.png') }}"/>
+      <image x="8" y="8" height="43px" width="44px" href="{{ url_for('vstat.static', filename='img/bblogo.png') }}"/>
       <text x="65" y="38" fill="#222">Sign in with BitBucket</text>
     </svg>
   </a>
