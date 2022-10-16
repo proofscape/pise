@@ -444,6 +444,11 @@ def normalize_gids(state):
                             gids.append(gid)
 
 
+def normalize_served_state(state):
+    del state['pdfjsURL']
+    normalize_gids(state)
+
+
 @pytest.mark.parametrize(['args', 'expected'], (
     (args_0, state_0),
     (args_1, state_1),
@@ -462,7 +467,7 @@ def test_app_loader(app, args, expected):
             assert "CSRF" in state
             del state["CSRF"]
 
-            normalize_gids(state)
+            normalize_served_state(state)
 
             computed = json.dumps(state, indent=4)
             print(computed)

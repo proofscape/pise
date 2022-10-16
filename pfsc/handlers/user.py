@@ -179,7 +179,7 @@ class UserInfoExporter(UserHandler):
             thing_to_export=thing_to_export,
             download_url=download_url,
             css=[
-                url_for('static', filename='css/centered_justified.css'),
+                url_for('vstat.static', filename='css/centered_justified.css'),
             ],
         )
         self.set_response_field('html', html)

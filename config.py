@@ -36,7 +36,7 @@ cp = ConfigParser()
 cp.read(os.path.join(BASE_DIR, 'pfsc.ini'))
 DEFAULT_VERSIONS = {
     name: cp.get('versions', name)
-    for name in ['ise', 'elkjs', 'mathjax', 'pyodide', 'examp']
+    for name in ['ise', 'elkjs', 'mathjax', 'pyodide', 'examp', 'pdf']
 }
 
 
@@ -194,6 +194,12 @@ class Config:
     # we cannot serve the mathworker script over a CDN. However, we can decide
     # whether to serve it minified or not.
     MATHWORKER_SERVE_MINIFIED = bool(int(os.getenv("MATHWORKER_SERVE_MINIFIED", 1)))
+
+    PDFJS_VERSION = os.getenv("PDFJS_VERSION", DEFAULT_VERSIONS['pdf'])
+    # Note: We cannot use jsdelivr to serve pdfjs, since (a) it will not serve
+    # html, and (b) pdfjs uses a worker, which must come from the same origin
+    # as the html. Eventually we may provide a config option to set the URL
+    # from which pdfjs's `viewer.html` should be served.
 
     # When loading locally from `/static/...`, some assets have a debug version.
     ELK_DEBUG = bool(int(os.getenv("ELK_DEBUG", 0)))

@@ -164,7 +164,7 @@ def handle_and_download(handler_class, info_dict, room=None,
             "download_error.html",
             err_msg=err_msg,
             css=[
-                url_for('static', filename='css/base.css'),
+                url_for('vstat.static', filename='css/base.css'),
             ],
         )
 
