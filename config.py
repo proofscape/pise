@@ -36,7 +36,7 @@ cp = ConfigParser()
 cp.read(os.path.join(BASE_DIR, 'pfsc.ini'))
 DEFAULT_VERSIONS = {
     name: cp.get('versions', name)
-    for name in ['ise', 'elkjs', 'mathjax', 'pyodide', 'examp', 'pdf']
+    for name in ['ise', 'pyodide', 'examp', 'pdf']
 }
 
 
@@ -177,11 +177,9 @@ class Config:
     ISE_SERVE_LOCALLY = bool(int(os.getenv("ISE_SERVE_LOCALLY", 1)))
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
 
-    ELKJS_VERSION = os.getenv("ELKJS_VERSION", DEFAULT_VERSIONS['elkjs'])
     # boolean: false means serve via jsdelivr
     ELKJS_SERVE_LOCALLY = bool(int(os.getenv("ELKJS_SERVE_LOCALLY", 0)))
 
-    MATHJAX_VERSION = os.getenv("MATHJAX_VERSION", DEFAULT_VERSIONS['mathjax'])
     # boolean: false means serve via jsdelivr
     MATHJAX_SERVE_LOCALLY = bool(int(os.getenv("MATHJAX_SERVE_LOCALLY", 0)))
 

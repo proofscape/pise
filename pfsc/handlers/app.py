@@ -811,29 +811,8 @@ class AppLoader(Handler):
 
         ise_bundle_filename = f'ise.bundle{".min." if check_config("ISE_SERVE_MINIFIED") else "."}js'
         ise_vers = check_config("ISE_VERSION")
-        elk_vers = check_config("ELKJS_VERSION")
-        mathjax_vers = check_config("MATHJAX_VERSION")
 
         js = [
-            # MathJax
-            (
-                url_for('static', filename=f'mathjax/v{mathjax_vers}/tex-svg.js')
-                if check_config("MATHJAX_SERVE_LOCALLY") else
-                f'https://cdn.jsdelivr.net/npm/mathjax@{mathjax_vers}/es5/tex-svg.js'
-            ),
-
-            # ELK.js
-            (
-                url_for(
-                    'static',
-                    filename=f'elk/v{elk_vers}/elk{"-api" if check_config("ELK_DEBUG") else ".bundled"}.js'
-                )
-                if check_config("ELKJS_SERVE_LOCALLY") else
-                f'https://cdn.jsdelivr.net/npm/elkjs@{elk_vers}/lib/elk.bundled.js'
-            ),
-            # If using KLay instead of ELK:
-            # url_for('static', filename='klay/klay.js'),
-
             # the ISE bundle
             (
                 url_for('static', filename=f'ise/v{ise_vers}/{ise_bundle_filename}')
@@ -845,6 +824,24 @@ class AppLoader(Handler):
             # url_for('static', filename='pdfjs/build/pdf.js'),
             # url_for('static', filename='pdfjs/web/pdf_viewer.js'),
         ]
+
+        other_scripts = {
+            'mathjax': (
+                url_for('static', filename='mathjax/vVERSION/tex-svg.js')
+                if check_config("MATHJAX_SERVE_LOCALLY") else
+                'https://cdn.jsdelivr.net/npm/mathjax@VERSION/es5/tex-svg.js'
+            ),
+            'elkjs': (
+                url_for(
+                    'static',
+                    filename=f'elk/vVERSION/elk{"-api" if check_config("ELK_DEBUG") else ".bundled"}.js'
+                )
+                if check_config("ELKJS_SERVE_LOCALLY") else
+                'https://cdn.jsdelivr.net/npm/elkjs@VERSION/lib/elk.bundled.js'
+            ),
+            # If using KLay instead of ELK:
+            # url_for('static', filename='klay/klay.js'),
+        }
 
         def adapt_wheel_target(t):
             if t.endswith('.whl') and not t.startswith('https:'):
@@ -887,5 +884,6 @@ class AppLoader(Handler):
             title="Proofscape ISE",
             ISE_state=json.dumps(ISE_state, indent=4),
             examp_config=json.dumps(examp_config, indent=4),
+            other_scripts=json.dumps(other_scripts, indent=4),
         )
         return html
