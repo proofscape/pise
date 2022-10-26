@@ -843,15 +843,16 @@ class AppLoader(Handler):
             # url_for('static', filename='klay/klay.js'),
         }
 
-        def adapt_wheel_target(t):
-            if t.endswith('.whl') and not t.startswith('https:'):
-                return url_for('static', filename=f'whl/{t}')
-            return t
+        local_whl_filenames = {
+            "pfsc-util": "pfsc_util-VERSION-py3-none-any.whl",
+            "typeguard": "typeguard-VERSION-py3-none-any.whl",
+            "displaylang": "displaylang-VERSION-py3-none-any.whl",
+            "displaylang-sympy": "displaylang_sympy-VERSION-py3-none-any.whl",
+            "lark": "lark067-VERSION-py2.py3-none-any.whl",
+            "pfsc-examp": "pfsc_examp-VERSION-py3-none-any.whl",
+        }
 
-        pyodide_vers = check_config("PYODIDE_VERSION")
-        can_control_deps = int(pyodide_vers.split('.')[1]) >= 21
-        local_whl_filenames = check_config("LOCAL_WHL_FILENAMES")
-        micropip_no_deps = can_control_deps and len(local_whl_filenames) > 0
+        pyodide_serve_locally = check_config("PYODIDE_SERVE_LOCALLY")
         mathworker_bundle_filename = f'mathworker.bundle{".min." if check_config("MATHWORKER_SERVE_MINIFIED") else "."}js'
 
         examp_config = {
@@ -865,16 +866,18 @@ class AppLoader(Handler):
             "mathworkerURL": url_for('static', filename=f'ise/v{ise_vers}/{mathworker_bundle_filename}'),
 
             "pyodideIndexURL": (
-                url_for('static', filename=f'pyodide/v{pyodide_vers}')
-                if check_config("PYODIDE_SERVE_LOCALLY") else
-                f'https://cdn.jsdelivr.net/pyodide/v{pyodide_vers}/full/'
+                url_for('static', filename='pyodide/vVERSION')
+                if pyodide_serve_locally else
+                'https://cdn.jsdelivr.net/pyodide/vVERSION/full/'
             ),
 
-            "micropipInstallTargets": [
-                adapt_wheel_target(fn) for fn in local_whl_filenames
-            ] or [f'pfsc-examp=={check_config("PFSC_EXAMP_VERSION")}'],
+            "micropipInstallTargets": {
+                k: url_for('static', filename=f'whl/{v}') for k, v in local_whl_filenames.items()
+            } if pyodide_serve_locally else {
+                'pfsc-examp': 'pfsc-examp==VERSION'
+            },
 
-            "micropipNoDeps": micropip_no_deps,
+            "micropipNoDeps": pyodide_serve_locally,
         }
 
         html = render_template(
