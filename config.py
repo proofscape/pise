@@ -30,9 +30,6 @@ if bool(int(os.getenv("LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR", 0))):
     load_dotenv(PFSC_CONF_PATH, override=True)
 
 
-DEFAULT_ISE_VERSION = '25.0'
-
-
 def format_url_prefix(raw):
     """
     Ensure that the URL prefix is a string that is either empty or
@@ -165,7 +162,7 @@ class Config:
 
     # Static assets:
 
-    ISE_VERSION = os.getenv("ISE_VERSION", DEFAULT_ISE_VERSION)
+    ISE_VERSION = os.getenv("ISE_VERSION", "0.0")
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
     # Since a worker script must obey the same-origin policy
     #   https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker
