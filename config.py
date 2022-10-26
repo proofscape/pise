@@ -17,7 +17,6 @@
 # --------------------------------------------------------------------------- #
 
 import os
-from configparser import ConfigParser
 
 from dotenv import load_dotenv
 # Load pfsc-server/instance/.env
@@ -31,13 +30,7 @@ if bool(int(os.getenv("LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR", 0))):
     load_dotenv(PFSC_CONF_PATH, override=True)
 
 
-# Default versions for supporting software are set in pfsc.ini
-cp = ConfigParser()
-cp.read(os.path.join(BASE_DIR, 'pfsc.ini'))
-DEFAULT_VERSIONS = {
-    name: cp.get('versions', name)
-    for name in ['ise', 'pdf']
-}
+DEFAULT_ISE_VERSION = '25.0'
 
 
 def format_url_prefix(raw):
@@ -172,7 +165,7 @@ class Config:
 
     # Static assets:
 
-    ISE_VERSION = os.getenv("ISE_VERSION", DEFAULT_VERSIONS['ise'])
+    ISE_VERSION = os.getenv("ISE_VERSION", DEFAULT_ISE_VERSION)
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
     # Since a worker script must obey the same-origin policy
     #   https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker
@@ -186,12 +179,6 @@ class Config:
     ELKJS_SERVE_LOCALLY = bool(int(os.getenv("ELKJS_SERVE_LOCALLY", 0)))
     MATHJAX_SERVE_LOCALLY = bool(int(os.getenv("MATHJAX_SERVE_LOCALLY", 0)))
     PYODIDE_SERVE_LOCALLY = bool(int(os.getenv("PYODIDE_SERVE_LOCALLY", 0)))
-
-    PDFJS_VERSION = os.getenv("PDFJS_VERSION", DEFAULT_VERSIONS['pdf'])
-    # Note: We cannot use jsdelivr to serve pdfjs, since (a) it will not serve
-    # html, and (b) pdfjs uses a worker, which must come from the same origin
-    # as the html. Eventually we may provide a config option to set the URL
-    # from which pdfjs's `viewer.html` should be served.
 
     # When loading locally from `/static/...`, some assets have a debug version.
     ELK_DEBUG = bool(int(os.getenv("ELK_DEBUG", 0)))

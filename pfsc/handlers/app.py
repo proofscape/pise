@@ -750,7 +750,7 @@ class AppLoader(Handler):
             'prpoURL': current_app.config.get("PRPO_URL"),
             'prpoVersion': current_app.config.get("PRPO_VERSION"),
             'loginsPossible': logins_are_possible(),
-            'pdfjsURL': url_for('static', filename=f'pdfjs/v{current_app.config["PDFJS_VERSION"]}/web/viewer.html'),
+            'pdfjsURL': url_for('static', filename='pdfjs/vVERSION/web/viewer.html'),
         }
 
         if current_app.config["IS_OCA"]:
