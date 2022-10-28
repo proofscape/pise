@@ -17,7 +17,6 @@
 # --------------------------------------------------------------------------- #
 
 import os
-from configparser import ConfigParser
 
 from dotenv import load_dotenv
 # Load pfsc-server/instance/.env
@@ -29,15 +28,6 @@ if bool(int(os.getenv("LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR", 0))):
     # if found load it, overriding instance/.env as well as existing env vars.
     PFSC_CONF_PATH = os.path.join(BASE_DIR, '..', '..', 'deploy', 'pfsc.conf')
     load_dotenv(PFSC_CONF_PATH, override=True)
-
-
-# Default versions for supporting software are set in pfsc.ini
-cp = ConfigParser()
-cp.read(os.path.join(BASE_DIR, 'pfsc.ini'))
-DEFAULT_VERSIONS = {
-    name: cp.get('versions', name)
-    for name in ['ise', 'elkjs', 'mathjax', 'pyodide', 'examp', 'pdf']
-}
 
 
 def format_url_prefix(raw):
@@ -172,55 +162,23 @@ class Config:
 
     # Static assets:
 
-    ISE_VERSION = os.getenv("ISE_VERSION", DEFAULT_VERSIONS['ise'])
-    # boolean: false means serve via jsdelivr
-    ISE_SERVE_LOCALLY = bool(int(os.getenv("ISE_SERVE_LOCALLY", 1)))
+    ISE_VERSION = os.getenv("ISE_VERSION", "0.0")
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
-
-    ELKJS_VERSION = os.getenv("ELKJS_VERSION", DEFAULT_VERSIONS['elkjs'])
-    # boolean: false means serve via jsdelivr
-    ELKJS_SERVE_LOCALLY = bool(int(os.getenv("ELKJS_SERVE_LOCALLY", 0)))
-
-    MATHJAX_VERSION = os.getenv("MATHJAX_VERSION", DEFAULT_VERSIONS['mathjax'])
-    # boolean: false means serve via jsdelivr
-    MATHJAX_SERVE_LOCALLY = bool(int(os.getenv("MATHJAX_SERVE_LOCALLY", 0)))
-
-    PYODIDE_VERSION = os.getenv("PYODIDE_VERSION", DEFAULT_VERSIONS['pyodide'])
-    # boolean: false means serve via jsdelivr
-    PYODIDE_SERVE_LOCALLY = bool(int(os.getenv("PYODIDE_SERVE_LOCALLY", 0)))
-
     # Since a worker script must obey the same-origin policy
     #   https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker
     # we cannot serve the mathworker script over a CDN. However, we can decide
     # whether to serve it minified or not.
     MATHWORKER_SERVE_MINIFIED = bool(int(os.getenv("MATHWORKER_SERVE_MINIFIED", 1)))
 
-    PDFJS_VERSION = os.getenv("PDFJS_VERSION", DEFAULT_VERSIONS['pdf'])
-    # Note: We cannot use jsdelivr to serve pdfjs, since (a) it will not serve
-    # html, and (b) pdfjs uses a worker, which must come from the same origin
-    # as the html. Eventually we may provide a config option to set the URL
-    # from which pdfjs's `viewer.html` should be served.
+    # From where should static assets be obtained?
+    # "locally" means from pfsc-server; otherwise via jsdelivr
+    ISE_SERVE_LOCALLY = bool(int(os.getenv("ISE_SERVE_LOCALLY", 1)))
+    ELKJS_SERVE_LOCALLY = bool(int(os.getenv("ELKJS_SERVE_LOCALLY", 0)))
+    MATHJAX_SERVE_LOCALLY = bool(int(os.getenv("MATHJAX_SERVE_LOCALLY", 0)))
+    PYODIDE_SERVE_LOCALLY = bool(int(os.getenv("PYODIDE_SERVE_LOCALLY", 0)))
 
     # When loading locally from `/static/...`, some assets have a debug version.
     ELK_DEBUG = bool(int(os.getenv("ELK_DEBUG", 0)))
-
-    # Micropip install targets:
-    #
-    # Python wheels will be loaded by Pyodide in the client in one of two ways:
-    # Either we pull pfsc-examp from PyPI, and let micropip automatically resolve
-    # its dependencies and pull those too from PyPI; or all wheels will be loaded
-    # via static URLs pointing into pfsc-server. Generally speaking, the former
-    # is what you want when running an online web app, while the latter is
-    # appropriate both when running the OCA, and during development.
-    #
-    # To load all wheels from PyPI, you must define PFSC_EXAMP_VERSION,
-    # whose value should be a string like "0.22.8", and you must _not_ define
-    # LOCAL_WHL_FILENAMES.
-    #
-    # To load all wheels from pfsc-server via static URLs, define LOCAL_WHL_FILENAMES
-    # to be a comma-delimited list of wheel filenames, like displaylang-0.22.8-py3-none-any.whl
-    PFSC_EXAMP_VERSION = os.getenv("PFSC_EXAMP_VERSION", DEFAULT_VERSIONS['examp'])
-    LOCAL_WHL_FILENAMES = parse_cd_list(os.getenv('LOCAL_WHL_FILENAMES', ''))
 
     # See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy>
     REFERRER_POLICY = os.getenv("REFERRER_POLICY", 'no-referrer')
