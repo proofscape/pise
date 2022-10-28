@@ -1,3 +1,15 @@
+## 0.25.0 (221028)
+
+Breaking Changes:
+
+* In a move to no longer repeat ourselves with JS version numbers, we load JS
+  assets in new ways ([#4](https://github.com/proofscape/pfsc-server/pull/4)).
+
+Requires:
+
+* `pfsc-ise >= 25.0`
+* `pfsc-manage >= 0.25.0`
+
 ## 0.24.0 (221016)
 
 Features:
