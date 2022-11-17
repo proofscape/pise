@@ -82,7 +82,7 @@ to also update a corresponding list of selected dependencies in a `.in` file
 as well (for those of the package's dependencies that you _do_ want).
 
 If the change is made in a `.in` file, you then need to recompile the `.txt`
-files. From this directory, just do:
+files. From this directory (with active virtual environment), just do:
 
 ```shell
 ./compile.sh

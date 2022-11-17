@@ -123,7 +123,9 @@ six==1.16.0 \
 tomli==2.0.1 \
     --hash=sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc \
     --hash=sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f
-    # via pep517
+    # via
+    #   -c test-requirements.txt
+    #   pep517
 werkzeug==2.1.2 \
     --hash=sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6 \
     --hash=sha256:72a4b735692dd3135217911cbeaa1be5fa3f62bffb8745c5215420a03dc55255

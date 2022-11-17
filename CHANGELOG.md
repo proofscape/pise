@@ -1,3 +1,10 @@
+## 0.25.1 (------)
+
+Upgrades:
+
+* `pytest==7.2.0` addresses a Dependabot alert re `py<=1.11.0`.
+* `pytest-cov==4.0.0` while we're at it.
+
 ## 0.25.0 (221028)
 
 Breaking Changes:

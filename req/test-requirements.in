@@ -5,8 +5,8 @@
 # Ensure consistency:
 -c requirements.txt
 
-pytest==6.2.3
-pytest-cov==2.11.1
+pytest==7.2.0
+pytest-cov==4.0.0
 
 # While pfsc-server does not need pfsc-examp in order to run (pfsc-examp
 # is instead delivered to the user's browser via Pyodide) we do have unit
