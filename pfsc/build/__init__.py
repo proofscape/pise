@@ -671,6 +671,8 @@ class Builder:
         self.monitor.note_module_parsed()
         self.modules[module.libpath] = module
 
+        manifest_node.update_data({'isTerminal': module.isTerminal()})
+
         # Grab all the items.
         all_items = module.getNativeItemsInDefOrder(hoist_expansions=True)
         self.monitor.set_num_module_items(len(all_items))

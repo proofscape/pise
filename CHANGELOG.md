@@ -1,5 +1,10 @@
 ## 0.25.1 (------)
 
+Improvements:
+
+* Record more useful information in the manifest. For MODULE nodes, we now
+  provide both `isTerminal` and `hasSubmodules`.
+
 Upgrades:
 
 * `pytest==7.2.0` addresses a Dependabot alert re `py<=1.11.0`.
