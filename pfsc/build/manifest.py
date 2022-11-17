@@ -260,6 +260,12 @@ class ManifestTreeNode:
         self.children = []
         self.data['libpath'] = id_
 
+    def update_data(self, d):
+        """
+        Pass a dictionary of pairs with which to update this node's data.
+        """
+        self.data.update(d)
+
     def build_dict(self):
         """
         :return: A dictionary representation of this object, suitable for writing as JSON.
@@ -298,13 +304,11 @@ class ManifestTreeNode:
         items.append(d)
         am_module = self.is_module()
         if am_module:
-            # A module is assumed terminal until proven otherwise.
-            d["terminal"] = True
+            d["hasSubmodules"] = False
         for i, child in enumerate(self.children):
             if child.is_module():
                 if am_module:
-                    # We have at least one child that is a module, so we are not terminal.
-                    d["terminal"] = False
+                    d["hasSubmodules"] = True
                 if not recursive:
                     continue
             child.build_relational_model(items, recursive=recursive, siblingOrder=i)

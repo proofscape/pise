@@ -20,6 +20,7 @@ import json
 
 from pfsc.build.manifest import (
     build_manifest_from_dict,
+    load_manifest,
     Manifest,
     ManifestTreeNode,
 )
@@ -329,3 +330,33 @@ def test_merge_04():
     m02_cat.merge(m02_mod)
     d = show(m02_cat)
     assert d == manifest_02_c_MOD
+
+
+def test_is_terminal(repos_ready):
+    """Check the `isTerminal` property."""
+    manifest = load_manifest('test.alex.math', version='v3.0.0')
+    root = manifest.get_root_node()
+    model = []
+    root.build_relational_model(model)
+    for info in model:
+        lp = info['libpath']
+        if lp == 'test.alex.math.thm1':
+            # If terminal, then definitely has no submodules.
+            assert info['isTerminal'] is True
+            assert info['hasSubmodules'] is False
+        if lp == 'test.alex.math':
+            # If non-terminal, may have submodules, but also may not (see below).
+            assert info['isTerminal'] is False
+            assert info['hasSubmodules'] is True
+
+    manifest = load_manifest('test.hist.lit', version='v0.0.0')
+    root = manifest.get_root_node()
+    model = []
+    root.build_relational_model(model)
+    for info in model:
+        lp = info['libpath']
+        if lp == 'test.hist.lit.H.ilbert.ZB.Thm9':
+            # Here is a case where the module is non-terminal but (currently)
+            # has no submodules.
+            assert info['isTerminal'] is False
+            assert info['hasSubmodules'] is False

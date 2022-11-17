@@ -82,6 +82,10 @@ class PfscModule(PfscObj):
     def isSpecial(self):
         return self.libpath.startswith('special.')
 
+    def isTerminal(self):
+        pi = PathInfo(self.libpath)
+        return pi.is_file
+
     def setRepresentedVersion(self, vers):
         self.represented_version = vers
 
