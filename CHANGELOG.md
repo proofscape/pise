@@ -6,6 +6,12 @@ Improvements:
   provide both `isTerminal` and `hasSubmodules`
   ([#6](https://github.com/proofscape/pfsc-server/pull/6)).
 
+Bug Fixes:
+
+* Prevent redundant edges from crashing the build process when factored through
+  a method node
+  ([#8](https://github.com/proofscape/pfsc-server/pull/8)).
+
 Upgrades:
 
 * `pytest==7.2.0` addresses a Dependabot alert re `py<=1.11.0`.
