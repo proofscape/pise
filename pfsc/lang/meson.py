@@ -130,7 +130,28 @@ class Graph:
         self.edges[d] = E
         self.edgesByEndpts[Pn][Qn] = E
         self.edgesByEndpts[Qn][Pn] = E
+        if self.debug:
+            sys.stderr.write('Created edge: %s\n' % d)
         return E
+
+    def deleteEdge(self, e):
+        """
+        Delete an edge from the graph.
+        Fail silently if edge is not found.
+
+        e: the Edge instance to be deleted
+        """
+        d = repr(e)
+        if d in self.edges:
+            del self.edges[d]
+        Pn = e.getSrcName()
+        Qn = e.getTgtName()
+        if Qn in self.edgesByEndpts[Pn]:
+            del self.edgesByEndpts[Pn][Qn]
+        if Pn in self.edgesByEndpts[Qn]:
+            del self.edgesByEndpts[Qn][Pn]
+        if self.debug:
+            sys.stderr.write('Deleted edge: %s\n' % d)
 
     def factorEdgesThroughMethod(self, E, Mn):
         """
@@ -140,33 +161,28 @@ class Graph:
 
         Create node M if it does not already exist.
         Then node M is to be inserted as method for all the
-        edges in the list E. Here's what this means: Let
-        T be the list of all targets of edges in E.
-        Then for each t0 in T we create an edge M --> t0,
-        and for each e = (s,t0) in E we create an
-        edge s --> M and we delete edge e.
+        edges in the list E. This means that all edges in E
+        are to be deleted, while if S and T are the sets of
+        all sources and targets in E, then we are to form
+        the edges (s, M) for all s in S and (M, t) for all
+        t in T.
         """
-        if not self.getNode(Mn): self.createNode(Mn)
-        tgtsToEdges = {}
+        if not self.getNode(Mn):
+            self.createNode(Mn)
+        # We use dicts, not sets, not because the order actually matters,
+        # but just to make the output deterministic, and make it easier
+        # to write unit tests.
+        S, T = {}, {}
         for e in E:
+            s = e.getSrcName()
             t = e.getTgtName()
-            L = tgtsToEdges.get(t,[])
-            L.append(e)
-            tgtsToEdges[t] = L
-        for t in tgtsToEdges.keys():
-            e = self.createEdge(Mn, t)
-            if self.debug:
-                sys.stderr.write('Created edge: %s\n'%repr(e))
-            F = tgtsToEdges[t]
-            for f in F:
-                s = f.getSrcName()
-                e = self.createEdge(s, Mn)
-                if self.debug:
-                    sys.stderr.write('Created edge: %s\n'%repr(e))
-                d = repr(f)
-                del self.edges[d]
-                if self.debug:
-                    sys.stderr.write('Deleted edge: %s\n'%d)
+            S[s] = 1
+            T[t] = 1
+            self.deleteEdge(e)
+        for s in S:
+            self.createEdge(s, Mn)
+        for t in T:
+            self.createEdge(Mn, t)
 
     def semanticCheck(self, targets):
         """

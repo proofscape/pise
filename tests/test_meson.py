@@ -18,6 +18,7 @@
 
 import pytest
 
+from pfsc.build.repo import checkout, get_repo_info
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.meson import build_graph_from_meson, build_graph_from_arcs
 from pfsc.lang.modules import load_module
@@ -48,8 +49,8 @@ A10 --> A20
 A10
 A20
 M30
-M30 --> A20
 A10 --> M30
+M30 --> A20
 """),
     # (3)
     ("A10. But suppose S20 and S30 and S40. Then A50.", """\
@@ -189,18 +190,18 @@ I140 --> A150
 A150 --> A160
 A160 --> E170
 E180 --> A190
-M210 --> A220
 I200 --> M210
 A190 --> M210
 E170.A35 --> M210
+M210 --> A220
 A220 --> A230
 E240 --> A250
 A250 --> A270
 A130 --> A280
 A280 --> A290
-M300 --> A310
 A290 --> M300
 A230 --> M300
+M300 --> A310
 A310 --> A320
 A320 ..> D330
 A340 --> Pf.Cs1.Cs1C.F
@@ -377,6 +378,52 @@ def test_bar(app):
         print()
         print(g)
         assert g == arclist_with_intr_graph
+
+
+Pf2_edges = [
+    {
+        "tail": "test.foo.bar.results.Pf2.Thm2.S",
+        "head": "test.foo.bar.results.Pf2.B",
+        "style": "ded",
+        "bridge": True
+    },
+    {
+        "tail": "test.foo.bar.results.Pf2.B",
+        "head": "test.foo.bar.results.Pf2.M",
+        "style": "ded",
+        "bridge": False
+    },
+    {
+        "tail": "test.foo.bar.results.Pf2.M",
+        "head": "test.foo.bar.results.Pf2.C",
+        "style": "ded",
+        "bridge": False
+    },
+    {
+        "tail": "test.foo.bar.results.Pf2.C",
+        "head": "test.foo.bar.results.Pf2.Thm2.A",
+        "style": "ded",
+        "bridge": True
+    }
+]
+
+
+@pytest.mark.psm
+def test_issue_7(app):
+    """
+    See https://github.com/proofscape/pfsc-server/issues/7
+    """
+    with app.app_context():
+        libpath = "test.foo.bar.results"
+        version = "v16.0.0"
+        ri = get_repo_info(libpath)
+        with checkout(ri, version):
+            mod = load_module(libpath)
+            dg = mod['Pf2'].buildDashgraph()
+            #import json
+            #print(json.dumps(dg['edges'], indent=4))
+            assert dg['edges'] == Pf2_edges
+
 
 ######################################################################
 # Manual testing

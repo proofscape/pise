@@ -130,20 +130,20 @@ def test_full_build(app, libpath, rec):
         cb = Builder(libpath, recursive=rec, verbose=False)
         build_module(cb)
 
+
 # Try full build on different branches.
-@pytest.mark.skip("Not working with new framework...")
-@pytest.mark.parametrize("libpath, branch, n", (
-    ("test.foo.bar", "v0", 1),
-    ("test.foo.bar.expansions", "v2", 2),
+@pytest.mark.skip(reason="just for manual testing")
+@pytest.mark.parametrize("libpath, branch, rec", (
+    ("test.foo.bar.results", "v16", False),
+    #("test.foo.bar.expansions", "v2", True),
 ))
-def test_update_build(app, libpath, branch, n):
+@pytest.mark.psm
+def test_full_build_at_version(app, libpath, branch, rec):
     with app.app_context():
         ri = get_repo_info(libpath)
         ri.checkout(branch)
-        build_module(libpath, recursive=True, caching=0)
-        manifest = load_manifest(libpath)
-        bi = manifest.get_build_info()
-        assert len(bi) == n
+        cb = Builder(libpath, recursive=rec, verbose=False)
+        build_module(cb)
 
 
 from tests.util import clear_all_indexing, get_basic_repos
