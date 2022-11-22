@@ -6,6 +6,8 @@ Improvements:
   provide both `isTerminal` and `hasSubmodules`
   ([#6](https://github.com/proofscape/pfsc-server/pull/6)).
 * Add `PFSC_DEFAULT_TRUSTED_LIBPATHS` config var.
+* Support env-var-based startup for `pfsc-server` docker containers (command- 
+  based is still supported).
 
 Bug Fixes:
 
