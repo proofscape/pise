@@ -149,7 +149,10 @@ def make_app(config_name=None):
         msg += ' Review app configuration.'
         raise PfscExcep(msg, PECode.ESSENTIAL_CONFIG_VAR_UNDEFINED)
 
-    trusted_lps = set(app.config.get("PFSC_TRUSTED_LIBPATHS", []))
+    trusted_lps = set(
+        app.config.get("PFSC_TRUSTED_LIBPATHS", []) +
+        app.config.get("PFSC_DEFAULT_TRUSTED_LIBPATHS", [])
+    )
     if check_config("TRUST_LIBPATH_GH_PROOFSCAPE"):
         trusted_lps.add('gh.proofscape')
     trusted_prefixes = {}

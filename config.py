@@ -382,7 +382,7 @@ class Config:
     # WHEN YOU MARK A LIBPATH AS TRUSTED YOU ARE ALSO SAYING THAT EVERY LIBPATH
     # UNDER THAT ONE, i.e. EVERY EXTENSION OF IT, IS ALSO TRUSTED.
     #
-    # The value of this config var is a comma-delimited list of libpaths.
+    # The set of trusted libpaths is determined by the following three variables.
     #
     # Every libpath in the list is interpreted as absolute (i.e. as starting
     # from a repo segment).
@@ -390,8 +390,18 @@ class Config:
     # Every libpath in the list must be at least two segments long, with one
     # exception: you may include the libpath `lh`, meaning that you trust all
     # code in repos stored under the `lh` or "localhost" directory.
+    #
+    # The full set of trusted prefixes is the union of those obtained from the
+    # following two config vars, each of which is given as a comma-delim list,
+    # plus "gh.proofscape" unless TRUST_LIBPATH_GH_PROOFSCAPE is set to false.
+    #
+    # The difference between the first two vars is:
+    #  * End users are generally expected to use the first var via pfsc.conf,
+    #    and leave the second alone, although they may clear it if they wish.
+    #  * The second var is intended to be used by application distributors,
+    #    in order to make presets.
     PFSC_TRUSTED_LIBPATHS = parse_cd_list(os.getenv("PFSC_TRUSTED_LIBPATHS", ""))
-
+    PFSC_DEFAULT_TRUSTED_LIBPATHS = parse_cd_list(os.getenv("PFSC_DEFAULT_TRUSTED_LIBPATHS", ""))
     # By default, even if you don't set any trusted libpaths (and also if you do),
     # the server will be configured to trust everything under 'gh.proofscape'.
     # If you _really_ want to shut this off, you can.

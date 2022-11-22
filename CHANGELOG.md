@@ -5,6 +5,7 @@ Improvements:
 * Record more useful information in the manifest. For MODULE nodes, we now
   provide both `isTerminal` and `hasSubmodules`
   ([#6](https://github.com/proofscape/pfsc-server/pull/6)).
+* Add `PFSC_DEFAULT_TRUSTED_LIBPATHS` config var.
 
 Bug Fixes:
 
