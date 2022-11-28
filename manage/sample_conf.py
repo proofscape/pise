@@ -2,19 +2,10 @@
 
 # Root Directory for Proofscape.
 #
-# Ordinarily `PFSC_ROOT` should be left as `None`, and the root dir will be
-# inferred automatically. This is the case when this project (`pfsc-manage`)
-# lives directly under the root. For example, if the root is `~/proofscape`,
-# then this project should be in `~/proofscape/pfsc-manage`.
-#
-# If you put `pfsc-manage` in a different location relative to the root,
-# then you need to provide the absolute path to the root dir here, like so:
-# PFSC_ROOT = '/the/path/to/proofscape/'
-#
 # *** NOTE: Generally, when a config variable in this file defines a filesystem
 # path, then it will be interpreted as relative to `PFSC_ROOT` unless it begins
 # with a slash. ***
-PFSC_ROOT = None
+PFSC_ROOT = "~/proofscape"
 
 # Subdirectories
 #

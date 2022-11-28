@@ -30,12 +30,6 @@ def makestruct():
     In order to build the directory structure for Proofscape, `pfsc-manage` needs
     to know where the root directory is to be located.
 
-    By default, `pfsc-manage` is expected to live directly under the root dir itself,
-    and so the root is assumed to be the parent dir of `pfsc-manage`.
-
-    For example, in a normal installation the root dir might be `~/proofscape`,
-    and the `pfsc-manage` repo would be at `~/proofscape/pfsc-manage`.
-
     If you want to override the default behavior, you may set the location of the
     root directory in the variable `PFSC_ROOT` in your `conf.py`.
     """

@@ -33,10 +33,9 @@ except ModuleNotFoundError:
     sys.exit(1)
 
 PFSC_MANAGE_ROOT = os.path.dirname(__file__)
-# In the standard, recommended installation, the top-level directory
-# of this project lives directly under the Proofscape root dir. Users
-# may configure a different location if they wish.
-PFSC_ROOT = getattr(conf, 'PFSC_ROOT', None) or os.path.dirname(PFSC_MANAGE_ROOT)
+PISE_ROOT = os.path.dirname(PFSC_MANAGE_ROOT)
+
+PFSC_ROOT = os.path.expanduser(getattr(conf, 'PFSC_ROOT'))
 
 
 @click.group()
