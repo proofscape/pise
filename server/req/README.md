@@ -60,6 +60,10 @@ Same, except run
 
 instead of `install.sh`.
 
+NOTE: The dev requirements installed via `./req/install.sh` include all the
+testing requirements installed by `./req/install_testing.sh`. The latter is a
+strict subset.
+
 
 ### Building a docker image
 
