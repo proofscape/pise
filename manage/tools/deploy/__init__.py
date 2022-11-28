@@ -415,7 +415,7 @@ def dict_to_dot_env(d):
 
 def get_ise_vers_num():
     versions = get_version_numbers()
-    checked_out_vers = versions['pfsc-ise']
+    checked_out_vers = versions['pise']
     if conf.CommonVars.ISE_SERVE_LOCALLY:
         return checked_out_vers
     elif conf.REMOTE_ISE_VERSION is not None:

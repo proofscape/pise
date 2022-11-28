@@ -54,10 +54,9 @@ def oca(seq_num, skip_check, dump, dry_run):
     """
     Build a `pise` (one-container app) docker image, for release.
 
-    The tag is generated from the current version number of pfsc-ise, the
-    current version number of pfsc-server, and any sequence number you may
-    supply. The "current" versions are those currently checked out in the
-    repos in the `src` directory.
+    The tag is generated from the current version number of pise,
+    plus any sequence number you may supply.
+    The "current" version is that currently checked out in the pise repo.
 
     Unless you say to skip it, there will be a prompt to check if the tag is
     correct.
@@ -67,7 +66,7 @@ def oca(seq_num, skip_check, dump, dry_run):
     Hub. The oca_version.txt file can be checked by existing OCA containers
     so that they know a new version has been released.
     """
-    # This ensures the pfsc-ise and pfsc-server repos exist:
+    # This ensures the client and server code is ready:
     tools.build.oca_readiness_checks(release=True)
 
     versions = get_version_numbers()
@@ -80,18 +79,15 @@ def oca(seq_num, skip_check, dump, dry_run):
     if pdf_checked_out_vers != pfsc_pdf_vers:
         raise click.UsageError(
             f'Version of pfsc-pdf checked out under `src` ({pdf_checked_out_vers}) does not match'
-            f' version ({pfsc_pdf_vers}) named by pfsc-ise.'
+            f' version ({pfsc_pdf_vers}) named by pise.'
         )
 
-    ise_vers = versions['pfsc-ise']
-    server_vers = get_server_version()
+    pise_vers = versions['pise']
     seq_num_suffix = f'-{seq_num}' if seq_num > 0 else ''
-    oca_tag = f'{ise_vers}-{server_vers}{seq_num_suffix}'
+    oca_tag = f'{pise_vers}{seq_num_suffix}'
 
-    print('Building with versions:')
-    print(f'  server: {server_vers}')
-    print(f'  ise: {ise_vers}')
-    print('If any of the above is incorrect, use `git checkout` in the repo in the `src` dir.')
+    print(f'Building with pise version: {pise_vers}')
+    print('If this is incorrect, use `git checkout` in the pise repo.')
     print()
 
     if skip_check:

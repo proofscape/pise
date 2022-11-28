@@ -18,7 +18,7 @@ import os
 import jinja2
 
 import conf as pfsc_conf
-from tools.util import squash, get_server_version, get_version_numbers
+from tools.util import squash, get_version_numbers
 
 this_dir = os.path.dirname(__file__)
 templates_dir = os.path.join(this_dir, 'templates')
@@ -39,19 +39,18 @@ def write_nginx_conf(
     # in the Nginx container.
     # Note: originally, this was not the identity map! Could maybe turn into
     # a mere list now, but for the moment I'm keeping it as a map.
-    server_vers = get_server_version()
     versions = get_version_numbers()
     loc_map = {
         '/PDFLibrary': '/PDFLibrary',
         f'/pdfjs/v{versions["pfsc-pdf"]}': f'/pdfjs',
         '/whl': '/whl',
         f'/pyodide/v{versions["pyodide"]}': f'/pyodide',
-        f'/v{server_vers}/css': '/css',
-        f'/v{server_vers}/img': '/img',
+        f'/v{versions["pise"]}/css': '/css',
+        f'/v{versions["pise"]}/img': '/img',
         f'/elk/v{versions["elkjs"]}': f'/elk',
         f'/mathjax/v{versions["mathjax"]}': f'/mathjax',
         '/dojo': '/dojo',
-        f'/ise/v{versions["pfsc-ise"]}': f'/ise',
+        f'/ise/v{versions["pise"]}': f'/ise',
     }
     template = jinja_env.get_template('nginx.conf')
     return squash(template.render(

@@ -24,7 +24,7 @@ from datetime import datetime
 import click
 
 import conf as pfsc_conf
-from manage import PFSC_ROOT
+from manage import PFSC_ROOT, PISE_ROOT
 
 def simple_timestamp():
     return datetime.now().strftime('%y%m%d_%H%M%S')
@@ -127,24 +127,24 @@ def do_commands_in_directory(cmds, path, dry_run=True, quiet=False):
 def get_version_numbers():
     """
     Read package.json, package-lock.json, and other-versions.json in the
-    pfsc-ise project, in order to determine the version numbers for the
+    client code, in order to determine the version numbers for the
     projects:
-        pfsc-ise
+        pise
         mathjax
         elkjs
         pfsc-pdf
         pyodide
         pfsc-examp
     """
-    ise_path = pathlib.Path(PFSC_ROOT) / 'src' / 'pfsc-ise'
-    with open(ise_path / 'package.json') as f:
+    client_path = pathlib.Path(PISE_ROOT) / 'client'
+    with open(client_path / 'package.json') as f:
         pj = json.load(f)
-    with open(ise_path / 'package-lock.json') as f:
+    with open(client_path / 'package-lock.json') as f:
         plj = json.load(f)
-    with open(ise_path / 'other-versions.json') as f:
+    with open(client_path / 'other-versions.json') as f:
         ovj = json.load(f)
     return {
-        'pfsc-ise': pj['version'],
+        'pise': pj['version'],
         'mathjax': plj["dependencies"]["mathjax"]["version"],
         'elkjs': plj["dependencies"]["elkjs"]["version"],
         'pfsc-pdf': ovj['pfsc-pdf'],
@@ -157,10 +157,4 @@ def get_server_version():
     """
     Get the version number of pfsc-server
     """
-    with open(os.path.join(PFSC_ROOT, 'src', 'pfsc-server', 'pfsc', '__init__.py')) as f:
-        t = f.read()
-    M = re.search(r'__version__ = (.+)\n', t)
-    if not M:
-        raise click.UsageError('Could not find version number in pfsc-server.')
-    server_vers = M.group(1)[1:-1]  # cut quotation marks
-    return server_vers
+    return get_version_numbers()['pise']

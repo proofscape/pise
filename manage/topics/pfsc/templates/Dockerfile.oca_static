@@ -30,7 +30,7 @@ COPY pyodide/v{{versions["pyodide"]}}/{{filename}} ./pyodide/v{{versions["pyodid
 COPY whl/{{whl_filename}} ./whl/
 {% endfor %}
 
-COPY pfsc-ise/dist/ise ./ise/v{{versions["pfsc-ise"]}}
+COPY pfsc-ise/dist/ise ./ise/v{{versions["pise"]}}
 COPY pfsc-ise/dist/dojo ./dojo
 COPY pfsc-ise/dist/mathjax ./mathjax/v{{versions["mathjax"]}}
 COPY pfsc-ise/dist/elk ./elk/v{{versions["elkjs"]}}

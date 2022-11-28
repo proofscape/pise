@@ -133,7 +133,7 @@ def write_oca_final_setup(tmp_dir_name, final_workdir='/home/pfsc'):
     return template.render(
         tmp_dir_name=tmp_dir_name,
         final_workdir=final_workdir,
-        ise_version=versions['pfsc-ise'],
+        ise_version=versions['pise'],
     )
 
 
