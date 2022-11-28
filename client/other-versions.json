@@ -1,0 +1,13 @@
+{
+  "pfsc-pdf": "3.1.0",
+  "pyodide": "0.21.0",
+  "pfsc-examp": "0.22.8",
+  "pfsc-util": "0.22.8",
+  "displaylang": "0.22.8",
+  "displaylang-sympy": "0.10.4",
+  "lark": "0.6.7",
+  "typeguard": "2.13.3",
+  "mpmath": "1.2.1",
+  "Jinja2": "3.0.3",
+  "MarkupSafe": "2.0.1"
+}

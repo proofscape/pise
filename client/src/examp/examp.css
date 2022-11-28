@@ -1,0 +1,300 @@
+/* ------------------------------------------------------------------------- *
+ *  Copyright (c) 2011-2022 Proofscape contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+.examplorer {
+    color: black;
+}
+
+.themeDark .examplorer {
+    color: #ccc;
+}
+
+.exampWidget {
+    position: relative;
+    /* So spinner can be visible before initial HTML has been loaded: */
+    min-height: 32px;
+}
+
+.dispWidget {
+    background: #ddf;
+    border: 2px solid #bbf;
+    border-radius: 5px;
+    padding: 0.13em;
+}
+
+.themeDark .dispWidget {
+    background-color: #2b2b35;
+    border-color: #050590;
+}
+
+.display {
+    padding: 0.13em 2em;
+}
+
+.reload {
+    text-align: left;
+    padding: 0.13em 0 0 0.13em;
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.reload:hover {
+    opacity: 1;
+}
+
+.heading {
+    margin-bottom: 0.5em;
+}
+
+.compute_row {
+    text-align: right;
+}
+
+.error_display {
+    color: red;
+}
+
+.compute_button {
+    cursor: pointer;
+    background: #ccc;
+    padding: 0.2em 0.3em;
+    display: inline-block;
+    margin-bottom: 0.4em;
+    margin-right: 0.4em;
+    border: 2px outset;
+    border-radius: 6px;
+}
+
+.paramWidget {
+    background: #ffd;
+    border: 2px solid #ff8;
+    border-radius: 5px;
+}
+
+.themeDark .paramWidget {
+    background-color: #35352b;
+    border-color: #545400;
+}
+
+.widgetHasError.paramWidget {
+    background-color: #fdd;
+    border-color: #f88;
+}
+
+.themeDark .widgetHasError.paramWidget {
+    background-color: #352b2b;
+    border-color: #540000;
+}
+
+.chooser {
+    padding: 0.3em 0.5em;
+    margin-bottom: 0.5em;
+}
+
+input {
+    font-size: 1em;
+}
+
+select {
+    font-size: 1em;
+}
+
+.themeDark input {
+    background-color: #2b2b2b;
+    border-color: #3b3b3b;
+    color: #adadad;
+}
+
+.themeDark select {
+    background-color: #2b2b2b;
+    border-color: #3b3b3b;
+    color: #adadad;
+}
+
+.radio_panel {
+    margin-bottom: 0.5em;
+}
+
+.radio_panel_button {
+    display: inline-block;
+    border-style: outset;
+    background: #ccc;
+}
+
+.rpb_selected {
+    border-style: inset;
+    background: #eee;
+}
+
+.themeDark .radio_panel_button {
+    background: #484848;
+}
+
+.themeDark .rpb_selected {
+    background: #333;
+}
+
+.radio_panel_chooser .radio_panel .radio_panel_button {
+    border-width: 2px;
+    border-radius: 5px;
+    text-align: center;
+    margin-right: 0.13em;
+    margin-bottom: 0.25em;
+    padding: 0.4em 0.3em;
+    cursor: pointer;
+}
+
+.prime_chooser .radio_panel .radio_panel_button,
+.prim_res_chooser .radio_panel .radio_panel_button {
+    width: 1.5em;
+    padding: 0 0;
+    font-size: 1em;
+    font-family: sans-serif;
+}
+
+.three-digit_primes {
+    margin-right: 0.6em;
+}
+
+.polynomial_field {
+    width: 96%;
+}
+
+.inactive {
+    color: gray;
+    opacity: 0.5;
+}
+
+.grayout.dispWidget,
+.grayout.paramWidget {
+    color: #999;
+    background-color: #CCC;
+    border-color: #AAA;
+    cursor: default;
+}
+
+.grayout .chooser .radio_panel_button {
+    border-color: #DDD;
+    cursor: default;
+}
+
+.grayout .chooser select {
+    color: #999;
+    background-color: #CCC;
+    cursor: default;
+}
+
+.grayout .rpb_selected {
+    background-color: #DDD;
+}
+
+.grayout .chooser input {
+    color: #999;
+    background-color: #CCC;
+}
+
+.themeDark .grayout.dispWidget,
+.themeDark .grayout.paramWidget {
+    color: #777;
+    background-color: #444;
+    border-color: #333;
+}
+
+.themeDark .grayout .chooser .radio_panel_button {
+    border-color: #888;
+}
+
+.themeDark .grayout .chooser select {
+    color: #777;
+    background-color: #333;
+}
+
+.themeDark .grayout .rpb_selected {
+    background-color: #444;
+}
+
+.themeDark .grayout .chooser input {
+    color: #777;
+    background-color: #444;
+}
+
+.exampWidgetOverlay {
+    position: absolute;
+    display: none;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+body:not(.pyodideLoaded) .exampWidgetOverlay,
+.loading .exampWidgetOverlay {
+    display: block;
+}
+
+body.pyodideLoaded .pyodideLoading {
+    display: none;
+}
+
+.exampWidgetOverlay .screen {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #CCC;
+    opacity: 0.75;
+}
+
+/* If widget already grayed out, then screen is overkill. */
+.grayout .exampWidgetOverlay .screen {
+    display: none;
+}
+
+.exampWidgetOverlay .loadingIcon {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: url('../img/icons/loading-icon.gif') center no-repeat;
+    cursor: wait;
+    color: #333;
+    padding: 0 0.5em;
+    font-family: monospace;
+    font-size: 0.8em;
+}
+
+.themeDark .exampWidgetOverlay .screen {
+    background-color: #333;
+}
+
+.themeDark .exampWidgetOverlay .loadingIcon {
+    filter: invert(1);
+}
+
+.exampWidgetErrMsg {
+    color: red;
+    font-family: sans-serif;
+    font-size: small;
+}
+
+.widgetHasError .exampWidgetErrMsg {
+    padding: 0.5em 0.6em;
+}
+
+.exampWidgetErrMsg p {
+    font-size: small;
+    margin: 0.25em 0;
+}

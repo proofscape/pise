@@ -1,0 +1,159 @@
+This is the combined license file for the proofscape/pise Docker image.
+It gathers license info for the open-source software projects that have been
+installed in this image.
+
+SUMMARY
+=======
+
+This is a listing of the software packages installed in the image, and the
+names of their licenses. The full text of the licenses can be found in the
+sections that follow.
+
+                            *  *  *
+
+    The main server deployed in the image is:
+
+{{credits['pfsc-server']}}
+  https://github.com/proofscape/pfsc-server
+
+                            *  *  *
+
+    Supporting software includes:
+
+    The Redis database, with RedisGraph:
+
+{{credits['redis']}}
+  https://github.com/redis/redis
+{{credits['redisgraph']}}
+  https://github.com/RedisGraph/RedisGraph
+
+                            *  *  *
+
+    Deployment managed by:
+
+{{credits['supervisor']}}
+  https://github.com/Supervisor/supervisor
+
+                            *  *  *
+
+    The main JavaScript project served in ise.bundle.js:
+
+{{credits['pfsc-ise']}}
+  https://github.com/proofscape/pfsc-ise
+
+                            *  *  *
+
+    Computer algebra and symbolic manipulation provided by:
+
+{{credits['sympy']}}
+
+    The SymPy project is at:
+    https://github.com/sympy/sympy
+
+    We use the DisplayLang fork of SymPy, which can be found at:
+    https://github.com/proofscape/sympy
+
+                            *  *  *
+
+    Other JavaScript projects loaded alongside ise.bundle.js:
+
+{{credits['pyodide']}}
+  https://github.com/pyodide/pyodide
+
+{{credits['pfsc-pdf']}}
+
+    The PDF.js project is at:
+    https://github.com/mozilla/pdf.js
+
+    We use the Proofscape fork of PDF.js, which can be found at:
+    https://github.com/proofscape/pfsc-pdf
+
+{{credits['mathjax']}}
+  https://github.com/mathjax/MathJax
+
+{{credits['elkjs']}}
+  https://github.com/kieler/elkjs
+
+  elkjs is a transpilation of ELK:
+  https://github.com/eclipse/elk
+
+                            *  *  *
+
+    Python packages running in the browser via Pyodide:
+
+{{ pyodide_python_packages }}
+
+                            *  *  *
+
+    Python packages supporting pfsc-server:
+
+Source code for these packages can be found in the Docker image,
+under /usr/local/lib/python3.8/site-packages.
+
+{{ python_packages }}
+
+                            *  *  *
+    Python
+
+{{credits['python']}}
+
+                            *  *  *
+
+    Other Javascript packages included in ise.bundle.js:
+
+{{ javascript_packages }}
+
+                            *  *  *
+
+    GCC runtime libraries
+
+libgomp                 GPL 3.0 with GCC Runtime Library Exception
+  https://github.com/gcc-mirror/gcc/tree/master/libgomp
+
+
+LICENSES
+========
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+pfsc-server
+  https://github.com/proofscape/pfsc-server
+
+{{ pfsc_server_Apache }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RedisGraph
+  https://github.com/RedisGraph/RedisGraph
+
+This software is subject to the terms of the Redis Source Available License Agreement.
+
+{{ RSAL }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Redis
+  https://github.com/redis/redis
+
+{{ redis_BSD }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+supervisor
+  https://github.com/Supervisor/supervisor
+
+{{ supervisor_license }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+python
+
+{{ PSF_license }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+libgomp
+  https://github.com/gcc-mirror/gcc/tree/master/libgomp
+
+{{ gcc_runtime }}
+
+{{ gpl3 }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{{ other_licenses }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

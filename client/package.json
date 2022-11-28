@@ -1,0 +1,40 @@
+{
+  "name": "pfsc-ise",
+  "version": "0.26.0-dev",
+  "license": "Apache-2.0",
+  "description": "Proofscape ISE (Integrated Study Environment)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proofscape/pise.git"
+  },
+  "private": true,
+  "scripts": {
+    "build": "webpack; date",
+    "build:dev": "webpack --env dev; date",
+    "build:rel": "webpack --env rel; date",
+    "build:dev:rel": "webpack --env dev --env rel; date"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^10.2.1",
+    "css-loader": "^6.5.1",
+    "dojo-webpack-plugin": "^3.0.4",
+    "style-loader": "^3.3.1",
+    "webpack": "^5.66.0",
+    "webpack-cli": "^4.9.1"
+  },
+  "dependencies": {
+    "ace-builds": "^1.4.8",
+    "browser-peers": "^0.2.0",
+    "dijit": "^1.16.5",
+    "dojo-util": "^1.16.5",
+    "dojox": "^1.16.5",
+    "dragula": "^3.7.3",
+    "elkjs": "^0.8.1",
+    "lru-cache": "^6.0.0",
+    "mathjax": "^3.0.1",
+    "nanobar": "^0.4.2",
+    "pfsc-moose": "^0.22.10",
+    "socket.io-client": "^4.5.3",
+    "uuid": "^8.3.2"
+  }
+}

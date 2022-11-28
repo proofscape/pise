@@ -1,0 +1,21 @@
+venv
+.env
+__pycache__
+*~
+~$*
+*.swp
+*.swo
+*.pyc
+*.DS_Store
+.idea/*
+.pytest_cache
+.coverage
+htmlcov/
+
+# resulting from `$ pip install -e .`:
+pfsc_manage.egg-info
+# conf.py is the user's customized copy of sample_conf.py:
+conf.py
+# Alternatively, user may store multiple custom confs in conf_dir,
+# and activate by making top-level conf.py a symlink to one of these.
+conf_dir/*.py

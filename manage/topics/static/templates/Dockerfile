@@ -1,0 +1,21 @@
+# --------------------------------------------------------------------------- #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# --------------------------------------------------------------------------- #
+
+FROM nginx:{{nginx_image_tag}}
+COPY pfsc-server/pfsc/static /usr/share/nginx/minsite
+COPY pfsc-ise/dist /usr/share/nginx/ise
+COPY pfsc-pdf/build/generic /usr/share/nginx/pdfjs
+COPY {{tmp_dir_name}}/nginx.conf /etc/nginx/conf.d/default.conf

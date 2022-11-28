@@ -1,0 +1,111 @@
+/* ------------------------------------------------------------------------- *
+ *  Copyright (c) 2011-2022 Proofscape contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+/* The highlighting looks a little "thin", especially over math symbols.
+ * We thicken it up a bit.
+ */
+.pfsc-ise-pdf .textLayer .highlight.selected {
+    padding: 5px;
+}
+
+/* Since we will be inverting the entire viewer for dark mode, we set the
+ * highlight color to be the opposite of the green color we want.
+ */
+.pfsc-ise-pdf.themeDark .textLayer .highlight.selected {
+    background-color: rgb(255, 0, 255);
+}
+
+/* Always want the toolbar inverted.
+ * For light mode, the default bar is too dark, but inverting makes it look good.
+ * As for dark mode, again this will provide a good contrast level.
+ */
+.pfsc-ise-pdf .toolbar {
+    filter: invert(1);
+}
+
+/* When in dark mode, we invert the entire viewer, but at level 0.8, not unity.
+ * This renders the pages of the pdf in a nice gray color, and keeps the toolbar
+ * looking good as well.
+ */
+.pfsc-ise-pdf.themeDark {
+    filter: invert(0.8);
+}
+
+/* When we are in "box select" mode, turn off pointer events on annotation layers,
+ * so they do not interfere.
+ */
+.pfsc-ise-pdf.boxSelect .annotationLayer {
+    pointer-events: none;
+}
+
+.boxLayer {
+    pointer-events: none;
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+.pfsc-ise-pdf.boxSelect .boxLayer {
+    pointer-events: all;
+    cursor: crosshair;
+}
+
+.highlightBox {
+    cursor: default;
+    position: absolute;
+    opacity: 0.3;
+}
+
+.highlightBox.red {
+    background: #f00;
+    border: 1px solid #f00;
+}
+
+.highlightBox.yellow {
+    background: #ff0;
+    border: 1px solid #ff0;
+}
+
+.highlightBox.green {
+    background: #0f0;
+    border: 1px solid #0f0;
+}
+
+.highlightBox.blue {
+    background: #0ff;
+    border: 1px solid #0ff;
+}
+
+.highlightBox.clear {
+    opacity: 0;
+}
+
+.themeDark .highlightBox {
+    filter: invert(1);
+}
+
+.highlightBox.selectionBox {
+    background: #f00;
+    border: 1px solid #f00;
+}
+
+.highlightBox.selectionBox:focus {
+    cursor: move;
+    background: #00f;
+    outline: none;
+}
