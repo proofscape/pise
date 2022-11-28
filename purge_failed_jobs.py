@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # --------------------------------------------------------------------------- #
-#   Proofscape Server                                                         #
-#                                                                             #
 #   Copyright (c) 2011-2022 Proofscape contributors                           #
 #                                                                             #
 #   Licensed under the Apache License, Version 2.0 (the "License");           #
