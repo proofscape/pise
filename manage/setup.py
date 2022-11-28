@@ -14,11 +14,19 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import json
+import pathlib
 from setuptools import setup
+
+
+pj_path = pathlib.Path(__file__).parent.parent / 'client' / 'package.json'
+with open(pj_path, 'r') as f:
+    pj = json.load(f)
+    version = pj['version']
 
 setup(
     name='pfsc-manage',
-    version='0.26.0-dev',
+    version=version,
     url='https://github.com/proofscape/pise/tree/main/manage',
     py_modules=['manage'],
     install_requires=[
