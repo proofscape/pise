@@ -106,10 +106,13 @@ def resolve_fs_path(var_name):
     if not isinstance(raw, str):
         raise ValueError
     if len(raw) == 0:
-        return PFSC_ROOT
-    if raw[0] == '/':
-        return raw
-    return os.path.join(PFSC_ROOT, raw)
+        path = PFSC_ROOT
+    elif raw[0] == '/':
+        path = raw
+    else:
+        path = os.path.join(PFSC_ROOT, raw)
+    # Do a resolve, in case there are symlinks.
+    return pathlib.Path(path).resolve()
 
 
 def do_commands_in_directory(cmds, path, dry_run=True, quiet=False):

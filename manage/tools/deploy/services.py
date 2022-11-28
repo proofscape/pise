@@ -14,6 +14,8 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import pathlib
+
 from manage import PFSC_ROOT
 import conf
 from tools.util import resolve_fs_path, get_version_numbers, get_server_version
@@ -202,6 +204,14 @@ def pfsc_dummy_server(deploy_dir_path, flask_config, tag='latest'):
     return d
 
 
+def resolve_pfsc_root_subdir(subpath):
+    """
+    Given any path extension below PFSC_ROOT, return the absolute fs path,
+    with any symlinks resolved.
+    """
+    return pathlib.Path(f'{PFSC_ROOT}/{subpath}').resolve()
+
+
 def get_proofscape_subdir_abs_fs_path_on_host(subdir_name):
     """
     Given the name (e.g. 'lib', 'build', 'PDFLibrary', etc.) of one of the
@@ -215,7 +225,7 @@ def get_proofscape_subdir_abs_fs_path_on_host(subdir_name):
     elif subdir_name == 'graphdb' and conf.PFSC_GRAPHDB_ROOT:
         return resolve_fs_path("PFSC_GRAPHDB_ROOT")
     else:
-        return f'{PFSC_ROOT}/{subdir_name}'
+        return resolve_pfsc_root_subdir(subdir_name)
 
 
 def pfsc_server(deploy_dir_path, mode, flask_config, tag='latest',
@@ -248,15 +258,15 @@ def pfsc_server(deploy_dir_path, mode, flask_config, tag='latest',
         d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
         d['depends_on'].extend([f'pfscwork{n}' for n in range(workers)])
     if demos:
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-demo-repos:/home/pfsc/demos:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-demo-repos")}:/home/pfsc/demos:ro')
     if conf.EMAIL_TEMPLATE_DIR:
         d['volumes'].append(f'{resolve_fs_path("EMAIL_TEMPLATE_DIR")}:/home/pfsc/proofscape/src/_email_templates:ro')
     if mount_code:
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/pfsc:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/config.py:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
     if mount_pkg:
         for pkg in [s.strip() for s in mount_pkg.split(',')]:
-            d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/venv/lib/python3.8/site-packages/{pkg}:/usr/local/lib/python3.8/site-packages/{pkg}')
+            d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/venv/lib/python3.8/site-packages")}/{pkg}:/usr/local/lib/python3.8/site-packages/{pkg}')
     return d
 
 
@@ -275,13 +285,13 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
     pfsc_server_vers = get_server_version()
     versions = get_version_numbers()
     if mount_code:
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/pfsc:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/static/css:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/css:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/static/img:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/img:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/config.py:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-server/web.py:/home/pfsc/proofscape/src/pfsc-server/web.py:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-ise/dist/ise/ise.bundle.js:/home/pfsc/proofscape/src/pfsc-server/static/ise/v{versions["pfsc-ise"]}/ise.bundle.js:ro')
-        d['volumes'].append(f'{PFSC_ROOT}/src/pfsc-pdf/build/generic:/home/pfsc/proofscape/src/pfsc-server/static/pdfjs/v{versions["pfsc-pdf"]}:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/css:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/img:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/web.py")}:/home/pfsc/proofscape/src/pfsc-server/web.py:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise/ise.bundle.js")}:/home/pfsc/proofscape/src/pfsc-server/static/ise/v{versions["pise"]}/ise.bundle.js:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/home/pfsc/proofscape/src/pfsc-server/static/pdfjs/v{versions["pfsc-pdf"]}:ro')
         d['volumes'].append(f'{PFSC_ROOT}/src/whl:/home/pfsc/proofscape/src/pfsc-server/static/whl:ro')
 
     if mount_pkg:
@@ -313,14 +323,14 @@ def nginx(deploy_dir_path, tag=conf.NGINX_IMAGE_TAG,
             )
         d['volumes'].extend([
             f'{PFSC_ROOT}/PDFLibrary:/usr/share/nginx/PDFLibrary:ro',
-            f'{PFSC_ROOT}/src/pfsc-pdf/build/generic:/usr/share/nginx/pdfjs:ro',
-            f'{PFSC_ROOT}/src/pfsc-ise/dist/ise:/usr/share/nginx/ise:ro',
-            f'{PFSC_ROOT}/src/pfsc-ise/dist/dojo:/usr/share/nginx/dojo:ro',
-            f'{PFSC_ROOT}/src/pfsc-ise/dist/mathjax:/usr/share/nginx/mathjax:ro',
-            f'{PFSC_ROOT}/src/pfsc-ise/dist/elk:/usr/share/nginx/elk:ro',
-            f'{PFSC_ROOT}/src/pfsc-server/static/css:/usr/share/nginx/css:ro',
-            f'{PFSC_ROOT}/src/pfsc-server/static/img:/usr/share/nginx/img:ro',
-            f'{PFSC_ROOT}/src/pyodide/v{versions["pyodide"]}:/usr/share/nginx/pyodide:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/usr/share/nginx/pdfjs:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise")}:/usr/share/nginx/ise:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/dojo")}:/usr/share/nginx/dojo:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/mathjax")}/:/usr/share/nginx/mathjax:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/elk")}:/usr/share/nginx/elk:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/usr/share/nginx/css:ro',
+            f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/usr/share/nginx/img:ro',
+            f'{resolve_pfsc_root_subdir("src/pyodide")}/v{versions["pyodide"]}:/usr/share/nginx/pyodide:ro',
         ])
         if conf.CommonVars.PYODIDE_SERVE_LOCALLY:
             d['volumes'].append(f'{PFSC_ROOT}/src/whl:/usr/share/nginx/whl:ro')
