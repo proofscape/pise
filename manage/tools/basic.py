@@ -15,9 +15,11 @@
 # --------------------------------------------------------------------------- #
 
 import os
+import pathlib
+
 import click
 
-from manage import cli, PFSC_ROOT
+from manage import cli, PFSC_ROOT, PISE_ROOT
 from tools.util import trymakedirs
 
 log = click.echo
@@ -51,3 +53,18 @@ def makestruct():
         else:
             log(f'Making directory {path}.')
             trymakedirs(path, exist_ok=True)
+
+    links = [
+        ('pfsc-server', 'server'),
+        ('pfsc-ise', 'client'),
+    ]
+    for name, target in links:
+        p = pathlib.Path(f'{PFSC_ROOT}/src/{name}')
+        if p.exists():
+            log(f'Found existing link {p}')
+        else:
+            p.symlink_to(
+                pathlib.Path(f'{PISE_ROOT}/{target}'),
+                target_is_directory=True
+            )
+            log(f'Made link {p}')
