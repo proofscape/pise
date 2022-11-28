@@ -74,9 +74,12 @@ class Config:
     IS_DEV = False
     IS_OCA = False
 
-    # Setting PERSONAL_SERVER_MODE to True is appropriate if and only if the
-    # server is running on a user's personal machine, in which case that user
-    # is intended to be able to do anything they want, with any repo.
+    # Setting PERSONAL_SERVER_MODE to True is appropriate in only two cases:
+    # (1) the server is running on a user's personal machine, in which case
+    # that user is intended to be able to do anything they want, with any repo;
+    # (2) the app is running as an RQ worker, started by the `worker.py` script,
+    # in which case it needs to be able to do whatever it is asked. (Permission
+    # checks happen before jobs reach workers.)
     PERSONAL_SERVER_MODE = bool(int(os.getenv("PERSONAL_SERVER_MODE", 0)))
 
     # When _not_ in PERSONAL_SERVER_MODE, you are most likely running the
@@ -88,7 +91,7 @@ class Config:
     # you will have to implment a solution for your users to obtain their work,
     # i.e. to do a commit and then either push that work somewhere else or
     # do a pull from your server. (Or perhaps not do a commit but simply do an
-    # rsync?) Currently, pfsc-server does not yet provide any support for any of
+    # rsync?) Currently, the server does not yet provide any support for any of
     # this.
     ALLOW_WIP = bool(int(os.getenv("ALLOW_WIP", 0)))
 
