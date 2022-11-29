@@ -56,7 +56,7 @@ def strip_headers(text):
     return LICENSE_HEADER_PATTERN.sub('', text)
 
 
-def finalize(df, image_name, tag, dump, dry_run):
+def finalize(df, image_name, tag, dump, dry_run, tar_path=None):
     """
     Finish a build process by actually carrying out the `docker build` command.
 
@@ -65,6 +65,10 @@ def finalize(df, image_name, tag, dump, dry_run):
     tag: the tag for the image
     dump: boolean, whether you want to dump the Dockerfile contents to stdout
     dry_run: boolean, whether to actually do anything
+    tar_path: If given, then instead of carrying out the `docker build` command,
+        we will write the tar file to this path. It can then be passed as the
+        context to a `docker build` carried out at a later time. Tildes (~) are
+        expanded.
     """
     df = strip_headers(df)
     if dump:
@@ -124,7 +128,10 @@ def finalize(df, image_name, tag, dump, dry_run):
         """
         do_zip = (sys.platform != 'darwin')
         zip = 'z' if do_zip else ''
-        cmd = f'cd {context_dir}; tar -c{zip}h . | {DOCKER_CMD} build -t {image_name}:{tag} -'
+        if tar_path:
+            cmd = f'cd {context_dir}; tar -c{zip}h -f {os.path.expanduser(tar_path)} .'
+        else:
+            cmd = f'cd {context_dir}; tar -c{zip}h . | {DOCKER_CMD} build -t {image_name}:{tag} -'
 
         print(cmd)
         if not dry_run:
@@ -146,8 +153,9 @@ def write_dockerignore_for_pyc():
 @click.option('--demos', is_flag=True, help="Include demo repos.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
+@click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
 @click.argument('tag')
-def server(demos, dump, dry_run, tag):
+def server(demos, dump, dry_run, tar_path, tag):
     """
     Build a `pfsc-server` docker image, and give it a TAG.
     """
@@ -158,7 +166,7 @@ def server(demos, dump, dry_run, tag):
 
     from topics.pfsc import write_single_service_dockerfile
     df = write_single_service_dockerfile(demos=demos)
-    finalize(df, 'pfsc-server', tag, dump, dry_run)
+    finalize(df, 'pfsc-server', tag, dump, dry_run, tar_path=tar_path)
 
 
 def oca_readiness_checks(release=False):
@@ -200,8 +208,9 @@ def oca_readiness_checks(release=False):
 @click.option('--release', is_flag=True, help="Set true if this is a release build. Adds license file.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
+@click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
 @click.argument('tag')
-def oca(release, dump, dry_run, tag):
+def oca(release, dump, dry_run, tar_path, tag):
     """
     Build a `pise` (one-container app) docker image, and give it a TAG.
 
@@ -258,8 +267,8 @@ def oca(release, dump, dry_run, tag):
         step_1_tag = tag if (dry_run or not release) else tag + '-without-license-file'
         step_2_tag = tag
         # Step 1
-        finalize(df, 'pise', step_1_tag, dump, dry_run)
-        if release and not dry_run:
+        finalize(df, 'pise', step_1_tag, dump, dry_run, tar_path=tar_path)
+        if release and not dry_run and not tar_path:
             # Step 2
             license_file_text = tools.license.oca.callback(f'pise:{step_1_tag}')
             # Update the copy under version control (which exists so there is
