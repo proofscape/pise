@@ -230,8 +230,12 @@ def oca(release, dump, dry_run, tag):
             ini = write_redisgraph_ini(use_conf_file=True)
             f.write(ini)
         with open(os.path.join(tmp_dir_name, 'oca_version.txt'), 'w') as out:
-            with open(os.path.join(PFSC_MANAGE_ROOT, 'topics', 'pfsc', 'oca_version.txt')) as f:
-                out.write(f.read())
+            if release:
+                with open(os.path.join(PFSC_MANAGE_ROOT, 'topics', 'pfsc', 'oca_version.txt')) as f:
+                    version_text = f.read()
+            else:
+                version_text = get_version_numbers()['pise']
+            out.write(version_text)
         tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
         write_dockerignore_for_pyc()
         df = write_proofscape_oca_dockerfile(tmp_dir_rel_path)
