@@ -7,7 +7,7 @@ import os
 # *** NOTE: Generally, when a config variable in this file defines a filesystem
 # path, then it will be interpreted as relative to `PFSC_ROOT` unless it begins
 # with a slash. ***
-PFSC_ROOT = os.getenv("PFSC_ROOT", "~/proofscape")
+PFSC_ROOT = os.getenv("PFSC_ROOT") or "~/proofscape"
 
 # Subdirectories
 #
