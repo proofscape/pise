@@ -229,9 +229,11 @@ def get_proofscape_subdir_abs_fs_path_on_host(subdir_name):
 
 
 def pfsc_server(deploy_dir_path, mode, flask_config, tag='latest',
-                gdb=None, workers=1, demos=False, mount_code=False, mount_pkg=None):
+                gdb=None, workers=1, demos=False,
+                mount_code=False, mount_pkg=None,
+                official=False):
     d = {
-        'image': f"pfsc-server:{tag}",
+        'image': f"{'proofscape/' if official else ''}pfsc-server:{tag}",
         'depends_on': [
             'redis',
         ],

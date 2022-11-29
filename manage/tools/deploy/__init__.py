@@ -55,8 +55,9 @@ def deploy():
               help='Print the generated docker-compose YAML to stdout.')
 @click.option('--dirname',
               help='Directory name under which to save. Use "production_" + random word/name + timestamp if unspecified.')
+@click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
 @click.argument('pfsc-tag')
-def production(gdb, workers, demos, dump_dc, dirname, pfsc_tag):
+def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
     """
     Generate a deployment directory for a production MCA deployment, using
     pfsc-server image of tag PFSC_TAG.
@@ -87,7 +88,7 @@ def production(gdb, workers, demos, dump_dc, dirname, pfsc_tag):
     static_redir = None
     static_acao = False
     dummy = False
-    generate.callback(gdb, pfsc_tag, oca_tag, workers, demos, mount_code, mount_pkg, dump_dc,
+    generate.callback(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
              production_mode=True)
 
@@ -100,6 +101,7 @@ def production(gdb, workers, demos, dump_dc, dirname, pfsc_tag):
               help='Use `pfsc-server:TEXT` docker image. Default `latest`.')
 @click.option('--oca-tag', default='latest', prompt='proofscape (OCA) image tag',
               help='Use `proofscape:TEXT` docker image. Default `latest`.')
+@click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
 @click.option('-n', '--workers', type=int, default=1, prompt='How many RQ workers', help='Number of worker containers you want to run')
 @click.option('--demos', is_flag=True, default=True, prompt='Serve demo repos', help="Serve demo repos.")
 @click.option('--mount-code', is_flag=True, default=True, prompt='Volume-mount pfsc-server code for development',
@@ -118,7 +120,7 @@ def production(gdb, workers, demos, dump_dc, dirname, pfsc_tag):
 @click.option('--static-redir', default=None, help='Redirect all static requests to domain TEXT.')
 @click.option('--static-acao', is_flag=True, default=False, help='Serve all static assets with `Access-Control-Allow-Origin *` header.')
 @click.option('--dummy', is_flag=True, default=False, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
-def generate(gdb, pfsc_tag, oca_tag, workers, demos, mount_code, mount_pkg, dump_dc,
+def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
              production_mode=False):
     """
@@ -172,7 +174,7 @@ def generate(gdb, pfsc_tag, oca_tag, workers, demos, mount_code, mount_pkg, dump
 
     # mca-docker-compose.yml
     y = write_docker_compose_yaml(new_dir_name, new_dir_path,
-                                  gdb, pfsc_tag, workers, demos,
+                                  gdb, pfsc_tag, official, workers, demos,
                                   mount_code, mount_pkg, flask_config)
     y_full = y['full']
     y_layers = y['layers']
@@ -688,7 +690,7 @@ def write_run_oca_sh_script(oca_tag):
     )
 
 
-def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag,
+def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, official,
                               workers, demos, mount_code, mount_pkg, flask_config):
     svc_redis = services.redis()
     s_full = {
@@ -723,7 +725,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag,
     def write_pfsc_service(cmd):
         return services.pfsc_server(deploy_dir_path, cmd, flask_config,
             tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
-            mount_code=mount_code, mount_pkg=mount_pkg)
+            mount_code=mount_code, mount_pkg=mount_pkg, official=official)
 
     for n in range(workers):
         svc_pfscwork = write_pfsc_service('worker')
