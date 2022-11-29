@@ -413,19 +413,8 @@ def dict_to_dot_env(d):
     return '\n'.join(lines) + '\n'
 
 
-def get_ise_vers_num():
-    versions = get_version_numbers()
-    checked_out_vers = versions['pise']
-    if conf.CommonVars.ISE_SERVE_LOCALLY:
-        return checked_out_vers
-    elif conf.REMOTE_ISE_VERSION is not None:
-        return conf.REMOTE_ISE_VERSION
-    return checked_out_vers
-
-
 def write_local_dot_env(app_url_prefix, gdb, demos, secret=None):
     d = {
-        "ISE_VERSION": get_ise_vers_num(),
         "SECRET_KEY": secret or secrets.token_urlsafe(32),
         "PFSC_LIB_ROOT": f'{PFSC_ROOT}/lib',
         "PFSC_BUILD_ROOT": f'{PFSC_ROOT}/build',
@@ -456,7 +445,6 @@ def write_local_dot_env(app_url_prefix, gdb, demos, secret=None):
 
 def write_docker_dot_env(app_url_prefix, gdb, demos, secret=None):
     d = {
-        "ISE_VERSION": get_ise_vers_num(),
         "SECRET_KEY": secret or secrets.token_urlsafe(32),
     }
 

@@ -169,16 +169,6 @@ NGINX_IMAGE_TAG = '1.22.0'
 # REDISINSIGHT_IMAGE_TAG = '1.11.0'
 REDISINSIGHT_IMAGE_TAG = None
 
-# Remote ISE Version
-#
-# When serving the ISE bundle locally, you cannot set the version, since this
-# is determined by the version that is currently checked out in the local copy
-# of the pfsc-ise repo. When serving the ISE bundle remotely (over jsdelivr),
-# which is controlled by the `ISE_SERVE_LOCALLY` variable under `CommonVars`
-# below, you can configure the version number here. If `None`, we again use the
-# number from the local checked out version.
-REMOTE_ISE_VERSION = None
-
 # App URL Prefix
 #
 # The APP_URL_PREFIX supports different ways of deploying the Proofscape ISE.

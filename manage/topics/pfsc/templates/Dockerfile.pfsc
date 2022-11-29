@@ -35,7 +35,8 @@ RUN ln -s /proofscape/lib \
  && ln -s /proofscape/graphdb \
  && ln -s /proofscape/deploy \
  && ln -s /proofscape/PDFLibrary \
- && mkdir -p src/pfsc-server
+ && mkdir -p src/pfsc-server \
+ && mkdir -p src/client
 
 WORKDIR /home/pfsc/proofscape/src/pfsc-server
 
@@ -60,6 +61,8 @@ COPY pfsc-server/config.py ./
 COPY pfsc-server/web.py ./
 COPY pfsc-server/worker.py ./
 COPY pfsc-server/getg.py ./
+
+COPY pfsc-ise/package.json /home/pfsc/proofscape/src/client/
 
 {% if demos %}
 COPY pfsc-demo-repos /home/pfsc/demos

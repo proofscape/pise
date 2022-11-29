@@ -29,7 +29,6 @@ RUN echo "loadmodule /usr/lib/redis/modules/redisgraph.so" >> redis.conf \
  && echo "dir /proofscape/graphdb/re" >> redis.conf \
  && echo "save 1 1" >> redis.conf
 
-ENV ISE_VERSION {{ise_version}}
 # Use the One-Container App config:
 ENV FLASK_CONFIG OCA
 # Set to accept user config from PFSC_ROOT/deploy/pfsc.conf:

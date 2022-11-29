@@ -15,6 +15,7 @@
 # --------------------------------------------------------------------------- #
 
 import os
+import json
 
 from dotenv import load_dotenv
 # Load pfsc-server/instance/.env
@@ -26,6 +27,12 @@ if bool(int(os.getenv("LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR", 0))):
     # if found load it, overriding instance/.env as well as existing env vars.
     PFSC_CONF_PATH = os.path.join(BASE_DIR, '..', '..', 'deploy', 'pfsc.conf')
     load_dotenv(PFSC_CONF_PATH, override=True)
+
+OUTER_DIR = os.path.dirname(BASE_DIR)
+pj_path = os.path.join(OUTER_DIR, 'client', 'package.json')
+with open(pj_path, 'r') as f:
+    pj = json.load(f)
+PISE_VERSION = pj['version']
 
 
 def format_url_prefix(raw):
@@ -163,7 +170,7 @@ class Config:
 
     # Static assets:
 
-    ISE_VERSION = os.getenv("ISE_VERSION", "0.0")
+    ISE_VERSION = PISE_VERSION
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
     # Since a worker script must obey the same-origin policy
     #   https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker

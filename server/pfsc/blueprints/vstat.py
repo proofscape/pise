@@ -30,11 +30,11 @@ will generate a URL like
 
 from flask import Blueprint
 
-from pfsc import __version__
+from config import PISE_VERSION
 
 
 bp = Blueprint(
     'vstat', __name__,
     static_folder='../../static',
-    static_url_path=f'static/v{__version__}',
+    static_url_path=f'static/v{PISE_VERSION}',
 )
