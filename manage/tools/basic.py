@@ -25,7 +25,8 @@ from tools.util import trymakedirs
 log = click.echo
 
 @cli.command()
-def makestruct():
+@click.option('-y', '--yes', is_flag=True, help="Proceed without confirmation.")
+def makestruct(yes):
     """
     Build the directory structure for Proofscape.
 
@@ -38,7 +39,8 @@ def makestruct():
     if PFSC_ROOT is None or (isinstance(PFSC_ROOT, str) and len(PFSC_ROOT) == 0):
         raise click.UsageError('PFSC_ROOT undefined.')
 
-    click.confirm(f'Do you want to install Proofscape in {PFSC_ROOT}?', abort=True)
+    if not yes:
+        click.confirm(f'Do you want to install Proofscape in {PFSC_ROOT}?', abort=True)
 
     if os.path.exists(PFSC_ROOT):
         log(f'Found existing directory {PFSC_ROOT}.')
