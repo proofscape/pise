@@ -815,7 +815,7 @@ class AppLoader(Handler):
             (
                 url_for('static', filename=f'ise/v{ise_vers}/{ise_bundle_filename}')
                 if check_config("ISE_SERVE_LOCALLY") else
-                f'https://cdn.jsdelivr.net/gh/proofscape/pfsc-ise@{ise_vers}/dist/ise/{ise_bundle_filename}'
+                f'https://cdn.jsdelivr.net/gh/proofscape/pise@{ise_vers}/client/dist/ise/{ise_bundle_filename}'
             ),
 
             # If we want to use pdfjs outside of iframes, might need sth like this:

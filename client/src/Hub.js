@@ -77,7 +77,7 @@ var Hub = declare(null, {
     mathWorkerReady: null,
     pyodidePackageInfo: null,
     aboutPbeUrl: 'https://proofscape.org/download/pbe.html',
-    bugReportUrl: 'https://github.com/proofscape/pfsc-ise/issues',
+    bugReportUrl: 'https://github.com/proofscape/pise/issues',
     ocaUpgradeUrl: 'https://proofscape.org/pise/running_the_ise/basic.html#upgrading',
 
     OCA_version: null,
