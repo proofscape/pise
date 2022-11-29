@@ -30,7 +30,8 @@ setup(
     url='https://github.com/proofscape/pise/tree/main/manage',
     py_modules=['manage'],
     install_requires=[
-        'click', 'Jinja2', 'requests'
+        'click', 'Jinja2', 'requests',
+        'pytest', 'selenium',
     ],
     entry_points='''
         [console_scripts]
