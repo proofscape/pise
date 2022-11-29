@@ -1,11 +1,13 @@
 # Proofscape Configuration
 
+import os
+
 # Root Directory for Proofscape.
 #
 # *** NOTE: Generally, when a config variable in this file defines a filesystem
 # path, then it will be interpreted as relative to `PFSC_ROOT` unless it begins
 # with a slash. ***
-PFSC_ROOT = "~/proofscape"
+PFSC_ROOT = os.getenv("PFSC_ROOT", "~/proofscape")
 
 # Subdirectories
 #
@@ -215,13 +217,13 @@ class CommonVars:
     """
     Vars defined here will be added to both local.env and docker.env.
     """
-    ISE_SERVE_MINIFIED = 0
-    MATHWORKER_SERVE_MINIFIED = 0
+    ISE_SERVE_MINIFIED = int(os.getenv("ISE_SERVE_MINIFIED", 0))
+    MATHWORKER_SERVE_MINIFIED = int(os.getenv("MATHWORKER_SERVE_MINIFIED", 0))
 
-    ISE_SERVE_LOCALLY = 1
-    ELKJS_SERVE_LOCALLY = 1
-    MATHJAX_SERVE_LOCALLY = 1
-    PYODIDE_SERVE_LOCALLY = 1
+    ISE_SERVE_LOCALLY = int(os.getenv("ISE_SERVE_LOCALLY", 1))
+    ELKJS_SERVE_LOCALLY = int(os.getenv("ELKJS_SERVE_LOCALLY", 1))
+    MATHJAX_SERVE_LOCALLY = int(os.getenv("MATHJAX_SERVE_LOCALLY", 1))
+    PYODIDE_SERVE_LOCALLY = int(os.getenv("PYODIDE_SERVE_LOCALLY", 1))
 
     # Note: During development, Pyodide should ordinarily be served locally.
     # We also need a local copy for building the OCA docker image.
