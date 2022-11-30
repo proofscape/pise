@@ -323,10 +323,16 @@ class PathInfo:
 
         ## DIAGNOSTIC
         import getpass
+        import pathlib
         checkuser = getpass.getuser()
+        p = pathlib.Path(fs_path)
         print()
         print("=" * 80)
         print(f'I am user: {checkuser}')
+        print(f'File path: {p}')
+        print(f'File owner: {p.owner()}')
+        print(f'File group: {p.group()}')
+        print(f'File permissions: {bin(p.stat().st_mode)[-9:]}')
         print("=" * 80)
         ###
 
