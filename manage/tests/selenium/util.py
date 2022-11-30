@@ -271,6 +271,16 @@ def click_nth_context_menu_option(driver, elt_sel, menu_table_id, n, label, logg
     menu_option.click()
 
 
+def log_browser_console(driver, logger_name='root'):
+    logger = logging.getLogger(logger_name)
+    entries = list(driver.get_log('browser'))
+    logger.debug(f"Found {len(entries)} browser console entries.")
+    if entries:
+        logger.debug("Entries follow...")
+        for entry in entries:
+            logger.debug(str(entry))
+
+
 class Tester:
 
     def setup_method(self, method):
@@ -284,11 +294,21 @@ class Tester:
 
     def teardown_method(self, method):
         if pfsc_conf.SEL_TAKE_FINAL_SCREENSHOT:
-            p = pathlib.Path(PFSC_ROOT) / 'selenium_screenshots'
+            p = pathlib.Path(PFSC_ROOT) / 'selenium_results' / 'screenshots'
             p.mkdir(exist_ok=True)
             p /= f'{self.__class__.__name__}.png'
             self.driver.save_screenshot(p)
             self.logger.debug(f"Recorded final screenshot at {p}")
+
+        if pfsc_conf.SEL_PRINT_FINAL_BROWSER_CONSOLE_ENTRIES:
+            entries = list(self.driver.get_log('browser'))
+            print()
+            print(f"Found {len(entries)} browser console entries.")
+            if entries:
+                print("Entries follow...")
+                for entry in entries:
+                    print(str(entry))
+
         if pfsc_conf.SEL_HEADLESS or not pfsc_conf.SEL_STAY_OPEN:
             self.driver.quit()
 
@@ -341,3 +361,6 @@ class Tester:
 
     def click_nth_context_menu_option(self, elt_sel, menu_table_id, n, label):
         return click_nth_context_menu_option(self.driver, elt_sel, menu_table_id, n, label, logger_name=self.logger_name)
+
+    def log_browser_console(self):
+        log_browser_console(self.driver, logger_name=self.logger_name)
