@@ -295,7 +295,7 @@ class Tester:
     def teardown_method(self, method):
         if pfsc_conf.SEL_TAKE_FINAL_SCREENSHOT:
             p = pathlib.Path(PFSC_ROOT) / 'selenium_results' / 'screenshots'
-            p.mkdir(exist_ok=True)
+            p.mkdir(parents=True, exist_ok=True)
             p /= f'{self.__class__.__name__}.png'
             self.driver.save_screenshot(p)
             self.logger.debug(f"Recorded final screenshot at {p}")
