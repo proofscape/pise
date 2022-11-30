@@ -65,13 +65,20 @@ class TestBasicRun01(Tester):
             # property, we catch `StaleElementReferenceException`, and simply
             # pass. Since we're taking 30 samples, in most cases we'll get
             # plenty of good ones.
+            # It seems that sometimes the width attribute may also come up
+            # as a percentage, instead of a number of pixels. We catch the
+            # resulting `ValueError`, and again simply pass.
             try:
                 prog_bar = self.find_element(s_prog_bar)
                 w_str = prog_bar.value_of_css_property('width')
-            except selenium.common.exceptions.StaleElementReferenceException:
+                w_flt = float(w_str.replace('px', ''))
+            except (
+                selenium.common.exceptions.StaleElementReferenceException,
+                ValueError,
+            ):
                 pass
             else:
-                w_flt = float(w_str.replace('px', ''))
+
                 logger.debug(f'Prog bar width: {w_flt:.2f}')
                 widths.add(w_flt)
             time.sleep(0.1)
