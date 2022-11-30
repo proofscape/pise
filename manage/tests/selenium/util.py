@@ -278,12 +278,17 @@ class Tester:
         self.driver.delete_all_cookies()
         self.logger_name = 'root'
 
+    @property
+    def logger(self):
+        return logging.getLogger(self.logger_name)
+
     def teardown_method(self, method):
         if pfsc_conf.SEL_TAKE_FINAL_SCREENSHOT:
             p = pathlib.Path(PFSC_ROOT) / 'selenium_screenshots'
             p.mkdir(exist_ok=True)
             p /= f'{self.__class__.__name__}.png'
             self.driver.save_screenshot(p)
+            self.logger.debug(f"Recorded final screenshot at {p}")
         if pfsc_conf.SEL_HEADLESS or not pfsc_conf.SEL_STAY_OPEN:
             self.driver.quit()
 
