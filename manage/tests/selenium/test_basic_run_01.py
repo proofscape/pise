@@ -82,7 +82,7 @@ class TestBasicRun01(Tester):
         assert n >= 2
 
         # Feedback monitor should be hidden after build completes.
-        self.wait_for_element_invisible(s_feedback_area, wait=180)
+        self.wait_for_element_invisible(s_feedback_area, wait=30)
         dt = time.time() - t0
         logger.info(f'Feedback monitor hidden. Build took {dt:.2f}s.')
 
