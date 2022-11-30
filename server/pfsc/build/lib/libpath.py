@@ -320,6 +320,16 @@ class PathInfo:
             raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
         if appendTilde:
             fs_path += "~"
+
+        ## DIAGNOSTIC
+        import getpass
+        checkuser = getpass.getuser()
+        print()
+        print("=" * 80)
+        print(f'I am user: {checkuser}')
+        print("=" * 80)
+        ###
+
         with open(fs_path, 'w') as f:
             n = f.write(text)
         return n
