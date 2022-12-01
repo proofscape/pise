@@ -231,22 +231,30 @@ def get_proofscape_subdir_abs_fs_path_on_host(subdir_name):
 def pfsc_server(deploy_dir_path, mode, flask_config, tag='latest',
                 gdb=None, workers=1, demos=False,
                 mount_code=False, mount_pkg=None,
-                official=False):
+                official=False,
+                lib_vol=None, build_vol=None):
     d = {
         'image': f"{'proofscape/' if official else ''}pfsc-server:{tag}",
         'depends_on': [
             'redis',
         ],
         'volumes': [
-            f'{get_proofscape_subdir_abs_fs_path_on_host(direc)}:/proofscape/{direc}'
-            for direc in [ 'lib', 'build', 'PDFLibrary' ]
-        ] + [
             f'{deploy_dir_path}/docker.env:/home/pfsc/proofscape/src/pfsc-server/instance/.env:ro'
         ],
         'environment': {
             "FLASK_CONFIG": flask_config,
         },
     }
+
+    volume_names = {
+        'lib': lib_vol,
+        'build': build_vol,
+        'pdflib': None,  # (No support for this yet.)
+    }
+    for direc, vol_name in volume_names.items():
+        d['volumes'].append(
+            f'{vol_name or get_proofscape_subdir_abs_fs_path_on_host(direc)}:/proofscape/{direc}'
+        )
 
     mode_env_var = {
         'websrv': 'PFSC_RUN_AS_WEB_SERVER',

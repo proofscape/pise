@@ -120,8 +120,12 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--static-redir', default=None, help='Redirect all static requests to domain TEXT.')
 @click.option('--static-acao', is_flag=True, default=False, help='Serve all static assets with `Access-Control-Allow-Origin *` header.')
 @click.option('--dummy', is_flag=True, default=False, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
+@click.option('--lib-vol', help="A pre-existing docker volume to be mounted to /proofscape/lib")
+@click.option('--build-vol', help="A pre-existing docker volume to be mounted to /proofscape/build")
+@click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
 def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
+             lib_vol, build_vol, gdb_vol,
              production_mode=False):
     """
     Generate a new deployment dir containing files for deploying a full Proofscape system.
@@ -175,7 +179,8 @@ def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount
     # mca-docker-compose.yml
     y = write_docker_compose_yaml(new_dir_name, new_dir_path,
                                   gdb, pfsc_tag, official, workers, demos,
-                                  mount_code, mount_pkg, flask_config)
+                                  mount_code, mount_pkg, flask_config,
+                                  lib_vol, build_vol, gdb_vol)
     y_full = y['full']
     y_layers = y['layers']
 
@@ -691,7 +696,8 @@ def write_run_oca_sh_script(oca_tag):
 
 
 def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, official,
-                              workers, demos, mount_code, mount_pkg, flask_config):
+                              workers, demos, mount_code, mount_pkg, flask_config,
+                              lib_vol, build_vol, gdb_vol):
     svc_redis = services.redis()
     s_full = {
         'redis': svc_redis,
@@ -706,6 +712,14 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, o
         name = GdbCode.service_name(code)
         writer = GdbCode.service_defn_writer(code)
         svc_defn = writer()
+
+        if gdb_vol:
+            # TODO: Provide support for use of named volumes with other GDBs besides RedisGraph
+            if code == GdbCode.RE:
+                svc_defn['volumes'] = [
+                    f'{gdb_vol}:/data'
+                ]
+
         s_full[name] = svc_defn
         s_db[name] = copy.deepcopy(svc_defn)
 
@@ -725,7 +739,8 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, o
     def write_pfsc_service(cmd):
         return services.pfsc_server(deploy_dir_path, cmd, flask_config,
             tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
-            mount_code=mount_code, mount_pkg=mount_pkg, official=official)
+            mount_code=mount_code, mount_pkg=mount_pkg, official=official,
+            lib_vol=lib_vol, build_vol=build_vol)
 
     for n in range(workers):
         svc_pfscwork = write_pfsc_service('worker')
@@ -769,6 +784,15 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, o
             }
         },
     }
+
+    vol_names = {lib_vol, build_vol, gdb_vol} - {None}
+    if vol_names:
+        vol_names = sorted(list(vol_names))  # for deterministic results
+        volumes = {}
+        for vol_name in vol_names:
+            volumes[vol_name] = {'external': True}
+        d_full['volumes'] = volumes
+
     y = {
         'full': simple_yaml.dumps(d_full, indent=2) + '\n',
         'layers': {
