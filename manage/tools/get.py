@@ -35,7 +35,7 @@ def get():
 
 
 @get.command()
-@click.option('-v', '--version', help="Desired version number. Defaults to setting in conf.py.")
+@click.option('-v', '--version', help="Desired version number. Defaults to setting in client/other-versions.json.")
 @click.option('--dry-run', is_flag=True, help="Do not actually download; just print commands.")
 def pyodide(version, dry_run):
     """
@@ -66,7 +66,7 @@ def pyodide(version, dry_run):
 
 
 @get.command()
-@click.option('-v', '--version', help="Desired version number for pfsc-examp. Defaults to setting in conf.py.")
+@click.option('-v', '--version', help="Desired version number for pfsc-examp. Defaults to setting in client/other-versions.json.")
 @click.option('--release', is_flag=True, help="Set true to save to the whl/release directory.")
 @click.option('--dry-run', is_flag=True, help="Do not actually download; just print commands.")
 def wheels(version, release, dry_run):
