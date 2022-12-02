@@ -23,8 +23,6 @@ from manage import cli, PFSC_ROOT
 SRC_DIR = os.path.join(PFSC_ROOT, 'src')
 
 KNOWN_REPOS = {
-    'server': 'github.com/proofscape/pfsc-server',
-    'ise': 'github.com/proofscape/pfsc-ise',
     'moose': 'github.com/proofscape/pfsc-moose',
 }
 
@@ -101,7 +99,7 @@ def clone(dry_run, repo):
         local_name = LOCAL_NAMES[repo]
         full_cmd += f' {local_name}'
 
-    ref = REQUIRED_CHECKOUTS.get(repo, 'master')
+    ref = REQUIRED_CHECKOUTS.get(repo, 'main')
     full_cmd += f'; cd {local_name}; git fetch; git checkout {ref}'
 
     if dry_run:
