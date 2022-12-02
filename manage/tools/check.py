@@ -14,45 +14,29 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-import os
+import sys
 
 import click
 
-MISSING_CONF_ERR_MSG = """
-Did not find conf.py. You should copy the file sample_conf.py
-
-    $ cp sample_conf.py conf.py
-
-and then adapt conf.py as desired.
-"""
-try:
-    import conf
-except ModuleNotFoundError:
-    print(MISSING_CONF_ERR_MSG)
-    import sys
-    sys.exit(1)
-
-PFSC_MANAGE_ROOT = os.path.dirname(__file__)
-PISE_ROOT = os.path.dirname(PFSC_MANAGE_ROOT)
-
-PFSC_ROOT = os.path.expanduser(getattr(conf, 'PFSC_ROOT'))
+from manage import cli
+from tools.util import get_version_numbers
 
 
-@click.group()
-def cli():
+@cli.group()
+def check():
+    """
+    Commands for checking information like version numbers
+    """
     pass
 
-# These imports define all the commands.
-import tools.basic
-import tools.build
-import tools.deploy
-import tools.gdb
-#import tools.install
-import tools.license
-import tools.make
-import tools.repo
-import tools.update
-import tools.release
-import tools.grep
-import tools.get
-import tools.check
+
+@check.command()
+@click.argument('project')
+def version(project):
+    """
+    Check the version of a project, by name
+    """
+    nums = get_version_numbers()
+    if project not in nums:
+        raise click.UsageError(f'Unknown project: {project}')
+    sys.stdout.write(nums[project])
