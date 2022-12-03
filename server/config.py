@@ -586,7 +586,8 @@ class OcaConfig(DockerDevConfig):
     """
     IS_OCA = True
     TESTING = False
-    OCA_LATEST_VERSION_URL = 'https://raw.githubusercontent.com/proofscape/pfsc-manage/main/topics/pfsc/oca_version.txt'
+    OCA_DOCKERHUB_NAMESPACE = 'proofscape'
+    OCA_DOCKERHUB_REPO = 'pise'
     OCA_VERSION_FILE = "/home/pfsc/VERSION.txt"
     EULA_FILE = "/home/pfsc/EULA.txt"
 

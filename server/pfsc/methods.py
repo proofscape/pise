@@ -20,6 +20,7 @@ Methods of handling requests.
 
 import logging
 from io import BytesIO
+from urllib.robotparser import RobotFileParser
 
 from flask import jsonify, render_template, send_file, url_for
 import requests
@@ -225,9 +226,30 @@ def handle_and_emit(socket_handler_class, info_dict, room):
     s.emit_standard_response()
 
 
-def try_to_proxy(url):
-    response = requests.get(url)
-    return response.content if response.status_code == 200 else None
+def try_to_proxy(url, robots_url=None):
+    """
+    Try to obtain the content from a given URL.
+
+    url: the desired URL
+    robots_url: If given, we'll first check the robots.txt file served from
+      this URL, and fetch the desired URL only if we're allowed.
+
+    returns: None if the respose code is other than 200, or if robots_url is
+      given and we are told not to access the desired URL. Otherwise, return
+      the content obtained.
+    """
+    content = None
+    can_fetch = True
+    if robots_url:
+        rfp = RobotFileParser()
+        rfp.set_url(robots_url)
+        rfp.read()
+        can_fetch = rfp.can_fetch("*", url)
+    if can_fetch:
+        response = requests.get(url)
+        if response.status_code == 200:
+            content = response.content
+    return content
 
 
 def proxy_or_render(proxy_config_var_name, template_filename, **context_kwargs):

@@ -236,13 +236,8 @@ def oca(release, dump, dry_run, tar_path, tag):
         with open(os.path.join(tmp_dir_name, 'redisgraph.ini'), 'w') as f:
             ini = write_redisgraph_ini(use_conf_file=True)
             f.write(ini)
-        with open(os.path.join(tmp_dir_name, 'oca_version.txt'), 'w') as out:
-            if release:
-                with open(os.path.join(PFSC_MANAGE_ROOT, 'topics', 'pfsc', 'oca_version.txt')) as f:
-                    version_text = f.read()
-            else:
-                version_text = get_version_numbers()['pise']
-            out.write(version_text)
+        with open(os.path.join(tmp_dir_name, 'oca_version.txt'), 'w') as f:
+            f.write(tag)
         tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
         write_dockerignore_for_pyc()
         df = write_proofscape_oca_dockerfile(tmp_dir_rel_path)
@@ -271,14 +266,6 @@ def oca(release, dump, dry_run, tar_path, tag):
         if release and not dry_run and not tar_path:
             # Step 2
             license_file_text = tools.license.oca.callback(f'pise:{step_1_tag}')
-            # Update the copy under version control (which exists so there is
-            # a linkable copy on the web). Note that, since we currently are not
-            # writing version numbers into this file, it will often be unchanged
-            # after a new build.
-            vc_clf = os.path.join(PFSC_MANAGE_ROOT, 'topics', 'pfsc', 'oca_combined_license_file.txt')
-            with open(vc_clf, 'w') as f:
-                f.write(license_file_text)
-            # Write it into the final Docker image:
             clf_name = "LICENSES.txt"
             tmp_clf = os.path.join(tmp_dir_name, clf_name)
             with open(tmp_clf, 'w') as f:

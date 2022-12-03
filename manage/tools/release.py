@@ -56,15 +56,10 @@ def oca(seq_num, skip_check, dump, dry_run):
 
     The tag is generated from the current version number of pise,
     plus any sequence number you may supply.
-    The "current" version is that currently checked out in the pise repo.
+    The "current" version is the one currently checked out.
 
     Unless you say to skip it, there will be a prompt to check if the tag is
     correct.
-
-    The oca_version.txt file in pfsc-manage will also be updated. This should
-    be pushed to GitHub after the new docker image has been pushed to Docker
-    Hub. The oca_version.txt file can be checked by existing OCA containers
-    so that they know a new version has been released.
     """
     # This ensures the client and server code is ready:
     tools.build.oca_readiness_checks(release=True)
@@ -97,12 +92,6 @@ def oca(seq_num, skip_check, dump, dry_run):
         if ok != 'y':
             print('Aborting')
             return
-
-    vers_file = os.path.join(PFSC_MANAGE_ROOT, 'topics', 'pfsc', 'oca_version.txt')
-    if not dry_run:
-        with open(vers_file, 'w') as f:
-            f.write(oca_tag)
-        print(f'Wrote tag to {vers_file}')
 
     tools.build.oca.callback(True, dump, dry_run, oca_tag)
 

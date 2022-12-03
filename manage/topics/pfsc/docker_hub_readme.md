@@ -38,5 +38,3 @@ You can find a fuller set of instructions
 
 A combined license file, for all the software loaded into each image, can be
 found in the image itself, under `/home/pfsc/LICENSES.txt`.
-The combined license file for the `latest` image can also be found online at
-<https://github.com/proofscape/pfsc-manage/blob/main/topics/pfsc/oca_combined_license_file.txt>.

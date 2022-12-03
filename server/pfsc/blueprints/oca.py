@@ -18,6 +18,9 @@
 Routes serving the OCA (One-Container App)
 """
 
+import json
+import re
+
 from flask import Blueprint
 
 from pfsc import check_config
@@ -43,8 +46,42 @@ def latest_version():
     """
     if not check_config("IS_OCA"):
         return '', 403
-    vers = try_to_proxy(check_config("OCA_LATEST_VERSION_URL"))
-    return vers.strip() if vers else ''
+
+    ns = check_config("OCA_DOCKERHUB_NAMESPACE")
+    rp = check_config("OCA_DOCKERHUB_REPO")
+    desired_url = f"https://hub.docker.com/v2/namespaces/{ns}/repositories/{rp}/tags"
+    robots_url = f"https://hub.docker.com/robots.txt"
+    RESULTS = 'results'
+
+    j = try_to_proxy(desired_url, robots_url=robots_url)
+    if j is None:
+        return ''
+    try:
+        d = json.loads(j)
+    except json.decoder.JSONDecodeError:
+        return ''
+    if RESULTS not in d:
+        return ''
+
+    r = d[RESULTS]
+    names = {result['name'] for result in r} - {"latest", "edge", "testing"}
+
+    # Old-style numbers were of the form
+    #   CM.Cm-SM.Sm.Sp(-n)
+    # while new-style numbers are of the form
+    #   M.m.p(-n)
+    # In the old-style numbers, the client numbers (CM.Cm) never got past 25.2,
+    # so we can make all lists comparable by prepending [26, 0] to the new ones.
+    string_parts = [(re.split(r'[.-]', n), n) for n in names]
+    int_parts_padded = []
+    for parts, name in string_parts:
+        if len(parts) > 4:
+            int_parts_padded.append(([int(n) for n in parts], name))
+        else:
+            int_parts_padded.append(([26, 0] + [int(n) for n in parts], name))
+
+    _, latest_name = list(sorted(int_parts_padded, key=lambda p: p[0]))[-1]
+    return latest_name
 
 
 @bp.route('/EULA', methods=["GET"])
