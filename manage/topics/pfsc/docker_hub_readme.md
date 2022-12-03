@@ -28,7 +28,7 @@ When you see a line containing
     INFO success: pfsc_web entered RUNNING state
 
 you can navigate your web browser to ``localhost:7372`` and the Proofscape ISE
-should load. We recommend using either Firefox or Chrome.
+should load. Recommended browsers are: Firefox, Brave, Chrome, or Opera.
 
 You can find a fuller set of instructions
 [here](https://proofscape.org/pise/running_the_ise/basic.html).
