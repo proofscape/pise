@@ -306,8 +306,13 @@ module.exports = async function loader(source) {
     let js = "export const softwareTableRows = `\n";
 
     const ownProjURL = normalizeRepoUrl(pj.repository.url);
+    let ownProjName = pj.name;
+    // For the software table, we want to use the unscoped package name
+    if (ownProjName.startsWith("@proofscape/")) {
+        ownProjName = ownProjName.slice(12);
+    }
     js += makeRow({
-        projName: pj.name,
+        projName: ownProjName,
         projURL: ownProjURL,
         version: pj.version,
         licName: pj.license,

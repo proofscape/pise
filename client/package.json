@@ -1,13 +1,17 @@
 {
-  "name": "pfsc-ise",
+  "name": "@proofscape/pise-client",
   "version": "0.26.0-dev",
   "license": "Apache-2.0",
-  "description": "Proofscape ISE (Integrated Study Environment)",
+  "description": "Client-side code for PISE, the Proofscape Integrated Study Environment",
   "repository": {
     "type": "git",
     "url": "https://github.com/proofscape/pise.git"
   },
-  "private": true,
+  "files": [
+    "dist/ise",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "webpack; date",
     "build:dev": "webpack --env dev; date",
