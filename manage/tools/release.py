@@ -50,7 +50,8 @@ def release():
 )
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
-def oca(seq_num, skip_check, dump, dry_run):
+@click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+def oca(seq_num, skip_check, dump, tar_path, dry_run):
     """
     Build a `pise` (one-container app) docker image, for release.
 
@@ -93,7 +94,7 @@ def oca(seq_num, skip_check, dump, dry_run):
             print('Aborting')
             return
 
-    tools.build.oca.callback(True, dump, dry_run, oca_tag)
+    tools.build.oca.callback(True, dump, dry_run, tar_path, oca_tag)
 
 
 @release.command()

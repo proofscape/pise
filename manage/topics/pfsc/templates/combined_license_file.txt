@@ -13,8 +13,8 @@ sections that follow.
 
     The main server deployed in the image is:
 
-{{credits['pfsc-server']}}
-  https://github.com/proofscape/pfsc-server
+{{credits['pise-server']}}
+  https://github.com/proofscape/pise
 
                             *  *  *
 
@@ -27,6 +27,9 @@ sections that follow.
 {{credits['redisgraph']}}
   https://github.com/RedisGraph/RedisGraph
 
+This software is subject to the terms of the Redis Source Available License
+Agreement.
+
                             *  *  *
 
     Deployment managed by:
@@ -38,8 +41,8 @@ sections that follow.
 
     The main JavaScript project served in ise.bundle.js:
 
-{{credits['pfsc-ise']}}
-  https://github.com/proofscape/pfsc-ise
+{{credits['pise-client']}}
+  https://github.com/proofscape/pise
 
                             *  *  *
 
@@ -85,7 +88,7 @@ sections that follow.
 
                             *  *  *
 
-    Python packages supporting pfsc-server:
+    Python packages supporting pise-server:
 
 Source code for these packages can be found in the Docker image,
 under /usr/local/lib/python3.8/site-packages.
@@ -115,16 +118,14 @@ LICENSES
 ========
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-pfsc-server
-  https://github.com/proofscape/pfsc-server
+pise-server
+  https://github.com/proofscape/pise
 
 {{ pfsc_server_Apache }}
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 RedisGraph
   https://github.com/RedisGraph/RedisGraph
-
-This software is subject to the terms of the Redis Source Available License Agreement.
 
 {{ RSAL }}
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

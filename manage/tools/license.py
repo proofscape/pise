@@ -328,7 +328,7 @@ def oca(image, dump=False, verbose=False):
     other_licenses = divider.join(other_license_list)
 
     # These are the one-off cases:
-    with open(PFSC_ROOT / 'src' / 'pfsc-server' / 'LICENSE') as f:
+    with open(PFSC_MANAGE_ROOT.parent / 'LICENSE') as f:
         pfsc_server_Apache = f.read()
     RSAL = obtain_license_text(LICENSE_URLS['RSAL'])
     redis_BSD = obtain_license_text(LICENSE_URLS['redis'])
@@ -339,11 +339,11 @@ def oca(image, dump=False, verbose=False):
     gpl3 = obtain_license_text(LICENSE_URLS['gpl3'])
 
     top_credits = [
-        ('pfsc-server', 'Apache 2.0'),
+        ('pise-server', 'Apache 2.0'),
         ('redis', 'BSD-3-Clause'),
         ('redisgraph', 'RSAL'),
         ('supervisor', 'BSD-derived'),
-        ('pfsc-ise', 'Apache 2.0'),
+        ('pise-client', 'Apache 2.0'),
         ('sympy', 'BSD-3-Clause'),
         ('pyodide', 'MPL-2.0'),
         ('pfsc-pdf', 'Apache 2.0'),
