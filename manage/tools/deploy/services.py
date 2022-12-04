@@ -228,13 +228,13 @@ def get_proofscape_subdir_abs_fs_path_on_host(subdir_name):
         return resolve_pfsc_root_subdir(subdir_name)
 
 
-def pfsc_server(deploy_dir_path, mode, flask_config, tag='latest',
+def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
                 gdb=None, workers=1, demos=False,
                 mount_code=False, mount_pkg=None,
                 official=False,
                 lib_vol=None, build_vol=None):
     d = {
-        'image': f"{'proofscape/' if official else ''}pfsc-server:{tag}",
+        'image': f"{'proofscape/' if official else ''}pise-server:{tag}",
         'depends_on': [
             'redis',
         ],

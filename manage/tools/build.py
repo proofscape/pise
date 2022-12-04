@@ -157,11 +157,11 @@ def write_dockerignore_for_pyc():
 @click.argument('tag')
 def server(demos, dump, dry_run, tar_path, tag):
     """
-    Build a `pfsc-server` docker image, and give it a TAG.
+    Build a `pise-server` docker image, and give it a TAG.
     """
     from topics.pfsc import write_single_service_dockerfile
     df = write_single_service_dockerfile(demos=demos)
-    finalize(df, 'pfsc-server', tag, dump, dry_run, tar_path=tar_path)
+    finalize(df, 'pise-server', tag, dump, dry_run, tar_path=tar_path)
 
 
 def oca_readiness_checks(release=False):

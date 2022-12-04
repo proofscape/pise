@@ -107,9 +107,10 @@ def oca(seq_num, skip_check, dump, tar_path, dry_run):
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 def server(skip_check, demos, dump, dry_run):
     """
-    Build a `pfsc-server` docker image, for release.
+    Build a `pise-server` docker image, for release.
 
-    The tag is generated from the current version number of pfsc-server.
+    The tag is generated from the current version number of pise (i.e. the one
+    that is checked out).
 
     Unless you say to skip it, there will be a prompt to check if the tag is
     correct.

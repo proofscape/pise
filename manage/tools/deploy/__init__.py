@@ -60,7 +60,7 @@ def deploy():
 def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
     """
     Generate a deployment directory for a production MCA deployment, using
-    pfsc-server image of tag PFSC_TAG.
+    pise-server image of tag PFSC_TAG.
 
     This command is a front-end for the `pfsc deploy generate` command,
     offering a much more restricted set of options and output.
@@ -69,7 +69,7 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 
     * Only one GDB must be chosen
 
-    * The tag for the pfsc-server docker image is passed as an argument,
+    * The tag for the pise-server docker image is passed as an argument,
       and must be a numerical tag of the form M.m.p
 
     * flask_config is always 'production'
@@ -77,9 +77,9 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
     * Generates no OCA deployment, no local.env, and no layered deployment
     """
     if pfsc_tag == "latest":
-        raise click.UsageError('You cannot use the "latest" pfsc-server docker image.')
+        raise click.UsageError('You cannot use the "latest" pise-server docker image.')
     if not re.match(r'\d+\.\d+\.\d+$', pfsc_tag):
-        raise click.UsageError('You must specify a tag of the form "M.m.p" for the pfsc-server docker image.')
+        raise click.UsageError('You must specify a tag of the form "M.m.p" for the pise-server docker image.')
     oca_tag = None
     mount_code = False
     mount_pkg = None
@@ -97,8 +97,8 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--gdb',
               default=GdbCode.RE, prompt='Graph database (re, nj, tk, ja, np)',
               help='List one or more graph DBs. re=RedisGraph, nj=Neo4j, tk=TinkerGraph, ja=JanusGraph, np=Neptune')
-@click.option('--pfsc-tag', default='latest', prompt='pfsc-server image tag',
-              help='Use `pfsc-server:TEXT` docker image. Default `latest`.')
+@click.option('--pfsc-tag', default='latest', prompt='pise-server image tag',
+              help='Use `pise-server:TEXT` docker image. Default `latest`.')
 @click.option('--oca-tag', default='latest', prompt='proofscape (OCA) image tag',
               help='Use `proofscape:TEXT` docker image. Default `latest`.')
 @click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
@@ -647,7 +647,7 @@ ADMIN_SH_SCRIPT_TPLT = jinja2.Template(r"""#!/usr/bin/env sh
 {{bind_mounts}}
   -e FLASK_CONFIG={{flask_config}} \
   -e FLASK_APP=web \
-  pfsc-server:{{pfsc_tag}}
+  pise-server:{{pfsc_tag}}
 """)
 
 
@@ -657,7 +657,7 @@ def write_admin_sh_script(
     ):
     # Want all the same bind mounts that are used in a pfsc worker container,
     # so that admin can do anything a worker can do.
-    d = services.pfsc_server(
+    d = services.pise_server(
         deploy_dir_path, 'worker', flask_config, tag=pfsc_tag,
         demos=demos, mount_code=mount_code, mount_pkg=mount_pkg
     )
@@ -737,7 +737,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, o
 
     s_app = {}
     def write_pfsc_service(cmd):
-        return services.pfsc_server(deploy_dir_path, cmd, flask_config,
+        return services.pise_server(deploy_dir_path, cmd, flask_config,
             tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
             mount_code=mount_code, mount_pkg=mount_pkg, official=official,
             lib_vol=lib_vol, build_vol=build_vol)
