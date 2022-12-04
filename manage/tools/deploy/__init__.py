@@ -102,8 +102,8 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
               help='List one or more graph DBs. re=RedisGraph, nj=Neo4j, tk=TinkerGraph, ja=JanusGraph, np=Neptune')
 @click.option('--pfsc-tag', default='testing', prompt='pise-server image tag',
               help='Use `pise-server:TEXT` docker image.')
-@click.option('--frontend-tag', default='testing', prompt='pise-frontend image tag',
-              help='Use `pise-frontend:TEXT` docker image.')
+@click.option('--frontend-tag',
+              help='Use `pise-frontend:TEXT` docker image. If undefined, use same tag as for pise-server.')
 @click.option('--oca-tag', default='testing', prompt='pise (OCA) image tag',
               help='Use `pise:TEXT` docker image.')
 @click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
@@ -155,6 +155,8 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
     # It is typical to use this command interactively, i.e. to answer a bunch
     # of prompts. We want a blank line to separate those from the output.
     click.echo('')
+
+    frontend_tag = frontend_tag or pfsc_tag
 
     if not gdb:
         raise click.UsageError('Must select at least one graph database.')
