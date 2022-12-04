@@ -164,14 +164,37 @@ def server(demos, dump, dry_run, tar_path, tag):
     finalize(df, 'pise-server', tag, dump, dry_run, tar_path=tar_path)
 
 
-def oca_readiness_checks(release=False):
-    ise_path = os.path.join(SRC_ROOT, 'pfsc-ise/dist')
-    if not os.path.exists(ise_path):
-        raise click.UsageError(f'Could not find {ise_path}. Have you built pfsc-ise yet?')
+@build.command()
+@click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
+@click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
+@click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+@click.argument('tag')
+def frontend(dump, dry_run, tar_path, tag):
+    """
+    Build a `pise-frontend` docker image, and give it a TAG.
+    """
+    if not dry_run:
+        oca_readiness_checks(client=True, client_min=True, pdf=True, pyodide=True, whl=True)
 
-    pdf_path = os.path.join(SRC_ROOT, 'pfsc-pdf/build/generic')
-    if not os.path.exists(pdf_path):
-        raise click.UsageError(f'Could not find {pdf_path}. Have you built pfsc-pdf yet?')
+    from topics.pfsc import write_frontend_dockerfile
+    df = write_frontend_dockerfile()
+    finalize(df, 'pise-frontend', tag, dump, dry_run, tar_path=tar_path)
+
+
+def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True, pyodide=True, whl=True):
+    if client:
+        ise_path = os.path.join(SRC_ROOT, 'pfsc-ise/dist')
+        if not os.path.exists(ise_path):
+            raise click.UsageError(f'Could not find {ise_path}. Have you built pfsc-ise yet?')
+        if client_min:
+            min_path = os.path.join(SRC_ROOT, 'pfsc-ise/dist/ise/ise.bundle.min.js')
+            if not os.path.exists(min_path):
+                raise click.UsageError(f'Could not find {min_path}. Did you build pfsc-ise for production yet?')
+
+    if pdf:
+        pdf_path = os.path.join(SRC_ROOT, 'pfsc-pdf/build/generic')
+        if not os.path.exists(pdf_path):
+            raise click.UsageError(f'Could not find {pdf_path}. Have you built pfsc-pdf yet?')
 
     #demo_path = os.path.join(SRC_ROOT, 'pfsc-demo-repos')
     #if not os.path.exists(demo_path):
@@ -179,20 +202,22 @@ def oca_readiness_checks(release=False):
 
     versions = get_version_numbers()
 
-    pyodide_version = versions["pyodide"]
-    pyodide_path = os.path.join(SRC_ROOT, 'pyodide', f'v{pyodide_version}')
-    if not os.path.exists(pyodide_path):
-        raise click.UsageError(f'Could not find pyodide at expected version {pyodide_version}')
+    if pyodide:
+        pyodide_version = versions["pyodide"]
+        pyodide_path = os.path.join(SRC_ROOT, 'pyodide', f'v{pyodide_version}')
+        if not os.path.exists(pyodide_path):
+            raise click.UsageError(f'Could not find pyodide at expected version {pyodide_version}')
 
-    whl_path = os.path.join(SRC_ROOT, 'whl')
-    if release:
-        whl_path = os.path.join(whl_path, 'release')
-    if not os.path.exists(whl_path):
-        advice = f'pfsc get wheels{" --release" if release else ""}'
-        raise click.UsageError(f'Could not find wheels. Did you run `{advice}`?')
-    pfsc_examp_version = versions['pfsc-examp']
-    if not os.path.exists(os.path.join(whl_path, f'pfsc_examp-{pfsc_examp_version}-py3-none-any.whl')):
-        raise click.UsageError(f'Did not find wheel for expected version {pfsc_examp_version} of pfsc-examp.')
+    if whl:
+        whl_path = os.path.join(SRC_ROOT, 'whl')
+        if release:
+            whl_path = os.path.join(whl_path, 'release')
+        if not os.path.exists(whl_path):
+            advice = f'pfsc get wheels{" --release" if release else ""}'
+            raise click.UsageError(f'Could not find wheels. Did you run `{advice}`?')
+        pfsc_examp_version = versions['pfsc-examp']
+        if not os.path.exists(os.path.join(whl_path, f'pfsc_examp-{pfsc_examp_version}-py3-none-any.whl')):
+            raise click.UsageError(f'Did not find wheel for expected version {pfsc_examp_version} of pfsc-examp.')
 
 
 @build.command()
@@ -211,7 +236,7 @@ def oca(release, dump, dry_run, tar_path, tag):
     RedisGraph as the GDB.
     """
     if not dry_run:
-        oca_readiness_checks()
+        oca_readiness_checks(client=True, client_min=False, pdf=True, pyodide=True, whl=True)
     from topics.pfsc import write_oca_eula_file
     from topics.pfsc import write_worker_and_web_supervisor_ini
     from topics.pfsc import write_proofscape_oca_dockerfile

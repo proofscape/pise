@@ -85,19 +85,16 @@ def get_pyodide_major_minor_as_ints():
     return int(M), int(m)
 
 
-def write_oca_static_setup(tmp_dir_name):
-    template = jinja_env.get_template('Dockerfile.oca_static')
-
+def list_pyodide_files():
     pyodide_files = """
-    pyodide.js pyodide_py.tar pyodide.asm.js pyodide.asm.data pyodide.asm.wasm
-    """.split()
+        pyodide.js pyodide_py.tar pyodide.asm.js pyodide.asm.data pyodide.asm.wasm
+        """.split()
 
     project_names = """
-    micropip pyparsing packaging Jinja2 MarkupSafe mpmath
-    """.split()
+        micropip pyparsing packaging Jinja2 MarkupSafe mpmath
+        """.split()
 
     versions = get_version_numbers()
-    server_vers = get_server_version()
 
     M, m = get_pyodide_major_minor_as_ints()
     if (M, m) < (0, 20):
@@ -117,12 +114,16 @@ def write_oca_static_setup(tmp_dir_name):
             assert len(paths) == 1
             path = paths[0]
             pyodide_files.append(path.name)
+    return pyodide_files
 
+
+def write_oca_static_setup(tmp_dir_name):
+    template = jinja_env.get_template('Dockerfile.oca_static')
     return template.render(
         tmp_dir_name=tmp_dir_name,
-        versions=versions,
-        server_vers=server_vers,
-        pyodide_files=pyodide_files,
+        versions=get_version_numbers(),
+        server_vers=get_server_version(),
+        pyodide_files=list_pyodide_files(),
         wheels=list_wheel_filenames(),
     )
 
@@ -169,6 +170,17 @@ def write_single_service_dockerfile(demos=False):
     template = jinja_env.get_template('Dockerfile.single_service')
     df = template.render(
         pfsc_install=pfsc_install,
+    )
+    return squash(df)
+
+
+def write_frontend_dockerfile():
+    template = jinja_env.get_template('Dockerfile.frontend')
+    df = template.render(
+        nginx_tag=conf.NGINX_IMAGE_TAG,
+        versions=get_version_numbers(),
+        pyodide_files=list_pyodide_files(),
+        wheels=list_wheel_filenames(),
     )
     return squash(df)
 
