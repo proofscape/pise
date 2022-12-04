@@ -45,6 +45,9 @@ HSTS_SECONDS = None
 AUTH_BASIC_TITLE = "Testing Area"
 AUTH_BASIC_USERNAME = "dev"
 AUTH_BASIC_PASSWORD = None
+# The default behavior is to use a `pise-frontend` image for the front end
+# service container. To use a basic Nginx image instead, set this true.
+USE_BASE_NGINX_FRONTEND = bool(int(os.getenv("USE_BASE_NGINX_FRONTEND", 0)))
 
 # Twin Site
 #
