@@ -108,8 +108,8 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
               help='Use `pise:TEXT` docker image.')
 @click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
 @click.option('-n', '--workers', type=int, default=1, prompt='How many RQ workers', help='Number of worker containers you want to run')
-@click.option('--demos', is_flag=True, default=True, prompt='Serve demo repos', help="Serve demo repos.")
-@click.option('--mount-code', is_flag=True, default=True, prompt='Volume-mount code for development',
+@click.option('--demos', is_flag=True, prompt='Serve demo repos', help="Serve demo repos.")
+@click.option('--mount-code', is_flag=True, prompt='Volume-mount code for development',
               help='Volume-mount code (server,client,pdf,pyodide,whl) for live updates during development.')
 @click.option('--mount-pkg', default=None,
               help='Volume-mount pkg dir TEXT from local venv, e.g. for testing upgrade before docker rebuild. May be comma-delimited list.')
@@ -117,14 +117,14 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
               help='Print the generated docker-compose YAML to stdout.')
 @click.option('--dirname',
               help='Directory name under which to save. Use random words + timestamp if unspecified.')
-@click.option('-L', '--no-local', is_flag=True, default=False, help="Do NOT activate local.env by generating a symlink.")
+@click.option('-L', '--no-local', is_flag=True, help="Do NOT activate local.env by generating a symlink.")
 @click.option('--flask-config',
               type=click.Choice(['dockerdev', 'production']),
               default='dockerdev', prompt='Flask config',
               help='Set the FLASK_CONFIG env var for the websrv and worker docker containers.')
 @click.option('--static-redir', default=None, help='Redirect all static requests to domain TEXT.')
-@click.option('--static-acao', is_flag=True, default=False, help='Serve all static assets with `Access-Control-Allow-Origin *` header.')
-@click.option('--dummy', is_flag=True, default=False, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
+@click.option('--static-acao', is_flag=True, help='Serve all static assets with `Access-Control-Allow-Origin *` header.')
+@click.option('--dummy', is_flag=True, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
 @click.option('--lib-vol', help="A pre-existing docker volume to be mounted to /proofscape/lib")
 @click.option('--build-vol', help="A pre-existing docker volume to be mounted to /proofscape/build")
 @click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
