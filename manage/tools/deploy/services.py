@@ -311,10 +311,11 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
     return d
 
 
-def nginx(deploy_dir_path, tag=conf.NGINX_IMAGE_TAG,
-          host=conf.PFSC_ISE_MCA_HOST, port=conf.PFSC_ISE_MCA_PORT, dummy=False):
+def nginx(deploy_dir_path, tag,
+          host=conf.PFSC_ISE_MCA_HOST, port=conf.PFSC_ISE_MCA_PORT, dummy=False,
+          mount_code=False):
     d = {
-        'image': f"nginx:{tag}",
+        'image': f"pise-frontend:{tag}",
         'depends_on': [
             'pfscweb',
         ],
@@ -333,17 +334,21 @@ def nginx(deploy_dir_path, tag=conf.NGINX_IMAGE_TAG,
             )
         d['volumes'].extend([
             f'{PFSC_ROOT}/PDFLibrary:/usr/share/nginx/PDFLibrary:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/usr/share/nginx/pdfjs:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise")}:/usr/share/nginx/ise:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/dojo")}:/usr/share/nginx/dojo:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/mathjax")}/:/usr/share/nginx/mathjax:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/elk")}:/usr/share/nginx/elk:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/usr/share/nginx/css:ro',
-            f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/usr/share/nginx/img:ro',
-            f'{resolve_pfsc_root_subdir("src/pyodide")}/v{versions["pyodide"]}:/usr/share/nginx/pyodide:ro',
         ])
-        if conf.CommonVars.PYODIDE_SERVE_LOCALLY:
-            d['volumes'].append(f'{PFSC_ROOT}/src/whl:/usr/share/nginx/whl:ro')
+        if mount_code:
+            d['volumes'].extend([
+                f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/usr/share/nginx/pdfjs:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise")}:/usr/share/nginx/ise:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/dojo")}:/usr/share/nginx/dojo:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/mathjax")}/:/usr/share/nginx/mathjax:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/elk")}:/usr/share/nginx/elk:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/usr/share/nginx/css:ro',
+                f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/usr/share/nginx/img:ro',
+
+            ])
+            if conf.CommonVars.PYODIDE_SERVE_LOCALLY:
+                d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pyodide")}/v{versions["pyodide"]}:/usr/share/nginx/pyodide:ro')
+                d['volumes'].append(f'{PFSC_ROOT}/src/whl:/usr/share/nginx/whl:ro')
     if conf.REDIRECT_HTTP_FROM:
         d['ports'].append(f"{host}:{conf.REDIRECT_HTTP_FROM}:80")
     if conf.SSL:

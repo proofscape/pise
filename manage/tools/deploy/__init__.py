@@ -76,10 +76,11 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 
     * Generates no OCA deployment, no local.env, and no layered deployment
     """
-    if pfsc_tag == "latest":
-        raise click.UsageError('You cannot use the "latest" pise-server docker image.')
+    if pfsc_tag in ["latest", "testing"]:
+        raise click.UsageError('You cannot use the "latest" or "testing" pise-server docker image.')
     if not re.match(r'\d+\.\d+\.\d+$', pfsc_tag):
         raise click.UsageError('You must specify a tag of the form "M.m.p" for the pise-server docker image.')
+    frontend_tag = pfsc_tag
     oca_tag = None
     mount_code = False
     mount_pkg = None
@@ -88,8 +89,10 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
     static_redir = None
     static_acao = False
     dummy = False
-    generate.callback(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
+    lib_vol, build_vol, gdb_vol = None, None, None
+    generate.callback(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
+             lib_vol, build_vol, gdb_vol,
              production_mode=True)
 
 
@@ -97,15 +100,17 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--gdb',
               default=GdbCode.RE, prompt='Graph database (re, nj, tk, ja, np)',
               help='List one or more graph DBs. re=RedisGraph, nj=Neo4j, tk=TinkerGraph, ja=JanusGraph, np=Neptune')
-@click.option('--pfsc-tag', default='latest', prompt='pise-server image tag',
-              help='Use `pise-server:TEXT` docker image. Default `latest`.')
-@click.option('--oca-tag', default='latest', prompt='proofscape (OCA) image tag',
-              help='Use `proofscape:TEXT` docker image. Default `latest`.')
+@click.option('--pfsc-tag', default='testing', prompt='pise-server image tag',
+              help='Use `pise-server:TEXT` docker image.')
+@click.option('--frontend-tag', default='testing', prompt='pise-frontend image tag',
+              help='Use `pise-frontend:TEXT` docker image.')
+@click.option('--oca-tag', default='testing', prompt='pise (OCA) image tag',
+              help='Use `pise:TEXT` docker image.')
 @click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
 @click.option('-n', '--workers', type=int, default=1, prompt='How many RQ workers', help='Number of worker containers you want to run')
 @click.option('--demos', is_flag=True, default=True, prompt='Serve demo repos', help="Serve demo repos.")
-@click.option('--mount-code', is_flag=True, default=True, prompt='Volume-mount pfsc-server code for development',
-              help='Volume-mount pfsc-server code for live updates during development.')
+@click.option('--mount-code', is_flag=True, default=True, prompt='Volume-mount code for development',
+              help='Volume-mount code (server,client,pdf,pyodide,whl) for live updates during development.')
 @click.option('--mount-pkg', default=None,
               help='Volume-mount pkg dir TEXT from local venv, e.g. for testing upgrade before docker rebuild. May be comma-delimited list.')
 @click.option('--dump-dc', is_flag=True,
@@ -123,7 +128,7 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--lib-vol', help="A pre-existing docker volume to be mounted to /proofscape/lib")
 @click.option('--build-vol', help="A pre-existing docker volume to be mounted to /proofscape/build")
 @click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
-def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
+def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
              lib_vol, build_vol, gdb_vol,
              production_mode=False):
@@ -178,7 +183,7 @@ def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount
 
     # mca-docker-compose.yml
     y = write_docker_compose_yaml(new_dir_name, new_dir_path,
-                                  gdb, pfsc_tag, official, workers, demos,
+                                  gdb, pfsc_tag, frontend_tag, official, workers, demos,
                                   mount_code, mount_pkg, flask_config,
                                   lib_vol, build_vol, gdb_vol)
     y_full = y['full']
@@ -226,7 +231,7 @@ def generate(gdb, pfsc_tag, oca_tag, official, workers, demos, mount_code, mount
 
     # dummy-docker-compose.yml
     if dummy:
-        y_dummy = write_dummy_docker_compose_yaml(new_dir_name, new_dir_path, pfsc_tag, flask_config)
+        y_dummy = write_dummy_docker_compose_yaml(new_dir_name, new_dir_path, pfsc_tag, frontend_tag, flask_config, mount_code)
         if dump_dc:
             click.echo(y_dummy)
         dummy_dc_path = os.path.join(new_dir_path, 'dummy-docker-compose.yml')
@@ -695,7 +700,7 @@ def write_run_oca_sh_script(oca_tag):
     )
 
 
-def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, official,
+def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, frontend_tag, official,
                               workers, demos, mount_code, mount_pkg, flask_config,
                               lib_vol, build_vol, gdb_vol):
     svc_redis = services.redis()
@@ -756,7 +761,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, o
     ]
 
     s_front = {}
-    svc_nginx = services.nginx(deploy_dir_path)
+    svc_nginx = services.nginx(deploy_dir_path, frontend_tag, mount_code=mount_code)
     s_full['nginx'] = svc_nginx
     s_front['nginx'] = copy.deepcopy(svc_nginx)
     del s_front['nginx']['depends_on']
@@ -835,14 +840,14 @@ def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag, mou
 
 
 def write_dummy_docker_compose_yaml(deploy_dir_name, deploy_dir_path,
-                                    pfsc_tag, flask_config):
+                                    pfsc_tag, frontend_tag, flask_config, mount_code):
     d = {
         'version': '3.5',
         'services': {
             'pfscweb': services.pfsc_dummy_server(
                 deploy_dir_path, flask_config, tag=pfsc_tag
             ),
-            'nginx': services.nginx(deploy_dir_path, dummy=True)
+            'nginx': services.nginx(deploy_dir_path, frontend_tag, dummy=True, mount_code=mount_code)
         },
         'networks': {
             'default': {
