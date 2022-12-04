@@ -114,10 +114,6 @@ def server(skip_check, demos, dump, dry_run):
     Unless you say to skip it, there will be a prompt to check if the tag is
     correct.
     """
-    venv_path = os.path.join(SRC_ROOT, 'pfsc-server/venv')
-    if not os.path.exists(venv_path):
-        raise click.FileError(f'Could not find {venv_path}. Have you installed pfsc-server yet?')
-
     server_vers = get_server_version()
 
     tag = server_vers

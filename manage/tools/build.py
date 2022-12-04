@@ -159,21 +159,12 @@ def server(demos, dump, dry_run, tar_path, tag):
     """
     Build a `pfsc-server` docker image, and give it a TAG.
     """
-    if not dry_run:
-        venv_path = os.path.join(SRC_ROOT, 'pfsc-server/venv')
-        if not os.path.exists(venv_path):
-            raise click.FileError(f'Could not find {venv_path}. Have you installed pfsc-server yet?')
-
     from topics.pfsc import write_single_service_dockerfile
     df = write_single_service_dockerfile(demos=demos)
     finalize(df, 'pfsc-server', tag, dump, dry_run, tar_path=tar_path)
 
 
 def oca_readiness_checks(release=False):
-    venv_path = os.path.join(SRC_ROOT, 'pfsc-server/venv')
-    if not os.path.exists(venv_path):
-        raise click.UsageError(f'Could not find {venv_path}. Have you installed pfsc-server yet?')
-
     ise_path = os.path.join(SRC_ROOT, 'pfsc-ise/dist')
     if not os.path.exists(ise_path):
         raise click.UsageError(f'Could not find {ise_path}. Have you built pfsc-ise yet?')
