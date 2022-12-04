@@ -51,7 +51,7 @@ def release():
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
-def oca(seq_num, skip_check, dump, tar_path, dry_run):
+def oca(seq_num, skip_check, dump, dry_run, tar_path):
     """
     Build a `pise` (one-container app) docker image, for release.
 
@@ -105,7 +105,8 @@ def oca(seq_num, skip_check, dump, tar_path, dry_run):
 @click.option('--demos', is_flag=True, help="Include demo repos.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
-def server(skip_check, demos, dump, dry_run):
+@click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+def server(skip_check, demos, dump, dry_run, tar_path):
     """
     Build a `pise-server` docker image, for release.
 
@@ -127,4 +128,4 @@ def server(skip_check, demos, dump, dry_run):
             print('Aborting')
             return
 
-    tools.build.server.callback(demos, dump, dry_run, tag)
+    tools.build.server.callback(demos, dump, dry_run, tar_path, tag)
