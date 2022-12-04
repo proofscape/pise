@@ -281,19 +281,35 @@ def oca(release, dump, dry_run, tar_path, tag):
         finalize(df, 'pise', step_1_tag, dump, dry_run, tar_path=tar_path)
         if release and not dry_run and not tar_path:
             # Step 2
-            license_file_text = tools.license.oca.callback(f'pise:{step_1_tag}')
-            clf_name = "LICENSES.txt"
-            tmp_clf = os.path.join(tmp_dir_name, clf_name)
-            with open(tmp_clf, 'w') as f:
-                f.write(license_file_text)
-            df2 = (
-                f'FROM pise:{step_1_tag}\n'
-                f'COPY {tmp_dir_rel_path}/{clf_name} ./\n'
-                f'USER root\n'
-                f'RUN chown pfsc:pfsc {clf_name}\n'
-                f'USER pfsc\n'
-            )
-            finalize(df2, 'pise', step_2_tag, False, False)
+            oca_finalize.callback(step_1_tag, step_2_tag)
+
+
+@build.command()
+@click.argument('tag1')
+@click.argument('tag2')
+def oca_finalize(tag1, tag2):
+    """
+    Finish the OCA build process, by writing LICENSE.txt into a given image.
+
+    pise:TAG1 is the existing image, pise:TAG2 will be the new image.
+
+    If TAG1 and TAG2 are the same, the existing image will be replaced.
+    """
+    with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
+        tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
+        license_file_text = tools.license.oca.callback(f'pise:{tag1}')
+        clf_name = "LICENSES.txt"
+        tmp_clf = os.path.join(tmp_dir_name, clf_name)
+        with open(tmp_clf, 'w') as f:
+            f.write(license_file_text)
+        df2 = (
+            f'FROM pise:{tag1}\n'
+            f'COPY {tmp_dir_rel_path}/{clf_name} ./\n'
+            f'USER root\n'
+            f'RUN chown pfsc:pfsc {clf_name}\n'
+            f'USER pfsc\n'
+        )
+        finalize(df2, 'pise', tag2, False, False)
 
 
 @build.command()
