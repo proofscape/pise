@@ -763,7 +763,8 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
     ]
 
     s_front = {}
-    svc_nginx = services.nginx(deploy_dir_path, frontend_tag, mount_code=mount_code)
+    svc_nginx = services.nginx(deploy_dir_path, frontend_tag,
+                               mount_code=mount_code, official=official)
     s_full['nginx'] = svc_nginx
     s_front['nginx'] = copy.deepcopy(svc_nginx)
     del s_front['nginx']['depends_on']

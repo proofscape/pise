@@ -313,11 +313,11 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
 
 def nginx(deploy_dir_path, tag=None,
           host=conf.PFSC_ISE_MCA_HOST, port=conf.PFSC_ISE_MCA_PORT, dummy=False,
-          mount_code=False):
+          mount_code=False, official=False):
     d = {
         'image': (f'nginx:{conf.NGINX_IMAGE_TAG}'
                   if conf.USE_BASE_NGINX_FRONTEND
-                  else f'pise-frontend:{tag}'),
+                  else f'{"proofscape/" if official else ""}pise-frontend:{tag}'),
         'depends_on': [
             'pfscweb',
         ],
