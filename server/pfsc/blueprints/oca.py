@@ -52,19 +52,21 @@ def latest_version():
     desired_url = f"https://hub.docker.com/v2/namespaces/{ns}/repositories/{rp}/tags"
     robots_url = f"https://hub.docker.com/robots.txt"
     RESULTS = 'results'
+    sorry = ''
 
     j = try_to_proxy(desired_url, robots_url=robots_url)
     if j is None:
-        return ''
+        return sorry
     try:
         d = json.loads(j)
     except json.decoder.JSONDecodeError:
-        return ''
+        return sorry
     if RESULTS not in d:
-        return ''
-
+        return sorry
     r = d[RESULTS]
-    names = {result['name'] for result in r} - {"latest", "edge", "testing"}
+    names = {result.get('name') for result in r} - {"latest", "edge", "testing", None}
+    if not names:
+        return sorry
 
     # Old-style numbers were of the form
     #   CM.Cm-SM.Sm.Sp(-n)
