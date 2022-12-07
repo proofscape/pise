@@ -976,13 +976,6 @@ def get_manual_pkg_info(identifier, lang):
 def get_manual_py_pkg_info_lookup():
     vers = get_version_numbers()
     return {
-        r'github\.com/apache/tinkerpop': PyPackage(
-            name='gremlinpython',
-            version='commit-0dd3c0b1a',
-            gh_url='https://github.com/apache/tinkerpop',
-            license_name='Apache 2.0',
-            license_url='https://github.com/apache/tinkerpop/blob/master/LICENSE',
-        ),
         r'github\.com/proofscape/sympy': PyPackage(
             name='sympy',
             version=f"(DisplayLang fork v{vers['displaylang-sympy']})",
