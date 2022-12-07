@@ -590,6 +590,7 @@ class OcaConfig(DockerDevConfig):
     OCA_DOCKERHUB_REPO = 'pise'
     OCA_VERSION_FILE = "/home/pfsc/VERSION.txt"
     EULA_FILE = "/home/pfsc/EULA.txt"
+    ABOUT_JSON_FILE = "/home/pfsc/about.json"
 
     PERSONAL_SERVER_MODE = True
     ALLOW_WIP = True

@@ -84,6 +84,9 @@ var Hub = declare(null, {
     OCA_checkForUpdates: null,
     OCA_updateCheckInterval: null,
 
+    extraSoftware: null,
+    notices: null,
+
     tosURL: null,
     tosVersion: null,
     prpoURL: null,
@@ -126,6 +129,7 @@ var Hub = declare(null, {
         logout: '/auth/logout',
         checkLatestOcaVers: '/oca/latestVersion',
         getOcaEula: '/oca/EULA',
+        extraAboutInfo: '/oca/extraAboutInfo',
     },
 
     // Methods
@@ -232,6 +236,36 @@ var Hub = declare(null, {
         } else {
             return tosPrpoAgreementDialogContents(false, false, this.tosURL, this.prpoURL);
         }
+    },
+
+    getExtraSoftwareForAboutDialog: async function() {
+        if (this.OCA_version) {
+            if (this.extraSoftware === null) {
+                await this.getExtraAboutDialogInfo();
+            }
+            return this.extraSoftware;
+        } else {
+            return [];
+        }
+    },
+
+    getNoticesForAboutDialog: async function() {
+        if (this.OCA_version) {
+            if (this.notices === null) {
+                await this.getExtraAboutDialogInfo();
+            }
+            return this.notices;
+        } else {
+            return [];
+        }
+    },
+
+    getExtraAboutDialogInfo: async function() {
+        const info = await this.xhrFor('extraAboutInfo', {
+            handleAs: 'json',
+        });
+        this.extraSoftware = info.extraSoftware;
+        this.notices = info.notices;
     },
 
     /* Write line about privacy policy for the hosting request dialog.
@@ -797,7 +831,8 @@ var Hub = declare(null, {
                 this.errAlert('Unable to check for software updates.');
                 return false;
             } else {
-                const ours = this.OCA_version.split(/\.|-/);
+                // Prepend [26, 0] for comparisons with old-style numbers
+                const ours = ['26', '0'].concat(this.OCA_version.split(/\.|-/));
                 const latest = vers.split(/\.|-/);
                 console.debug(ours, latest);
                 if (ours < latest) {

@@ -33,6 +33,8 @@ from tools.util import (
     get_python_version_for_images,
     get_redis_server_version_for_oca,
 )
+from topics.pfsc import write_notice_file
+
 PFSC_MANAGE_ROOT = Path(PFSC_MANAGE_ROOT)
 PFSC_ROOT = Path(PFSC_ROOT)
 
@@ -215,14 +217,18 @@ export const softwareTableRows = `
 
 @license.command()
 @click.option('--image', default='pise:latest', help="The docker image where the python packages have been installed.")
-@click.option('--dump', is_flag=True, default=False, help="Print the file to stdout.")
+@click.option('--dump', type=click.Choice(['lhead', 'lfull', 'notice', 'about']),
+              help="Print to stdout. lhead=just header of LICENSES.txt, lfull=LICENSES.txt, notice=NOTICE.txt, about=about.json")
 @click.option('-v', '--verbose', is_flag=True, default=False, help="Print diagnostic info.")
-def oca(image, dump=False, verbose=False):
+def oca(image, dump=None, verbose=False):
     """
-    Write the contents of the combined license file for the one-container app.
+    Write the "licensing info files" for the one-container app:
+        LICENSES.txt
+        NOTICE.txt
+        about.json
 
     This is mostly intended for internal usage. It can be useful to run it manually
-    when altering the format or contents of the combined license file.
+    when altering the format or contents of these files.
     """
     py_comp, py_incomp = gather_dep_info_for_python_project('pfsc-server', print_report=verbose, image=image)
     js_comp, js_incomp = gather_dep_info_for_javascript_project('pfsc-ise', print_report=verbose)
@@ -243,12 +249,16 @@ def oca(image, dump=False, verbose=False):
             'to learn more.'
         )
 
-    python_packages = '\n'.join(
-        f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
-        for pkg in py_comp if pkg.name not in [
+    other_py_comp = [
+        pkg for pkg in py_comp if pkg.name not in [
             # Don't repeat packages that already got special mention.
             'sympy',
         ]
+    ]
+
+    python_packages = '\n'.join(
+        f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
+        for pkg in other_py_comp
     )
 
     javascript_packages = '\n'.join(
@@ -372,7 +382,7 @@ def oca(image, dump=False, verbose=False):
 
     # Final rendering
     template = jinja_env.get_template('combined_license_file.txt')
-    text = template.render(
+    licenses_txt = template.render(
         credits=credits,
         pyodide_python_packages=pyodide_python_packages,
         python_packages=python_packages,
@@ -386,9 +396,62 @@ def oca(image, dump=False, verbose=False):
         gcc_runtime=gcc_runtime,
         gpl3=gpl3
     )
-    if dump:
-        print(text)
-    return text
+
+    notice_txt = write_notice_file('oca')
+
+    for_about_rows = [
+        ('pise-server', vers['pise'], 'Apache 2.0',
+         'https://github.com/proofscape/pise',
+         'https://github.com/proofscape/pise/blob/main/LICENSE'),
+        ('redis', redis_server_version, 'BSD-3-Clause',
+         'https://github.com/redis/redis',
+         'https://github.com/redis/redis/blob/unstable/COPYING'),
+        ('redisgraph', redisgraph_version, 'RSAL',
+         'https://github.com/RedisGraph/RedisGraph',
+         'https://github.com/RedisGraph/RedisGraph/blob/v2.4.13/LICENSE'),
+        ('supervisor', supervisor_version, 'BSD-derived',
+         'https://github.com/Supervisor/supervisor',
+         'https://github.com/Supervisor/supervisor/blob/main/LICENSES.txt'),
+        ('libgomp', '', 'GCC RLE',
+         'https://github.com/gcc-mirror/gcc/tree/master/libgomp',
+         'https://www.gnu.org/licenses/gcc-exception-3.1.html')
+    ]
+
+    def tuple_to_obj_for_abt_rows(tup):
+        return {
+            k: v for k, v in zip([
+                'projName', 'version', 'licName', 'projURL', 'licURL'
+            ], tup)
+        }
+
+    notice_list = [
+        n.strip() for n in notice_txt.split('-'*79)
+    ]
+
+    about_info = {
+        'extraSoftware': [
+            tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[:4]
+        ] + [
+            pkg.write_obj_for_abt_row() for pkg in other_py_comp
+        ] + [
+            tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[4:]
+        ],
+        'notices': notice_list,
+    }
+
+    about_json = json.dumps(about_info, indent=4)
+
+    if dump == 'lfull':
+        print(licenses_txt)
+    elif dump == 'lhead':
+        i1 = licenses_txt.find("LICENSES")
+        print(licenses_txt[:i1])
+    elif dump == 'notice':
+        print(notice_txt)
+    elif dump == 'about':
+        print(about_json)
+
+    return licenses_txt, notice_txt, about_json
 
 
 class PyNoDistInfo(Exception):
@@ -433,12 +496,14 @@ class SoftwarePackage:
         )
         return f'{self.gh_url}{path_ext}'
 
-    def get_license_url(self):
+    def get_license_url(self, quiet=False):
         if not self.license_url:
             if self.license_filename:
-                ref = 'master' if self.v is None else f'{"v" if self.v else ""}{self.version}'
+                ref = 'master' if self.v is None else 'main' if self.v == 'main' else f'{"v" if self.v else ""}{self.version}'
                 self.license_url = f'{self.gh_url}/blob/{ref}/{self.license_filename}'
             else:
+                if quiet:
+                    return None
                 raise Exception(f'No license URL: {self.name}')
         return self.license_url
 
@@ -458,11 +523,24 @@ class SoftwarePackage:
             f'  License name: {self.license_name or "unknown"}\n'
             f'  License length: {n}'
         )
-        if n == 0 and self.license_url is not None:
+
+        license_url = self.get_license_url(quiet=True)
+        if license_url:
             s += f'\n  License URL: {self.license_url}'
+
         if self.license_not_provided:
             s += '\n  License not provided.'
+
         return s
+
+    def write_obj_for_abt_row(self):
+        return {
+            'projName': self.name,
+            'version': self.version,
+            'licName': self.license_name,
+            'projURL': self.get_src_url(),
+            'licURL': self.get_license_url(),
+        }
 
     def write_two_column_text_row(self, vers=True, license_tab_stop=56):
         head = self.name
@@ -619,6 +697,7 @@ class PyPackage(SoftwarePackage):
             lfp = self.search_dir_for_license_file(info_dir)
         if lfp:
             with open(lfp, 'r') as f:
+                self.license_filename = lfp.name
                 text = f.read()
                 self.set_license_text(text)
 
@@ -999,10 +1078,11 @@ def get_manual_py_pkg_info_lookup():
             license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
         ),
         'aenum': {
-            'license_not_provided': True,
+            'license_url': 'https://github.com/ethanfurman/aenum/blob/master/aenum/LICENSE',
         },
         'bidict': {
             'gh_url': 'https://github.com/jab/bidict/tree/v0.21.4',
+            'license_url': 'https://github.com/jab/bidict/blob/v0.21.4/LICENSE',
         },
         'blinker': {
             'gh_url': 'https://github.com/jek/blinker/tree/rel-1.4',
@@ -1010,6 +1090,10 @@ def get_manual_py_pkg_info_lookup():
         },
         'cffi': {
             'src_url': 'https://foss.heptapod.net/pypy/cffi/-/tree/branch/default',
+            'license_url': 'https://foss.heptapod.net/pypy/cffi/-/blob/branch/default/LICENSE',
+        },
+        'click': {
+            'license_url': 'https://github.com/pallets/click/blob/main/LICENSE.rst',
         },
         'dill': {
             "license_url": 'https://github.com/uqfoundation/dill/blob/dill-0.3.4/LICENSE',
@@ -1020,6 +1104,13 @@ def get_manual_py_pkg_info_lookup():
         'eventlet': {
             "license_name": 'MIT',
             'gh_url': 'https://github.com/eventlet/eventlet/tree/v0.30.2',
+            'license_url': 'https://github.com/eventlet/eventlet/blob/v0.30.2/LICENSE',
+        },
+        'Flask=': {
+            'license_url': 'https://github.com/pallets/flask/blob/main/LICENSE.rst',
+        },
+        'Flask-Login': {
+            'license_url': 'https://github.com/maxcountryman/flask-login/blob/main/LICENSE',
         },
         'Flask-Mail': {
             'gh_url': 'https://github.com/mattupstate/flask-mail/tree/0.9.1',

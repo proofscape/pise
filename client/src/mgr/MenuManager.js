@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 import { softwareTableRows } from "../piseAboutDialogContents";
+const makeSoftwareTableRow = require('../dialog');
 
 define([
     "dojo/_base/declare",
@@ -267,12 +268,16 @@ const MenuManager = declare(null, {
         // "About" dialog
         this.pfscOpt_about = new MenuItem({
             label: "About Proofscape ISE",
-            onClick: function(event) {
+            onClick: async function(event) {
+                const extraSoftware = await mgr.hub.getExtraSoftwareForAboutDialog();
+                const notices = await mgr.hub.getNoticesForAboutDialog();
                 mgr.hub.alert({
                     title: "About Proofscape ISE",
                     content: aboutIseHtml(
                         mgr.hub.getVersionStringForAboutDialog(),
-                        mgr.hub.getAgreementHtmlForAboutDialog()
+                        mgr.hub.getAgreementHtmlForAboutDialog(),
+                        extraSoftware,
+                        notices,
                     ),
                 });
             },
@@ -1459,7 +1464,25 @@ This cannot be undone.
 </p>
 `;
 
-function aboutIseHtml(versionString, agreementsHtml) {
+/* versionString: string giving version number of PISE
+ * agreementsHtml: HTML containing any desired links to ToS etc.
+ * extraSoftware: array of objects passable to `makeSoftwareTableRow()`
+ * notices: array of strings giving license notices
+ */
+function aboutIseHtml(versionString, agreementsHtml, extraSoftware, notices) {
+    let extraSoftwareTableRows = '';
+    for (let info of extraSoftware) {
+        extraSoftwareTableRows += makeSoftwareTableRow(info) + '\n';
+    }
+
+    let noticesHtml = '';
+    if (notices.length) {
+        noticesHtml += '<hr>\n<h2>Notices</h2>\n<hr>\n';
+        for (let notice of notices) {
+            noticesHtml += `<pre>\n${notice}\n</pre>\n<hr>\n`;
+        }
+    }
+
     return `
 <div class="aboutIseDialog iseDialogContentsStyle01">
 <div class="pise-logo"></div>
@@ -1481,8 +1504,10 @@ This is an open-source project, built on the following components (scroll for mo
 </thead>
 <tbody>
 ${softwareTableRows}
+${extraSoftwareTableRows}
 </tbody>
 </table>
+${noticesHtml}
 </div>
 </div>
 `;

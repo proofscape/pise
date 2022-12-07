@@ -20,23 +20,7 @@
 
 const path = require('path');
 const fsPromises = require('fs').promises;
-
-
-function makeRow({projName, projURL, version, licName, licURL}) {
-    return `
-    <!-- ${projName} -->
-    <tr><td><a target="_blank"
-    href="${projURL}">
-    ${projName}
-    </a><span class="vers" data-proj-name="${projName}">
-    ${version}
-    </span></td>
-    <td><a target="_blank"
-    href="${licURL}">
-    ${licName}
-    </a></td></tr>
-    `;
-}
+const makeRow = require('./src/dialog');
 
 /* Pass package-lock.json. Get array of recursive production dependencies, by name.
  */

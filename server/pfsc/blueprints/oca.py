@@ -96,3 +96,15 @@ def eula():
     with open(check_config("EULA_FILE")) as f:
         text = f.read()
     return text
+
+
+@bp.route('/extraAboutInfo', methods=["GET"])
+def extra_about_info():
+    """
+    Load the extra info from `about.json` for the "About" dialog.
+    """
+    if not check_config("IS_OCA"):
+        return '', 403
+    with open(check_config("ABOUT_JSON_FILE")) as f:
+        text = f.read()
+    return text

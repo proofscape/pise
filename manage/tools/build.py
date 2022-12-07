@@ -289,7 +289,11 @@ def oca(release, dump, dry_run, tar_path, tag):
 @click.argument('tag2')
 def oca_finalize(tag1, tag2):
     """
-    Finish the OCA build process, by writing LICENSE.txt into a given image.
+    Finish the OCA build process, by writing the files:
+        LICENSES.txt
+        NOTICE.txt
+        about.json
+    into a given image.
 
     pise:TAG1 is the existing image, pise:TAG2 will be the new image.
 
@@ -297,16 +301,25 @@ def oca_finalize(tag1, tag2):
     """
     with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
         tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
-        license_file_text = tools.license.oca.callback(f'pise:{tag1}')
-        clf_name = "LICENSES.txt"
-        tmp_clf = os.path.join(tmp_dir_name, clf_name)
-        with open(tmp_clf, 'w') as f:
-            f.write(license_file_text)
+        licenses_txt, notice_txt, about_json = tools.license.oca.callback(f'pise:{tag1}')
+        files = [
+            (licenses_txt, "LICENSES.txt"),
+            (notice_txt, "NOTICE.txt"),
+            (about_json, "about.json"),
+        ]
+        for text, name in files:
+            tmp_path = os.path.join(tmp_dir_name, name)
+            with open(tmp_path, 'w') as f:
+                f.write(text)
         df2 = (
             f'FROM pise:{tag1}\n'
-            f'COPY {tmp_dir_rel_path}/{clf_name} ./\n'
+            f'COPY {tmp_dir_rel_path}/{files[0][1]} ./\n'
+            f'COPY {tmp_dir_rel_path}/{files[1][1]} ./\n'
+            f'COPY {tmp_dir_rel_path}/{files[2][1]} ./\n'
             f'USER root\n'
-            f'RUN chown pfsc:pfsc {clf_name}\n'
+            f'RUN chown pfsc:pfsc {files[0][1]}\n'
+            f'RUN chown pfsc:pfsc {files[1][1]}\n'
+            f'RUN chown pfsc:pfsc {files[2][1]}\n'
             f'USER pfsc\n'
         )
         finalize(df2, 'pise', tag2, False, False)
