@@ -20,7 +20,7 @@
 #     Ubuntu 18.04), and
 # (b) there's 24MB of junk in /var/opt/redislabs/artifacts.
 FROM redislabs/redisgraph:{{redisgraph_image_tag}} AS rg
-FROM python:3.8.12-slim-buster
+FROM python:{{python_image_tag}}
 ARG DEBIAN_FRONTEND=noninteractive
 # libgomp1 is needed by redisgraph.
 # The rm command in /tmp is to clean up a cert file that is left there for some

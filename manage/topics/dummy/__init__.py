@@ -19,6 +19,8 @@ import os
 import click
 import jinja2
 
+import conf
+
 
 this_dir = os.path.dirname(__file__)
 templates_dir = os.path.join(this_dir, 'templates')
@@ -33,5 +35,6 @@ def write_web_py():
 def write_dummy_server_dockerfile(tmp_dir_name):
     template = jinja_env.get_template('Dockerfile')
     return template.render(
+        python_image_tag=conf.PYTHON_IMAGE_TAG,
         tmp_dir_name=tmp_dir_name,
     )

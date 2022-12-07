@@ -42,6 +42,7 @@ def write_startup_system(
     template = jinja_env.get_template(f'Dockerfile.startup_system')
     return template.render(
         dir_where_startup_system_lives=dir_where_startup_system_lives,
+        supervisor_version=conf.SUPERVISOR_VERSION,
         numbered_inis=numbered_inis,
         tmp_dir_name=tmp_dir_name,
         ensure_dirs=True,
@@ -169,6 +170,7 @@ def write_single_service_dockerfile(demos=False):
     )
     template = jinja_env.get_template('Dockerfile.single_service')
     df = template.render(
+        python_image_tag=conf.PYTHON_IMAGE_TAG,
         pfsc_install=pfsc_install,
     )
     return squash(df)
@@ -205,6 +207,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
     )
     template = jinja_env.get_template('Dockerfile.oca')
     df = template.render(
+        python_image_tag=conf.PYTHON_IMAGE_TAG,
         redisgraph_image_tag=conf.REDISGRAPH_IMAGE_TAG,
         pfsc_install=pfsc_install,
         startup_system=startup_system,

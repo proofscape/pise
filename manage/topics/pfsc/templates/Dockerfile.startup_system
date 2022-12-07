@@ -17,7 +17,7 @@
 # STARTUP SYSTEM
 
 WORKDIR {{dir_where_startup_system_lives}}
-RUN pip install supervisor \
+RUN pip install supervisor=={{supervisor_version}} \
  && find / -name "*.pyc" | xargs -I % rm % \
  && mkdir -p super/run \
  && echo_supervisord_conf > super/supervisord.conf \

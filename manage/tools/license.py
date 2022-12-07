@@ -26,7 +26,13 @@ import click
 import jinja2
 import requests
 
+import conf as pfsc_conf
 from manage import cli, PFSC_ROOT, PFSC_MANAGE_ROOT
+from tools.util import (
+    get_version_numbers,
+    get_python_version_for_images,
+    get_redis_server_version_for_oca,
+)
 PFSC_MANAGE_ROOT = Path(PFSC_MANAGE_ROOT)
 PFSC_ROOT = Path(PFSC_ROOT)
 
@@ -138,7 +144,7 @@ def about(project, dry_run):
         # In pfsc-ise we also have pdf.js, plus Pyodide and all the Python
         # packages we load in there. I want these to get high billing, after
         # pfsc-ise.
-        pkgs = pkgs[:1] + [OTHER_PKG_INFO['pdfjs']] + list(PYODIDE_PKG_INFO.values()) + pkgs[1:]
+        pkgs = pkgs[:1] + [get_other_pkg_info_lookup()['pdfjs']] + list(get_pyodide_pkg_info_lookup().values()) + pkgs[1:]
         # Actually I want to lift elkjs and SymPy and give them higher billing.
         for i, pkg in enumerate(pkgs):
             if pkg.name == 'elkjs':
@@ -207,15 +213,6 @@ export const softwareTableRows = `
 """)
 
 
-LICENSE_URLS = {
-    'RSAL': 'https://raw.githubusercontent.com/RedisGraph/RedisGraph/v2.4.13/LICENSE',
-    'redis': 'https://raw.githubusercontent.com/redis/redis/6.2.4/COPYING',
-    'supervisor_4.2.4': 'https://raw.githubusercontent.com/Supervisor/supervisor/4.2.4/LICENSES.txt',
-    'gcc_runtime': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING.RUNTIME',
-    'gpl3': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3',
-}
-
-
 @license.command()
 @click.option('--image', default='pise:latest', help="The docker image where the python packages have been installed.")
 @click.option('--dump', is_flag=True, default=False, help="Print the file to stdout.")
@@ -267,7 +264,8 @@ def oca(image, dump=False, verbose=False):
     js_d = {pkg.name: pkg for pkg in js_comp}
 
     # Add other dependencies that aren't gathered by the above function calls.
-    py_other = {name:PYODIDE_PKG_INFO[name] for name in [
+    pyodide_pkg_info = get_pyodide_pkg_info_lookup()
+    py_other = {name: pyodide_pkg_info[name] for name in [
         'sympy', 'pfsc-examp', 'displaylang',
         'mpmath', 'Jinja2', 'MarkupSafe',
         'lark-parser', 'typeguard',
@@ -276,8 +274,8 @@ def oca(image, dump=False, verbose=False):
     py_d = dict(py_other, **py_d)
 
     js_other = {
-        'pdfjs': OTHER_PKG_INFO['pdfjs'],
-        'pyodide': PYODIDE_PKG_INFO['pyodide'],
+        'pdfjs': get_other_pkg_info_lookup()['pdfjs'],
+        'pyodide': pyodide_pkg_info['pyodide'],
     }
     js_d = dict(js_other, **js_d)
 
@@ -327,34 +325,50 @@ def oca(image, dump=False, verbose=False):
     divider = '\n' + ("~"*79 + '\n')*2
     other_licenses = divider.join(other_license_list)
 
+    python_version = get_python_version_for_images()
+    supervisor_version = pfsc_conf.SUPERVISOR_VERSION
+    redisgraph_version = pfsc_conf.REDISGRAPH_IMAGE_TAG
+    redis_server_version = get_redis_server_version_for_oca()
+
     # These are the one-off cases:
+    LICENSE_URLS = {
+        'RSAL': f'https://raw.githubusercontent.com/RedisGraph/RedisGraph/v{redisgraph_version}/LICENSE',
+        'redis': f'https://raw.githubusercontent.com/redis/redis/{redis_server_version}/COPYING',
+        'supervisor': f'https://raw.githubusercontent.com/Supervisor/supervisor/{supervisor_version}/LICENSES.txt',
+        'gcc_runtime': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING.RUNTIME',
+        'gpl3': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3',
+    }
+
     with open(PFSC_MANAGE_ROOT.parent / 'LICENSE') as f:
         pfsc_server_Apache = f.read()
     RSAL = obtain_license_text(LICENSE_URLS['RSAL'])
     redis_BSD = obtain_license_text(LICENSE_URLS['redis'])
-    supervisor_license = obtain_license_text(LICENSE_URLS['supervisor_4.2.4'])
-    with open(PFSC_MANAGE_ROOT / 'topics' / 'licenses' / 'psf-3.8.12') as f:
+    supervisor_license = obtain_license_text(LICENSE_URLS['supervisor'])
+    with open(PFSC_MANAGE_ROOT / 'topics' / 'licenses' / f'psf-{python_version}') as f:
         PSF_license = f.read()
     gcc_runtime = obtain_license_text(LICENSE_URLS['gcc_runtime'])
     gpl3 = obtain_license_text(LICENSE_URLS['gpl3'])
 
+    vers = get_version_numbers()
+
     top_credits = [
-        ('pise-server', 'Apache 2.0'),
-        ('redis', 'BSD-3-Clause'),
-        ('redisgraph', 'RSAL'),
-        ('supervisor', 'BSD-derived'),
-        ('pise-client', 'Apache 2.0'),
-        ('sympy', 'BSD-3-Clause'),
-        ('pyodide', 'MPL-2.0'),
-        ('pfsc-pdf', 'Apache 2.0'),
-        ('mathjax', 'Apache 2.0'),
-        ('elkjs', 'EPL-2.0'),
-        ('python', 'PSF License'),
+        ('pise-server', vers['pise'], 'Apache 2.0'),
+        ('redis', redis_server_version, 'BSD-3-Clause'),
+        ('redisgraph', redisgraph_version, 'RSAL'),
+        ('supervisor', supervisor_version, 'BSD-derived'),
+        ('pise-client', vers['pise'], 'Apache 2.0'),
+        ('SymPy', f"(DisplayLang fork v{vers['displaylang-sympy']})", 'BSD-3-Clause'),
+        ('pyodide', vers['pyodide'], 'MPL-2.0'),
+        ('PDF.js', f"(Proofscape fork v{vers['pfsc-pdf']})", 'Apache 2.0'),
+        ('mathjax', vers['mathjax'], 'Apache 2.0'),
+        ('elkjs', vers['elkjs'], 'EPL-2.0'),
+        ('python', python_version, 'PSF License'),
     ]
     tab_stop = 56
     credits = {}
-    for name, license in top_credits:
-        credits[name] = f'{name}{" " * (tab_stop - len(name))}{license}'
+    for name, version, license in top_credits:
+        head = f'{name} {version}'
+        credits[name] = f'{head}{" " * (tab_stop - len(head))}{license}'
 
     # Final rendering
     template = jinja_env.get_template('combined_license_file.txt')
@@ -450,7 +464,7 @@ class SoftwarePackage:
             s += '\n  License not provided.'
         return s
 
-    def write_two_column_text_row(self, vers=False, license_tab_stop=56):
+    def write_two_column_text_row(self, vers=True, license_tab_stop=56):
         head = self.name
         if vers:
             head += f' {self.version}'
@@ -941,7 +955,7 @@ def get_manual_pkg_info(identifier, lang):
     """
     lookup = None
     if lang == 'py':
-        lookup = MANUAL_PY_PKG_INFO
+        lookup = get_manual_py_pkg_info_lookup()
     elif lang == 'js':
         lookup = MANUAL_JS_PKG_INFO
     else:
@@ -958,128 +972,131 @@ def get_manual_pkg_info(identifier, lang):
 ###############################################################################
 # MANUAL PACKAGE INFO
 
-MANUAL_PY_PKG_INFO = {
-    r'github\.com/apache/tinkerpop': PyPackage(
-        name='gremlinpython',
-        version='commit-0dd3c0b1a',
-        gh_url='https://github.com/apache/tinkerpop',
-        license_name='Apache 2.0',
-        license_url='https://github.com/apache/tinkerpop/blob/master/LICENSE',
-    ),
-    r'github\.com/proofscape/sympy': PyPackage(
-        name='sympy',
-        version="(DisplayLang fork v0.10.4)",
-        gh_url='https://github.com/proofscape/sympy',
-        license_name='BSD',
-        license_url='https://github.com/sympy/sympy/blob/master/LICENSE',
-        v=None,
-    ),
-    r'github\.com/proofscape/pfsc-examp': PyPackage(
-        name='pfsc-examp',
-        version='0.22.8',
-        gh_url='https://github.com/proofscape/pfsc-examp',
-        license_name='Apache 2.0',
-        license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
-    ),
-    r'github\.com/proofscape/pfsc-util': PyPackage(
-        name='pfsc-util',
-        version='0.22.8',
-        gh_url='https://github.com/proofscape/pfsc-util',
-        license_name='Apache 2.0',
-        license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
-    ),
-    'aenum': {
-        'license_not_provided': True,
-    },
-    'bidict': {
-        'gh_url': 'https://github.com/jab/bidict/tree/v0.21.4',
-    },
-    'blinker': {
-        'gh_url': 'https://github.com/jek/blinker/tree/rel-1.4',
-        'license_url': 'https://github.com/jek/blinker/blob/rel-1.4/LICENSE',
-    },
-    'cffi': {
-        'src_url': 'https://foss.heptapod.net/pypy/cffi/-/tree/branch/default',
-    },
-    'dill': {
-        "license_url": 'https://github.com/uqfoundation/dill/blob/dill-0.3.4/LICENSE',
-    },
-    'dnspython': {
-        'gh_url': 'https://github.com/rthalley/dnspython/tree/v1.16.0',
-    },
-    'eventlet': {
-        "license_name": 'MIT',
-        'gh_url': 'https://github.com/eventlet/eventlet/tree/v0.30.2',
-    },
-    'Flask-Mail': {
-        'gh_url': 'https://github.com/mattupstate/flask-mail/tree/0.9.1',
-        'license_url': 'https://github.com/mattupstate/flask-mail/blob/0.9.1/LICENSE',
-    },
-    'Flask-SocketIO': {
-        'license_name': 'MIT',
-    },
-    'gremlinpython': {
-        'gh_url': 'https://github.com/apache/tinkerpop',
-    },
-    'importlib-metadata': {
-        'license_name': 'Apache 2.0',
-    },
-    'isodate': {
-        'license_url': 'https://github.com/gweis/isodate/blob/master/LICENSE',
-    },
-    'lark-parser': {
-        'license_url': 'https://github.com/lark-parser/lark/blob/0.6.7/LICENSE',
-    },
-    'lark067': {
-        'name': 'lark-parser',
-        'version': '0.6.7',
-        'gh_url': 'https://github.com/lark-parser/lark',
-        'license_name': 'MIT',
-        'license_url': 'https://github.com/lark-parser/lark/blob/0.6.7/LICENSE',
-        'v': False,
-    },
-    'mmh3': {
-        'license_name': 'CC0 1.0',
-    },
-    'neo4j': {
-        'license_name': 'Apache 2.0',
-        'license_url': 'https://github.com/neo4j/neo4j-python-driver/blob/4.2.1/LICENSE.txt',
-    },
-    'pep517': {
-        'license_name': 'MIT',
-    },
-    r'\bpy\b': {
-        'gh_url': 'https://github.com/pytest-dev/py',
-    },
-    'pyparsing': {
-        'license_name': 'MIT',
-    },
-    'python-dotenv': {
-        'license_name': 'BSD',
-    },
-    'python-engineio': {
-        'license_name': 'MIT',
-    },
-    'python-socketio': {
-        'license_name': 'MIT',
-    },
-    'pytz': {
-        'gh_url': 'https://github.com/stub42/pytz/tree/release_2021.3',
-    },
-    'rq': {
-        'license_url': 'https://github.com/rq/rq/blob/v1.8.0/LICENSE',
-    },
-    'tomli': {
-        'license_name': 'MIT',
-    },
-    'typing_extensions': {
-        'gh_url': 'https://github.com/python/typing/tree/4.0.1',
-        'license_name': 'PSF License',
-    },
-    'zipp': {
-        'license_name': 'MIT',
-    },
-}
+
+def get_manual_py_pkg_info_lookup():
+    vers = get_version_numbers()
+    return {
+        r'github\.com/apache/tinkerpop': PyPackage(
+            name='gremlinpython',
+            version='commit-0dd3c0b1a',
+            gh_url='https://github.com/apache/tinkerpop',
+            license_name='Apache 2.0',
+            license_url='https://github.com/apache/tinkerpop/blob/master/LICENSE',
+        ),
+        r'github\.com/proofscape/sympy': PyPackage(
+            name='sympy',
+            version=f"(DisplayLang fork v{vers['displaylang-sympy']})",
+            gh_url='https://github.com/proofscape/sympy',
+            license_name='BSD',
+            license_url='https://github.com/sympy/sympy/blob/master/LICENSE',
+            v=None,
+        ),
+        r'github\.com/proofscape/pfsc-examp': PyPackage(
+            name='pfsc-examp',
+            version=vers['pfsc-examp'],
+            gh_url='https://github.com/proofscape/pfsc-examp',
+            license_name='Apache 2.0',
+            license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
+        ),
+        r'github\.com/proofscape/pfsc-util': PyPackage(
+            name='pfsc-util',
+            version=vers['pfsc-util'],
+            gh_url='https://github.com/proofscape/pfsc-util',
+            license_name='Apache 2.0',
+            license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
+        ),
+        'aenum': {
+            'license_not_provided': True,
+        },
+        'bidict': {
+            'gh_url': 'https://github.com/jab/bidict/tree/v0.21.4',
+        },
+        'blinker': {
+            'gh_url': 'https://github.com/jek/blinker/tree/rel-1.4',
+            'license_url': 'https://github.com/jek/blinker/blob/rel-1.4/LICENSE',
+        },
+        'cffi': {
+            'src_url': 'https://foss.heptapod.net/pypy/cffi/-/tree/branch/default',
+        },
+        'dill': {
+            "license_url": 'https://github.com/uqfoundation/dill/blob/dill-0.3.4/LICENSE',
+        },
+        'dnspython': {
+            'gh_url': 'https://github.com/rthalley/dnspython/tree/v1.16.0',
+        },
+        'eventlet': {
+            "license_name": 'MIT',
+            'gh_url': 'https://github.com/eventlet/eventlet/tree/v0.30.2',
+        },
+        'Flask-Mail': {
+            'gh_url': 'https://github.com/mattupstate/flask-mail/tree/0.9.1',
+            'license_url': 'https://github.com/mattupstate/flask-mail/blob/0.9.1/LICENSE',
+        },
+        'Flask-SocketIO': {
+            'license_name': 'MIT',
+        },
+        'gremlinpython': {
+            'gh_url': 'https://github.com/apache/tinkerpop',
+        },
+        'importlib-metadata': {
+            'license_name': 'Apache 2.0',
+        },
+        'isodate': {
+            'license_url': 'https://github.com/gweis/isodate/blob/master/LICENSE',
+        },
+        'lark-parser': {
+            'license_url': 'https://github.com/lark-parser/lark/blob/0.6.7/LICENSE',
+        },
+        'lark067': {
+            'name': 'lark-parser',
+            'version': vers['lark'],
+            'gh_url': 'https://github.com/lark-parser/lark',
+            'license_name': 'MIT',
+            'license_url': f'https://github.com/lark-parser/lark/blob/{vers["lark"]}/LICENSE',
+            'v': False,
+        },
+        'mmh3': {
+            'license_name': 'CC0 1.0',
+        },
+        'neo4j': {
+            'license_name': 'Apache 2.0',
+            'license_url': 'https://github.com/neo4j/neo4j-python-driver/blob/4.2.1/LICENSE.txt',
+        },
+        'pep517': {
+            'license_name': 'MIT',
+        },
+        r'\bpy\b': {
+            'gh_url': 'https://github.com/pytest-dev/py',
+        },
+        'pyparsing': {
+            'license_name': 'MIT',
+        },
+        'python-dotenv': {
+            'license_name': 'BSD',
+        },
+        'python-engineio': {
+            'license_name': 'MIT',
+        },
+        'python-socketio': {
+            'license_name': 'MIT',
+        },
+        'pytz': {
+            'gh_url': 'https://github.com/stub42/pytz/tree/release_2021.3',
+        },
+        'rq': {
+            'license_url': 'https://github.com/rq/rq/blob/v1.8.0/LICENSE',
+        },
+        'tomli': {
+            'license_name': 'MIT',
+        },
+        'typing_extensions': {
+            'gh_url': 'https://github.com/python/typing/tree/4.0.1',
+            'license_name': 'PSF License',
+        },
+        'zipp': {
+            'license_name': 'MIT',
+        },
+    }
 
 
 
@@ -1191,89 +1208,91 @@ MANUAL_JS_PKG_INFO = {
         'v': False,
     }
 }
-PYODIDE_PKG_INFO = {
 
-    ###########################
-    # Packages loaded as wheels
-    ###########################
+def get_pyodide_pkg_info_lookup():
+    vers = get_version_numbers()
+    m = get_manual_py_pkg_info_lookup()
+    return {
 
-    'pyodide': JsPackage(
-        name='pyodide',
-        version='0.19.1',
-        gh_url='https://github.com/pyodide/pyodide',
-        license_name='MPL-2.0',
-        license_url='https://github.com/pyodide/pyodide/blob/0.19.1/LICENSE',
-        v=False,
-    ),
-    'sympy': MANUAL_PY_PKG_INFO[r'github\.com/proofscape/sympy'],
-    'pfsc-examp': MANUAL_PY_PKG_INFO[r'github\.com/proofscape/pfsc-examp'],
-    'displaylang': PyPackage(
-        name='displaylang',
-        version='0.22.8',
-        gh_url='https://github.com/proofscape/displaylang',
-        license_name='Apache 2.0',
-        license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
-        v=None,
-    ),
-    'lark-parser': PyPackage(
-        name='lark-parser',
-        version='0.6.7',
-        gh_url='https://github.com/lark-parser/lark',
-        license_name='MIT',
-        license_url='https://github.com/lark-parser/lark/blob/0.6.7/LICENSE',
-        v=False,
-    ),
-    'typeguard': PyPackage(
-        name='typeguard',
-        version='2.13.3',
-        gh_url='https://github.com/agronholm/typeguard',
-        license_name='MIT',
-        license_url='https://github.com/agronholm/typeguard/blob/2.13.3/LICENSE',
-        v=False,
-    ),
-    'pfsc-util': MANUAL_PY_PKG_INFO[r'github\.com/proofscape/pfsc-util'],
+        ###########################
+        # Packages loaded as wheels
+        ###########################
 
-    ###############################################
-    # Packages loaded from the Pyodide distribution
-    ###############################################
+        'pyodide': JsPackage(
+            name='pyodide',
+            version=vers['pyodide'],
+            gh_url='https://github.com/pyodide/pyodide',
+            license_name='MPL-2.0',
+            license_url=f'https://github.com/pyodide/pyodide/blob/{vers["pyodide"]}/LICENSE',
+            v=False,
+        ),
+        'sympy': m[r'github\.com/proofscape/sympy'],
+        'pfsc-examp': m[r'github\.com/proofscape/pfsc-examp'],
+        'displaylang': PyPackage(
+            name='displaylang',
+            version=vers['displaylang'],
+            gh_url='https://github.com/proofscape/displaylang',
+            license_name='Apache 2.0',
+            license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
+            v=None,
+        ),
+        'lark-parser': PyPackage(
+            name='lark-parser',
+            version=vers['lark'],
+            gh_url='https://github.com/lark-parser/lark',
+            license_name='MIT',
+            license_url=f'https://github.com/lark-parser/lark/blob/{vers["lark"]}/LICENSE',
+            v=False,
+        ),
+        'typeguard': PyPackage(
+            name='typeguard',
+            version=vers['typeguard'],
+            gh_url='https://github.com/agronholm/typeguard',
+            license_name='MIT',
+            license_url=f'https://github.com/agronholm/typeguard/blob/{vers["typeguard"]}/LICENSE',
+            v=False,
+        ),
+        'pfsc-util': m[r'github\.com/proofscape/pfsc-util'],
 
-    # Be sure to check
-    #   https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-    # for the version numbers of these packages.
+        ###############################################
+        # Packages loaded from the Pyodide distribution
+        ###############################################
 
-    'mpmath': PyPackage(
-        name='mpmath',
-        version='1.2.1',
-        gh_url='https://github.com/fredrik-johansson/mpmath',
-        license_name='BSD-3-Clause',
-        license_url='https://github.com/fredrik-johansson/mpmath/blob/1.2.1/LICENSE',
-        v=False,
-    ),
-    'Jinja2': PyPackage(
-        name='Jinja2',
-        version='3.0.3',
-        gh_url='https://github.com/pallets/jinja/',
-        license_name='BSD-3-Clause',
-        license_url='https://github.com/pallets/jinja/blob/3.0.3/LICENSE.rst',
-        v=False,
-    ),
-    'MarkupSafe': PyPackage(
-        name='MarkupSafe',
-        version='2.0.1',
-        gh_url='https://github.com/pallets/markupsafe',
-        license_name='BSD-3-Clause',
-        license_url='https://github.com/pallets/markupsafe/blob/2.0.1/LICENSE.rst',
-        v=False,
-    ),
-}
+        'mpmath': PyPackage(
+            name='mpmath',
+            version=vers['mpmath'],
+            gh_url='https://github.com/fredrik-johansson/mpmath',
+            license_name='BSD-3-Clause',
+            license_url=f'https://github.com/fredrik-johansson/mpmath/blob/{vers["mpmath"]}/LICENSE',
+            v=False,
+        ),
+        'Jinja2': PyPackage(
+            name='Jinja2',
+            version=vers['Jinja2'],
+            gh_url='https://github.com/pallets/jinja/',
+            license_name='BSD-3-Clause',
+            license_url=f'https://github.com/pallets/jinja/blob/{vers["Jinja2"]}/LICENSE.rst',
+            v=False,
+        ),
+        'MarkupSafe': PyPackage(
+            name='MarkupSafe',
+            version=vers['MarkupSafe'],
+            gh_url='https://github.com/pallets/markupsafe',
+            license_name='BSD-3-Clause',
+            license_url=f'https://github.com/pallets/markupsafe/blob/{vers["MarkupSafe"]}/LICENSE.rst',
+            v=False,
+        ),
+    }
 
-OTHER_PKG_INFO = {
-    'pdfjs': JsPackage(
-        name='pdf.js',
-        version="(Proofscape fork v2.1.1)",
-        gh_url='https://github.com/proofscape/pfsc-pdf',
-        license_name='Apache 2.0',
-        license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
-        v=None,
-    ),
-}
+def get_other_pkg_info_lookup():
+    vers = get_version_numbers()
+    return {
+        'pdfjs': JsPackage(
+            name='pdf.js',
+            version=f"(Proofscape fork v{vers['pfsc-pdf']})",
+            gh_url='https://github.com/proofscape/pfsc-pdf',
+            license_name='Apache 2.0',
+            license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
+            v=None,
+        ),
+    }

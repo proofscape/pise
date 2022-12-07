@@ -14,7 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-FROM python:3.8.12-slim-buster
+FROM python:{{python_image_tag}}
 ARG DEBIAN_FRONTEND=noninteractive
 # The rm command in /tmp is to clean up a cert file that is left there for some
 # reason; see <https://github.com/docker-library/python/issues/609>

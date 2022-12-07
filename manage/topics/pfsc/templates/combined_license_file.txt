@@ -48,7 +48,7 @@ Agreement.
 
     Computer algebra and symbolic manipulation provided by:
 
-{{credits['sympy']}}
+{{credits['SymPy']}}
 
     The SymPy project is at:
     https://github.com/sympy/sympy
@@ -63,7 +63,7 @@ Agreement.
 {{credits['pyodide']}}
   https://github.com/pyodide/pyodide
 
-{{credits['pfsc-pdf']}}
+{{credits['PDF.js']}}
 
     The PDF.js project is at:
     https://github.com/mozilla/pdf.js

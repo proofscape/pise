@@ -20,6 +20,7 @@ import re
 import pathlib
 from configparser import ConfigParser
 from datetime import datetime
+import subprocess
 
 import click
 
@@ -129,12 +130,10 @@ def get_version_numbers():
     Read package.json, package-lock.json, and other-versions.json in the
     client code, in order to determine the version numbers for the
     projects:
-        pise
-        mathjax
-        elkjs
-        pfsc-pdf
-        pyodide
-        pfsc-examp
+        pise, mathjax, elkjs,
+    and all projects named in other-versions.json, which at this time includes:
+        pfsc-pdf, pyodide, pfsc-examp, pfsc-util, dislaylang,
+        displaylang-sympy, lark, typeguard, mpmath, Jinja2, MarkupSafe
     """
     client_path = pathlib.Path(PISE_ROOT) / 'client'
     with open(client_path / 'package.json') as f:
@@ -143,14 +142,13 @@ def get_version_numbers():
         plj = json.load(f)
     with open(client_path / 'other-versions.json') as f:
         ovj = json.load(f)
-    return {
+    nums = {
         'pise': pj['version'],
         'mathjax': plj["dependencies"]["mathjax"]["version"],
         'elkjs': plj["dependencies"]["elkjs"]["version"],
-        'pfsc-pdf': ovj['pfsc-pdf'],
-        'pyodide': ovj['pyodide'],
-        'pfsc-examp': ovj['pfsc-examp'],
     }
+    nums.update(ovj)
+    return nums
 
 
 def get_server_version():
@@ -158,3 +156,32 @@ def get_server_version():
     Get the version number of pfsc-server
     """
     return get_version_numbers()['pise']
+
+
+def get_redis_server_version_for_oca():
+    """
+    Get the version number of redis-server that is installed in the OCA image.
+    """
+    cmd = f'docker run --rm --entrypoint=bash redislabs/redisgraph:{pfsc_conf.REDISGRAPH_IMAGE_TAG} -c "redis-server --version"'
+    out = subprocess.check_output(cmd, shell=True)
+    text = out.decode()
+
+    def problem():
+        raise Exception(f'Unexpected redis server version output: {text}')
+
+    # Expect sth like this:
+    #   Redis server v=6.2.4 sha=00000000:0 malloc=jemalloc-5.1.0 bits=64 build=72b794ea2901b8e1
+    parts = text.split()
+    if len(parts) < 3:
+        problem()
+    m = re.match(r'v=(\d+\.\d+\.\d+)$', parts[2])
+    if not m:
+        problem()
+    return m.group(1)
+
+
+def get_python_version_for_images():
+    """
+    Get the version number of Python being used in the pise and pise-server images.
+    """
+    return pfsc_conf.PYTHON_IMAGE_TAG.split('-')[0]

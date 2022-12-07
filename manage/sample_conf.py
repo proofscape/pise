@@ -164,7 +164,9 @@ SEL_WINDOW_HEIGHT = 1080 - 100
 
 # Docker Image Tags
 #
-# These are the default docker image tags that will be used, for various services:
+# These are the default docker image tags that will be used, for various
+# services, or as starting points for building our own docker images.
+PYTHON_IMAGE_TAG = '3.8.12-slim-buster'
 REDIS_IMAGE_TAG = '6.2.1'
 REDISGRAPH_IMAGE_TAG = '2.4.13'
 NEO4J_IMAGE_TAG = '4.0.6'
@@ -175,6 +177,9 @@ NGINX_IMAGE_TAG = '1.22.0'
 # is being used, set a version tag here. Otherwise leave as None.
 # REDISINSIGHT_IMAGE_TAG = '1.11.0'
 REDISINSIGHT_IMAGE_TAG = None
+
+# Other versions
+SUPERVISOR_VERSION = '4.2.4'
 
 # App URL Prefix
 #
