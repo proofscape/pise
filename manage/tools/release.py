@@ -102,7 +102,7 @@ def oca(seq_num, skip_check, dump, dry_run, tar_path):
     '-y', '--skip-check', is_flag=True,
     help="Skip tag check."
 )
-@click.option('--demos', is_flag=True, help="Include demo repos.")
+@click.option('--demos/--no-demos', default=True, help="Include demo repos.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")

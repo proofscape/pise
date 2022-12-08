@@ -152,7 +152,7 @@ def write_dockerignore_for_pyc():
 
 
 @build.command()
-@click.option('--demos', is_flag=True, help="Include demo repos.")
+@click.option('--demos/--no-demos', default=True, help="Include demo repos.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
@@ -161,6 +161,12 @@ def server(demos, dump, dry_run, tar_path, tag):
     """
     Build a `pise-server` docker image, and give it a TAG.
     """
+    if not dry_run:
+        if demos:
+            demos_path = os.path.join(SRC_ROOT, 'pfsc-demo-repos')
+            if not os.path.exists(demos_path):
+                raise click.UsageError(f'Could not find {demos_path}.')
+
     license_info = tools.license.gather_licensing_info()
     pfsc_topics = pathlib.Path(PFSC_MANAGE_ROOT) / 'topics' / 'pfsc'
     with open(pfsc_topics / 'templates' / 'combined_license_file_server.txt') as f:
