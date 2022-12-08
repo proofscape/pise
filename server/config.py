@@ -563,6 +563,7 @@ class DockerDevConfig(DevelopmentConfig):
     PFSC_LIB_ROOT = "/home/pfsc/proofscape/lib"
     PFSC_BUILD_ROOT = "/home/pfsc/proofscape/build"
     PFSC_PDFLIB_ROOT = "/home/pfsc/proofscape/PDFLibrary"
+    PFSC_DEMO_ROOT = "/home/pfsc/demos"
 
     REDIS_URI = os.getenv("REDIS_URI") or "redis://redis:6379"
 

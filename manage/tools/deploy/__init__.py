@@ -468,7 +468,6 @@ def write_docker_dot_env(app_url_prefix, gdb, demos, secret=None):
     write_gdb_dot_env(d, gdb, GdbCode.docker_URI)
 
     if demos:
-        d["PFSC_DEMO_ROOT"] = "/home/pfsc/demos"
         d["PROVIDE_DEMO_REPOS"] = 1
 
     if conf.EMAIL_TEMPLATE_DIR:
