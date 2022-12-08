@@ -33,7 +33,9 @@ from tools.util import (
     get_python_version_for_images,
     get_redis_server_version_for_oca,
 )
-from topics.pfsc import write_notice_file
+import topics.pfsc.notice
+import topics.pfsc.write_license_files as write_license_files
+
 
 PFSC_MANAGE_ROOT = Path(PFSC_MANAGE_ROOT)
 PFSC_ROOT = Path(PFSC_ROOT)
@@ -215,22 +217,12 @@ export const softwareTableRows = `
 """)
 
 
-@license.command()
-@click.option('--image', default='pise:latest', help="The docker image where the python packages have been installed.")
-@click.option('--dump', type=click.Choice(['lhead', 'lfull', 'notice', 'about']),
-              help="Print to stdout. lhead=just header of LICENSES.txt, lfull=LICENSES.txt, notice=NOTICE.txt, about=about.json")
-@click.option('-v', '--verbose', is_flag=True, default=False, help="Print diagnostic info.")
-def oca(image, dump=None, verbose=False):
+def gather_licensing_info(verbose=False):
     """
-    Write the "licensing info files" for the one-container app:
-        LICENSES.txt
-        NOTICE.txt
-        about.json
-
-    This is mostly intended for internal usage. It can be useful to run it manually
-    when altering the format or contents of these files.
+    Gather all the licensing info that could be needed by any of our docker
+    images, and assemble it in one giant dictionary.
     """
-    py_comp, py_incomp = gather_dep_info_for_python_project('pfsc-server', print_report=verbose, image=image)
+    py_comp, py_incomp = gather_dep_info_for_python_project('pfsc-server', print_report=verbose)
     js_comp, js_incomp = gather_dep_info_for_javascript_project('pfsc-ise', print_report=verbose)
 
     if len(py_incomp) > 0:
@@ -249,31 +241,6 @@ def oca(image, dump=None, verbose=False):
             'to learn more.'
         )
 
-    other_py_comp = [
-        pkg for pkg in py_comp if pkg.name not in [
-            # Don't repeat packages that already got special mention.
-            'sympy',
-        ]
-    ]
-
-    python_packages = '\n'.join(
-        f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
-        for pkg in other_py_comp
-    )
-
-    javascript_packages = '\n'.join(
-        f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
-        for pkg in js_comp if pkg.name not in [
-            # Don't repeat packages that already got special mention.
-            'pfsc-ise', 'mathjax',
-            'pyodide', 'pdf.js',
-        ]
-    )
-
-    py_d = {pkg.name: pkg for pkg in py_comp}
-    js_d = {pkg.name: pkg for pkg in js_comp}
-
-    # Add other dependencies that aren't gathered by the above function calls.
     pyodide_pkg_info = get_pyodide_pkg_info_lookup()
     py_other = {name: pyodide_pkg_info[name] for name in [
         'sympy', 'pfsc-examp', 'displaylang',
@@ -281,98 +248,86 @@ def oca(image, dump=None, verbose=False):
         'lark-parser', 'typeguard',
         'pfsc-util',
     ]}
-    py_d = dict(py_other, **py_d)
 
     js_other = {
         'pdfjs': get_other_pkg_info_lookup()['pdfjs'],
         'pyodide': pyodide_pkg_info['pyodide'],
     }
+
+    python_package_two_liners = {
+        pkg.name: f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
+        for pkg in py_comp
+    }
+
+    javascript_package_two_liners = {
+        pkg.name: f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
+        for pkg in js_comp
+    }
+
+    pyodide_package_two_liners = {
+        pkg.name: f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
+        for pkg in py_other.values()
+    }
+
+    py_d = {pkg.name: pkg for pkg in py_comp}
+    py_d = dict(py_other, **py_d)
+
+    js_d = {pkg.name: pkg for pkg in js_comp}
     js_d = dict(js_other, **js_d)
 
     py_pkgs = list(py_d.values())
     js_pkgs = list(js_d.values())
-
-    pyodide_python_packages = '\n'.join(
-        f'{pkg.write_two_column_text_row()}\n  {pkg.get_src_url()}\n'
-        for pkg in py_other.values()
-    )
-
-    # We try to group software having the same license text after stripping of
-    # exterior whitespace.
-    d = defaultdict(list)
     all_pkgs = py_pkgs + js_pkgs
-    for p in all_pkgs:
-        t = p.get_license_text()
-        if t:
-            d[t.strip()].append(p)
 
-    # FIXME
-    #  I would have expected better grouping. We're getting 83 groups, for
-    #  103 software packages. Why, e.g. so many different versions of Apache?
-    #  Should try to do better. For now this is good enough.
+    licenses = [
+        {
+            'name': pkg.name,
+            'src_url': pkg.get_src_url(),
+            'license_text': pkg.get_license_text(),
+        }
+        for pkg in all_pkgs
+    ]
 
-    # Examine grouping:
-    #print()
-    #print(f'{len(all_pkgs)} packages')
-    #print(f'{len(d.keys())} groups')
-    #print()
-    #v = sorted(list(d.values()), key=lambda a: len(a))
-    #for a in v:
-    #    print(f'{len(a)}: {" ".join([f"({p.license_name}/{p.name})" for p in a])}')
-
-    # Generate all the license blocks for all the packages:
-    other_license_list = []
-    for G in d.values():
-        header = ''
-        license = ''
-        for p in G:
-            header += f'  {p.name}\n    {p.get_src_url()}\n'
-            t = p.get_license_text()
-            if len(t) > len(license):
-                license = t
-        block = 'The license for:\n\n' + header + '\nis:\n\n' + license
-        other_license_list.append(block)
-    divider = '\n' + ("~"*79 + '\n')*2
-    other_licenses = divider.join(other_license_list)
-
-    python_version = get_python_version_for_images()
-    supervisor_version = pfsc_conf.SUPERVISOR_VERSION
-    redisgraph_version = pfsc_conf.REDISGRAPH_IMAGE_TAG
-    redis_server_version = get_redis_server_version_for_oca()
+    vers = get_version_numbers()
+    vers['python'] = get_python_version_for_images()
+    vers['supervisor'] = pfsc_conf.SUPERVISOR_VERSION
+    vers['redisgraph'] = pfsc_conf.REDISGRAPH_IMAGE_TAG
+    vers['redis-server'] = get_redis_server_version_for_oca()
+    vers['nginx'] = pfsc_conf.NGINX_IMAGE_TAG
 
     # These are the one-off cases:
     LICENSE_URLS = {
-        'RSAL': f'https://raw.githubusercontent.com/RedisGraph/RedisGraph/v{redisgraph_version}/LICENSE',
-        'redis': f'https://raw.githubusercontent.com/redis/redis/{redis_server_version}/COPYING',
-        'supervisor': f'https://raw.githubusercontent.com/Supervisor/supervisor/{supervisor_version}/LICENSES.txt',
+        'RSAL': f'https://raw.githubusercontent.com/RedisGraph/RedisGraph/v{vers["redisgraph"]}/LICENSE',
+        'redis': f'https://raw.githubusercontent.com/redis/redis/{vers["redis-server"]}/COPYING',
+        'supervisor': f'https://raw.githubusercontent.com/Supervisor/supervisor/{vers["supervisor"]}/LICENSES.txt',
         'gcc_runtime': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING.RUNTIME',
         'gpl3': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3',
+        'nginx': 'http://nginx.org/LICENSE',
     }
 
+    special_licenses = {
+        name: obtain_license_text(URL)
+        for name, URL in LICENSE_URLS.items()
+    }
     with open(PFSC_MANAGE_ROOT.parent / 'LICENSE') as f:
-        pfsc_server_Apache = f.read()
-    RSAL = obtain_license_text(LICENSE_URLS['RSAL'])
-    redis_BSD = obtain_license_text(LICENSE_URLS['redis'])
-    supervisor_license = obtain_license_text(LICENSE_URLS['supervisor'])
-    with open(PFSC_MANAGE_ROOT / 'topics' / 'licenses' / f'psf-{python_version}') as f:
-        PSF_license = f.read()
-    gcc_runtime = obtain_license_text(LICENSE_URLS['gcc_runtime'])
-    gpl3 = obtain_license_text(LICENSE_URLS['gpl3'])
-
-    vers = get_version_numbers()
+        special_licenses['pise'] = f.read()
+    with open(PFSC_MANAGE_ROOT / 'topics' / 'licenses' / f'psf-{vers["python"]}') as f:
+        special_licenses['PSF'] = f.read()
 
     top_credits = [
         ('pise-server', vers['pise'], 'Apache 2.0'),
-        ('redis', redis_server_version, 'BSD-3-Clause'),
-        ('redisgraph', redisgraph_version, 'RSAL'),
-        ('supervisor', supervisor_version, 'BSD-derived'),
+        ('redis', vers["redis-server"], 'BSD-3-Clause'),
+        ('redisgraph', vers["redisgraph"], 'RSAL'),
+        ('supervisor', vers["supervisor"], 'BSD-derived'),
         ('pise-client', vers['pise'], 'Apache 2.0'),
         ('SymPy', f"(DisplayLang fork v{vers['displaylang-sympy']})", 'BSD-3-Clause'),
         ('pyodide', vers['pyodide'], 'MPL-2.0'),
         ('PDF.js', f"(Proofscape fork v{vers['pfsc-pdf']})", 'Apache 2.0'),
         ('mathjax', vers['mathjax'], 'Apache 2.0'),
         ('elkjs', vers['elkjs'], 'EPL-2.0'),
-        ('python', python_version, 'PSF License'),
+        ('python', vers["python"], 'PSF License'),
+        ('pfsc-demo-repos', '', 'MPL-2.0'),
+        ('nginx', vers['nginx'], 'BSD-2-Clause'),
     ]
     tab_stop = 56
     credits = {}
@@ -380,36 +335,17 @@ def oca(image, dump=None, verbose=False):
         head = f'{name} {version}'
         credits[name] = f'{head}{" " * (tab_stop - len(head))}{license}'
 
-    # Final rendering
-    template = jinja_env.get_template('combined_license_file.txt')
-    licenses_txt = template.render(
-        credits=credits,
-        pyodide_python_packages=pyodide_python_packages,
-        python_packages=python_packages,
-        javascript_packages=javascript_packages,
-        pfsc_server_Apache=pfsc_server_Apache,
-        RSAL=RSAL,
-        redis_BSD=redis_BSD,
-        supervisor_license=supervisor_license,
-        PSF_license = PSF_license,
-        other_licenses=other_licenses,
-        gcc_runtime=gcc_runtime,
-        gpl3=gpl3
-    )
-
-    notice_txt = write_notice_file('oca')
-
     for_about_rows = [
         ('pise-server', vers['pise'], 'Apache 2.0',
          'https://github.com/proofscape/pise',
          'https://github.com/proofscape/pise/blob/main/LICENSE'),
-        ('redis', redis_server_version, 'BSD-3-Clause',
+        ('redis', vers["redis-server"], 'BSD-3-Clause',
          'https://github.com/redis/redis',
          'https://github.com/redis/redis/blob/unstable/COPYING'),
-        ('redisgraph', redisgraph_version, 'RSAL',
+        ('redisgraph', vers["redisgraph"], 'RSAL',
          'https://github.com/RedisGraph/RedisGraph',
          'https://github.com/RedisGraph/RedisGraph/blob/v2.4.13/LICENSE'),
-        ('supervisor', supervisor_version, 'BSD-derived',
+        ('supervisor', vers["supervisor"], 'BSD-derived',
          'https://github.com/Supervisor/supervisor',
          'https://github.com/Supervisor/supervisor/blob/main/LICENSES.txt'),
         ('libgomp', '', 'GCC RLE',
@@ -425,21 +361,56 @@ def oca(image, dump=None, verbose=False):
         }
 
     notice_list = [
-        n.strip() for n in notice_txt.split('-'*79)
+        n['text']
+        for n in topics.pfsc.notice.notices
+        if 'oca' in n['usage']
     ]
 
-    about_info = {
+    oca_about_info = {
         'extraSoftware': [
-            tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[:4]
-        ] + [
-            pkg.write_obj_for_abt_row() for pkg in other_py_comp
-        ] + [
-            tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[4:]
-        ],
+                             tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[:4]
+                         ] + [
+                             pkg.write_obj_for_abt_row()
+                             for pkg in py_comp if pkg.name not in [
+                                # Don't repeat packages that already got special mention.
+                                'sympy',
+                             ]
+                         ] + [
+                             tuple_to_obj_for_abt_rows(tup) for tup in for_about_rows[4:]
+                         ],
         'notices': notice_list,
     }
 
-    about_json = json.dumps(about_info, indent=4)
+    info = {
+        'python_package_two_liners': python_package_two_liners,
+        'javascript_package_two_liners': javascript_package_two_liners,
+        'pyodide_package_two_liners': pyodide_package_two_liners,
+        'credits': credits,
+        'notices': topics.pfsc.notice.notices,
+        'oca_about_info': oca_about_info,
+        'licenses': licenses,
+        'special_licenses': special_licenses,
+    }
+
+    return info
+
+
+@license.command()
+@click.option('--image', default='pise:testing', help="The docker image where the python packages have been installed.")
+@click.option('--dump', type=click.Choice(['lhead', 'lfull', 'notice', 'about']),
+              help="Print to stdout. lhead=just header of LICENSES.txt, lfull=LICENSES.txt, notice=NOTICE.txt, about=about.json")
+@click.option('-v', '--verbose', is_flag=True, default=False, help="Print diagnostic info.")
+def oca(image, dump=None, verbose=False):
+    """
+    Write the "licensing info files" for the one-container app:
+        LICENSES.txt
+        NOTICE.txt
+        about.json
+    """
+    license_info = gather_licensing_info(verbose=verbose)
+    image_tag = image.split(":")[1]
+    licenses_txt, notice_txt, about_json = write_license_files.build_oca_files(
+        license_info, image_tag=image_tag)
 
     if dump == 'lfull':
         print(licenses_txt)
@@ -452,6 +423,57 @@ def oca(image, dump=None, verbose=False):
         print(about_json)
 
     return licenses_txt, notice_txt, about_json
+
+
+@license.command()
+@click.option('--image', default='pise-server:testing', help="The docker image where the python packages have been installed.")
+@click.option('--dump', type=click.Choice(['lhead', 'lfull', 'notice']),
+              help="Print to stdout. lhead=just header of LICENSES.txt, lfull=LICENSES.txt, notice=NOTICE.txt")
+@click.option('-v', '--verbose', is_flag=True, default=False, help="Print diagnostic info.")
+def server(image, dump=None, verbose=False):
+    """
+    Write the "licensing info files" for the pise-server image:
+        LICENSES.txt
+        NOTICE.txt
+    """
+    license_info = gather_licensing_info(verbose=verbose)
+    image_tag = image.split(":")[1]
+    licenses_txt, notice_txt = write_license_files.build_server_files(
+        license_info, image_tag=image_tag)
+
+    if dump == 'lfull':
+        print(licenses_txt)
+    elif dump == 'lhead':
+        i1 = licenses_txt.find("LICENSES")
+        print(licenses_txt[:i1])
+    elif dump == 'notice':
+        print(notice_txt)
+
+    return licenses_txt, notice_txt
+
+
+@license.command()
+@click.option('--dump', type=click.Choice(['lhead', 'lfull', 'notice']),
+              help="Print to stdout. lhead=just header of LICENSES.txt, lfull=LICENSES.txt, notice=NOTICE.txt")
+@click.option('-v', '--verbose', is_flag=True, default=False, help="Print diagnostic info.")
+def frontend(dump=None, verbose=False):
+    """
+    Write the "licensing info files" for the pise-frontend image:
+        LICENSES.txt
+        NOTICE.txt
+    """
+    license_info = gather_licensing_info(verbose=verbose)
+    licenses_txt, notice_txt = write_license_files.build_frontend_files(license_info)
+
+    if dump == 'lfull':
+        print(licenses_txt)
+    elif dump == 'lhead':
+        i1 = licenses_txt.find("LICENSES")
+        print(licenses_txt[:i1])
+    elif dump == 'notice':
+        print(notice_txt)
+
+    return licenses_txt, notice_txt
 
 
 class PyNoDistInfo(Exception):
@@ -1106,6 +1128,9 @@ def get_manual_py_pkg_info_lookup():
             'gh_url': 'https://github.com/eventlet/eventlet/tree/v0.30.2',
             'license_url': 'https://github.com/eventlet/eventlet/blob/v0.30.2/LICENSE',
         },
+        'exceptiongroup': {
+            "license_name": 'MIT',
+        },
         'Flask=': {
             'license_url': 'https://github.com/pallets/flask/blob/main/LICENSE.rst',
         },
@@ -1148,6 +1173,10 @@ def get_manual_py_pkg_info_lookup():
         },
         'pep517': {
             'license_name': 'MIT',
+        },
+        'pfsc-test-modules': {
+            'license_name': 'MPL-2.0',
+            'license_url': 'https://github.com/proofscape/pfsc-test-modules/blob/main/LICENSE',
         },
         r'\bpy\b': {
             'gh_url': 'https://github.com/pytest-dev/py',

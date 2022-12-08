@@ -1,0 +1,87 @@
+This is the license file for the proofscape/pise-frontend Docker image.
+It gathers license info for the open-source software projects that have been
+installed in this image.
+
+SUMMARY
+=======
+
+This is a listing of the software packages installed in the image, and the
+names of their licenses. The full text of the licenses can be found in the
+sections that follow.
+
+                            *  *  *
+
+    The main server deployed in the image is:
+
+{{credits['nginx']}}
+  http://hg.nginx.org/nginx/
+
+                            *  *  *
+
+    The main JavaScript project served in ise.bundle.js:
+
+{{credits['pise-client']}}
+  https://github.com/proofscape/pise
+
+                            *  *  *
+
+    Computer algebra and symbolic manipulation provided by:
+
+{{credits['SymPy']}}
+
+    The SymPy project is at:
+    https://github.com/sympy/sympy
+
+    We use the DisplayLang fork of SymPy, which can be found at:
+    https://github.com/proofscape/sympy
+
+                            *  *  *
+
+    Other JavaScript projects served alongside ise.bundle.js:
+
+{{credits['pyodide']}}
+  https://github.com/pyodide/pyodide
+
+{{credits['PDF.js']}}
+
+    The PDF.js project is at:
+    https://github.com/mozilla/pdf.js
+
+    We use the Proofscape fork of PDF.js, which can be found at:
+    https://github.com/proofscape/pfsc-pdf
+
+{{credits['mathjax']}}
+  https://github.com/mathjax/MathJax
+
+{{credits['elkjs']}}
+  https://github.com/kieler/elkjs
+
+  elkjs is a transpilation of ELK:
+  https://github.com/eclipse/elk
+
+                            *  *  *
+
+    Python packages served as wheels, for use by Pyodide:
+
+{{ pyodide_python_packages }}
+
+                            *  *  *
+
+    Other Javascript packages included in ise.bundle.js:
+
+{{ javascript_packages }}
+
+
+LICENSES
+========
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+nginx
+  http://hg.nginx.org/nginx/
+
+{{ nginx_license }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{{ other_licenses }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

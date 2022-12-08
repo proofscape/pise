@@ -1,4 +1,4 @@
-This is the combined license file for the proofscape/pise Docker image.
+This is the license file for the proofscape/pise Docker image.
 It gathers license info for the open-source software projects that have been
 installed in this image.
 

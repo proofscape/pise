@@ -56,20 +56,6 @@ def write_oca_eula_file(version):
     )
 
 
-def write_notice_file(image):
-    """
-    Write the combined NOTICE.txt file for a docker image.
-
-    image: one of 'oca', 'server', 'frontend'
-    """
-    template = jinja_env.get_template(f'NOTICE.txt')
-    return template.render(
-        oca=image == 'oca',
-        server=image == 'server',
-        frontend=image == 'frontend',
-    ).strip()
-
-
 def write_pfsc_installation(
         python_cmd='python',
         ubuntu=True, demos=False, use_venv=False,
