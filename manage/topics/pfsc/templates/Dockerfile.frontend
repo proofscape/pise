@@ -39,3 +39,6 @@ COPY whl/{{whl_filename}} ./whl/
 
 # Restore working directory to default
 WORKDIR /
+
+COPY {{tmp_dir_name}}/LICENSES.txt ./
+COPY {{tmp_dir_name}}/NOTICE.txt ./

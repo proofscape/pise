@@ -94,7 +94,7 @@ def oca(seq_num, skip_check, dump, dry_run, tar_path):
             print('Aborting')
             return
 
-    tools.build.oca.callback(True, dump, dry_run, tar_path, oca_tag)
+    tools.build.oca.callback(dump, dry_run, tar_path, oca_tag)
 
 
 @release.command()

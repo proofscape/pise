@@ -20,6 +20,7 @@ import os
 import re
 import pathlib
 import sys
+import json
 
 import click
 
@@ -28,6 +29,7 @@ from manage import cli, PFSC_ROOT, PFSC_MANAGE_ROOT
 from conf import DOCKER_CMD
 import tools.license
 from tools.util import get_version_numbers
+import topics.pfsc.write_license_files as write_license_files
 
 SRC_ROOT = os.path.join(PFSC_ROOT, 'src')
 SRC_TMP_ROOT = os.path.join(SRC_ROOT, 'tmp')
@@ -159,9 +161,24 @@ def server(demos, dump, dry_run, tar_path, tag):
     """
     Build a `pise-server` docker image, and give it a TAG.
     """
+    license_info = tools.license.gather_licensing_info()
+    pfsc_topics = pathlib.Path(PFSC_MANAGE_ROOT) / 'topics' / 'pfsc'
+    with open(pfsc_topics / 'templates' / 'combined_license_file_server.txt') as f:
+        license_template = f.read()
+    with open(pfsc_topics / 'write_license_files.py') as f:
+        wlf_script = f.read()
+
     from topics.pfsc import write_single_service_dockerfile
-    df = write_single_service_dockerfile(demos=demos)
-    finalize(df, 'pise-server', tag, dump, dry_run, tar_path=tar_path)
+    with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
+        with open(os.path.join(tmp_dir_name, 'license_info.json'), 'w') as f:
+            f.write(json.dumps(license_info, indent=4))
+        with open(os.path.join(tmp_dir_name, 'license_template.txt'), 'w') as f:
+            f.write(license_template)
+        with open(os.path.join(tmp_dir_name, 'write_license_files.py'), 'w') as f:
+            f.write(wlf_script)
+        tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
+        df = write_single_service_dockerfile(tmp_dir_rel_path, demos=demos)
+        finalize(df, 'pise-server', tag, dump, dry_run, tar_path=tar_path)
 
 
 @build.command()
@@ -176,9 +193,18 @@ def frontend(dump, dry_run, tar_path, tag):
     if not dry_run:
         oca_readiness_checks(client=True, client_min=True, pdf=True, pyodide=True, whl=True)
 
+    license_info = tools.license.gather_licensing_info()
+    licenses_txt, notice_txt = write_license_files.build_frontend_files(license_info)
+
     from topics.pfsc import write_frontend_dockerfile
-    df = write_frontend_dockerfile()
-    finalize(df, 'pise-frontend', tag, dump, dry_run, tar_path=tar_path)
+    with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
+        with open(os.path.join(tmp_dir_name, 'LICENSES.txt'), 'w') as f:
+            f.write(licenses_txt)
+        with open(os.path.join(tmp_dir_name, 'NOTICE.txt'), 'w') as f:
+            f.write(notice_txt)
+        tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
+        df = write_frontend_dockerfile(tmp_dir_rel_path)
+        finalize(df, 'pise-frontend', tag, dump, dry_run, tar_path=tar_path)
 
 
 def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True, pyodide=True, whl=True):
@@ -221,12 +247,11 @@ def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True,
 
 
 @build.command()
-@click.option('--release', is_flag=True, help="Set true if this is a release build. Adds license file.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
 @click.argument('tag')
-def oca(release, dump, dry_run, tar_path, tag):
+def oca(dump, dry_run, tar_path, tag):
     """
     Build a `pise` (one-container app) docker image, and give it a TAG.
 
@@ -237,11 +262,25 @@ def oca(release, dump, dry_run, tar_path, tag):
     """
     if not dry_run:
         oca_readiness_checks(client=True, client_min=False, pdf=True, pyodide=True, whl=True)
+
+    license_info = tools.license.gather_licensing_info()
+    pfsc_topics = pathlib.Path(PFSC_MANAGE_ROOT) / 'topics' / 'pfsc'
+    with open(pfsc_topics / 'templates' / 'combined_license_file_oca.txt') as f:
+        license_template = f.read()
+    with open(pfsc_topics / 'write_license_files.py') as f:
+        wlf_script = f.read()
+
     from topics.pfsc import write_oca_eula_file
     from topics.pfsc import write_worker_and_web_supervisor_ini
     from topics.pfsc import write_proofscape_oca_dockerfile
     from topics.redis import write_redisgraph_ini
     with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
+        with open(os.path.join(tmp_dir_name, 'license_info.json'), 'w') as f:
+            f.write(json.dumps(license_info, indent=4))
+        with open(os.path.join(tmp_dir_name, 'license_template.txt'), 'w') as f:
+            f.write(license_template)
+        with open(os.path.join(tmp_dir_name, 'write_license_files.py'), 'w') as f:
+            f.write(wlf_script)
         with open(os.path.join(tmp_dir_name, 'eula.txt'), 'w') as f:
             eula = write_oca_eula_file(tag)
             f.write(eula)
@@ -257,72 +296,7 @@ def oca(release, dump, dry_run, tar_path, tag):
         tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
         write_dockerignore_for_pyc()
         df = write_proofscape_oca_dockerfile(tmp_dir_rel_path)
-
-        # We use a two-step process to help us write the combined license file.
-        # In Step 1 we build the whole image except for that file. Then we have
-        # a chance to read information out of that image, to help us generate
-        # the file. Then in Step 2 we build another image, which contains the file.
-        #
-        # Currently the only reason all this is needed is so that we can determine
-        # which python packages are run requirements, and not list license info
-        # for dev requirements that are not actually present in the image.
-        # It seems like there could be a better way to do this, especially if
-        # pip would be able to spit out the list of all recursive requirements
-        # based on our req/run.txt file. Maybe we can use `pip-tools` somehow?
-        #
-        # Maybe instead it should be a multi-stage build including a stage that
-        # copies pfsc-manage and pfsc-ise into the image, and generates the combined
-        # licence file in there, then simply copies this file into still another
-        # build stage (the final one).
-
-        step_1_tag = tag if (dry_run or not release) else tag + '-without-license-file'
-        step_2_tag = tag
-        # Step 1
-        finalize(df, 'pise', step_1_tag, dump, dry_run, tar_path=tar_path)
-        if release and not dry_run and not tar_path:
-            # Step 2
-            oca_finalize.callback(step_1_tag, step_2_tag)
-
-
-@build.command()
-@click.argument('tag1')
-@click.argument('tag2')
-def oca_finalize(tag1, tag2):
-    """
-    Finish the OCA build process, by writing the files:
-        LICENSES.txt
-        NOTICE.txt
-        about.json
-    into a given image.
-
-    pise:TAG1 is the existing image, pise:TAG2 will be the new image.
-
-    If TAG1 and TAG2 are the same, the existing image will be replaced.
-    """
-    with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
-        tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
-        licenses_txt, notice_txt, about_json = tools.license.oca.callback(f'pise:{tag1}')
-        files = [
-            (licenses_txt, "LICENSES.txt"),
-            (notice_txt, "NOTICE.txt"),
-            (about_json, "about.json"),
-        ]
-        for text, name in files:
-            tmp_path = os.path.join(tmp_dir_name, name)
-            with open(tmp_path, 'w') as f:
-                f.write(text)
-        df2 = (
-            f'FROM pise:{tag1}\n'
-            f'COPY {tmp_dir_rel_path}/{files[0][1]} ./\n'
-            f'COPY {tmp_dir_rel_path}/{files[1][1]} ./\n'
-            f'COPY {tmp_dir_rel_path}/{files[2][1]} ./\n'
-            f'USER root\n'
-            f'RUN chown pfsc:pfsc {files[0][1]}\n'
-            f'RUN chown pfsc:pfsc {files[1][1]}\n'
-            f'RUN chown pfsc:pfsc {files[2][1]}\n'
-            f'USER pfsc\n'
-        )
-        finalize(df2, 'pise', tag2, False, False)
+        finalize(df, 'pise', tag, dump, dry_run, tar_path=tar_path)
 
 
 @build.command()

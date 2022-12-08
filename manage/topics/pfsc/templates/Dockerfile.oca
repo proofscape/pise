@@ -20,7 +20,7 @@
 #     Ubuntu 18.04), and
 # (b) there's 24MB of junk in /var/opt/redislabs/artifacts.
 FROM redislabs/redisgraph:{{redisgraph_image_tag}} AS rg
-FROM python:{{python_image_tag}}
+FROM python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
 # libgomp1 is needed by redisgraph.
 # The rm command in /tmp is to clean up a cert file that is left there for some
@@ -46,3 +46,17 @@ COPY --from=rg /usr/local/bin/redis-cli /usr/local/bin
 {{startup_system}}
 {{static_setup}}
 {{final_setup}}
+
+# -----------------------------------------------------------------------------
+FROM basis AS licensing
+WORKDIR /home/pfsc
+RUN mkdir licensing
+WORKDIR /home/pfsc/licensing
+COPY {{tmp_dir_name}}/license_info.json ./
+COPY {{tmp_dir_name}}/license_template.txt ./
+COPY {{tmp_dir_name}}/write_license_files.py ./
+RUN python write_license_files.py oca
+
+# -----------------------------------------------------------------------------
+FROM basis AS final
+COPY --from=licensing /home/pfsc/licensing/output/* /home/pfsc

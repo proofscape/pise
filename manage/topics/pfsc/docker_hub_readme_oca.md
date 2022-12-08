@@ -36,5 +36,4 @@ You can find a fuller set of instructions
 
 ## License
 
-A combined license file, for all the software loaded into each image, can be
-found in the image itself, under `/home/pfsc/LICENSES.txt`.
+License info can be found in the image itself, under the `/home/pfsc/` directory.

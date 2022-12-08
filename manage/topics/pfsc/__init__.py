@@ -164,7 +164,8 @@ def write_worker_and_web_supervisor_ini(worker=True, web=True, use_venv=True, oc
 ##############################################################################
 # Whole Dockerfiles
 
-def write_single_service_dockerfile(demos=False):
+
+def write_single_service_dockerfile(tmp_dir_name, demos=False):
     pfsc_install = write_pfsc_installation(
         ubuntu=True, demos=demos, use_venv=False
     )
@@ -172,17 +173,19 @@ def write_single_service_dockerfile(demos=False):
     df = template.render(
         python_image_tag=conf.PYTHON_IMAGE_TAG,
         pfsc_install=pfsc_install,
+        tmp_dir_name=tmp_dir_name,
     )
     return squash(df)
 
 
-def write_frontend_dockerfile():
+def write_frontend_dockerfile(tmp_dir_name):
     template = jinja_env.get_template('Dockerfile.frontend')
     df = template.render(
         nginx_tag=conf.NGINX_IMAGE_TAG,
         versions=get_version_numbers(),
         pyodide_files=list_pyodide_files(),
         wheels=list_wheel_filenames(),
+        tmp_dir_name=tmp_dir_name,
     )
     return squash(df)
 
@@ -213,6 +216,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
         startup_system=startup_system,
         static_setup=static_setup,
         final_setup=final_setup,
+        tmp_dir_name=tmp_dir_name,
     )
     return squash(df)
 

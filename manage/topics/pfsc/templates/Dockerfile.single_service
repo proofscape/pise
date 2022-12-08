@@ -14,7 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-FROM python:{{python_image_tag}}
+FROM python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
 # The rm command in /tmp is to clean up a cert file that is left there for some
 # reason; see <https://github.com/docker-library/python/issues/609>
@@ -37,3 +37,17 @@ ENV PYTHONUNBUFFERED 1
 # (Either of these settings will override the one we hard-code here.)
 ENV PFSC_RUN_AS_WEB_SERVER 1
 ENTRYPOINT ["./startup.sh"]
+
+# -----------------------------------------------------------------------------
+FROM basis AS licensing
+WORKDIR /home/pfsc
+RUN mkdir licensing
+WORKDIR /home/pfsc/licensing
+COPY {{tmp_dir_name}}/license_info.json ./
+COPY {{tmp_dir_name}}/license_template.txt ./
+COPY {{tmp_dir_name}}/write_license_files.py ./
+RUN python write_license_files.py server
+
+# -----------------------------------------------------------------------------
+FROM basis AS final
+COPY --from=licensing /home/pfsc/licensing/output/* /home/pfsc/proofscape/src/pfsc-server
