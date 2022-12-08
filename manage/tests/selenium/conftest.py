@@ -23,8 +23,13 @@ from tests.selenium.util import make_driver, get_pise_url, check_pise_server
 
 
 @pytest.fixture
-def pise_url():
-    return get_pise_url()
+def pise_url_mca():
+    return get_pise_url(deployment='mca')
+
+
+@pytest.fixture
+def pise_url_oca():
+    return get_pise_url(deployment='oca')
 
 
 @pytest.fixture

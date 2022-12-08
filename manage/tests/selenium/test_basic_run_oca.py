@@ -24,21 +24,21 @@ import selenium.common.exceptions
 class TestBasicRun01(Tester):
     """Log in as test.hist, and load the test.hist.lit repo @WIP."""
 
-    def test_basic_run_01(self, caplog, pise_url, selenium_logging_level):
+    def test_basic_run_oca(self, caplog, pise_url_oca, selenium_logging_level):
         logger = logging.getLogger(__name__)
         self.logger_name = __name__
         # https://docs.pytest.org/en/6.2.x/logging.html#caplog-fixture
         caplog.set_level(selenium_logging_level, logger=__name__)
 
-        server_status_code, server_status_message = self.check_pise_server()
+        server_status_code, server_status_message = self.check_pise_server(deployment='oca')
         assert server_status_code == 4
         logger.info(f'PISE server check: {server_status_message}')
 
-        self.load_page(pise_url)
+        self.load_page(pise_url_oca)
         time.sleep(1)
+        self.dismiss_EULA()
         self.dismiss_cookie_notice()
-        self.check_user_menu()
-        self.login_as_test_user('hist', wait=1)
+        # No User menu, no log-in, in OCA.
 
         repopath = "test.hist.lit"
 
@@ -93,6 +93,4 @@ class TestBasicRun01(Tester):
         dt = time.time() - t0
         logger.info(f'Feedback monitor hidden. Build took {dt:.2f}s.')
 
-        # Wait a second and log out
-        time.sleep(1)
-        self.log_out()
+        # No log-out, in OCA.

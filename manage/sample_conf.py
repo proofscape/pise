@@ -139,9 +139,11 @@ JANUSGRAPH_PORT = 8183
 
 # Selenium testing
 #
-# The PISE_URL need not contain the special string <MCA_PORT>, but if it does
-# this will be replaced by the PFSC_ISE_MCA_PORT value configured above.
-SEL_PISE_URL = "http://localhost:<MCA_PORT>"
+# The PISE_URLs need not contain the special strings <MCA_PORT> or <OCA_PORT>,
+# but if they do, these will be replaced by the MCA/OCA port values configured
+# above.
+SEL_PISE_URL_MCA = "http://localhost:<MCA_PORT>"
+SEL_PISE_URL_OCA = "http://localhost:<OCA_PORT>"
 # Legal browsers are: "CHROME" and "FIREFOX"
 SEL_BROWSER = "CHROME"
 # Log level:

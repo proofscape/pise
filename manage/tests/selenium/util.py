@@ -59,13 +59,17 @@ def make_driver():
     return driver
 
 
-def get_pise_url():
-    url = pfsc_conf.SEL_PISE_URL
+def get_pise_url(deployment='mca'):
+    if deployment == 'oca':
+        url = pfsc_conf.SEL_PISE_URL_OCA
+    else:
+        url = pfsc_conf.SEL_PISE_URL_MCA
+    url = url.replace("<OCA_PORT>", str(pfsc_conf.PFSC_ISE_OCA_PORT))
     url = url.replace("<MCA_PORT>", str(pfsc_conf.PFSC_ISE_MCA_PORT))
     return url
 
 
-def check_pise_server(logger_name='root'):
+def check_pise_server(deployment='mca', logger_name='root'):
     """
         Try to connect to the PISE server for up to SEL_SERVER_READY_TIMEOUT seconds.
         Return a pair (code, message) indicating the result.
@@ -75,7 +79,7 @@ def check_pise_server(logger_name='root'):
     logger = logging.getLogger(logger_name)
     expected_text = '<title>Proofscape ISE</title>'
     result = 0, 'unknown issue'
-    pise_url = get_pise_url()
+    pise_url = get_pise_url(deployment=deployment)
     for i in range(int(pfsc_conf.SEL_SERVER_READY_TIMEOUT)):
         try:
             r = requests.get(pise_url)
@@ -115,6 +119,27 @@ def dismiss_cookie_notice(driver, logger_name='root'):
         logger.info("Dismissed cookie notice")
     else:
         logger.info("Found no cookie notice")
+
+
+def dismiss_EULA(driver, logger_name='root'):
+    """
+    Dismiss the EULA agreement dialog, if any.
+    """
+    logger = logging.getLogger(logger_name)
+    buttons = driver.find_elements(By.CSS_SELECTOR, "#dijit_form_Button_18_label")
+    if buttons:
+        button = buttons[0]
+        if button.text == 'Agree':
+            # Would like to confirm that we're in the EULA dialog.
+            # I don't like using these brittle selectors like exact, numerical dijit ids.
+            # If we change anything in the layout, these will be ruined.
+            # Want to do sth like this:
+            #   if button.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector('.dijitDialogTitle').innerText == "EULA"
+            # but how do you do that?
+            button.click()
+            logger.info("Dismissed EULA dialog")
+    else:
+        logger.info("Found no EULA dialog")
 
 
 def login_as_test_user(driver, user, wait=BASIC_WAIT, logger_name='root'):
@@ -312,8 +337,8 @@ class Tester:
         if pfsc_conf.SEL_HEADLESS or not pfsc_conf.SEL_STAY_OPEN:
             self.driver.quit()
 
-    def check_pise_server(self):
-        return check_pise_server(logger_name=self.logger_name)
+    def check_pise_server(self, deployment='mca'):
+        return check_pise_server(deployment=deployment, logger_name=self.logger_name)
 
     def load_page(self, url):
         return load_page(self.driver, url, logger_name=self.logger_name)
@@ -328,6 +353,9 @@ class Tester:
 
     def dismiss_cookie_notice(self):
         return dismiss_cookie_notice(self.driver, logger_name=self.logger_name)
+
+    def dismiss_EULA(self):
+        return dismiss_EULA(self.driver, logger_name=self.logger_name)
 
     def login_as_test_user(self, user, wait=BASIC_WAIT):
         return login_as_test_user(self.driver, user, wait=wait, logger_name=self.logger_name)
