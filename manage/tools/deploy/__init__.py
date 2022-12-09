@@ -128,9 +128,10 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--lib-vol', help="A pre-existing docker volume to be mounted to /proofscape/lib")
 @click.option('--build-vol', help="A pre-existing docker volume to be mounted to /proofscape/build")
 @click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
+@click.option('--no-redis', is_flag=True, help='Only allowed when RedisGraph is sole GDB, which is then used in place of Redis.')
 def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, static_redir, static_acao, dummy,
-             lib_vol, build_vol, gdb_vol,
+             lib_vol, build_vol, gdb_vol, no_redis=False,
              production_mode=False):
     """
     Generate a new deployment dir containing files for deploying a full Proofscape system.
@@ -166,6 +167,8 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
         raise click.UsageError(f'Legal GDB codes are: {", ".join(GdbCode.all)}')
     if len(gdb) > len(s):
         raise click.UsageError('Cannot repeat graph database selections.')
+    if no_redis and s != {'re'}:
+        raise click.UsageError('RedisGraph must be sole GDB selection, when using --no-redis.')
 
     dirname_prefix = 'production_' if production_mode else None
     new_dir_name, new_dir_path = make_new_deployment_dir(
@@ -187,7 +190,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
     y = write_docker_compose_yaml(new_dir_name, new_dir_path,
                                   gdb, pfsc_tag, frontend_tag, official, workers, demos,
                                   mount_code, mount_pkg, flask_config,
-                                  lib_vol, build_vol, gdb_vol)
+                                  lib_vol, build_vol, gdb_vol, no_redis)
     y_full = y['full']
     y_layers = y['layers']
 
@@ -290,7 +293,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
         click.echo('Wrote htpasswd')
 
     # .env files
-    local_dot_env, docker_dot_env = write_dot_env_files(app_url_prefix, gdb, demos)
+    local_dot_env, docker_dot_env = write_dot_env_files(app_url_prefix, gdb, demos, no_redis)
 
     if not production_mode:
         lde_path = os.path.join(new_dir_path, 'local.env')
@@ -384,10 +387,10 @@ def activate_local_dot_env(full_deploy_path):
     os.system(cmd)
 
 
-def write_dot_env_files(app_url_prefix, gdb, demos):
+def write_dot_env_files(app_url_prefix, gdb, demos, no_redis):
     secret = secrets.token_urlsafe(32)
-    local_dot_env = write_local_dot_env(app_url_prefix, gdb, demos, secret=secret)
-    docker_dot_env = write_docker_dot_env(app_url_prefix, gdb, demos, secret=secret)
+    local_dot_env = write_local_dot_env(app_url_prefix, gdb, demos, no_redis, secret=secret)
+    docker_dot_env = write_docker_dot_env(app_url_prefix, gdb, demos, no_redis, secret=secret)
     return local_dot_env, docker_dot_env
 
 
@@ -427,13 +430,13 @@ def dict_to_dot_env(d):
     return '\n'.join(lines) + '\n'
 
 
-def write_local_dot_env(app_url_prefix, gdb, demos, secret=None):
+def write_local_dot_env(app_url_prefix, gdb, demos, no_redis, secret=None):
     d = {
         "SECRET_KEY": secret or secrets.token_urlsafe(32),
         "PFSC_LIB_ROOT": f'{PFSC_ROOT}/lib',
         "PFSC_BUILD_ROOT": f'{PFSC_ROOT}/build',
         "PFSC_PDFLIB_ROOT": f'{PFSC_ROOT}/PDFLibrary',
-        "REDIS_URI": f'redis://localhost:{pfsc_conf.REDIS_PORT}',
+        "REDIS_URI": f'redis://localhost:{pfsc_conf.REDISGRAPH_MCA_PORT if no_redis else pfsc_conf.REDIS_PORT}',
     }
 
     if app_url_prefix:
@@ -457,10 +460,13 @@ def write_local_dot_env(app_url_prefix, gdb, demos, secret=None):
     return dict_to_dot_env(d)
 
 
-def write_docker_dot_env(app_url_prefix, gdb, demos, secret=None):
+def write_docker_dot_env(app_url_prefix, gdb, demos, no_redis, secret=None):
     d = {
         "SECRET_KEY": secret or secrets.token_urlsafe(32),
     }
+
+    if no_redis:
+        d["REDIS_URI"] = 'redis://redisgraph:6379'
 
     if app_url_prefix:
         d["APP_URL_PREFIX"] = app_url_prefix
@@ -703,14 +709,16 @@ def write_run_oca_sh_script(oca_tag):
 
 def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, frontend_tag, official,
                               workers, demos, mount_code, mount_pkg, flask_config,
-                              lib_vol, build_vol, gdb_vol):
-    svc_redis = services.redis()
-    s_full = {
-        'redis': svc_redis,
-    }
-    s_db = {
-        'redis': copy.deepcopy(svc_redis),
-    }
+                              lib_vol, build_vol, gdb_vol, no_redis):
+    s_full, s_db = {}, {}
+    if not no_redis:
+        svc_redis = services.redis()
+        s_full = {
+            'redis': svc_redis,
+        }
+        s_db = {
+            'redis': copy.deepcopy(svc_redis),
+        }
 
     for code in gdb:
         if code not in GdbCode.via_container:
