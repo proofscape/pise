@@ -258,7 +258,6 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     volume_names = {
         'lib': lib_vol,
         'build': build_vol,
-        'pdflib': None,  # (No support for this yet.)
     }
     for direc, vol_name in volume_names.items():
         d['volumes'].append(
@@ -276,11 +275,11 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     if mode == 'websrv':
         d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
         d['depends_on'].extend([f'pfscwork{n}' for n in range(workers)])
-    if demos:
-        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-demo-repos")}:/home/pfsc/demos:ro')
     if conf.EMAIL_TEMPLATE_DIR:
         d['volumes'].append(f'{resolve_fs_path("EMAIL_TEMPLATE_DIR")}:/home/pfsc/proofscape/src/_email_templates:ro')
     if mount_code:
+        if demos:
+            d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-demo-repos")}:/home/pfsc/demos:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
     if mount_pkg:
