@@ -31,12 +31,24 @@ def check():
 
 
 @check.command()
-@click.argument('project')
-def version(project):
+@click.option('-l', is_flag=True, help="List known projects.")
+@click.argument('projects', nargs=-1)
+def version(l, projects):
     """
-    Check the version of a project, by name
+    Check the version of one or more projects, by name.
+
+    Result is printed without leading or trailing whitespace.
+    If multiple projects are named, versions are comma-separated.
     """
-    nums = get_version_numbers()
-    if project not in nums:
-        raise click.UsageError(f'Unknown project: {project}')
-    sys.stdout.write(nums[project])
+    nums = get_version_numbers(include_tags=True)
+    if l:
+        print('Projects:')
+        for k in sorted(nums.keys()):
+            print(f'  {k}')
+        return
+    versions = []
+    for project in projects:
+        if project not in nums:
+            raise click.UsageError(f'Unknown project: {project}')
+        versions.append(nums[project])
+    sys.stdout.write(','.join(versions))

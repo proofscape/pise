@@ -125,7 +125,7 @@ def do_commands_in_directory(cmds, path, dry_run=True, quiet=False):
             os.system(full_cmd)
 
 
-def get_version_numbers():
+def get_version_numbers(include_tags=False):
     """
     Read package.json, package-lock.json, and other-versions.json in the
     client code, in order to determine the version numbers for the
@@ -134,6 +134,8 @@ def get_version_numbers():
     and all projects named in other-versions.json, which at this time includes:
         pfsc-pdf, pyodide, pfsc-examp, pfsc-util, dislaylang,
         displaylang-sympy, lark, typeguard, mpmath, Jinja2, MarkupSafe
+
+    include_tags: set True to supply also some of the configured image tags
     """
     client_path = pathlib.Path(PISE_ROOT) / 'client'
     with open(client_path / 'package.json') as f:
@@ -148,6 +150,13 @@ def get_version_numbers():
         'elkjs': plj["dependencies"]["elkjs"]["version"],
     }
     nums.update(ovj)
+
+    if include_tags:
+        # Could add others; atm this is all we need
+        nums['redis-tag'] = pfsc_conf.REDIS_IMAGE_TAG
+        nums['redisgraph-tag'] = pfsc_conf.REDISGRAPH_IMAGE_TAG
+        nums['nginx-tag'] = pfsc_conf.NGINX_IMAGE_TAG
+
     return nums
 
 
