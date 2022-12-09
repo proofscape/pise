@@ -178,7 +178,8 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
     # admin shell script
     admin_sh_script = write_admin_sh_script(
         new_dir_name, new_dir_path, pfsc_tag, flask_config,
-        demos=demos, mount_code=mount_code, mount_pkg=mount_pkg
+        demos=demos, mount_code=mount_code, mount_pkg=mount_pkg,
+        no_redis=no_redis
     )
     admin_script_path = os.path.join(new_dir_path, 'admin.sh')
     with open(admin_script_path, 'w') as f:
@@ -665,13 +666,15 @@ ADMIN_SH_SCRIPT_TPLT = jinja2.Template(r"""#!/usr/bin/env sh
 
 def write_admin_sh_script(
         deploy_dir_name, deploy_dir_path, pfsc_tag, flask_config,
-        demos=False, mount_code=False, mount_pkg=None
+        demos=False, mount_code=False, mount_pkg=None,
+        no_redis=False
     ):
     # Want all the same bind mounts that are used in a pfsc worker container,
     # so that admin can do anything a worker can do.
     d = services.pise_server(
         deploy_dir_path, 'worker', flask_config, tag=pfsc_tag,
-        demos=demos, mount_code=mount_code, mount_pkg=mount_pkg
+        demos=demos, mount_code=mount_code, mount_pkg=mount_pkg,
+        no_redis=no_redis
     )
     bind_mounts = '\n'.join([
         f'  -v "{v}" \\' for v in d['volumes']
@@ -754,7 +757,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
         return services.pise_server(deploy_dir_path, cmd, flask_config,
             tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
             mount_code=mount_code, mount_pkg=mount_pkg, official=official,
-            lib_vol=lib_vol, build_vol=build_vol)
+            lib_vol=lib_vol, build_vol=build_vol, no_redis=no_redis)
 
     for n in range(workers):
         svc_pfscwork = write_pfsc_service('worker')
