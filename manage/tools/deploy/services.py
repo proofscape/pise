@@ -288,7 +288,8 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     return d
 
 
-def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=None):
+def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=None,
+                   lib_vol=None, build_vol=None, gdb_vol=None):
     d = {
         'image': f"pise:{tag}",
         'ports': [
@@ -297,9 +298,20 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
         ],
         'volumes': [
             f'{get_proofscape_subdir_abs_fs_path_on_host(direc)}:/proofscape/{direc}'
-            for direc in ['lib', 'build', 'graphdb', 'deploy', 'PDFLibrary']
+            for direc in ['deploy', 'PDFLibrary']
         ],
     }
+
+    volume_names = {
+        'lib': lib_vol,
+        'build': build_vol,
+        'graphdb': gdb_vol,
+    }
+    for direc, vol_name in volume_names.items():
+        d['volumes'].append(
+            f'{vol_name or get_proofscape_subdir_abs_fs_path_on_host(direc)}:/proofscape/{direc}'
+        )
+
     pfsc_server_vers = get_server_version()
     versions = get_version_numbers()
     if mount_code:

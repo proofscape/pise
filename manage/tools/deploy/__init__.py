@@ -220,7 +220,9 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
 
     # oca-docker-compose.yml and run script
     if not production_mode:
-        y_oca = write_oca_docker_compose_yaml(new_dir_name, new_dir_path, oca_tag, mount_code, mount_pkg)
+        y_oca = write_oca_docker_compose_yaml(new_dir_name, new_dir_path, oca_tag,
+                                              mount_code, mount_pkg,
+                                              lib_vol=lib_vol, build_vol=build_vol, gdb_vol=gdb_vol)
         if dump_dc:
             click.echo(y_oca)
         oca_dc_path = os.path.join(new_dir_path, 'oca-docker-compose.yml')
@@ -833,13 +835,16 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
     return y
 
 
-def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag, mount_code, mount_pkg):
+def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag,
+                                  mount_code, mount_pkg,
+                                  lib_vol=None, build_vol=None, gdb_vol=None):
     d = {
         'version': '3.5',
         'services': {
             'pise': services.proofscape_oca(
                 deploy_dir_path, tag=oca_tag,
-                mount_code=mount_code, mount_pkg=mount_pkg
+                mount_code=mount_code, mount_pkg=mount_pkg,
+                lib_vol=lib_vol, build_vol=build_vol, gdb_vol=gdb_vol
             ),
         },
         'networks': {
@@ -848,6 +853,15 @@ def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag, mou
             }
         },
     }
+
+    vol_names = {lib_vol, build_vol, gdb_vol} - {None}
+    if vol_names:
+        vol_names = sorted(list(vol_names))  # for deterministic results
+        volumes = {}
+        for vol_name in vol_names:
+            volumes[vol_name] = {'external': True}
+        d['volumes'] = volumes
+
     y = simple_yaml.dumps(d, indent=2) + '\n'
     return y
 
