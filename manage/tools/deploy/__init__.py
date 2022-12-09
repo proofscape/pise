@@ -837,7 +837,7 @@ def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag, mou
     d = {
         'version': '3.5',
         'services': {
-            'proofscape': services.proofscape_oca(
+            'pise': services.proofscape_oca(
                 deploy_dir_path, tag=oca_tag,
                 mount_code=mount_code, mount_pkg=mount_pkg
             ),
