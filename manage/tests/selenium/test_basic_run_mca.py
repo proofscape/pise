@@ -21,7 +21,7 @@ from tests.selenium.util import Tester
 import selenium.common.exceptions
 
 
-class TestBasicRun01(Tester):
+class TestBasicRunMCA(Tester):
     """Log in as test.hist, and load the test.hist.lit repo @WIP."""
 
     def test_basic_run_mca(self, caplog, pise_url_mca, selenium_logging_level):
