@@ -42,3 +42,4 @@ WORKDIR /
 
 COPY {{tmp_dir_name}}/LICENSES.txt ./
 COPY {{tmp_dir_name}}/NOTICE.txt ./
+RUN chown root:root *.txt

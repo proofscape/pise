@@ -24,7 +24,8 @@ RUN rm /tmp/*
 
 WORKDIR /home/pfsc/proofscape/src/pfsc-server
 COPY pfsc-server/startup.sh ./
-RUN chmod +x startup.sh
+RUN chmod +x startup.sh \
+ && chown pfsc:pfsc startup.sh
 
 USER pfsc
 
