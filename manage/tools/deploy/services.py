@@ -282,6 +282,7 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
             d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-demo-repos")}:/home/pfsc/demos:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/package.json")}:/home/pfsc/proofscape/src/client/package.json:ro')
     if mount_pkg:
         for pkg in [s.strip() for s in mount_pkg.split(',')]:
             d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/venv/lib/python3.8/site-packages")}/{pkg}:/usr/local/lib/python3.8/site-packages/{pkg}')
@@ -319,6 +320,7 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/css:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/img:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/package.json")}:/home/pfsc/proofscape/src/client/package.json:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/web.py")}:/home/pfsc/proofscape/src/pfsc-server/web.py:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise/ise.bundle.js")}:/home/pfsc/proofscape/src/pfsc-server/static/ise/v{versions["pise"]}/ise.bundle.js:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/home/pfsc/proofscape/src/pfsc-server/static/pdfjs/v{versions["pfsc-pdf"]}:ro')
