@@ -1,3 +1,5 @@
+# PISE: the Proofscape Integrated Study Environment
+
 ## Basic Operation
 
 Start by choosing a directory where Proofscape can live on your machine. We recommend
