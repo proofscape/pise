@@ -1,6 +1,6 @@
 # How to make a release
 
-This project publishes several proudcts, including docker images, and an npm
+This project publishes several products, including docker images, and an npm
 package. It does not currently make use of the GitHub releases API.
 This guide tells you how to make a release.
 
