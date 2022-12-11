@@ -1,0 +1,154 @@
+name: pise-publish
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/pise-build-and-test.yml
+    with:
+      pub-prep: true
+      v-tag: ${{github.ref_name}}
+  publish:
+    needs: build-and-test
+    environment: publish
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    env:
+      DH_NAMESPACE: proofscape
+    steps:
+      # -----------------------------------------
+      # Set version var from ref name
+      - name: Set version var from ref name
+        run: echo "${{github.ref_name}}" | sed 's/v/PISE_VERS=/' >> $GITHUB_ENV
+      # -----------------------------------------
+      # Checkout pise
+      #   Need contents of pise/client dir, for npm publish
+      - name: Checkout pise
+        uses: actions/checkout@v3
+        with:
+          path: pise
+      # -----------------------------------------
+      - name: Make directories
+        run: |
+          mkdir pise/client/dist
+      # -----------------------------------------
+      # Download artifacts from the build-and-test job
+      - name: Download client/dist/ise
+        uses: actions/download-artifact@v3
+        with:
+          name: client-dist-ise-${{env.PISE_VERS}}
+          path: pise/client/dist/ise
+      - name: Download pise docker images
+        uses: actions/download-artifact@v3
+        with:
+          name: pise-images-${{env.PISE_VERS}}
+          path: images
+      # -----------------------------------------
+      # Basic checks for visual inspection
+      # client/dist/ise
+      - name: Check client/dist/ise contents
+        working-directory: pise/client
+        run: ls -l dist/ise
+      - name: Check images
+        run: ls -l images
+      # -----------------------------------------
+      - name: Load docker images
+        run: |
+          docker load --input=images/pise-server.tar
+          docker load --input=images/pise-frontend.tar
+          docker load --input=images/pise.tar
+      # -----------------------------------------
+      # More checks for visual inspection
+      # pise-server
+      - name: Check pise-server working directory contents
+        run: docker run --rm --entrypoint=bash pise-server:$PISE_VERS -c "ls -l"
+      # pise-frontend
+      - name: Check pise-frontend content directory
+        run: docker run --rm --entrypoint=bash pise-frontend:$PISE_VERS -c "ls -l /usr/share/nginx"
+      # pise-server
+      - name: Check pise OCA working directory contents
+        run: docker run --rm --entrypoint=bash pise:$PISE_VERS -c "ls -l"
+      # -----------------------------------------
+      # PUBLISHING
+      # -----------------------------------------
+      # Manually control whether we're actually doing the publishing steps or not
+      # (Set vars to yes or no)
+      - name: Switch publishing on or off
+        id: switch
+        run: |
+          echo "pub-npm=yes" >> $GITHUB_OUTPUT
+          echo "pub-dh=yes" >> $GITHUB_OUTPUT
+          echo "pub-dh-as-latest=yes" >> $GITHUB_OUTPUT
+      # -----------------------------------------
+      # npm
+      # Check that certain files will be included
+      - name: Check npm publish dry-run
+        working-directory: pise/client
+        env:
+          NPDR: ../../npdr.txt
+        run: |
+          npm publish --dry-run 2>&1 | cat > $NPDR
+          cat $NPDR | grep LICENSE
+          cat $NPDR | grep NOTICE
+      # Set up npm
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://registry.npmjs.org'
+      # npm publish
+      - if: ${{ steps.switch.outputs.pub-npm == 'yes' }}
+        name: Do npm publish
+        working-directory: pise/client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+      # -------------------------------------
+      # Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # -------------------------------------
+      # Publish with version numbers
+      # -------------------------------------
+      - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
+        name: Publish pise-server to Docker Hub
+        run: |
+          docker image tag pise-server:$PISE_VERS $DH_NAMESPACE/pise-server:$PISE_VERS
+          docker push $DH_NAMESPACE/pise-server:$PISE_VERS
+      # -------------------------------------
+      - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
+        name: Publish pise-frontend to Docker Hub
+        run: |
+          docker image tag pise-frontend:$PISE_VERS $DH_NAMESPACE/pise-frontend:$PISE_VERS
+          docker push $DH_NAMESPACE/pise-frontend:$PISE_VERS
+      # -------------------------------------
+      - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
+        name: Publish pise OCA to Docker Hub
+        run: |
+          docker image tag pise:$PISE_VERS $DH_NAMESPACE/pise:$PISE_VERS
+          docker push $DH_NAMESPACE/pise:$PISE_VERS
+      # -------------------------------------
+      # Publish as latest
+      # -------------------------------------
+      #- if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
+      #  name: Publish pise-server to Docker Hub as latest
+      #  run: |
+      #    docker image tag pise-server:$PISE_VERS $DH_NAMESPACE/pise-server:latest
+      #    docker push $DH_NAMESPACE/pise-server:latest
+      # -------------------------------------
+      #- if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
+      #  name: Publish pise-frontend to Docker Hub as latest
+      #  run: |
+      #    docker image tag pise-frontend:$PISE_VERS $DH_NAMESPACE/pise-frontend:latest
+      #    docker push $DH_NAMESPACE/pise-frontend:latest
+      # -------------------------------------
+      - if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
+        name: Publish pise OCA to Docker Hub as latest
+        run: |
+          docker image tag pise:$PISE_VERS $DH_NAMESPACE/pise:latest
+          docker push $DH_NAMESPACE/pise:latest

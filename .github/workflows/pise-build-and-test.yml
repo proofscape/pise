@@ -1,0 +1,778 @@
+name: pise-build-and-test
+on:
+  pull_request:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+  workflow_call:
+    inputs:
+      pub-prep:
+        description: 'Do extra steps in preparation for publication'
+        type: boolean
+        default: false
+        required: true
+      v-tag:
+        description: 'Version tag vM.m.p for pub-prep builds'
+        type: string
+        required: true
+      debug-level:
+        description: 'Debug level'
+        type: number
+        default: 1
+        required: false
+  workflow_dispatch:
+    inputs:
+      pub-prep:
+        description: 'Do extra steps in preparation for publication'
+        type: boolean
+        default: false
+        required: true
+      v-tag:
+        description: 'Version tag vM.m.p for pub-prep builds'
+        type: string
+        default: 'v0.0.0'
+        required: false
+      debug-level:
+        description: 'Debug level'
+        type: number
+        default: 1
+        required: false
+jobs:
+  server-unit-tests:
+    runs-on: ubuntu-22.04
+    services:
+      redisgraph:
+        image: "redislabs/redisgraph:2.4.13"
+        ports:
+          - "6381:6379"
+      tinkergraph:
+        image: "tinkerpop/gremlin-server:3.6.0"
+        ports:
+          - "8182:8182"
+    strategy:
+      matrix:
+        graphdb: ['Cypher: RedisGraph', 'Gremlin: TinkerGraph']
+    defaults:
+      run:
+        shell: bash
+    env:
+      REDIS_URI: redis://localhost:6381
+      GRAPHDB_URI: ${{ startsWith(matrix.graphdb, 'C') && 'redis://localhost:6381' || 'ws://localhost:8182/gremlin' }}
+      PFSC_LIB_ROOT: ${{ format('{0}/lib', github.workspace) }}
+      PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
+      SECRET_KEY: fixed_value_for_testing
+    steps:
+      # -----------------------------------------
+      # Install Python
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      # -----------------------------------------
+      # Checkout pise
+      - name: Checkout pise
+        uses: actions/checkout@v3
+        with:
+          path: 'pise'
+      # -----------------------------------------
+      - name: Make directory structure
+        run: |
+          mkdir -p {lib,build}
+      # -----------------------------------------
+      # Install server/venv, preferably from cache
+      - name: Cache server/venv
+        id: cache-server-venv
+        uses: actions/cache@v3
+        with:
+          path: pise/server/venv
+          key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
+      - if: ${{ steps.cache-server-venv.outputs.cache-hit != 'true' }}
+        name: Install server/venv
+        working-directory: pise/server
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          ./req/install.sh
+      # -----------------------------------------
+      - name: Make test repos
+        working-directory: pise/server
+        run: |
+          git config --global user.email "pfsc.unit.tester@localhost"
+          git config --global user.name "pfsc unit tester"
+          source venv/bin/activate
+          python -m tests.util.make_repos
+      - name: Build test repos
+        working-directory: pise/server
+        run : |
+          source venv/bin/activate
+          python -m tests.util.build_repos
+      - name: Run unit tests
+        working-directory: pise/server
+        run: |
+          source venv/bin/activate
+          pytest tests
+# =============================================================================
+  builds-and-functional-tests:
+    needs: server-unit-tests
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    env:
+      PFSC_ROOT: ${{ format('{0}/proofscape', github.workspace) }}
+      PISE_SERVER_CTX_TAR: ${{ format('{0}/contexts/pise-server-context.tar.gz', github.workspace) }}
+      PISE_SERVER_CTX_DIR: ${{ format('{0}/contexts/pise-server-context', github.workspace) }}
+      PISE_FRONTEND_CTX_TAR: ${{ format('{0}/contexts/pise-frontend-context.tar.gz', github.workspace) }}
+      PISE_FRONTEND_CTX_DIR: ${{ format('{0}/contexts/pise-frontend-context', github.workspace) }}
+      PISE_OCA_CTX_TAR: ${{ format('{0}/contexts/pise-oca-context.tar.gz', github.workspace) }}
+      PISE_OCA_CTX_DIR: ${{ format('{0}/contexts/pise-oca-context', github.workspace) }}
+      TEST_DEPLOY_DIR: testing
+      chromedriver-url: https://chromedriver.storage.googleapis.com/107.0.5304.62/chromedriver_linux64.zip
+      # Ensure static assets are served locally.
+      ISE_SERVE_LOCALLY: 1
+      ELKJS_SERVE_LOCALLY: 1
+      MATHJAX_SERVE_LOCALLY: 1
+      PYODIDE_SERVE_LOCALLY: 1
+      # We use docker volumes.
+      LIB_VOLUME: pfsc-lib
+      BUILD_VOLUME: pfsc-build
+      GDB_VOLUME: pfsc-gdb
+    steps:
+      # -----------------------------------------
+      # CONFIGURE
+      # -----------------------------------------
+      - if: ${{ !inputs.pub-prep }}
+        name: Configure for basic run
+        run: |
+          echo "USE_BASE_NGINX_FRONTEND=1" >> $GITHUB_ENV
+          echo "PISE_VERS=testing" >> $GITHUB_ENV
+          echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 1 }}" >> $GITHUB_ENV
+      - if: ${{ inputs.pub-prep }}
+        name: Configure for pub-prep
+        run: |
+          echo "USE_BASE_NGINX_FRONTEND=0" >> $GITHUB_ENV
+          echo "${{inputs.v-tag}}" | sed 's/v/PISE_VERS=/' >> $GITHUB_ENV
+          echo "DEBUG_WORKFLOW=${{ inputs.debug-level }}" >> $GITHUB_ENV
+      # -----------------------------------------
+      # INSTALL
+      # -----------------------------------------
+      # Install Python
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      # -----------------------------------------
+      # Checkout pise
+      - name: Checkout pise
+        uses: actions/checkout@v3
+        with:
+          path: 'pise'
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check working directory of pise
+        working-directory: pise
+        run: pwd -P
+      # -----------------------------------------
+      # Install manage/venv, preferably from cache
+      - name: Cache manage/venv
+        id: cache-manage-venv
+        uses: actions/cache@v3
+        with:
+          path: pise/manage/venv
+          key: cache-manage-venv-${{ hashFiles('pise/manage/setup.py') }}
+      - if: ${{ steps.cache-manage-venv.outputs.cache-hit != 'true' }}
+        name: Form the manage/venv directory
+        working-directory: pise/manage
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+      - name: Do editable install of pfsc-manage
+        # Need this even if cache hit for venv dir, else will get error:
+        #   importlib.metadata.PackageNotFoundError: pfsc-manage
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pip install -e .
+      - name: Make manage/conf.py
+        working-directory: pise/manage
+        run: cp sample_conf.py conf.py
+      # -----------------------------------------
+      # Check version number
+      - name: Get version number from pise/client/package.json
+        id: get-vers-from-file
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          echo "version=`pfsc check version pise`" >> $GITHUB_OUTPUT
+      - if: ${{ inputs.pub-prep }}
+        name: Check version number
+        run: |
+          test "${{env.PISE_VERS}}" = "${{steps.get-vers-from-file.outputs.version}}"
+      # -----------------------------------------
+      # Install server/venv, preferably from cache
+      - name: Cache server/venv
+        id: cache-server-venv
+        uses: actions/cache@v3
+        with:
+          path: pise/server/venv
+          key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
+      - if: ${{ steps.cache-server-venv.outputs.cache-hit != 'true' }}
+        name: Install server/venv
+        working-directory: pise/server
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          ./req/install.sh
+      # -----------------------------------------
+      # Install client/node_modules, preferably from cache
+      - name: Cache client/node_modules
+        id: cache-client-node_modules
+        uses: actions/cache@v3
+        with:
+          path: pise/client/node_modules
+          key: cache-client-node_modules-${{ hashFiles('pise/client/package-lock.json') }}
+      - if: ${{ steps.cache-client-node_modules.outputs.cache-hit != 'true' }}
+        name: Clean-install client/node_modules
+        working-directory: pise/client
+        run: npm ci
+      # -----------------------------------------
+      # Install chromedriver, preferably from cache
+      - name: Cache chromedriver
+        id: cache-chromedriver
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/chromedriver
+          key: cache-chromedriver-${{ env.chromedriver-url }}
+      - if: ${{ steps.cache-chromedriver.outputs.cache-hit != 'true' }}
+        name: Install chromedriver
+        run: |
+          wget ${{ env.chromedriver-url }}
+          unzip chromedriver_linux64.zip
+          mv chromedriver /usr/local/bin/
+      # -----------------------------------------
+      # Make directories with pfsc makestruct
+      - name: makestruct
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc makestruct -y
+      # -----------------------------------------
+      # Make other directories
+      - name: Make other directories
+        run: |
+          mkdir images
+          mkdir contexts
+      # -----------------------------------------
+      # Determine version numbers
+      - name: Determine version numbers
+        id: vers-nums
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          echo "PFSC_PDF_VERS=`pfsc check version pfsc-pdf`" >> $GITHUB_OUTPUT
+          echo "PFSC_EXAMP_VERS=`pfsc check version pfsc-examp`" >> $GITHUB_OUTPUT
+          echo "PYODIDE_VERS=`pfsc check version pyodide`" >> $GITHUB_OUTPUT
+          echo "REDISGRAPH_VERS=`pfsc check version redisgraph-tag`" >> $GITHUB_OUTPUT
+          echo "NGINX_VERS=`pfsc check version nginx-tag`" >> $GITHUB_OUTPUT
+      # -----------------------------------------
+      # Obtain RedisGraph image, preferably from cache
+      - name: Cache redisgraph
+        id: cache-redisgraph
+        uses: actions/cache@v3
+        with:
+          path: images/redisgraph.tar
+          key: cache-redisgraph-${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
+      - if: ${{ steps.cache-redisgraph.outputs.cache-hit == 'true' }}
+        name: Load redisgraph
+        run: docker load --input=images/redisgraph.tar
+      - if: ${{ steps.cache-redisgraph.outputs.cache-hit != 'true' }}
+        name: Pull redisgraph
+        run: |
+          docker pull redislabs/redisgraph:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
+          docker save --output=images/redisgraph.tar redislabs/redisgraph:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
+      # -----------------------------------------
+      # Obtain Nginx image, preferably from cache
+      - name: Cache nginx
+        id: cache-nginx
+        uses: actions/cache@v3
+        with:
+          path: images/nginx.tar
+          key: cache-nginx-${{ steps.vers-nums.outputs.NGINX_VERS }}
+      - if: ${{ steps.cache-nginx.outputs.cache-hit == 'true' }}
+        name: Load nginx
+        run: docker load --input=images/nginx.tar
+      - if: ${{ steps.cache-nginx.outputs.cache-hit != 'true' }}
+        name: Pull nginx
+        run: |
+          docker pull nginx:${{ steps.vers-nums.outputs.NGINX_VERS }}
+          docker save --output=images/nginx.tar nginx:${{ steps.vers-nums.outputs.NGINX_VERS }}
+      # -----------------------------------------
+      # Install pfsc-pdf, preferably from cache
+      - name: Cache pfsc-pdf
+        id: cache-pfsc-pdf
+        uses: actions/cache@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/pfsc-pdf/build/generic
+          key: cache-pfsc-pdf-${{ steps.vers-nums.outputs.PFSC_PDF_VERS }}
+      - if: ${{ steps.cache-pfsc-pdf.outputs.cache-hit != 'true' }}
+        name: Install pfsc-pdf
+        uses: actions/checkout@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/pfsc-pdf
+          repository: proofscape/pfsc-pdf
+          ref: v${{steps.vers-nums.outputs.PFSC_PDF_VERS}}
+      # Check
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check pfsc-pdf installation
+        working-directory: ${{env.PFSC_ROOT}}/src/pfsc-pdf/build/generic
+        run: |
+          ls -l build
+          ls -l web
+      # -----------------------------------------
+      # Install pfsc-demo-repos, preferably from cache
+      # Note: pfsc-demo-repos doesn't have version numbers yet! So we are
+      # for now just using it at the main branch.
+      - name: Cache pfsc-demo-repos
+        id: cache-pfsc-demo-repos
+        uses: actions/cache@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
+          key: cache-pfsc-demo-repos
+      - if: ${{ steps.cache-pfsc-demo-repos.outputs.cache-hit != 'true' }}
+        name: Install pfsc-demo-repos
+        uses: actions/checkout@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
+          repository: proofscape/pfsc-demo-repos
+      # Check
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check pfsc-demo-repos installation
+        working-directory: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
+        run: ls -l workbook
+      # -----------------------------------------
+      # Install Pyodide, preferably from cache
+      - name: Cache Pyodide
+        id: cache-pyodide
+        uses: actions/cache@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/pyodide/v${{steps.vers-nums.outputs.PYODIDE_VERS}}
+          key: cache-pyodide-${{ steps.vers-nums.outputs.PYODIDE_VERS }}
+      - if: ${{ steps.cache-pyodide.outputs.cache-hit != 'true' }}
+        name: Install Pyodide
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc get pyodide
+      # Check
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check Pyodide installation
+        working-directory: ${{env.PFSC_ROOT}}/src/pyodide/v${{steps.vers-nums.outputs.PYODIDE_VERS}}
+        run: ls -l
+      # -----------------------------------------
+      # Install wheels, preferably from cache
+      - name: Cache wheels
+        id: cache-wheels
+        uses: actions/cache@v3
+        with:
+          path: ${{env.PFSC_ROOT}}/src/whl
+          key: cache-wheels-${{ steps.vers-nums.outputs.PFSC_EXAMP_VERS }}
+      - if: ${{ steps.cache-wheels.outputs.cache-hit != 'true' }}
+        name: Install wheels
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc get wheels
+      # Check
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check wheels installation
+        working-directory: ${{env.PFSC_ROOT}}/src/whl
+        run: ls -l
+      # -----------------------------------------
+      # TESTING SHORT OUT
+      # -----------------------------------------
+      #- name: short out
+      #  run: test 0 = 1
+      # -----------------------------------------
+      # -----------------------------------------
+      # SET UP
+      # -----------------------------------------
+      # Build client-side JS code
+      - name: Build client-side code
+        working-directory: pise/client
+        run: npm run build:dev
+      - if: ${{ inputs.pub-prep }}
+        name: Build minified client-side code
+        working-directory: pise/client
+        run: npm run build
+      # -----------------------------------------
+      # Generate deployment directory
+      # Note: We have to do this before running the `make_tests` script, since
+      # that needs PFSC_LIB_ROOT to be defined in `instance/.env`, which we get
+      # from the deployment's `local.env` being (automatically) symlinked to there.
+      - name: Generate deployment directory
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc deploy generate --gdb re \
+              ${{ !inputs.pub-prep && '--no-redis --mount-code' || '--no-mount-code' }} \
+              --pfsc-tag ${{ env.PISE_VERS }} \
+              --oca-tag ${{ env.PISE_VERS }} \
+              -n 1 --demos \
+              --dirname ${{ env.TEST_DEPLOY_DIR }} \
+              --flask-config dockerdev \
+              --lib-vol=${{ env.LIB_VOLUME }} \
+              --build-vol=${{ env.BUILD_VOLUME }} \
+              --gdb-vol=${{ env.GDB_VOLUME }}
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Examine deployment code
+        working-directory: ${{ format('{0}/proofscape/deploy/{1}', github.workspace, env.TEST_DEPLOY_DIR) }}
+        run: |
+          echo "============================"
+          echo "MCA yml"
+          cat mca-docker-compose.yml
+          echo "============================"
+          echo "OCA yml"
+          cat oca-docker-compose.yml
+          echo "============================"
+          echo "nginx.conf"
+          cat nginx.conf
+          echo "============================"
+          echo "docker.env"
+          cat docker.env
+          echo "============================"
+          echo "server/instance/.env (local.env)"
+          cat ${{ format('{0}/pise/server/instance/.env', github.workspace) }}
+      # -----------------------------------------
+      # Make test repos
+      - name: Make test repos
+        working-directory: pise/server
+        run: |
+          git config --global user.email "pfsc.test.runner@localhost"
+          git config --global user.name "pfsc test runner"
+          source venv/bin/activate
+          python -m tests.util.make_repos
+      # List test repo owners
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: List test repo owners
+        run: |
+          ls -l ${{ format('{0}/proofscape', github.workspace) }}
+          ls -l ${{ format('{0}/proofscape/lib/test', github.workspace) }}
+          ls -l ${{ format('{0}/proofscape/lib/test/hist/lit', github.workspace) }}
+          whoami
+          id
+      # -----------------------------------------
+      # pise-server image
+      # If basic testing, try to obtain image from cache
+      - if: ${{!inputs.pub-prep}}
+        name: Cache pise-server
+        id: cache-pise-server
+        uses: actions/cache@v3
+        with:
+          path: images/pise-server.tar
+          key: cache-pise-server-${{env.PISE_VERS}}
+      # If basic testing and had a cache hit, load from tar file into Docker.
+      - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit == 'true' }}
+        name: Load pise-server
+        run: docker load --input=images/pise-server.tar
+      # If either pub-prep, or a cache miss, then we need to build. Set an env var to note this.
+      - if: ${{inputs.pub-prep || steps.cache-pise-server.outputs.cache-hit != 'true' }}
+        name: Set building var
+        run: echo "BUILDING=1" >> $GITHUB_ENV
+      # If building, make context file for pise-server.
+      - if: ${{ env.BUILDING }}
+        name: Make pise-server context tar file
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc build server --tar-path=${{ env.PISE_SERVER_CTX_TAR }} ${{ env.PISE_VERS }}
+      # If building and debugging, upload context file as artifact for inspection
+      - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 2 }}
+        name: Upload pise-server context tar file as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pise-server-context.tar.gz
+          path: ${{ env.PISE_SERVER_CTX_TAR }}
+      # If building, will need buildx
+      - if: ${{ env.BUILDING }}
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      # If building and debugging, check for presence of context file
+      - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 1 }}
+        name: Check for presence of pise-server tar file
+        run: ls -l ${{ format('{0}/contexts', github.workspace) }}
+      # If building, extract the context
+      - if: ${{ env.BUILDING }}
+        name: Make pise-server context dir
+        run: |
+          mkdir ${{ env.PISE_SERVER_CTX_DIR }}
+          tar -x -f ${{ env.PISE_SERVER_CTX_TAR }} -C ${{ env.PISE_SERVER_CTX_DIR }}
+      # If building, build
+      - if: ${{ env.BUILDING }}
+        name: Build and export pise-server image to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ env.PISE_SERVER_CTX_DIR }}
+          load: true
+          tags: pise-server:${{env.PISE_VERS}}
+          cache-to: type=gha
+          cache-from: type=gha
+      # If building, check contents of image's working directory
+      - if: ${{ env.BUILDING }}
+        name: Check working directory contents of pise-server
+        env:
+          WDLL: pise-server-wdll
+        run: |
+          docker run --rm --entrypoint=bash pise-server:${{env.PISE_VERS}} -c "ls -l" > $WDLL
+          cat $WDLL
+          echo "------------------------------"
+          grep LICENSES.txt $WDLL
+          grep NOTICE.txt $WDLL
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 200000
+          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 700
+      # If it's basic testing, and we had a cache miss, then it's time to save the image we built.
+      - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit != 'true' }}
+        name: Save pise-server image
+        run: docker save --output=images/pise-server.tar pise-server:${{env.PISE_VERS}}
+      # -----------------------------------------
+      # Form and populate a `lib` volume
+      - name: Form and populate lib volume for MCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            -v ${{env.PFSC_ROOT}}/lib:/usr/local/share/proofscape_lib:ro \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cp -r /usr/local/share/proofscape_lib/* ~/proofscape/lib"
+      # Check population of lib volume
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Check population of lib volume for MCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cd ~/proofscape/lib; ls -l; ls -l test/hist/lit"
+      # -----------------------------------------
+      # Form `build` and `gdb` volumes
+      - name: Form build and gdb volumes for MCA
+        run: |
+          docker volume create ${{env.BUILD_VOLUME}}
+          docker volume create ${{env.GDB_VOLUME}}
+      # -----------------------------------------
+      # If pub-prep, we need to build a pise-frontend image
+      - if: ${{ inputs.pub-prep }}
+        name: Make pise-frontend build context
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc build frontend --tar-path=${{env.PISE_FRONTEND_CTX_TAR}} ${{env.PISE_VERS}}
+          mkdir ${{env.PISE_FRONTEND_CTX_DIR}}
+          tar -x -f ${{env.PISE_FRONTEND_CTX_TAR}} -C ${{env.PISE_FRONTEND_CTX_DIR}}
+      - if: ${{ inputs.pub-prep }}
+        name: Build and export pise-frontend image to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{env.PISE_FRONTEND_CTX_DIR}}
+          load: true
+          tags: pise-frontend:${{env.PISE_VERS}}
+          cache-to: type=gha
+          cache-from: type=gha
+      # Check contents of image's working directory
+      - if: ${{ inputs.pub-prep }}
+        name: Check working directory contents of pise-frontend
+        env:
+          WDLL: pise-frontend-wdll
+        run: |
+          docker run --rm --entrypoint=bash pise-frontend:${{env.PISE_VERS}} -c "ls -l" > $WDLL
+          cat $WDLL
+          echo "------------------------------"
+          grep LICENSES.txt $WDLL
+          grep NOTICE.txt $WDLL
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 100000
+          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 300
+      # -----------------------------------------
+      # Deploy the MCA
+      - name: Deploy MCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f mca-docker-compose.yml up -d
+      # -----------------------------------------
+      # Run MCA Selenium tests
+      - name: Run MCA Selenium tests
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pytest tests/selenium/test_basic_run_mca.py
+      - name: Record docker logs
+        if: always()
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          mkdir -p selenium_results/docker_logs
+          docker logs ${{ env.TEST_DEPLOY_DIR }}-nginx-1 > selenium_results/docker_logs/nginx-1.txt 2>&1
+          docker logs ${{ env.TEST_DEPLOY_DIR }}-pfscweb-1 > selenium_results/docker_logs/pfscweb-1.txt 2>&1
+          docker logs ${{ env.TEST_DEPLOY_DIR }}-pfscwork0-1 > selenium_results/docker_logs/pfscwork0-1.txt 2>&1
+      # Upload selenium results now as artifact only if at debug level 2.
+      - if: ${{ always() && env.DEBUG_WORKFLOW >= 2 }}
+        name: Upload selenium results
+        uses: actions/upload-artifact@v3
+        with:
+          name: selenium_results
+          path: ${{ env.PFSC_ROOT }}/selenium_results
+      # If not doing pub prep, at least dump logs for manual inspection
+      - if: ${{ always() && !inputs.pub-prep }}
+        name: Display nginx docker logs
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          cat selenium_results/docker_logs/nginx-1.txt
+      - if: ${{ always() && !inputs.pub-prep }}
+        name: Display pfscweb docker logs
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          cat selenium_results/docker_logs/pfscweb-1.txt
+      - if: ${{ always() && !inputs.pub-prep }}
+        name: Display pfscwork0 docker logs
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          cat selenium_results/docker_logs/pfscwork0-1.txt
+      # -----------------------------------------
+      # Examine the written files
+      - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
+        name: Show some written files
+        run: |
+          docker run --rm --entrypoint=bash \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            --mount 'type=volume,src=${{env.BUILD_VOLUME}},dst=/proofscape/build' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cd ~/proofscape/lib; ls -l test/hist/lit; \
+                cd ~/proofscape/build; ls -l test/hist/lit/WIP;"
+      # -----------------------------------------
+      # Stop the MCA
+      - name: Stop MCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f mca-docker-compose.yml down
+      # -----------------------------------------
+      # OCA
+      # -----------------------------------------
+      # If pub-prep, build pise (OCA) image
+      - if: ${{ inputs.pub-prep }}
+        name: Make pise OCA build context
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc build oca --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_VERS}}
+          mkdir ${{env.PISE_OCA_CTX_DIR}}
+          tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
+      - if: ${{ inputs.pub-prep }}
+        name: Build and export pise OCA image to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{env.PISE_OCA_CTX_DIR}}
+          load: true
+          tags: pise:${{env.PISE_VERS}}
+          cache-to: type=gha
+          cache-from: type=gha
+      # Check contents of image's working directory
+      - if: ${{ inputs.pub-prep }}
+        name: Check working directory contents of pise OCA
+        env:
+          WDLL: pise-wdll
+        run: |
+          docker run --rm --entrypoint=bash pise:${{env.PISE_VERS}} -c "ls -l" > $WDLL
+          cat $WDLL
+          echo "------------------------------"
+          grep LICENSES.txt $WDLL
+          grep NOTICE.txt $WDLL
+          grep about.json $WDLL
+          grep EULA.txt $WDLL
+          grep VERSION.txt $WDLL
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 400000
+          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
+          test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
+      # -----------------------------------------
+      # Remake the lib, build, gdb volumes
+      - if: ${{ inputs.pub-prep }}
+        name: Remove existing lib, build, gdb volumes
+        run: docker volume rm ${{env.LIB_VOLUME}} ${{env.BUILD_VOLUME}} ${{env.GDB_VOLUME}}
+      # Form and populate a `lib` volume
+      - if: ${{ inputs.pub-prep }}
+        name: Form and populate lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            -v ${{env.PFSC_ROOT}}/lib:/usr/local/share/proofscape_lib:ro \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cp -r /usr/local/share/proofscape_lib/* ~/proofscape/lib"
+      # Check population of lib volume
+      - if: ${{ inputs.pub-prep && env.DEBUG_WORKFLOW >= 1 }}
+        name: Check population of lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cd ~/proofscape/lib; ls -l; ls -l test/hist/lit"
+      # Form `build` and `gdb` volumes
+      - if: ${{ inputs.pub-prep }}
+        name: Form build and gdb volumes for OCA
+        run: |
+          docker volume create ${{env.BUILD_VOLUME}}
+          docker volume create ${{env.GDB_VOLUME}}
+      # -----------------------------------------
+      # Run the OCA
+      - if: ${{ inputs.pub-prep }}
+        name: Run the OCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml up -d
+      # -----------------------------------------
+      # Run OCA Selenium tests
+      - if: ${{ inputs.pub-prep }}
+        name: Run OCA Selenium tests
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pytest tests/selenium/test_basic_run_oca.py
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Record docker logs
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          mkdir -p selenium_results/docker_logs
+          docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-stderr.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-rg-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-rg-stderr.txt 2>&1
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Upload selenium results
+        uses: actions/upload-artifact@v3
+        with:
+          name: selenium_results
+          path: ${{ env.PFSC_ROOT }}/selenium_results
+      # -----------------------------------------
+      # Stop the OCA
+      - if: ${{ inputs.pub-prep }}
+        name: Stop the OCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml down
+      # -----------------------------------------
+      # Upload artifacts for publication job
+      - if: ${{ inputs.pub-prep }}
+        name: Make directory for pise docker images
+        run: mkdir pise_images
+      - if: ${{ inputs.pub-prep }}
+        name: Save pise docker images for upload
+        run: |
+          docker save --output=pise_images/pise-server.tar pise-server:${{env.PISE_VERS}}
+          docker save --output=pise_images/pise-frontend.tar pise-frontend:${{env.PISE_VERS}}
+          docker save --output=pise_images/pise.tar pise:${{env.PISE_VERS}}
+      - if: ${{ inputs.pub-prep }}
+        name: Upload client/dist/ise
+        uses: actions/upload-artifact@v3
+        with:
+          name: client-dist-ise-${{env.PISE_VERS}}
+          path: pise/client/dist/ise
+      - if: ${{ inputs.pub-prep }}
+        name: Upload pise docker images
+        uses: actions/upload-artifact@v3
+        with:
+          name: pise-images-${{env.PISE_VERS}}
+          path: pise_images
