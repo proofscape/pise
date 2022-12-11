@@ -1,4 +1,4 @@
-This image supports the MCA deployment, as set up by `pise/manage`.
+This image supports the PISE MCA deployment, as set up by `pise/manage`.
 
 ## License
 
