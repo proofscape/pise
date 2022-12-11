@@ -1,0 +1,47 @@
+# --------------------------------------------------------------------------- #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# --------------------------------------------------------------------------- #
+
+# STARTUP SYSTEM
+
+WORKDIR {{dir_where_startup_system_lives}}
+RUN pip install supervisor=={{supervisor_version}} \
+ && find / -name "*.pyc" | xargs -I % rm % \
+ && mkdir -p super/run \
+ && echo_supervisord_conf > super/supervisord.conf \
+ && echo "[include]" >> super/supervisord.conf \
+ && echo "files = *.ini" >> super/supervisord.conf \
+ && sed -i -e "s#/tmp/#{{dir_where_startup_system_lives}}/super/run/#g" super/supervisord.conf \
+ && sed -i -e "s#^;user=supervisord#user=pfsc#" super/supervisord.conf \
+ && sed -i -e "s#^;\(username\|password\)=\w*#\1=pfsc#" super/supervisord.conf
+
+# Services to be started by supervisord:
+{# numbered_inis: dict where integers point to `ini` file names #}
+{% for num, name in numbered_inis.items() %}
+COPY {{tmp_dir_name}}/{{name}}.ini super/{{num}}_{{name}}.ini
+{% endfor %}
+
+RUN chown -R pfsc:pfsc super
+
+# `-n` switch runs supervisord in the foreground. See <http://supervisord.org/running.html>.
+ARG STARTUP=/usr/local/bin/startup
+RUN echo "#!/bin/bash" > $STARTUP \
+{% if ensure_dirs %} \
+ && echo "mkdir -p /proofscape/{lib,build,graphdb/re,deploy,PDFLibrary}" >> $STARTUP \
+{% endif %} \
+ && echo "exec supervisord -n -c {{dir_where_startup_system_lives}}/super/supervisord.conf" >> $STARTUP \
+ && chmod +x $STARTUP
+
+CMD ["startup"]

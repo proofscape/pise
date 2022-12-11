@@ -1,7 +1,7 @@
 name: tests
 on: [push, pull_request]
 jobs:
-  unit-tests:
+  server-unit-tests:
     runs-on: ubuntu-22.04
     services:
       redis:
@@ -30,13 +30,15 @@ jobs:
       PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
       SECRET_KEY: fixed_value_for_testing
     steps:
-      - name: Make directory structure
-        working-directory: .
-        run: mkdir -p {lib,build,src/pfsc-server}
-      - name: Checkout pfsc-server
+      - name: Checkout pise
         uses: actions/checkout@v3
         with:
-          path: 'src/pfsc-server'
+          path: 'pise'
+      - name: Make directory structure
+        working-directory: .
+        run: |
+          mkdir -p {lib,build,src}
+          cd src; ln -s ../pise/server pfsc-server
       - name: Install Python
         uses: actions/setup-python@v3
         with:

@@ -1,6 +1,10 @@
-# Proofscape Server
+# Proofscape ISE
 
-This project defines the server-side code for the Proofscape ISE application.
+![PISE](./client/src/img/logo/pies_pise_178x159.png)
 
-If you are interested in helping develop Proofscape, the place to get
-started is the [`pfsc-manage`](https://github.com/proofscape/pfsc-manage) repo.
+This is the source code for
+[PISE, the Proofscape Integrated Study Environment](https://docs.proofscape.org/pise/index.html).
+
+If you are interested in contributing to the project, please read
+[CONTRIBUTING.md](CONTRIBUTING.md), and then see
+[manage/README.md](./manage/README.md) for help getting started.

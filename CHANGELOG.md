@@ -1,6 +1,9 @@
-## 0.25.2 (------)
+## 0.26.0 (------)
 
-...
+Breaking Changes:
+
+* (Re)combined `pfsc-server`, `pfsc-ise`, and `pfsc-manage` into one `pise`
+  repository.
 
 ## 0.25.1 (221122)
 

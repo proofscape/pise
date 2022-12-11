@@ -1,0 +1,58 @@
+This is the license file for the proofscape/pise-server Docker image.
+It gathers license info for the open-source software projects that have been
+installed in this image.
+
+SUMMARY
+=======
+
+This is a listing of the software packages installed in the image, and the
+names of their licenses. The full text of the licenses can be found in the
+sections that follow.
+
+                            *  *  *
+
+    The main server deployed in the image is:
+
+{{credits['pise-server']}}
+  https://github.com/proofscape/pise
+
+                            *  *  *
+
+    Demo repos:
+
+{{credits['pfsc-demo-repos']}}
+  https://github.com/proofscape/pfsc-demo-repos
+
+                            *  *  *
+
+    Python packages supporting pise-server:
+
+Source code for these packages can be found in the Docker image,
+under /usr/local/lib/python3.8/site-packages.
+
+{{ python_packages }}
+
+                            *  *  *
+    Python
+
+{{credits['python']}}
+
+
+LICENSES
+========
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+pise-server
+  https://github.com/proofscape/pise
+
+{{ pfsc_server_Apache }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+python
+
+{{ PSF_license }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{{ other_licenses }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

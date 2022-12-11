@@ -1,0 +1,134 @@
+/* ------------------------------------------------------------------------- *
+ *  Copyright (c) 2011-2022 Proofscape contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+/*
+.logo-navbar {
+    display: inline-block;
+    margin-top: -13px;
+    opacity: 0.7;
+}
+
+.logo-navbar:hover {
+    opacity: 1.0;
+}
+*/
+
+body {
+    transition: margin-top 0.5s;
+}
+
+#theNavBar {
+    transition: top 0.5s;
+}
+
+.pfscName {
+    opacity: 0.7;
+}
+
+a.navbar-brand:hover .pfscName {
+    opacity: 1.0;
+}
+
+.navbar-brand > img {
+    display: inline-block;
+    margin-top: -13px;
+}
+
+#navContainer {
+    border-bottom: 1px solid #840;
+}
+
+.footer-long {
+    background: #444;
+    color: #eee;
+    padding: 50px;
+    margin-top: 50px;
+}
+
+.footer-short {
+    background: #444;
+    color: #eee;
+    padding: 50px;
+    margin-top: 50px;
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+.footer-compact {
+    background: #444;
+    color: #eee;
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    line-height: 12px;
+    padding: 32px 50px 16px 50px;
+}
+
+.footer-long p {
+    font-size: 13px;
+}
+
+.footer-short p {
+    font-size: 13px;
+}
+
+.footer-compact p {
+    font-size: 13px;
+}
+
+.footer-long a {
+    color: inherit;
+    text-decoration: underline;
+    font-size: 13px;
+}
+
+.footer-short a {
+    color: inherit;
+    text-decoration: underline;
+    font-size: 13px;
+}
+
+.footer-compact a {
+    color: inherit;
+    text-decoration: underline;
+    font-size: 13px;
+}
+
+#loginAlert {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    margin-bottom: 0px;
+    display: none;
+}
+
+#loginAlert button {
+    margin-left: 30px;
+}
+
+.finePrint {
+    font-size: 12px;
+    padding: 8px;
+}
+
+.finePrint a {
+    color: #08c;
+}
+

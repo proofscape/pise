@@ -1,0 +1,1484 @@
+/* ------------------------------------------------------------------------- *
+ *  Copyright (c) 2011-2022 Proofscape contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+/*
+ * This ensures that when tabs are clicked in tab containers,
+ * their titles do not become highlighted with a blue border.
+ */
+* {
+    outline: none !important;
+}
+
+/* --------------------------------------------- */
+/* Hide scrollbars
+ */
+::-webkit-scrollbar {
+    display: none;
+}
+
+* {
+    scrollbar-width: none;
+}
+
+/* --------------------------------------------- */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+    font-size: 13px;
+    color: #333;
+}
+
+.hidden {
+    display: none;
+}
+
+.danger {
+    color: red;
+}
+
+.invisible {
+    visibility: hidden;
+}
+
+.clickable {
+    user-select: none;
+    cursor: pointer;
+}
+
+.monospace {
+    font-family: monospace;
+}
+
+#appLayout {
+    height: 100%;
+}
+
+#title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #555;
+}
+
+.title-logo {
+    background-image: url(../img/logo/pies.ico);
+    background-repeat: no-repeat;
+    padding-right: 40px;
+    padding-bottom: 3px;
+}
+
+.beta {
+    font-variant: small-caps;
+    margin-left: 7px;
+}
+
+#titleLine2 {
+    font-size: 6px;
+}
+
+#lhMenu {
+    position: absolute;
+    left: 16px;
+    top: 4px;
+    /* To prevent selection highlights on or around the nav buttons: */
+    user-select: none;
+}
+
+#rhMenu {
+    position: absolute;
+    right: 16px;
+    top: 4px;
+}
+
+.claro #appLayout .dijitMenuBar {
+    border: none;
+    background: none;
+}
+
+.claro #appLayout .dijitMenuBar .dijitMenuItemHover {
+    background: none;
+}
+
+.claro #appLayout .dijitMenuBar .dijitMenuItemSelected {
+    background: none;
+}
+
+.themeDark .dijitCheckedMenuItem .dijitMenuItemIcon {
+    background-image: url(../img/icons/dark_checkboxRadioButtonStates.png);
+}
+
+.themeDark .dijitDialogPaneActionBar {
+    background-color: #444;
+}
+
+.dijitContentPane.popupCP {
+    background: white;
+}
+
+.themeDark .dijitContentPane.popupCP {
+    background: #3c3f41;
+}
+
+#topBar {
+    height: 13px;
+}
+
+#leftCol {
+    width: 240px;
+}
+
+.claro .dijitMenuBar .dijitMenuItem {
+    padding: 2px 10px 3px;
+}
+
+.claro .dijitMenuBar .dijitMenuItemSelected {
+    padding: 1px 9px 2px;
+}
+
+.claro .dijitMenuBar .dijitMenuItemHover {
+    padding: 1px 9px 2px;
+}
+
+#feedback {
+    display: none;
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    height: 80px;
+    z-index: 500;
+    border: 2px solid #b5bcc7;
+    background-color: #feffdd;
+}
+
+#feedback .message {
+    color: #000;
+    font-size: 15px;
+    padding: 7px;
+    margin-left: 12px;
+    margin-top: 2px;
+    height: 17px;
+}
+
+.themeDark #feedback .message {
+    color: #dcdcdc;
+}
+
+#feedback .progbar {
+    width: 80%;
+    margin-left: 5%;
+    margin-top: 10px;
+}
+
+#feedback .progbar .nanobar {
+    height: 8px;
+}
+
+#feedback .progbar .nanobar .bar {
+    background: #38f;
+    border-radius: 4px;
+    box-shadow: 0 0 10px #59d;
+}
+
+.themeDark #feedback {
+    background-color: #3c3f41;
+}
+
+.scrollable {
+    overflow: auto;
+    height: inherit;
+}
+
+.treePanel {
+    padding: 4px;
+}
+
+.lrMenuItem {
+    display: flex;
+    justify-content: space-between;
+    /* Need opacity 1, lest the effect of .dijitMenuItemDisabled (opacity 0.5) be
+      tripled, leading to actual opacity 0.125. */
+    opacity: 1;
+}
+
+.lrMenuItem > span {
+    /* Need opacity 1, lest the effect of .dijitMenuItemDisabled (opacity 0.5) be
+      tripled, leading to actual opacity 0.125. */
+    opacity: 1;
+}
+
+.menuHint {
+    margin-left: 25px;
+    font-weight: bold;
+    text-align: right;
+}
+
+#repoInputPane {
+    padding: 0px;
+}
+
+#repoInput {
+    background-color: #ccc;
+    border-color: #888;
+    border-width: 1px;
+    border-style: solid;
+    padding: 2px;
+}
+
+.themeDark #repoInput {
+    background-color: #3b3f41
+}
+
+#repoInputText {
+    width: 80%;
+    font-size: 12px;
+}
+
+#repoInputButton {
+    border: 1px solid #888;
+    border-radius: 4px;
+    padding: 0px 5px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    color: #888;
+    user-select: none;
+    cursor: pointer;
+}
+
+#repoInputButton:hover {
+    border-color: #555;
+    color: #555;
+}
+
+.themeDark #repoInputButton:hover {
+    border-color: #bbb;
+    color: #bbb;
+}
+
+.botRightResizeHandle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    height: 20px;
+    width: 20px;
+    border-top-left-radius: 20px;
+    cursor: nwse-resize;
+    z-index: 100;
+}
+
+.claro .edgePanel {
+    background-color: #fcf5d0;
+}
+
+.markdown {
+    font-family: 'Garamond', 'Georgia', serif;
+    line-height: 1.4;
+    padding: 8px;
+    font-size: 1em;
+}
+
+/* We're trying a system where some elements in markdown are allowed
+ * to be as wide as they want, while others are constrained to a max
+ * width. E.g. might want code displays to be able to be very wide.
+ * But keeping <p> and <h?> tags constrained seems reasonable.
+ */
+.markdown p {
+    max-width: 40em;
+    text-align: justify;
+}
+
+.markdown h1 {
+    max-width: 21em;
+}
+.markdown h2 {
+    max-width: 28em;
+}
+.markdown h3 {
+    max-width: 36em;
+}
+.markdown h4 {
+    max-width: 42em;
+}
+.markdown h5 {
+    max-width: 50.4em;
+}
+.markdown h6 {
+    max-width: 63em;
+}
+
+
+.themeDark .markdown {
+    color: #d2d1cf;
+}
+
+.markdown code {
+    padding: 0px 2px;
+    background: #dbe9ee;
+}
+
+.themeDark .markdown code {
+    background: #2b424a;
+}
+
+.examplorer {
+    font-family: serif;
+}
+
+/* label links ------------------------------------------------------------ */
+
+.labellink {
+    padding-left: 0.5em;
+    padding-right: 0.3em;
+    cursor: pointer;
+}
+
+.labellink:hover {
+    opacity: 0.7;
+}
+
+span.labelWidget .labellink {
+    display: none;
+}
+
+/* Note: when label widgets are given by span tags, then we want to use
+ * display: none to hide them; when they are given by heading tags, we want
+ * to use visibility: hidden instead. Therefore we need to but the tag name
+ * into our CSS selectors (can't just use class name .labelWidget), and that
+ * means we have to list all six heading tags.
+ */
+h1.labelWidget .labellink,
+h2.labelWidget .labellink,
+h3.labelWidget .labellink,
+h4.labelWidget .labellink,
+h5.labelWidget .labellink,
+h6.labelWidget .labellink {
+    visibility: hidden;
+}
+
+span.labelWidget:hover .labellink {
+    display: inline;
+}
+
+h1.labelWidget:hover .labellink,
+h2.labelWidget:hover .labellink,
+h3.labelWidget:hover .labellink,
+h4.labelWidget:hover .labellink,
+h5.labelWidget:hover .labellink,
+h6.labelWidget:hover .labellink {
+    visibility: visible;
+}
+
+/* goal boxes ------------------------------------------------------------- */
+
+.goalbox {
+    cursor: pointer;
+    opacity: 0.7;
+    /* Need user-select: none, or else right-clicking the box seems to select it. */
+    user-select: none;
+}
+
+.notesSocket .goalbox {
+    width: 1.25em;
+    height: 1.25em;
+}
+
+.mooseGraphArea .goalbox {
+    width: 20px;
+    height: 20px;
+}
+
+.goalbox:hover {
+    opacity: 1;
+}
+
+.goalbox .checkbox {
+    fill: #fff;
+    stroke: #585858;
+}
+
+.goalbox .checkmark {
+    visibility: hidden;
+    /* Note: don't need font-size in `em`s (to scale with notes zoom),
+       because this occurs _within_ an SVG picture, whose overall size
+       we are already scaling */
+    font-size: 48px;
+    fill: #080;
+}
+
+.goalbox.checked .checkmark {
+    visibility: visible;
+}
+
+.goalbox .checkmark.checkmarkBlue {
+    color: #008;
+}
+
+.goalBoxesHidden .goalbox {
+    display: none;
+}
+
+.studyNotesTab {
+    font-size: large;
+}
+
+.themeDark .goalbox .checkbox {
+    fill: #2b2b2b;
+    stroke: #adadad;
+}
+
+.themeDark .goalbox .checkmark {
+    fill: #8f8;
+}
+
+.themeDark .goalbox .checkmark.checkmarkBlue {
+    color: #8df;
+}
+
+/* navigation ------------------------------------------------- */
+
+.navButton {
+    cursor: pointer;
+    font-size: 17px;
+    margin-right: 10px;
+}
+
+.themeDark .navButton {
+    color: #eee;
+}
+
+.navButton.disabled {
+    color: #bbb;
+}
+
+.themeDark .navButton.disabled {
+    color: #787878;
+}
+
+.navButton:hover {
+    opacity: 1;
+}
+
+.navBack {
+    transform: translateY(0px) rotate(180deg);
+    display: inline-block;
+}
+
+/* ------------------------------------------------------------------------ */
+
+.fullheight {
+    height: 100%;
+}
+
+.menuIcon {
+    width: 16px;
+    height: 16px;
+}
+
+.tabIcon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+    opacity: 0.65;
+}
+
+.folder2Icon {
+    background-image: url(../img/icons/folder2.png);
+}
+
+.themeDark .folder2Icon {
+    background-image: url(../img/icons/folder2_dark.png);
+}
+
+.fileIcon {
+    background-image: url(../img/icons/doc16.png);
+}
+
+.themeDark .fileIcon {
+    background-image: url(../img/icons/doc16d.png);
+}
+
+.ringIcon {
+    background-image: url(../img/icons/circle3.png);
+}
+
+.themeDark .ringIcon {
+    background-image: url(../img/icons/circle3_dark.png);
+}
+
+.iconDepth0 {
+}
+
+.iconDepth1 {
+    margin-left: 16px;
+}
+
+.iconDepth2 {
+    margin-left: 32px;
+}
+
+.iconDepth3 {
+    margin-left: 48px;
+}
+
+.iconDepth4 {
+    margin-left: 64px;
+}
+
+.iconDepth5 {
+    margin-left: 80px;
+}
+
+.iconDepth6 {
+    margin-left: 96px;
+}
+
+.exampMenuIcon {
+    background-image: url(../img/icons/eg16.png);
+}
+
+.pdfContentTypeIcon {
+    background-image: url(../img/icons/pdf02_20.png);
+    background-repeat: no-repeat;
+}
+
+.themeDark .pdfContentTypeIcon {
+    background-image: url(../img/icons/pdf02d_20.png);
+}
+
+.contentIcon {
+    background-image: url(../img/icons/contenttype2.png);
+    background-repeat: no-repeat;
+}
+
+.themeDark .contentIcon {
+    background-image: url(../img/icons/contenttype2_dark.png);
+}
+
+.deducIcon16 {
+    background-position: -122px -3px;
+}
+
+.navIcon16 {
+    background-position: -22px -3px;
+}
+
+.notesIcon16 {
+    background-position: -62px -3px;
+}
+
+.exampIcon16 {
+    background-position: -202px -2px;
+}
+
+.deducIcon20 {
+    background-position: -146px -27px;
+}
+
+.navIcon20 {
+    background-position: -26px -27px;
+}
+
+.notesIcon20 {
+    background-position: -74px -27px;
+}
+
+.exampIcon20 {
+    background-position: -242px -26px;
+}
+
+.srcIcon20 {
+    background-position: -340px -27px;
+}
+
+.themeDark .dijitTabPaneWrapper {
+    background: #2b2b2b;
+}
+
+.themeDark .dijitContentPane {
+    background: #2b2b2b;
+    color: #adadad;
+}
+
+.themeDark .pfsc-ise .dojoxExpandoTitle {
+    color: #adadad;
+    background-color: #313335;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitTreeRow {
+    color: #adadad;
+    background-image: none;
+    background-repeat: unset;
+    border-top-color: #0d293e;
+    border-bottom-color: #0d293e;
+}
+
+.themeDark .dijitTreeRowSelected {
+    background-color: #0d293e;
+}
+
+.themeDark .dijitTreeRowHover {
+    background-color: #2f65ca;
+    border-top-color: #2f65ca;
+    border-bottom-color: #2f65ca;
+}
+
+.themeDark .dijitTreeExpando {
+    background-image: url(../img/icons/treeExpandImagesDark.png);
+}
+
+.themeDark .dijitTreeExpandoLeaf {
+    background-image: none;
+}
+
+.themeDark .edgePanel {
+    background: #3c3f41;
+    color: #adadad;
+}
+
+.themeDark .edgePanel .treePanel {
+    background: #3c3f41;
+    color: #adadad;
+}
+
+.themeDark .dijitSplitterVHover {
+    background-color: #2f65ca;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitSplitterHHover {
+    background-color: #2f65ca;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitSplitterVActive {
+    background-color: #2f65ca;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitSplitterHActive {
+    background-color: #2f65ca;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitTabCloseButton {
+    //background-image: url(../img/icons/tabCloseDark2.png);
+}
+
+.themeDark .pfsc-ise .dijitTab {
+    color: #adadad;
+    background-color: #3c3e3f;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .pfsc-ise .dijitTabChecked {
+    color: #adadad;
+    background-color: #515658;
+    background-image: none;
+    background-repeat: unset;
+}
+.themeDark .dijitMenu {
+    color: #adadad;
+    background-color: #3c3e3f;
+}
+
+.themeDark .dijitMenuItem {
+    color: #adadad;
+    background-color: #3c3e3f;
+    background-image: none;
+    background-repeat: unset;
+}
+
+.themeDark .dijitMenu .dijitMenuItem td {
+    border-color: #3c3f41;
+}
+
+.themeDark .dijitMenu .dijitMenuItemHover td {
+    color: black;
+}
+
+.themeDark .dijitMenuSeparator {
+    border-color: #adadad;
+}
+
+
+.themeLight {
+    background: white;
+}
+
+.themeDark {
+    background: #313335;
+}
+
+.themeDark #title {
+    color: #adadad;
+}
+
+/* In malformed and dummy widget displays, we want the <pre> tags to
+ * be indented.
+ */
+.malformedWidget pre,
+.dummyWidget pre {
+    margin-left: 20px;
+    font-weight: normal;
+}
+
+.malformedWidget {
+    border: 1px solid red;
+    color: red;
+    padding: 4px 8px;
+    background-color: #ff8;
+    font-weight: bold;
+}
+
+.dummyWidget {
+    border: 1px solid blue;
+    color: blue;
+    padding: 4px 8px;
+    background-color: #88f;
+    font-weight: bold;
+}
+
+a.widget {
+    color: blue;
+}
+
+.themeDark a.widget {
+    color: rgb(113, 184, 239);
+}
+
+a.external {
+    color: blue;
+    background-position: center right;
+    background-repeat: no-repeat;
+    background-image: url(../img/icons/ext_link.png);
+    padding-right: 14px;
+}
+
+.themeDark a.external {
+    color: rgb(113, 184, 239);
+    background-image: url(../img/icons/ext_link_dark.png);
+}
+
+a {
+    color: blue;
+}
+
+.themeDark a {
+    color: rgb(113, 184, 239);
+}
+
+/*
+* We were using the CSS `zoom` attribute, which works in Chrome but not
+* in Firefox. We do not want to use `transform: scale()`, since it does
+* not reflow text, like `zoom` does.
+* So we are now trying the solution where you set all sizes and dimensions
+* in `em` units instead of `px`, then adjust the `font-size` of a surrounding
+* element.
+*      https://bugzilla.mozilla.org/show_bug.cgi?id=390936
+*      https://caniuse.com/#feat=css-zoom
+*/
+
+.zoom50 .globalZoom {
+    font-size: 50%;
+}
+
+.zoom60 .globalZoom {
+    font-size: 60%;
+}
+
+.zoom70 .globalZoom {
+    font-size: 70%;
+}
+
+.zoom80 .globalZoom {
+    font-size: 80%;
+}
+
+.zoom90 .globalZoom {
+    font-size: 90%;
+}
+
+.zoom100 .globalZoom {
+    font-size: 100%;
+}
+
+.zoom110 .globalZoom {
+    font-size: 110%;
+}
+
+.zoom120 .globalZoom {
+    font-size: 120%;
+}
+
+.zoom130 .globalZoom {
+    font-size: 130%;
+}
+
+.zoom140 .globalZoom {
+    font-size: 140%;
+}
+
+.zoom150 .globalZoom {
+    font-size: 150%;
+}
+
+.zoom160 .globalZoom {
+    font-size: 160%;
+}
+
+.zoom170 .globalZoom {
+    font-size: 170%;
+}
+
+.zoom180 .globalZoom {
+    font-size: 180%;
+}
+
+.zoom190 .globalZoom {
+    font-size: 190%;
+}
+
+.zoom200 .globalZoom {
+    font-size: 200%;
+}
+
+.activeTC .dijitTabChecked {
+    border-top: 1px solid #08f;
+    color: #7b9bc2;
+}
+
+.themeDark .pfsc-ise .activeTC .dijitTabChecked {
+    border-top: 1px solid #08f;
+    color: #7b9bc2;
+}
+
+.tailSelector {
+    position: relative;
+}
+
+.tailSelectorHighlight {
+    position: absolute;
+    right: 0px;
+    opacity: 0;
+    cursor: pointer;
+    user-select: none;
+    background-color: #cfe5fa;
+}
+
+.themeDark .tailSelectorHighlight {
+    color: #ccc;
+    background-color: #2f65ca;
+}
+
+.tailSelectorHighlight:hover {
+    opacity: 1;
+}
+
+.briefNotice {
+    opacity: 1;
+    position: fixed;
+    transition-property: opacity;
+    transition-duration: 0.5s;
+    border: 2px solid;
+    border-radius: 4px;
+    padding: 6px;
+    font-family: sans-serif;
+    z-index: 1000;
+    background-color: white;
+}
+
+.aceGutterFlash {
+    opacity: 0.5;
+    transition-property: opacity;
+    transition-duration: 2s;
+    transition-delay: 0.5s;
+    background: #00ffff;
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+.themeDark .briefNotice {
+    color: #adadad;
+    background-color: #222;
+}
+
+.noticeBox {
+    position: fixed;
+    z-index: 2000;
+    padding: 14px;
+    font-size: medium;
+    background: white;
+    border: 1px solid #444;
+}
+
+.themeDark .noticeBox {
+    background: #222;
+    color: #bbb;
+    border: 1px solid #bbb;
+}
+
+.noticeBox .buttonRow {
+    text-align: right;
+    margin-top: 8px;
+}
+
+.qna_widget {
+    font-size: 1em;
+    border: 1px solid;
+    border-radius: 7px;
+    padding: 0.5em;
+    background: #cfe0fd;
+}
+
+.themeDark .qna_widget {
+    background: #243a4c;
+}
+
+.qna_question {
+    margin-bottom: 0.5em;
+}
+
+.qna_answer {
+
+}
+
+.qna_question .qna_label {
+    font-weight: bold;
+}
+
+.qna_answer .qna_label {
+    font-weight: bold;
+}
+
+.qna_hide {
+    text-align: center;
+    transition-property: opacity;
+    transition-duration: 0.5s;
+    opacity: 0;
+}
+
+.qna_hide:hover {
+    opacity: 1;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Prevent the "x" close icon being covered up by long titles, while still
+   appearing all the way on the right, for short titles.                  */
+.pfsc-ise .dijitDialogTitleBar {
+    display: flex;
+    justify-content: space-between;
+}
+
+.pfsc-ise .dijitDialogCloseIcon {
+    display: inline-block;
+    position: unset;
+}
+/* ---------------------------------------------------------------------- */
+
+.themeDark .dijitDialogUnderlay {
+    background: #444;
+}
+
+.themeDark .dijitDialogPaneContent {
+    background: #2b2b2b;
+    color: #ddd;
+}
+
+.themeDark .dijitDialogTitleBar {
+    background: #444;
+}
+
+.themeDark .dijitDialogTitle {
+    color: #adadad;
+}
+
+.dijitDialogPaneContent textarea {
+    width: 100%;
+    height: 100%;
+}
+
+.themeDark .dijitDialogPaneContent textarea {
+    background: #2b2b2b;
+    color: #ddd;
+}
+
+.iseDialogContentsStyle01 {
+    width: 48em;
+    padding: 0em 1em;
+    line-height: 1.7em;
+    text-align: justify;
+}
+
+.iseDialogContentsStyle02 {
+    font-size: 1.2em;
+}
+
+.iseDialogContentsStyle03 {
+    width: 30em;
+    padding: 0em 1em;
+    line-height: 1.7em;
+    text-align: justify;
+    font-size: 1.2em;
+}
+
+.sympyEngineDialogStyle {
+    width: 24em;
+}
+
+.iseChoiceDismissalBox {
+    margin-top: 2em;
+    margin-bottom: 1em;
+    margin-left: 1em;
+}
+
+.aboutIseDialog {
+    width: 55em;
+}
+
+.aboutIseDialog .pise-logo {
+    height: 159px;
+    background-image: url("../img/logo/pies_pise_178x159.png");
+    background-repeat: no-repeat;
+    margin-bottom: 21px;
+}
+
+.aboutIseDialog .pise-title {
+    font-size: 2em;
+    position: absolute;
+    top: 48px;
+    left: 256px;
+}
+
+.aboutIseDialog .pise-version {
+    font-size: 1.6em;
+    position: absolute;
+    top: 98px;
+    left: 275px;
+}
+
+.aboutIseDialog .pise-copyright {
+    font-size: 1.2em;
+    position: absolute;
+    top: 135px;
+    left: 275px;
+}
+
+.aboutIseDialog .pise-legal {
+    font-size: 1em;
+    position: absolute;
+    top: 158px;
+    left: 275px;
+}
+
+.aboutIseDialog .pise-blurb {
+    font-size: 1.4em;
+    top: 110px;
+    left: 256px;
+    padding-bottom: 10px;
+}
+
+.aboutIseDialog .pise-software-table-wrapper {
+    height: 266px;
+    overflow: scroll;
+}
+
+.aboutIseDialog .pise-software-table {
+    margin-top: 18px;
+    width: 100%;
+    font-size: 1.3em;
+    line-height: 2em;
+}
+
+.aboutIseDialog .pise-software-table thead {
+    font-weight: bold;
+}
+
+.aboutIseDialog .pise-software-table .vers {
+    margin-left: 4px;
+}
+
+.themeDark canvas.selectionCombiner {
+    filter: invert(0.8);
+}
+
+.pdfLearnMore {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.themeDark .pdfLearnMore {
+    filter: invert(0.83);
+}
+
+.padded20 {
+    padding: 20px;
+}
+
+.vpadded5 {
+    padding: 5px 0px;
+}
+
+.edAuxPanel {
+    display: none;
+    border: 1px solid;
+    margin-bottom: 11px;
+    padding: 8px 2px;
+}
+
+.edAuxPanel .auxPanelTitle {
+    padding: 0px 5px;
+}
+
+.edAuxPanel .auxPanelBody {
+    margin-left: 7px;
+    margin-top: 7px;
+    padding: 2px 2px;
+    display: flex;
+    justify-content: space-around;
+}
+
+.edAuxPanel .auxPanelButton {
+    cursor: pointer;
+    background: #888;
+    color: #222;
+    padding: 4px 8px 5px 8px;
+    border-radius: 5px;
+}
+
+.edAuxPanel .auxPanelButton:hover {
+    background: #aaa;
+}
+
+/* --------------------------------------------------------- */
+.edSocket {
+    display: flex;
+    flex-flow: column;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.edSocket .edHeader {
+    flex: 0 1 auto;
+}
+
+.edSocket .edBody {
+    flex: 1 1 auto;
+    position: relative;
+}
+/* --------------------------------------------------------- */
+
+.mainview {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+.showSidebar .mainview {
+    right: 200px;
+}
+
+.overviewSidebar {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    right: 0px;
+    width: 0px;
+    border-left-color: #ccc;
+}
+
+.showSidebar .overviewSidebar {
+    width: 199px;
+    border-left-width: 1px;
+    border-left-style: solid;
+}
+
+.themeDark .overviewSidebar {
+    border-left-color: #888;
+}
+
+.notesSocket {
+    height: 100%;
+    /* Basic size, corrsp. to 100% zoom in the global config: */
+    font-size: 16px;
+}
+
+.notesSocket .mainview {
+    overflow: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.notesSocket .overviewSidebar {
+    overflow: auto;
+}
+
+.notesSocket .overviewSidebar .sidebarContents {
+    width: max-content;
+    transform-origin: 0 0;
+    margin-left: 4px;
+    margin-top: -16px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.notesSocket .overviewSidebar .glass {
+    background-color: black;
+    opacity: 0.2;
+    position: absolute;
+    width: 100%;
+    cursor: move;
+}
+
+.themeDark .notesSocket .overviewSidebar .glass {
+    background-color: white;
+}
+
+.overviewSidebar .ace_scroller {
+    cursor: default;
+    pointer-events: none;
+}
+
+span.customlink {
+    color: blue;
+    cursor: pointer;
+}
+
+.themeDark span.customlink {
+    color: #71b8ef;
+}
+
+span.customlink:hover {
+    text-decoration: underline;
+}
+
+table.pdfInfo {
+    padding: 13px 16px;
+}
+
+table.pdfInfo td {
+    padding: 1px 6px;
+}
+
+div.newSubmoduleDialog p {
+    font-size: 14px;
+}
+
+p.warning {
+    background-position: center left;
+    background-repeat: no-repeat;
+    background-image: url(../img/icons/warning16.png);
+    padding-left: 20px;
+}
+
+.sympyStatusMenuItem {
+    min-width: 150px;
+}
+
+.menuItemGreenDot {
+    color: green;
+}
+
+.themeDark .menuItemGreenDot {
+    color: greenyellow;
+}
+
+.menuItemRedDot {
+    color: red;
+}
+
+.menuItemSpinner {
+    background-image: url('../img/icons/loading-icon.gif');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center right;
+    width: 16px;
+    height: 16px;
+}
+
+.frozenEditor .ace_gutter {
+    transition-property: color, background-color;
+    transition-duration: 1s;
+}
+
+.readonlyEditor .ace_gutter {
+    color: #888888;
+    background-color: #ddeeff;
+}
+
+.themeDark .readonlyEditor .ace_gutter {
+    background-color: #081828;
+}
+
+.hostingRequestDialog {
+    width: 36em;
+}
+
+.hostingRequestDialog .row-title {
+    font-weight: bold;
+}
+
+.hostingRequestDialog .sec-title {
+    font-weight: bold;
+}
+
+.hostingRequestDialog .dot {
+    font-weight: bold;
+}
+
+.hostingRequestDialog .remChars {
+    font-style: italic;
+    font-weight: initial;
+    margin-left: 1em;
+    font-size: small;
+}
+
+
+a.dialogButton {
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-weight: bold;
+    text-align: center;
+    user-select: none;
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 0.6em;
+    background: #285b82;
+    color: white;
+}
+
+.themeDark a.dialogButton {
+    background: #285b82;
+    color: #ddd;
+}
+
+.themeDark a.dialogButton:hover,
+a.dialogButton:hover {
+    background: #4283b4;
+}
+
+.waiting a.dialogButton {
+    cursor: wait;
+}
+
+.themeDark a.dangerButton,
+a.dangerButton {
+    background: #800;
+}
+
+.themeDark a.dangerButton:hover,
+a.dangerButton:hover {
+    background: #f00;
+}
+
+.themeDark a.dangerButton.dangerButtonDisabled,
+a.dangerButton.dangerButtonDisabled {
+    cursor: not-allowed;
+    background: #f88;
+}
+
+.themeDark .waiting a.dangerButton.dangerButtonDisabled,
+.waiting a.dangerButton.dangerButtonDisabled {
+    cursor: wait;
+}
+
+
+.userSettingsDialog {
+    width: 48em;
+}
+
+.userSettingsDialog.waiting {
+    cursor: wait;
+}
+
+.userSettingsDialog div.section {
+    border-bottom: 1px solid #222;
+}
+
+.userSettingsDialog div.finalSection {
+}
+
+.themeDark .userSettingsDialog div.section {
+    border-bottom: 1px solid #ddd;
+}
+
+.userSettingsDialog span.fillIn {
+    margin-left: 0.5em;
+}
+
+.userSettingsDialog td {
+    padding: 0 1em 0 0;
+}
+
+.userSettingsDialog td.helpText {
+    font-size: x-small;
+    line-height: 1.1em;
+    padding: 0 8em 2em 1em;
+}
+
+.userSettingsDialog a.dangerLink {
+    color: #d21d1d;
+    font-weight: bold;
+}
+
+.themeDark .userSettingsDialog a.dangerLink {
+    color: #ef7171;
+}
+
+.irreversibleActionConfirmDialog {
+    width: 30em;
+    padding: 0 1.3em 1em 1.3em;
+    font-size: 1.2em;
+    text-align: justify;
+}
+
+.irreversibleActionConfirmDialog div {
+    margin: 1em 0;
+}
+
+.irreversibleActionConfirmDialog input {
+    width: 100%;
+    margin-top: 0.5em;
+    line-height: 2em;
+}
+
+.irreversibleActionConfirmDialog div.input {
+}
+
+.irreversibleActionConfirmDialog div.button {
+    text-align: center;
+    margin-top: 1.5em;
+}

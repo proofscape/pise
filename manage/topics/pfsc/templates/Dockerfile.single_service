@@ -1,0 +1,54 @@
+# --------------------------------------------------------------------------- #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# --------------------------------------------------------------------------- #
+
+FROM python:{{python_image_tag}} AS basis
+ARG DEBIAN_FRONTEND=noninteractive
+# The rm command in /tmp is to clean up a cert file that is left there for some
+# reason; see <https://github.com/docker-library/python/issues/609>
+RUN rm /tmp/*
+
+{{pfsc_install}}
+
+WORKDIR /home/pfsc/proofscape/src/pfsc-server
+COPY pfsc-server/startup.sh ./
+RUN chmod +x startup.sh \
+ && chown pfsc:pfsc startup.sh
+
+USER pfsc
+
+# For continuous logging from the Flask web app:
+ENV PYTHONUNBUFFERED 1
+# We set PFSC_RUN_AS_WEB_SERVER nonempty so that, by default, the container
+# will run as a web server.
+# To instead start an RQ worker, set PFSC_RUN_AS_WORKER nonempty.
+# To instead start a math worker, set PFSC_RUN_AS_MATH_WORKER nonempty.
+# (Either of these settings will override the one we hard-code here.)
+ENV PFSC_RUN_AS_WEB_SERVER 1
+ENTRYPOINT ["./startup.sh"]
+
+# -----------------------------------------------------------------------------
+FROM basis AS licensing
+WORKDIR /home/pfsc
+RUN mkdir licensing
+WORKDIR /home/pfsc/licensing
+COPY {{tmp_dir_name}}/license_info.json ./
+COPY {{tmp_dir_name}}/license_template.txt ./
+COPY {{tmp_dir_name}}/write_license_files.py ./
+RUN python write_license_files.py server
+
+# -----------------------------------------------------------------------------
+FROM basis AS final
+COPY --from=licensing /home/pfsc/licensing/output/* /home/pfsc/proofscape/src/pfsc-server

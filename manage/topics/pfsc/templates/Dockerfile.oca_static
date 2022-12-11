@@ -1,0 +1,38 @@
+# --------------------------------------------------------------------------- #
+#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#                                                                             #
+#   Licensed under the Apache License, Version 2.0 (the "License");           #
+#   you may not use this file except in compliance with the License.          #
+#   You may obtain a copy of the License at                                   #
+#                                                                             #
+#       http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                             #
+#   Unless required by applicable law or agreed to in writing, software       #
+#   distributed under the License is distributed on an "AS IS" BASIS,         #
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#   See the License for the specific language governing permissions and       #
+#   limitations under the License.                                            #
+# --------------------------------------------------------------------------- #
+
+WORKDIR /home/pfsc/proofscape/src/pfsc-server/static
+RUN ln -s /proofscape/PDFLibrary \
+ && mkdir -p pyodide/v{{versions["pyodide"]}} \
+ && mkdir v{{server_vers}} \
+ && mv css v{{server_vers}}/ \
+ && mv img v{{server_vers}}/ \
+ && bash -c "mkdir -p {whl,ise,dojo,mathjax,elk}"
+
+{% for filename in pyodide_files %}
+COPY pyodide/v{{versions["pyodide"]}}/{{filename}} ./pyodide/v{{versions["pyodide"]}}/
+{% endfor %}
+
+{% for whl_filename in wheels %}
+COPY whl/{{whl_filename}} ./whl/
+{% endfor %}
+
+COPY pfsc-ise/dist/ise ./ise/v{{versions["pise"]}}
+COPY pfsc-ise/dist/dojo ./dojo
+COPY pfsc-ise/dist/mathjax ./mathjax/v{{versions["mathjax"]}}
+COPY pfsc-ise/dist/elk ./elk/v{{versions["elkjs"]}}
+
+COPY pfsc-pdf/build/generic ./pdfjs/v{{versions["pfsc-pdf"]}}
