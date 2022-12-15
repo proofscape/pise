@@ -13,8 +13,8 @@ and accept pull requests against it, for last-minute additions to the next
 version.
 
 Step 1. To begin with, you should be on the `main` branch.
-Now make a release branch, of the form `releases/VERSION`. For example,
-if releasing version `0.26.0`,
+Now make and checkout a release branch, of the form `releases/VERSION`.
+For example, if releasing version `0.26.0`,
 
     $ git checkout -b releases/0.26.0
 
@@ -93,5 +93,5 @@ version from the `main` branch:
     $ git checkout --ours client/package*.json
     $ git add client/package*.json
 
-Then manually resolve any merge conflict in `CHANGELOG.md`, without changing
-the entry for the version that was just released, and complete the merge.
+Then manually resolve any merge conflict in `CHANGELOG.md` -- *without changing
+the entry for the version that was just released* -- and complete the merge.
