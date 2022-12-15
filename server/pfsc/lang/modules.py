@@ -1253,7 +1253,13 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
                 if not get_graph_reader().version_is_already_indexed(repopath, version):
                     msg = f'Trying to load `{modpath}` at release `{version}`'
                     msg += ', but that version has not been built yet on this server.'
-                    raise PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
+                    e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
+                    e.extra_data({
+                        'repopath': repopath,
+                        'version': version,
+                        'modpath': modpath,
+                    })
+                    raise e
             # To be on the safe side, make timestamp just _before_ performing the read operation.
             # (This is "safe" in the sense that the read operation looks older, so we will be more
             # likely to reload in the future, i.e. to catch updates.)

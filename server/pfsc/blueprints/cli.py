@@ -30,7 +30,7 @@ from pfsc.build.lib.libpath import get_modpath
 from pfsc.build import build_module, build_release
 from pfsc.checkinput import check_type, IType
 from pfsc.gdb import get_gdb, get_graph_writer, get_graph_reader
-from pfsc.excep import PfscExcep
+from pfsc.excep import PfscExcep, PECode
 
 
 @pfsc_cli.command('build')
@@ -63,11 +63,20 @@ def build(libpath, tag, recursive, verbose=False):
     # be able to do whatever you want.
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
-        if tag != pfsc.constants.WIP_TAG:
-            build_release(libpath, tag, verbose=verbose)
-        else:
-            modpath = get_modpath(libpath)
-            build_module(modpath, recursive=recursive, verbose=verbose)
+        try:
+            if tag != pfsc.constants.WIP_TAG:
+                build_release(libpath, tag, verbose=verbose)
+            else:
+                modpath = get_modpath(libpath)
+                build_module(modpath, recursive=recursive, verbose=verbose)
+        except PfscExcep as e:
+            code = e.code()
+            data = e.extra_data()
+            if code == PECode.INVALID_REPO:
+                raise click.UsageError(f'The repo {data["repopath"]} does not appear to be present.')
+            elif code == PECode.VERSION_NOT_BUILT_YET:
+                raise click.UsageError(str(e))
+            raise
 
 ###############################################################################
 
