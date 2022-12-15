@@ -510,7 +510,12 @@ def get_repo_info(libpath):
     potential_repo_path = get_repo_part(libpath)
     ri = RepoInfo(potential_repo_path)
     if not ri.is_git_repo:
-        raise PfscExcep("invalid repo (sub)path in %s" % libpath, PECode.INVALID_REPO)
+        e = PfscExcep("invalid repo (sub)path in %s" % libpath, PECode.INVALID_REPO)
+        e.extra_data({
+            'repopath': potential_repo_path,
+            'given_libpath': libpath,
+        })
+        raise e
     return ri
 
 
