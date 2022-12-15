@@ -19,15 +19,18 @@ CLI commands
 """
 
 import json
+import pathlib
 
 import click
 from flask.cli import with_appcontext
+from pygit2 import clone_repository, GitError, RemoteCallbacks
 
 import pfsc.constants
 from pfsc.constants import UserProps
 from pfsc import pfsc_cli, make_app
 from pfsc.build.lib.libpath import get_modpath
 from pfsc.build import build_module, build_release
+from pfsc.build.repo import RepoInfo
 from pfsc.checkinput import check_type, IType
 from pfsc.gdb import get_gdb, get_graph_writer, get_graph_reader
 from pfsc.excep import PfscExcep, PECode
@@ -40,8 +43,10 @@ from pfsc.excep import PfscExcep, PECode
 @click.option('-r', '--recursive', is_flag=True, default=False,
               help='Also build all submodules, recursively.')
 @click.option('-v', '--verbose', is_flag=True, default=False)
+@click.option('--auto-deps', is_flag=True, default=False,
+              help='Automatically clone and build missing dependencies, recursively.')
 @with_appcontext
-def build(libpath, tag, recursive, verbose=False):
+def build(libpath, tag, recursive, verbose=False, auto_deps=False):
     """
     Build the proofscape module at LIBPATH.
 
@@ -63,6 +68,51 @@ def build(libpath, tag, recursive, verbose=False):
     # be able to do whatever you want.
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
+        if auto_deps:
+            auto_deps_build(libpath, tag, recursive, verbose=verbose)
+        else:
+            failfast_build(libpath, tag, recursive, verbose=verbose)
+
+
+def failfast_build(libpath, tag, recursive, verbose=False):
+    """
+    This is the regular type of build, which simply fails if the repo is not
+    present, or has a dependency that has not yet been built.
+    """
+    try:
+        if tag != pfsc.constants.WIP_TAG:
+            build_release(libpath, tag, verbose=verbose)
+        else:
+            modpath = get_modpath(libpath)
+            build_module(modpath, recursive=recursive, verbose=verbose)
+    except PfscExcep as e:
+        code = e.code()
+        data = e.extra_data()
+        if code == PECode.INVALID_REPO:
+            raise click.UsageError(f'The repo {data["repopath"]} does not appear to be present.')
+        elif code == PECode.VERSION_NOT_BUILT_YET:
+            raise click.UsageError(str(e))
+        raise
+
+
+MAX_AUTO_DEPS_RECUSION_DEPTH = 32
+
+
+def auto_deps_build(libpath, tag, recursive, verbose=False):
+    """
+    Do a build with the "auto dependencies" feature enabled.
+    This means that when dependencies have not been built yet, we try to build
+    them, and when repos aren't present at all, we try to clone them.
+    We keep trying until either the initial build request succeeds, we
+    exceep the maximum allowed recursion depth set by the
+    `MAX_AUTO_DEPS_RECUSION_DEPTH` variable, or some other error occurs.
+    """
+    jobs = [(libpath, tag, recursive, verbose)]
+    while 0 < len(jobs) <= MAX_AUTO_DEPS_RECUSION_DEPTH:
+        job = jobs.pop()
+        libpath, tag, recursive, verbose = job
+        print('-'*80)
+        print(f'Building {libpath}@{tag}...')
         try:
             if tag != pfsc.constants.WIP_TAG:
                 build_release(libpath, tag, verbose=verbose)
@@ -73,10 +123,54 @@ def build(libpath, tag, recursive, verbose=False):
             code = e.code()
             data = e.extra_data()
             if code == PECode.INVALID_REPO:
-                raise click.UsageError(f'The repo {data["repopath"]} does not appear to be present.')
+                # The repo we tried to build is not present at all.
+                # Clone and retry.
+                repopath = data["repopath"]
+                print(f'The repo {repopath} does not appear to be present.')
+                print('Cloning...')
+                clone(repopath, verbose=verbose)
+                # Retry
+                jobs.append(job)
             elif code == PECode.VERSION_NOT_BUILT_YET:
-                raise click.UsageError(str(e))
-            raise
+                # We have a dependency that hasn't been built yet. Try to build it.
+                repopath = data["repopath"]
+                version = data["version"]
+                print(f'Dependency {repopath}@{version} has not been built yet.')
+                print('Attempting to build...')
+                # First requeue the job that failed.
+                jobs.append(job)
+                # Now add a job on top of it, for the dependency.
+                jobs.append((repopath, version, True, verbose))
+            else:
+                raise
+    if len(jobs) > MAX_AUTO_DEPS_RECUSION_DEPTH:
+        raise PfscExcep('Exceeded max recursion depth.', PECode.AUTO_DEPS_RECUSION_DEPTH_EXCEEDED)
+
+
+class ProgMon(RemoteCallbacks):
+
+    def __init__(self, verbose=True, credentials=None, certificate=None):
+        super().__init__(credentials=credentials, certificate=certificate)
+        self.verbose = verbose
+
+    def transfer_progress(self, stats):
+        if self.verbose:
+            print(f'{stats.indexed_objects}/{stats.total_objects}')
+
+
+def clone(repopath, verbose=False):
+    ri = RepoInfo(repopath)
+    src_url = ri.write_url()
+    dst_dir = ri.abs_fs_path_to_dir
+    pathlib.Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    pm = ProgMon(verbose=verbose)
+    try:
+        result = clone_repository(src_url, dst_dir, callbacks=pm)
+    except GitError as e:
+        msg = 'Error while attempting to clone remote repo:\n%s' % e
+        raise PfscExcep(msg, PECode.REMOTE_REPO_ERROR)
+    return result
+
 
 ###############################################################################
 
