@@ -1,5 +1,9 @@
 ## next (------)
 
+...
+
+## 0.26.1 (------)
+
 Improvements:
 
 * Add `--auto-deps` option to `flask pfsc build` command. Also improve
