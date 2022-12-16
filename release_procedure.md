@@ -18,7 +18,9 @@ For example, if releasing version `0.26.0`,
 
     $ git checkout -b releases/0.26.0
 
-Step 2. Edit `client/package.json`, and remove the `-dev` tag on the version number.
+Step 2. Edit `client/package.json`, setting the version number, and edit
+`CHANGELOG.md`, setting the version number (but not the date), for the
+release.
 Then do an `npm install` so the `package-lock.json` updates accordingly:
 
     $ cd client
@@ -38,7 +40,7 @@ and bump the dev version number. For example, if the release branch is
 `releases/0.26.0`, then
 
 * Go into `client/package.json` and change the version to `0.27.0-dev`.
-* In `CHANGELOG.md`, make an entry with heading `## 0.27.0 (------)`.
+* In `CHANGELOG.md`, make an entry with heading `## next (------)`.
 
 and again update `package-lock.json`:
 
