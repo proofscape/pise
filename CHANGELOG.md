@@ -1,6 +1,8 @@
 ## next (------)
 
-...
+Improvements:
+
+* Improve output of `pfsc.blueprints.cli.auto_deps_build()`.
 
 ## 0.26.1 (221216)
 

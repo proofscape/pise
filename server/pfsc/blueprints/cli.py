@@ -155,7 +155,7 @@ class ProgMon(RemoteCallbacks):
 
     def transfer_progress(self, stats):
         if self.verbose:
-            print(f'{stats.indexed_objects}/{stats.total_objects}')
+            print(f'Indexing objects: ({stats.indexed_objects}/{stats.total_objects})')
 
 
 def clone(repopath, verbose=False):
