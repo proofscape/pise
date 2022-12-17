@@ -95,7 +95,7 @@ def failfast_build(libpath, tag, recursive, verbose=False):
         raise
 
 
-MAX_AUTO_DEPS_RECUSION_DEPTH = 32
+MAX_AUTO_DEPS_RECURSION_DEPTH = 32
 
 
 def auto_deps_build(libpath, tag, recursive, verbose=False):
@@ -108,7 +108,7 @@ def auto_deps_build(libpath, tag, recursive, verbose=False):
     `MAX_AUTO_DEPS_RECUSION_DEPTH` variable, or some other error occurs.
     """
     jobs = [(libpath, tag, recursive, verbose)]
-    while 0 < len(jobs) <= MAX_AUTO_DEPS_RECUSION_DEPTH:
+    while 0 < len(jobs) <= MAX_AUTO_DEPS_RECURSION_DEPTH:
         job = jobs.pop()
         libpath, tag, recursive, verbose = job
         print('-'*80)
@@ -143,7 +143,7 @@ def auto_deps_build(libpath, tag, recursive, verbose=False):
                 jobs.append((repopath, version, True, verbose))
             else:
                 raise
-    if len(jobs) > MAX_AUTO_DEPS_RECUSION_DEPTH:
+    if len(jobs) > MAX_AUTO_DEPS_RECURSION_DEPTH:
         raise PfscExcep('Exceeded max recursion depth.', PECode.AUTO_DEPS_RECUSION_DEPTH_EXCEEDED)
 
 
