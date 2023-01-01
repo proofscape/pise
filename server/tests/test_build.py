@@ -108,7 +108,8 @@ def test_build(libpath, rec):
 # To build at a numbered release, see `test_build_release()` below.
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, rec", (
-    ("test.moo.bar", True),
+    ("test.spx.doc1", True),
+    #("test.moo.bar", True),
     #("test.foo.bar.expansions", False),
     #("test.hist.lit", True),
     #("test.hist.lit.G.alois", True),

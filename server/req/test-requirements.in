@@ -5,6 +5,7 @@
 # Ensure consistency:
 -c requirements.txt
 
+beautifulsoup4>=4.11.1
 pytest==7.2.0
 pytest-cov==4.0.0
 

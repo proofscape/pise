@@ -45,6 +45,10 @@ To build non-recursively means to act on only the module itself.
 
 import os, json, math
 from datetime import datetime
+import pathlib
+
+from sphinx.cmd import make_mode
+from sphinx.errors import SphinxError
 
 from pfsc.build.mii import ModuleIndexInfo
 from pfsc.build.manifest import (
@@ -384,12 +388,9 @@ class Builder:
         #   path-within-repo points to dict optionally defining 'dirs' and 'files' keys, under each of which is
         #   a list of dirnames or filenames to be skipped under this path.
         self.skip_items = {
-            # E.g. the def below could have been used to say that we want to ignore the `.git` dir at the
-            # top level of the repo. However, this is not necessary, since we are skipping anything
-            # that begins with a dot.
-            #'': {
-            #    'dirs': ['.git']
-            #}
+            '.': {
+                'dirs': ['_sphinx']
+            },
         }
 
     def is_release_build(self):
@@ -401,6 +402,10 @@ class Builder:
         None if we are not doing a release build.
         """
         return self.repo_info.libpath if self.is_release_build() else None
+
+    def has_sphinx_doc(self):
+        p = pathlib.Path(self.repo_info.get_sphinx_dir())
+        return p.exists()
 
     def raise_missing_change_log_excep(self):
         msg = f'Repo `{self.module_path}` failed to declare a change log for release `{self.version}`'
@@ -437,6 +442,15 @@ class Builder:
                 # this reason it has to wait until now.
                 self.check_root_declarations()
                 self.mii.compute_mm_closure(self.graph_writer.reader)
+
+                # Sphinx build.
+                # A Proofscape repo is allowed to define a single Sphinx doc, in a directory called
+                # `_sphinx`, at the root level of the repo. If we are currently building a whole repo,
+                # and it defines a Sphinx doc (and we are not using the BUILD_IN_GDB configuration -- we
+                # have no plans to support Sphinx build under this config), then do the Sphinx build now.
+                if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
+                    self.build_sphinx_doc()
+
                 # Consider the possibilities.
                 walking = self.recursive and path_info.is_dir
                 module_has_contents = path_info.get_pfsc_fs_path() is not None
@@ -452,6 +466,7 @@ class Builder:
                 else:
                     if self.verbose: print("Nothing to do.")
                     return
+
                 self.mii.cut_add_validate()
                 self.mii.here_elsewhere_nowhere()
                 self.mii.compute_origins(self.graph_writer.reader)
@@ -460,6 +475,33 @@ class Builder:
                 self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
                 self.merge_manifests()
                 self.have_built = True
+
+    def build_sphinx_doc(self):
+        in_dir = self.repo_info.get_sphinx_dir()
+        out_dir = self.repo_info.get_sphinx_build_dir(version=self.version)
+
+        # TODO:
+        #  Take part in progress monitoring
+        p = pathlib.Path(out_dir)
+        p.mkdir(parents=True, exist_ok=True)
+
+        # Should we offer a `clean` option?
+        #args = ['clean', in_dir, out_dir]
+        #make_mode.run_make_mode(args)
+
+        args = [
+            'html', in_dir, out_dir,
+            '-D', f'pfsc_repopath={self.repo_info.libpath}',
+            '-D', f'pfsc_repovers={self.version}',
+        ]
+        try:
+            make_mode.run_make_mode(args)
+        except SphinxError as e:
+            raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
+
+        # TODO:
+        #  Set flag in manifest, indicating that this repo has a Sphinx doc.
+
 
     def inject_origins(self):
         visitor = OriginInjectionVisitor(self.mii.origins)
