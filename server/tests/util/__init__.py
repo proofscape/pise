@@ -29,6 +29,7 @@ from config import LocalDevConfig, ConfigName
 
 REPO_SRC_DIR = os.path.join(TEST_RESOURCE_DIR, 'repo')
 
+
 class Repo:
 
     def __init__(self, root_dir, user, proj, vers_dirs, tag_names):
@@ -53,6 +54,7 @@ class Repo:
                     if d:
                         deps[tag] = d
             self.deps = deps
+
 
 def gather_repo_info():
     # Discover user/proj/version by scanning directories.
@@ -79,6 +81,7 @@ def gather_repo_info():
                 tag_names = [f'{vers}.0.0' if vers.find('.') < 0 else vers for vers in vers_dirs]
                 REPOS.append(Repo(root_dir, user, proj, vers_dirs, tag_names))
     return REPOS
+
 
 def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
     """
@@ -155,6 +158,7 @@ def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
             # Move into place.
             os.system('mv %s %s' % (TMP_VERS, PROJ_DIR))
 
+
 def get_basic_repos():
     """
     List the test repos that are meant to be built as a basic setup for all
@@ -195,6 +199,7 @@ def build_big(verbose=True):
     with app.app_context():
         build_release(repopath, version=version, verbose=verbose)
 
+
 def build_all(verbose=True):
     clear_all_indexing()
     repos = get_basic_repos()
@@ -209,11 +214,13 @@ def build_all(verbose=True):
             for version in repo.tag_names:
                 build_release(repo.libpath, version=version, verbose=verbose)
 
+
 def get_tags_to_build_as_wip():
     return [
         ['test.moo.comment', 'v0.2.0'],
         ['test.wid.get', 'v0.2.0'],
     ]
+
 
 def build_at_wip(verbose=True):
     """
