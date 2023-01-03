@@ -17,6 +17,21 @@ Check both the distributed package, and the GitHub repo.
 Make any necessary changes in `manage/topics/pfsc/notice.py`.
 
 
+## After adding new python or javascript requirements
+
+Run
+
+    pfsc license show server
+
+or
+
+    pfsc license show client
+
+(or both), and see if any packages are listed as having incomplete
+information. If so, complete the information in the "manual package info"
+section at the end of `tools/license.py`.
+
+
 ## Special cases
 
 ### Pyodide
