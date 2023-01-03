@@ -22,12 +22,15 @@
 FROM redislabs/redisgraph:{{redisgraph_image_tag}} AS rg
 FROM python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
-# libgomp1 is needed by redisgraph.
+# `libgomp1` is needed by redisgraph.
+# `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
+# hasn't been added yet) is given passwordless sudo.
 # The rm command in /tmp is to clean up a cert file that is left there for some
 # reason; see <https://github.com/docker-library/python/issues/609>
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 sudo less \
     && rm -rf /var/lib/apt/lists/* \
+    && echo "pfsc ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers \
     && mkdir -p /usr/lib/redis/modules \
     && rm /tmp/*
 COPY --from=rg /usr/lib/redis/modules/redisgraph.so /usr/lib/redis/modules
