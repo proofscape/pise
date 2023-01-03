@@ -62,6 +62,10 @@ SUPPORTED_PROJECTS = {
         'lang': 'js',
         'proj_name': 'pfsc-ise',
     },
+    'client': {
+        'lang': 'js',
+        'proj_name': 'pfsc-ise',
+    },
     'pbe': {
         'lang': 'js',
         'proj_name': 'pbe',
