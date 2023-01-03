@@ -226,19 +226,19 @@ def gather_licensing_info(verbose=False):
     Gather all the licensing info that could be needed by any of our docker
     images, and assemble it in one giant dictionary.
     """
-    py_comp, py_incomp = gather_dep_info_for_python_project('pfsc-server', print_report=verbose)
-    js_comp, js_incomp = gather_dep_info_for_javascript_project('pfsc-ise', print_report=verbose)
+    py_comp, py_prob = gather_dep_info_for_python_project('pfsc-server', print_report=verbose)
+    js_comp, js_prob = gather_dep_info_for_javascript_project('pfsc-ise', print_report=verbose)
 
-    if len(py_incomp) > 0:
-        raise click.FileError(
+    if len(py_prob) > 0:
+        raise click.UsageError(
             'Missing some info on Python packages.\n'
             'Try running\n'
             '  $ pfsc license show server\n'
             'to learn more.'
         )
 
-    if len(js_incomp) > 0:
-        raise click.FileError(
+    if len(js_prob) > 0:
+        raise click.UsageError(
             'Missing some info on JavaScript packages.\n'
             'Try running\n'
             '  $ pfsc license show ise\n'
@@ -545,7 +545,7 @@ class SoftwarePackage:
         n = len(self.license_text)
         s = (
             f'Package: {self.name}@{self.version}\n'
-            f'  GitHub: {self.gh_url or "unknown"}\n'
+            f'  Source: {self.gh_url or self.src_url or "unknown"}\n'
             f'  License name: {self.license_name or "unknown"}\n'
             f'  License length: {n}'
         )
@@ -898,7 +898,7 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
         not occurring in this list will be rejected.
     @return: list of PyPackage instances
     """
-    pip_line = re.compile(r'([-a-zA-Z0-9_]+)==(\d+(\.\d+)*)')
+    pip_line = re.compile(r'([-a-zA-Z0-9_]+)==(\d+(\.\w+)*)$')
 
     accepted_pkgs = None
     if image:
@@ -910,6 +910,8 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
             if (M := pip_line.match(line)):
                 accepted_pkgs.add(M.group(1))
 
+    ignored_pkgs = get_ignored_packages()
+
     pip = PFSC_ROOT / 'src' / proj_name / 'venv' / 'bin' / 'pip'
     cmd = f'{pip} freeze'
     out = subprocess.check_output(cmd, shell=True)
@@ -920,6 +922,7 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
     no_metadata = []
     version_mismatch = []
     rejected = []
+    ignored = []
     incomplete = []
     complete = []
     total = 0
@@ -938,6 +941,9 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
                 abnormal_freeze_line.append(line)
         else:
             package_name, expected_version = M.group(1), M.group(2)
+            if package_name in ignored_pkgs:
+                ignored.append(package_name)
+                continue
             if (accepted_pkgs is not None) and (package_name not in accepted_pkgs):
                 rejected.append(package_name)
                 continue
@@ -978,6 +984,11 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
             for p in rejected:
                 print('  ', p)
 
+        if ignored:
+            print('\nIgnored:')
+            for p in ignored:
+                print('  ', f'{p} ({ignored_pkgs[p]})')
+
         if abnormal_freeze_line:
             print('\nAbnormal pip:')
             for line in abnormal_freeze_line:
@@ -1005,10 +1016,23 @@ def gather_dep_info_for_python_project(proj_name, print_report=False, image=None
         print(f'No METADATA:     {len(no_metadata):4d}')
         print(f'Vers mismatch:   {len(version_mismatch):4d}')
         print(f'Rejected:        {len(rejected):4d}')
+        print(f'Ignored:         {len(ignored):4d}')
         print(f'Incomplete:      {len(incomplete):4d}')
         print(f'Complete:        {len(complete):4d}')
 
-    return complete, incomplete
+    problematic = {}
+    if abnormal_freeze_line:
+        problematic['abnormal-freeze-line'] = abnormal_freeze_line
+    if no_dist_info:
+        problematic['no-dist-info'] = no_dist_info
+    if no_metadata:
+        problematic['no-metadata'] = no_metadata
+    if version_mismatch:
+        problematic['version-mismatch'] = version_mismatch
+    if incomplete:
+        problematic['incomplete'] = incomplete
+
+    return complete, problematic
 
 
 def obtain_license_text(url):
@@ -1072,6 +1096,24 @@ def get_manual_pkg_info(identifier, lang):
                 raise NonUniqueManualInfoMatch(identifier)
             info = v
     return info
+
+
+def get_ignored_packages():
+    """
+    Some packages are ignored when generating licensing tables, because they
+    are actually parts of other projects we are already naming elsewhere.
+    This function returns a dict, in which ignored package names point to
+    the name of the package that subsumes them, or else to some other string
+    that explains why they are ignored.
+    """
+    return {
+        'sphinxcontrib-applehelp': 'Sphinx',
+        'sphinxcontrib-devhelp': 'Sphinx',
+        'sphinxcontrib-htmlhelp': 'Sphinx',
+        'sphinxcontrib-jsmath': 'Sphinx',
+        'sphinxcontrib-qthelp': 'Sphinx',
+        'sphinxcontrib-serializinghtml': 'Sphinx',
+    }
 
 ###############################################################################
 ###############################################################################
