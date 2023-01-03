@@ -22,7 +22,7 @@ extensions = [
 pfsc_repopath = 'an.incorrect.value'
 pfsc_repovers = "not_the_right_version_number"
 pfsc_import_repos = {
-    'test.foo.bar': 'WIP',
+    'test.foo.bar': 'contradicts.root.module',
 }
 
 

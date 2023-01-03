@@ -380,6 +380,9 @@ class Builder:
             node = child_node
         self.root_node = node
 
+        # A place to store a copy of the dependencies declared by the repo being built:
+        self.repo_dependencies = {}
+
         # Set up items to be skipped.
         # For now we automatically skip any directory or file beginning with a dot '.'
         # TODO:
@@ -491,9 +494,19 @@ class Builder:
 
         args = [
             'html', in_dir, out_dir,
+        ]
+
+        # Override repopath and repovers
+        args.extend([
             '-D', f'pfsc_repopath={self.repo_info.libpath}',
             '-D', f'pfsc_repovers={self.version}',
-        ]
+        ])
+
+        # Override dependencies
+        for dep_repopath, dep_version in self.repo_dependencies.items():
+            args.append('-D')
+            args.append(f'pfsc_import_repos.{dep_repopath}={dep_version}')
+
         try:
             make_mode.run_make_mode(args)
         except SphinxError as e:
@@ -559,8 +572,9 @@ class Builder:
                     print(f'WARNING: {msg}')
         self.mii.set_change_log(cl or {})
         # Dependencies
+        deps = module.getAsgnValue(pfsc.constants.DEPENDENCIES_LHS, default={})
+        self.repo_dependencies = deps
         if is_release:
-            deps = module.getAsgnValue(pfsc.constants.DEPENDENCIES_LHS, default={})
             if pfsc.constants.WIP_TAG in deps.values():
                 msg = f'Repo `{repopath}` imports from one or more other repos at WIP,'
                 msg += ' but this is not allowed in a release build.'
