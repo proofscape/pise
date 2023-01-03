@@ -1229,6 +1229,9 @@ def get_manual_py_pkg_info_lookup():
         'Flask-SocketIO': {
             'license_name': 'MIT',
         },
+        'furo': {
+            'license_name': 'MIT',
+        },
         'greenlet': {
             'license_url': 'https://github.com/python-greenlet/greenlet/blob/master/LICENSE',
         },
@@ -1262,6 +1265,10 @@ def get_manual_py_pkg_info_lookup():
         'neo4j': {
             'license_name': 'Apache 2.0',
             'license_url': 'https://github.com/neo4j/neo4j-python-driver/blob/4.2.1/LICENSE.txt',
+        },
+        'packaging': {
+            'license_name': 'Apache 2.0',
+            'license_url': 'https://github.com/pypa/packaging/blob/main/LICENSE.APACHE',
         },
         'pep517': {
             'license_name': 'MIT',
