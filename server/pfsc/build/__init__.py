@@ -43,8 +43,9 @@ act on the module itself as well as any and all submodules (and submodules there
 To build non-recursively means to act on only the module itself.
 """
 
-import os, json, math
+import os, json, math, re
 from datetime import datetime
+import logging
 import pathlib
 
 from sphinx.cmd import make_mode
@@ -250,6 +251,66 @@ class BuildMonitor:
     def note_index_tasks_completed(self, n=1):
         self.inc_count(n * self.count_per_index_task)
         self.pub()
+
+
+class SphinxBuildLogStream:
+    """
+    Allows us to monitor the build progress of the Sphinx build (if any)
+    contained within a repo build.
+
+    Pass this when constructing a logging.StreamHandler, and add the latter as
+    a handler to the logger named 'sphinx.sphinx.util'.
+
+    Note that Sphinx prepends the namespace prefix 'sphinx.' onto the usual
+    `__name__`. This therefore is the logger defined in sphinx/util/__init__.py.
+
+    See also sphinx/util/logging.py for the `SphinxLoggerAdapter` class that wraps
+    Python's built-in logger.
+
+    See also `sphinx.util.status_iterator()` for the code that generates the
+    log messages that do contain percentages.
+
+    """
+
+    def __init__(self, monitor):
+        self.monitor = monitor
+        self.percentage_pattern = re.compile(r'\[(\d+)%\]')
+        # We use a "real" counter for steps where Sphinx gives a percentage.
+        self.last_real_count = 0
+        # We use a "fake" counter for sequences of steps tha have no percentage.
+        # These are depicted as being out of self.fake_denom, but never exceeding
+        # that minus one.
+        self.last_fake_count = 0
+        self.fake_denom = 20
+
+    def write(self, record):
+        message = record.strip()
+        if message == 'done':
+            # Sphinx ends its phases with a 'done' message.
+            # We're not going to display these.
+            pass
+        else:
+            parts = self.percentage_pattern.split(message)
+            if len(parts) == 3:
+                # It's a percentage message
+                try:
+                    count = int(parts[1])
+                except ValueError:
+                    count = self.last_real_count
+                denom = 100
+                self.last_real_count = count
+                message = parts[0] + parts[2].strip()
+                self.last_fake_count = 0
+            else:
+                count = min(self.last_fake_count + 1, self.fake_denom - 1)
+                self.last_fake_count = count
+                denom = self.fake_denom
+            message = 'Sphinx: ' + message
+            # TODO: Actually pass this stuff to self.monitor in some way.
+            print(message, count, denom)
+
+    def flush(self):
+        pass
 
 
 class OriginInjectionVisitor:
@@ -479,18 +540,17 @@ class Builder:
                 self.merge_manifests()
                 self.have_built = True
 
-    def build_sphinx_doc(self):
+    def build_sphinx_doc(self, do_clean=False):
         in_dir = self.repo_info.get_sphinx_dir()
         out_dir = self.repo_info.get_sphinx_build_dir(version=self.version)
 
-        # TODO:
-        #  Take part in progress monitoring
         p = pathlib.Path(out_dir)
         p.mkdir(parents=True, exist_ok=True)
 
-        # Should we offer a `clean` option?
-        #args = ['clean', in_dir, out_dir]
-        #make_mode.run_make_mode(args)
+        # FIXME: how should this work?
+        if do_clean:
+            args = ['clean', in_dir, out_dir]
+            make_mode.run_make_mode(args)
 
         args = [
             'html', in_dir, out_dir,
@@ -506,6 +566,11 @@ class Builder:
         for dep_repopath, dep_version in self.repo_dependencies.items():
             args.append('-D')
             args.append(f'pfsc_import_repos.{dep_repopath}={dep_version}')
+
+        stream = SphinxBuildLogStream(self.monitor)
+        handler = logging.StreamHandler(stream)
+        logger = logging.getLogger('sphinx.sphinx.util')
+        logger.addHandler(handler)
 
         try:
             make_mode.run_make_mode(args)
