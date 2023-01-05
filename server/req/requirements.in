@@ -53,6 +53,7 @@ mistletoe==0.7.2
 # We support Furo, and the other built-in Sphinx themes.
 furo==2022.12.7
 sphinx-proofscape==0.3.1
+sphinx-math-dollar==1.2.1
 
 # VerTeX can be used in pfsc modules!
 vertex2tex==0.3.3
