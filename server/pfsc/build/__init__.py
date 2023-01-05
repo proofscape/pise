@@ -264,7 +264,7 @@ class SphinxBuildLogStream:
         monitor: an instance of the BuildMonitor class
         """
         self.monitor = monitor
-        self.percentage_pattern = re.compile(r'\[(\d+)%\]')
+        self.percentage_pattern = re.compile(r'\[\s*(\d+)%\]')
         # We use a "real" counter for steps where Sphinx gives a percentage.
         self.last_real_count = 0
         # We use a "fake" counter for sequences of steps that have no percentage.
