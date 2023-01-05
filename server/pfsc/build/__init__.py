@@ -49,7 +49,9 @@ import logging
 import pathlib
 
 from sphinx.cmd import make_mode
+from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
+from sphinx.util.docutils import patch_docutils, docutils_namespace
 
 from pfsc.build.mii import ModuleIndexInfo
 from pfsc.build.manifest import (
@@ -540,32 +542,39 @@ class Builder:
                 self.merge_manifests()
                 self.have_built = True
 
-    def build_sphinx_doc(self, do_clean=False):
-        in_dir = self.repo_info.get_sphinx_dir()
-        out_dir = self.repo_info.get_sphinx_build_dir(version=self.version)
+    def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None):
+        """
+        do_clean: Set True to do a `make clean` before building
+        force_all: write all files, instead of just for new or changed source
+            files. Same as `-a` siwtch to commandline Sphinx.
+        filenames: try to build only these output files. Same as passing filenames
+            to commandline Sphinx.
 
-        p = pathlib.Path(out_dir)
+        See:
+            https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-a
+            https://www.sphinx-doc.org/en/master/man/sphinx-build.html#synopsis
+        """
+        sourcedir = self.repo_info.get_sphinx_dir()
+        confdir = sourcedir
+        outputdir = self.repo_info.get_sphinx_build_dir(version=self.version)
+        doctreedir = os.path.join(outputdir, '.doctrees')
+
+        p = pathlib.Path(outputdir)
         p.mkdir(parents=True, exist_ok=True)
 
-        # FIXME: how should this work?
         if do_clean:
-            args = ['clean', in_dir, out_dir]
+            args = ['clean', sourcedir, outputdir]
             make_mode.run_make_mode(args)
 
-        args = [
-            'html', in_dir, out_dir,
-        ]
-
         # Override repopath and repovers
-        args.extend([
-            '-D', f'pfsc_repopath={self.repo_info.libpath}',
-            '-D', f'pfsc_repovers={self.version}',
-        ])
+        confoverrides = {
+            'pfsc_repopath': self.repo_info.libpath,
+            'pfsc_repovers': self.version,
+        }
 
         # Override dependencies
         for dep_repopath, dep_version in self.repo_dependencies.items():
-            args.append('-D')
-            args.append(f'pfsc_import_repos.{dep_repopath}={dep_version}')
+            confoverrides[f'pfsc_import_repos.{dep_repopath}'] = dep_version
 
         stream = SphinxBuildLogStream(self.monitor)
         handler = logging.StreamHandler(stream)
@@ -573,8 +582,11 @@ class Builder:
         logger.addHandler(handler)
 
         try:
-            make_mode.run_make_mode(args)
-        except SphinxError as e:
+            with patch_docutils(confdir), docutils_namespace():
+                app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
+                             'html', confoverrides=confoverrides)
+                app.build(force_all=force_all, filenames=filenames)
+        except (SphinxError, Exception) as e:
             raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
 
         # TODO:
