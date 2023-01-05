@@ -145,9 +145,21 @@ def profile_build_write_index(builder):
     #from pfsc.methods import log_within_rq
     #log_within_rq(r)
 
+
 class BuildMonitor:
     """
     Manages monitoring of the build process.
+
+    This class is designed to be flexible, and support different usage patterns.
+
+    In some cases, your build process may be "distributed," in the sense that
+    many different bits of code are responsible for advancing the process, one
+    piece at a time. In such cases, it is handy to use this class's
+    `begin_phase()`, `inc_count()`, and `set_message()` methods.
+
+    In other cases, you may have a centralized process that keeps track of its
+    own progress. Then it may be easier to use this class's `set_state()`
+    method directly.
     """
 
     def __init__(self, external):
@@ -156,102 +168,74 @@ class BuildMonitor:
                          Should accept four args: (op_code, cur_count, max_count, message)
         """
         self.external = external
-        # For now, three-phase mode is the only mode of operation. The three phases of building
-        # are: Build, Write, Index. However, in the future we may want to try a two-phase model,
-        # in which the Write operations are performed as soon as possible, throughout the Build step.
-        self.num_phases = 3
-        self.num_modules = 1
-        self.num_writes = 1
-        self.num_index_tasks = 1
-
-        self.count_per_module = 1
-        self.count_per_module_item = 1
-        self.count_per_write = 1
-        self.count_per_index_task = 1
-
-        self.scan_count  =  1000
-        self.build_count = 10000
-        self.write_count =  2000
-        self.index_count = 15000
 
         self.op_code = None
+        # cur_count may be integer or float
         self.cur_count = 0
-        self.max_count = self.scan_count + self.build_count + self.write_count + self.index_count
-        self.message = 'Scanning...'
-        self.pub()
+        # max_count must be an integer
+        self.max_count = 100
+        self.message = ''
 
     def pub(self):
+        """
+        Publish the current state to the external monitor.
+        """
+        # In some build scenarios, we don't use an external monitor, so we
+        # do have to check here.
         if self.external:
-            c = math.floor(self.cur_count)
+            c = min(self.max_count, math.floor(self.cur_count))
             self.external(self.op_code, c, self.max_count, self.message)
 
-    def set_count(self, f):
-        self.cur_count = f
+    def set_message(self, message):
+        """
+        Set the message.
+        """
+        self.message = message
+        self.pub()
 
-    def inc_count(self, f):
+    def begin_phase(self, max_count, message):
+        """
+        Start a new phase. Indicate the total number of steps it will involve,
+        and set an initial message.
+        """
+        self.cur_count = 0
+        self.max_count = max_count
+        self.message = message
+        self.pub()
+
+    def inc_count(self, f=1.0):
+        """
+        Increase the current count. Say by how much, or default to 1.
+
+        f: int or float
+        """
         self.cur_count += f
+        self.pub()
 
-    def set_num_modules(self, n):
+    def set_count(self, f):
         """
-        Set the total number of modules to be built.
+        Set the current count directly, instead of by differential.
+
+        f: int or float
         """
-        self.num_modules = n or 1
-        self.count_per_module = self.build_count/self.num_modules
-        self.message = 'Building...'
-        self.set_count(self.scan_count)
+        self.cur_count = f
+        self.pub()
+
+    def set_state(self, cur_count, max_count, message):
+        """
+        Set the complete state.
+        """
+        self.cur_count = cur_count
+        self.max_count = max_count
+        self.message = message
         self.pub()
 
     def declare_complete(self):
         """
-        Call this method when the entire build process is completed.
+        Call this method when the entire build process is complete.
         """
         self.message = 'Done'
-        self.set_count(self.max_count)
-        self.pub()
-
-    def begin_module(self, modpath):
-        self.message = 'Building %s...' % modpath
-        self.pub()
-
-    def note_module_parsed(self):
-        # We'll call parsing 10% of the job, per module.
-        self.inc_count(self.count_per_module/10)
-        self.pub()
-
-    def set_num_module_items(self, n):
-        n = n or 1
-        # Since we're saying parsing takes 10% of the job per module, that leaves 90% to be
-        # distributed among the items to be processed.
-        self.count_per_module_item = self.count_per_module*0.9/n
-
-    def note_module_item_processed(self):
-        self.inc_count(self.count_per_module_item)
-        self.pub()
-
-    def set_num_writes(self, n):
-        self.num_writes = n or 1
-        self.count_per_write = self.write_count/self.num_writes
-        self.message = 'Writing to disk...'
-        self.set_count(self.scan_count + self.build_count)
-        self.pub()
-
-    def note_write(self):
-        self.inc_count(self.count_per_write)
-        self.pub()
-
-    def set_num_index_tasks(self, n):
-        self.num_index_tasks = n or 1
-        self.count_per_index_task = self.index_count/self.num_index_tasks
-        self.message = 'Indexing...'
-        self.set_count(self.scan_count + self.build_count + self.write_count)
-        self.pub()
-
-    def begin_indexing_phase(self, phase_name):
-        self.message = 'Indexing: %s...' % phase_name
-        self.pub()
-
-    def note_index_tasks_completed(self, n=1):
-        self.inc_count(n * self.count_per_index_task)
+        self.cur_count = self.max_count
         self.pub()
 
 
@@ -260,8 +244,8 @@ class SphinxBuildLogStream:
     Allows us to monitor the build progress of the Sphinx build (if any)
     contained within a repo build.
 
-    Pass this when constructing a logging.StreamHandler, and add the latter as
-    a handler to the logger named 'sphinx.sphinx.util'.
+    Construct a logging.StreamHandler with this as stream, and then add the
+    handler to the logger named 'sphinx.sphinx.util'.
 
     Note that Sphinx prepends the namespace prefix 'sphinx.' onto the usual
     `__name__`. This therefore is the logger defined in sphinx/util/__init__.py.
@@ -275,20 +259,26 @@ class SphinxBuildLogStream:
     """
 
     def __init__(self, monitor):
+        """
+        monitor: an instance of the BuildMonitor class
+        """
         self.monitor = monitor
         self.percentage_pattern = re.compile(r'\[(\d+)%\]')
         # We use a "real" counter for steps where Sphinx gives a percentage.
         self.last_real_count = 0
-        # We use a "fake" counter for sequences of steps tha have no percentage.
-        # These are depicted as being out of self.fake_denom, but never exceeding
-        # that minus one.
+        # We use a "fake" counter for sequences of steps that have no percentage.
         self.last_fake_count = 0
-        self.fake_denom = 20
+        # These are depicted as being out of a fake denominator, which is
+        # always at least a certain way away.
+        # Example: with basic denom of 10, and min remainder of 3, the fractions
+        # will go: 1/10, 2/10, ..., 7/10, 8/11, 9/12, 10/13, ...
+        self.min_fake_rem = 3
+        self.basic_fake_denom = 10
 
     def write(self, record):
         message = record.strip()
         if message == 'done':
-            # Sphinx ends its phases with a 'done' message.
+            # Sphinx ends each of its steps with a 'done' message.
             # We're not going to display these.
             pass
         else:
@@ -302,14 +292,15 @@ class SphinxBuildLogStream:
                 denom = 100
                 self.last_real_count = count
                 message = parts[0] + parts[2].strip()
+                # Reset fake counter, for next fake phase (if any)
                 self.last_fake_count = 0
             else:
-                count = min(self.last_fake_count + 1, self.fake_denom - 1)
+                # It's a step that has no percentage
+                count = self.last_fake_count + 1
                 self.last_fake_count = count
-                denom = self.fake_denom
+                denom = max(self.basic_fake_denom, count + self.min_fake_rem)
             message = 'Sphinx: ' + message
-            # TODO: Actually pass this stuff to self.monitor in some way.
-            print(message, count, denom)
+            self.monitor.set_state(count, denom, message)
 
     def flush(self):
         pass
@@ -393,6 +384,10 @@ class Builder:
 
         if not version_string_is_valid(version, allow_WIP=True):
             raise PfscExcep(f'Invalid version string: {version}', PECode.MALFORMED_VERSION_TAG)
+
+        # We set a couple of arbitrary counts for progress monitoring.
+        self.prog_count_per_module = 100
+        self.prog_count_for_parsing = 10
 
         # Keep track of whether we have built yet.
         self.have_built = False
@@ -497,6 +492,7 @@ class Builder:
         """
         # Build only if have not yet built, or if forcing.
         if force or not self.have_built:
+            self.monitor.set_message('Starting...')
             with checkout(self.repo_info, self.version):
                 # Set signal visible below this frame by inspecting the stack.
                 building_a_release_of = self.building_a_release_of()
@@ -527,7 +523,7 @@ class Builder:
                     self.walk(path_info.abs_fs_path_to_dir)
                 elif just_the_module:
                     if self.verbose: print(f"Building {self.module_path}@{self.version}...")
-                    self.monitor.set_num_modules(1)
+                    self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
                     self.handle_pfsc_module(self.module_path, self.root_node)
                 else:
                     if self.verbose: print("Nothing to do.")
@@ -666,7 +662,10 @@ class Builder:
         # We will build a list of "jobs," being pairs (modpath, tree_node), to be passed to
         # our `handle_pfsc_module` method.
         jobs = []
-        for P, D, F in os.walk(root_fs_path):
+        walk_list = list(os.walk(root_fs_path))
+        self.monitor.begin_phase(len(walk_list), 'Scanning...')
+        for P, D, F in walk_list:
+            self.monitor.inc_count()
 
             # FIXME: really should check first whether we're under a skip dir, and skip immediately.
             #   Wasting lots of cycles walking all through .git!
@@ -745,9 +744,7 @@ class Builder:
             # Mark dir as useless if there were no pfsc modules in it.
             if num_pfsc_modules_in_this_dir == 0: self.useless_dirs.append(P)
 
-        # Tell the monitor how many modules we have to process.
-        self.monitor.set_num_modules(len(jobs))
-        # Process the modules.
+        self.monitor.begin_phase(self.prog_count_per_module * len(jobs), 'Building...')
         for modpath, mod_node in jobs:
             self.handle_pfsc_module(modpath, mod_node)
 
@@ -776,7 +773,7 @@ class Builder:
         :param manifest_node: a ManifestTreeNode representing this module, and to which
                               nodes representing its items are to be added
         """
-        self.monitor.begin_module(module_path)
+        self.monitor.set_message('Building %s...' % module_path)
         if self.verbose: print("  ", module_path)
         # Build the module.
         try:
@@ -799,14 +796,22 @@ class Builder:
             else:
                 e.msg = f'While loading module `{module_path}`:\n\n' + e.msg
                 raise e
-        self.monitor.note_module_parsed()
+
+        self.monitor.inc_count(self.prog_count_for_parsing)
         self.modules[module.libpath] = module
 
         manifest_node.update_data({'isTerminal': module.isTerminal()})
 
         # Grab all the items.
         all_items = module.getNativeItemsInDefOrder(hoist_expansions=True)
-        self.monitor.set_num_module_items(len(all_items))
+        num_items = len(all_items)
+        remaining_count = self.prog_count_per_module - self.prog_count_for_parsing
+        prog_count_per_item = 0
+        if num_items == 0:
+            self.monitor.inc_count(remaining_count)
+        else:
+            prog_count_per_item = remaining_count / num_items
+
         annos = []
         defns = {}
         asgns = {}
@@ -846,17 +851,17 @@ class Builder:
                 modpath=module_path, sourceRow=anno.getFirstRowNum(),
                 docRefs=doc_info['refs']
             )
-            self.monitor.note_module_item_processed()
+            self.monitor.inc_count(prog_count_per_item)
 
         for name in defns:
             libpath = f'{module.libpath}.{name}'
             self.mii.add_generic(IndexType.DEFN, libpath, module)
-            self.monitor.note_module_item_processed()
+            self.monitor.inc_count(prog_count_per_item)
 
         for name in asgns:
             libpath = f'{module.libpath}.{name}'
             self.mii.add_generic(IndexType.ASGN, libpath, module)
-            self.monitor.note_module_item_processed()
+            self.monitor.inc_count(prog_count_per_item)
 
         # For each deduc in this module, we will map its libpath to its "depth within the module".
         # Depth within the module is defined as follows:
@@ -890,7 +895,7 @@ class Builder:
                 # depth
                 depth=depth
             )
-            self.monitor.note_module_item_processed()
+            self.monitor.inc_count(prog_count_per_item)
 
         # Add the manifest tree nodes in definition order.
         for name, item in all_items.items():
@@ -910,7 +915,7 @@ class Builder:
             building_a_release_of = self.building_a_release_of()
             # How many writes do we have to do? (Count modules twice: once for lib dir, once for build dir.)
             n = 2*len(self.modules) + len(self.deductions) + len(self.annotations)
-            self.monitor.set_num_writes(n)
+            self.monitor.begin_phase(n, 'Writing...')
             self.clear_build_dirs()
             if self.version == pfsc.constants.WIP_TAG:
                 # We update the working versions only if this is a WIP build.
@@ -939,7 +944,7 @@ class Builder:
         """
         for module in self.modules.values():
             module.writeBuiltVersionToDisk(writeOnlyIfDifferent=True, makeTildeBackup=True)
-            self.monitor.note_write()
+            self.monitor.inc_count()
 
     def write_built_modules_to_build_dir(self):
         """
@@ -959,7 +964,7 @@ class Builder:
                 path = os.path.join(build_dir, filename)
                 with open(path, 'w') as f:
                     f.write(text)
-            self.monitor.note_write()
+            self.monitor.inc_count()
 
     def clear_build_dirs(self):
         """
@@ -995,7 +1000,7 @@ class Builder:
                 dg_json_path = os.path.join(dest_dir, filename)
                 with open(dg_json_path, 'w') as f:
                     f.write(dg_json)
-            self.monitor.note_write()
+            self.monitor.inc_count()
 
     def write_notespages(self):
         """
@@ -1015,7 +1020,7 @@ class Builder:
                     f.write(anno_html)
                 with open(anno_json_path, 'w') as f:
                     f.write(anno_json)
-            self.monitor.note_write()
+            self.monitor.inc_count()
 
     def update_index(self):
         """

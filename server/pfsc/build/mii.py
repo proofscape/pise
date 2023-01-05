@@ -128,7 +128,7 @@ class ModuleIndexInfo:
 
         n = n100 + n200 + n300
 
-        self.monitor.set_num_index_tasks(n)
+        self.monitor.begin_phase(n, 'Indexing...')
 
     def note_begin_indexing_phase(self, phase_code):
         phase_name = {
@@ -140,12 +140,13 @@ class ModuleIndexInfo:
             330: 'recording move mappings',
             360: 'recording retargeting relations',
         }[phase_code]
-        self.monitor.begin_indexing_phase(phase_name)
+        message = 'Indexing: %s...' % phase_name
+        self.monitor.set_message(message)
 
     def note_task_element_completed(self, task_code, count=1):
         w = self.monitor_task_weights[task_code]
         n = w * count
-        self.monitor.note_index_tasks_completed(n)
+        self.monitor.inc_count(n)
 
     def all_modules(self):
         return [self.modpath] + self.submodules
