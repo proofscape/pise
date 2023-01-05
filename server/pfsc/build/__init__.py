@@ -51,6 +51,7 @@ import pathlib
 from sphinx.cmd import make_mode
 from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
+from sphinx.util.console import strip_colors
 from sphinx.util.docutils import patch_docutils, docutils_namespace
 
 from pfsc.build.mii import ModuleIndexInfo
@@ -276,7 +277,7 @@ class SphinxBuildLogStream:
         self.basic_fake_denom = 10
 
     def write(self, record):
-        message = record.strip()
+        message = strip_colors(record.strip())
         if message == 'done':
             # Sphinx ends each of its steps with a 'done' message.
             # We're not going to display these.
