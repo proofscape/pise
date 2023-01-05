@@ -248,6 +248,7 @@ class PECode:
     MALFORMED_CONTROL_WIDGET = 275
     MISSING_MANIFEST = 276
     MANIFEST_BAD_FORM = 277
+    MISSING_ORIGIN = 278
 
     # meson/arclang parsing
     MESON_ERROR = 300

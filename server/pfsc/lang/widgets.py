@@ -779,6 +779,12 @@ class GoalWidget(WrapperWidget):
                     label = obj.get_index_type()
                     major = obj.getMajorVersion()
                     origins = get_graph_reader().get_origins({label: [altpath]}, major)
+                    if altpath not in origins:
+                        raise PfscExcep(
+                            (f'Could not find origin for goal path {altpath}.'
+                             ' Have you built that repo yet?'),
+                            PECode.MISSING_ORIGIN
+                        )
                     origin = origins[altpath]
             if origin is None:
                 origin = f'{libpath}@{self.getMajorVersion()}'
