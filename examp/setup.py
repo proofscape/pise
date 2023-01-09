@@ -14,21 +14,15 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-import json
-import pathlib
 import setuptools
 
-pj_path = pathlib.Path(__file__).parent.parent / 'client' / 'package.json'
-with open(pj_path, 'r') as f:
-    pj = json.load(f)
-    version = pj['version']
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="pfsc-examp",
-    version=version,
+    version="0.27.0-dev",
     license="Apache 2.0",
     url='https://github.com/proofscape/pise/tree/main/examp',
     description="Example explorers for Proofscape",
