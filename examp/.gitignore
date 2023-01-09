@@ -1,0 +1,33 @@
+# the virtual environment
+venv
+
+# python bytecode
+__pycache__
+
+# Backup files
+*~
+~$*
+
+# vim swap files
+*.swp
+*.swo
+
+# Python bytecode
+*.pyc
+
+# mac junk
+*.DS_Store
+
+# PyCharm IDE junk
+.idea/*
+
+# testing and coverage
+.pytest_cache
+.coverage
+htmlcov/
+
+# build
+build
+dist
+*.egg-info
+
