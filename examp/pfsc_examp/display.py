@@ -17,6 +17,7 @@
 from pfsc_examp.calculate import calculate
 from pfsc_examp.excep import MalformedExampImport, MissingExport
 from pfsc_examp.parse.display import displaylang_processor
+from pfsc_examp.util import adapt
 
 
 def parse_imports(s):
@@ -81,7 +82,7 @@ class ExampDisplay:
             The values are absolute libpaths of DispWidgets. The keys are
             strings specifying vars to import, as defined in the
             `parse_imports()` function.
-        :param build_code: str
+        :param build_code: str or list[str]
             Python code that builds (a) our HTML display, and (b) any values we
             want to export.
         :param export_names: list[str]
@@ -90,7 +91,7 @@ class ExampDisplay:
         self.parent = parent
         self.params = params
         self.imports = imports
-        self.build_code = build_code
+        self.build_code = self.to_code_string(build_code)
         self.export_names = export_names
 
         self.param_values = {}
@@ -98,6 +99,16 @@ class ExampDisplay:
 
         self._exports = {}
         self._html = None
+
+        self.last_attempted_raw_value = None
+
+    @staticmethod
+    def to_code_string(code):
+        """
+        Convert what may be a string, or a list of strings, into a single code
+        string.
+        """
+        return '\n'.join(code) if isinstance(code, list) else code
 
     def obtain_param_values(self):
         return {
@@ -134,15 +145,41 @@ class ExampDisplay:
         """
         return self._html
 
-    def build(self):
+    def build(self, raw=None):
+        raw = adapt(raw)
+        if raw is not None:
+            self.last_attempted_raw_value = raw = self.to_code_string(raw)
+
         self.param_values = self.obtain_param_values()
         self.import_values = self.obtain_import_values()
         existing_values = {**self.param_values, **self.import_values}
 
-        html, exports = calculate(
-            displaylang_processor.process,
-            self.build_code, existing_values
-        )
+        self._html = None
+        if raw is None and self.last_attempted_raw_value is not None:
+            # When attempting to build based on a previously attempted value,
+            # we DO catch exceptions. The user has not actively entered a
+            # value, so should be happy to have the display switch back to
+            # anything that works.
+            code = self.last_attempted_raw_value
+            try:
+                html, exports = calculate(
+                    displaylang_processor.process,
+                    code, existing_values
+                )
+            except Exception:
+                pass
+        if self._html is None:
+            # Here we are either attempting to build the value passed by the
+            # user, or our default code. In either case, we do NOT catch
+            # exceptions, because the user needs to know about any errors.
+            code = self.build_code if raw is None else raw
+            html, exports = calculate(
+                displaylang_processor.process,
+                code, existing_values
+            )
 
-        self._html = f'<div class="display">\n{html}\n</div>\n'
+        self._html = (
+            f'<div class="display">\n{html}\n</div>\n'
+            f'<code class="displayCode">{code}</code>\n'
+        )
         self._exports = exports

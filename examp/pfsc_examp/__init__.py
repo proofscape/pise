@@ -86,10 +86,7 @@ def rebuild_examp_generator_from_js(obj, value=None, write_html=False):
         'err_msg': 'unknown error',
     }
     try:
-        if isinstance(obj, Parameter) and value is not None:
-            obj.build(raw=value)
-        else:
-            obj.build()
+        obj.build(raw=value)
         html = obj.write_html() if write_html else None
     except MalformedParamRawValue as e:
         d['err_lvl'] = ErrCode.MALFORMED_PARAM_RAW_VALUE

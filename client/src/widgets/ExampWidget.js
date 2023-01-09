@@ -143,9 +143,6 @@ const ExampWidget = declare(Widget, {
         return false;
     },
 
-    /* We often want to call `val()` on an examp widget, without worrying about whether it's
-     * a param or disp widget, and in such cases we're happy to get `null` for disp widgets.
-     */
     val: function(paneId) {
         return null;
     },
@@ -282,7 +279,7 @@ const ExampWidget = declare(Widget, {
      *
      * param paneId: the id of the pane where we want to build HTML for this widget
      * param options: {
-     *   value: (any) new raw value on which to build (if it's a parameter)
+     *   value: (any) new raw value on which to build
      *   writeHtml: (bool) whether to rewrite the widget's HTML (as opposed to just rebuilding)
      * }
      * return: Promise that resolves with a formatted object (with 'err_lvl' and other fields).
@@ -318,7 +315,7 @@ const ExampWidget = declare(Widget, {
      * paneId: the pane where rebuilding should happen
      * requests: array of objects of the form {
      *  widget: the examp widget instance to be rebuilt,
-     *  newValue: if defined and not `null`, a new value for this widget (which must be a ParamWidget),
+     *  newValue: if defined and not `null`, a new value for this widget,
      *  writeHtml: (bool) whether to regenerate this widget's HTML (as opposed to just rebuilding)
      * } It is assumed that this array is in topological order, w.r.t. widget dependencies.
      */
@@ -397,7 +394,7 @@ const ExampWidget = declare(Widget, {
         const activation = this.activationByPaneId.get(newPaneId);
         await activation;
         // Now a rebuild after copying the old pane's value will put the new pane in the same
-        // state as the old. (In case of DispWidget, call to `.val()` just returns `null`.)
+        // state as the old.
         await this.rebuildSequence(newPaneId, [{
             widget: this,
             newValue: this.val(oldPaneId),
