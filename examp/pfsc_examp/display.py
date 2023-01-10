@@ -14,6 +14,8 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+from displaylang.exceptions import ControlledEvaluationException
+
 from pfsc_examp.calculate import calculate
 from pfsc_examp.excep import MalformedExampImport, MissingExport
 from pfsc_examp.parse.display import displaylang_processor
@@ -102,6 +104,9 @@ class ExampDisplay:
 
         self.last_attempted_raw_value = None
 
+    def getUid(self):
+        return self.parent.getUid()
+
     @staticmethod
     def to_code_string(code):
         """
@@ -157,16 +162,16 @@ class ExampDisplay:
         self._html = None
         if raw is None and self.last_attempted_raw_value is not None:
             # When attempting to build based on a previously attempted value,
-            # we DO catch exceptions. The user has not actively entered a
-            # value, so should be happy to have the display switch back to
-            # anything that works.
+            # we simply fail silently in case of a ControlledEvaluationException.
+            # The user has not actively entered a value, so should be happy to
+            # have the display switch back to anything that works.
             code = self.last_attempted_raw_value
             try:
                 html, exports = calculate(
                     displaylang_processor.process,
                     code, existing_values
                 )
-            except Exception:
+            except ControlledEvaluationException:
                 pass
         if self._html is None:
             # Here we are either attempting to build the value passed by the

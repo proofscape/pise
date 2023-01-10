@@ -17,6 +17,8 @@
 import traceback
 from markupsafe import escape
 
+from displaylang.exceptions import ControlledEvaluationException
+
 from pfsc_examp.contexts import ContextNames
 from pfsc_examp.parameters import make_param
 from pfsc_examp.parameters.base import Parameter
@@ -77,6 +79,10 @@ class ErrCode:
     # the original number 193 for this error:
     MALFORMED_PARAM_RAW_VALUE = 193
     EXAMP_ERROR = 4
+    # Again, we want to be sure we're using an error code that doesn't collide
+    # with other codes in pfsc-server, so we've set this one to be the same
+    # over there.
+    CONTROLLED_EVALUATION_EXCEPTION = 279
 
 
 def rebuild_examp_generator_from_js(obj, value=None, write_html=False):
@@ -92,6 +98,11 @@ def rebuild_examp_generator_from_js(obj, value=None, write_html=False):
         d['err_lvl'] = ErrCode.MALFORMED_PARAM_RAW_VALUE
         d['err_msg'] = str(e)
         d['blame_widget_uid'] = e.param.getUid()
+        d['trace'] = '\n'.join(traceback.format_stack())
+    except ControlledEvaluationException as e:
+        d['err_lvl'] = ErrCode.CONTROLLED_EVALUATION_EXCEPTION
+        d['err_msg'] = str(e)
+        d['blame_widget_uid'] = obj.getUid()
         d['trace'] = '\n'.join(traceback.format_stack())
     except ExampError as e:
         d['err_lvl'] = ErrCode.EXAMP_ERROR

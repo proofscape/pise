@@ -93,11 +93,13 @@
     border-color: #545400;
 }
 
+.widgetHasError.dispWidget,
 .widgetHasError.paramWidget {
     background-color: #fdd;
     border-color: #f88;
 }
 
+.themeDark .widgetHasError.dispWidget,
 .themeDark .widgetHasError.paramWidget {
     background-color: #352b2b;
     border-color: #540000;

@@ -318,7 +318,8 @@ const ExampWidget = declare(Widget, {
             const errLvl = response.err_lvl;
             if (errLvl !== 0) {
                 widgetsWithErrors.push(w0);
-                if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME) {
+                if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME ||
+                    errLvl === iseErrors.serverSideErrorCodes.CONTROLLED_EVALUATION_EXCEPTION) {
                     const uid = response.blame_widget_uid;
                     const w = uid === this.uid ? this : this.descendants.get(uid);
                     // Sometimes the uid is not among our descendants. This happens if C depends on A and B,
