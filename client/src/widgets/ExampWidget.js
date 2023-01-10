@@ -214,6 +214,12 @@ const ExampWidget = declare(Widget, {
             iseUtil.removeAllChildNodes(err_elt);
             err_elt.innerHTML = msg;
             if (msg.length) {
+
+                // A widget displaying an error should never be grayed out.
+                // It is important the user understand they are enabled to
+                // interact with -- and thus repair -- a widget having an error.
+                this.grayOut(paneId, false);
+
                 widget_elt.classList.add('widgetHasError');
                 iseUtil.typeset([err_elt]);
             } else {
