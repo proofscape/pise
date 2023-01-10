@@ -20,8 +20,9 @@ import jinja2
 
 from pfsc_examp.calculate import calculate
 from pfsc_examp.canon_arithmeticus import all_prim_res_under_100, one_prim_res_under_1000
-from pfsc_examp.parameters.base import Parameter, DependencyType, ParametricValued
+from pfsc_examp.parameters.base import Parameter
 from pfsc_examp.excep import MalformedParamRawValue
+
 
 class PrimRes_Param(Parameter):
     """

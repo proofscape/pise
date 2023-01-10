@@ -18,7 +18,7 @@ from sympy import AlgebraicField, Integer, latex
 
 from pfsc_examp.calculate import calculate
 from pfsc_examp.parameters.base import (
-    Parameter, DependencyType, ParametricValued,
+    Parameter,
     write_radio_panel_chooser_widget,
 )
 from pfsc_examp.excep import MalformedParamRawValue

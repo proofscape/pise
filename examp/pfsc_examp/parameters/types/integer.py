@@ -18,7 +18,7 @@ from sympy.core.numbers import igcd, Integer
 import jinja2
 
 from pfsc_examp.calculate import calculate
-from pfsc_examp.parameters.base import Parameter, ParametricValued, DependencyType
+from pfsc_examp.parameters.base import Parameter
 from pfsc_examp.contexts import ContextNames
 from pfsc_examp.excep import MalformedParamRawValue
 

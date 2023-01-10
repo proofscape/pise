@@ -36,20 +36,6 @@ const ExampWidget = declare(Widget, {
     errmsgByPaneId: null,
     activationByPaneId: null,
 
-    // We keep two lookups of ParamWidgets, by UID:
-    // (1) "required" params are all those whose current value is required,
-    // if I am to recompute my own html, or request a validation.
-    // (2) "trigger" params are those such that I do want to recompute
-    // my html, and reset to a default value choice, when their value changes.
-
-    // Example: If I am an ideal prime lying above a rational prime p, then p
-    // is a trigger param, since I need to compute a whole new set of options
-    // when p changes. However, if I am just an integer that is supposed to be
-    // greater than p, then I don't want to reset my current value or compute a
-    // new chooser display when p changes. I might need to display an error message
-    // (if I am now not greater than p), but that is all. In this case, p is a
-    // required param, but not a trigger param.
-
     ancestorParams: null,
     parentParams: null,
     ancestorDisplays: null,
@@ -128,19 +114,6 @@ const ExampWidget = declare(Widget, {
                 this.ancestorDisplays.set(w.uid, w);
             }
         }
-    },
-
-    /* Given an array of examp widgets, say whether this one
-     * depends directly on any of those in the array, i.e. whether
-     * any of those is a parent.
-     */
-    hasParentDependency: function(widgets) {
-        for (let w of widgets) {
-            if (this.parentParams.has(w.uid)) {
-                return true;
-            }
-        }
-        return false;
     },
 
     val: function(paneId) {
@@ -255,24 +228,7 @@ const ExampWidget = declare(Widget, {
             }
         }
     },
-
-    /* Get an object mapping param libpaths to current values
-     * for all this widget's ancestor params, in a given pane.
-     */
-    lookupAncestorParamValues: function(paneId) {
-        const values = {};
-        for (let param of this.ancestorParams.values()) {
-            values[param.libpath] = param.val(paneId);
-        }
-        return values;
-    },
-
-    takeNextEvalNum: function() {
-        const n = this.currentEvalNumber + 1;
-        this.currentEvalNumber = n;
-        return n;
-    },
-
+    
     okayToBuild: function() {
         return false;
     },

@@ -36,32 +36,6 @@ from pfsc_examp.util import adapt
 from pfsc_util.imports import from_import
 
 
-class DependencyType:
-    """
-    Dependency types let us classify the ways in which a parameter Q may
-    depend on another parameter P.
-
-    FUNC: ("functional"). This means that when P changes, then Q should request
-      a whole new inner HTML, because the whole set of options has changed, and
-      we want to present the options in a new way. For example, Q might be an
-      ideal prime lying over the rational prime P.
-
-    COND: ("conditional"). This means that when P changes, the current choice
-      for Q may become invalid, since Q is supposed to satisfy a certain condition
-      w.r.t. P (e.g. "greater than"). However, Q doesn't need to request a whole
-      new inner HTML, because we do not want to change the way we represent or
-      offer the set of possibilities. E.g. user may enter any integer, and they
-      just need to choose one that is greater than P.
-
-    INDIRECT: We use this in order to indicate, in a dependency closure, which
-      params were included not as direct dependencies, but instead as a part of
-      the recursive closure computation.
-    """
-    FUNC = "FUNC"
-    COND = "COND"
-    INDIRECT = "INDIRECT"
-
-
 class Valued:
     """
     Abstract base class for objects with a `.value` proeprty.
