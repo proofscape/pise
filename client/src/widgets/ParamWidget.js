@@ -33,11 +33,8 @@ const ParamWidget = declare(ExampWidget, {
     choosersByPaneId: null,
     contentElementSelector: '.chooser_container',
 
-    listeners: null,
-
     constructor: function(hub, libpath, info) {
         this.choosersByPaneId = new Map();
-        this.listeners = {};
     },
 
     val: function(paneId) {
