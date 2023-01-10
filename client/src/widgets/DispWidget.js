@@ -72,7 +72,13 @@ const DispWidget = declare(ExampWidget, {
                 widget: this,
             });
         });
-        const code = contentElement.querySelector('.displayCode').innerText;
+
+        let code = '';
+        const codeElement = contentElement.querySelector('.displayCode');
+        // If the display was not trusted, there will be node code element.
+        if (codeElement) {
+            code = codeElement.innerText;
+        }
         this.codeByPaneId.set(pane.id, code);
     },
 
