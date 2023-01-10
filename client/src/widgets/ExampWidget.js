@@ -309,8 +309,9 @@ const ExampWidget = declare(Widget, {
     /* Rebuild a sequence of examp widgets.
      *
      * This method manages all the appropriate visual updates. It manages gray-out, spinners, and
-     * error message displays. It tries to rebuild each widget, in order, stopping if and when any
-     * errors arise, and displaying error messages accordingly.
+     * error message displays. It tries to rebuild each widget, in order. If a widget has an error,
+     * we display an error message. We cancel the rebuild for any of this widget's descendants, but
+     * continue trying to rebuild non-descendants.
      *
      * paneId: the pane where rebuilding should happen
      * requests: array of objects of the form {
@@ -320,8 +321,6 @@ const ExampWidget = declare(Widget, {
      * } It is assumed that this array is in topological order, w.r.t. widget dependencies.
      */
     rebuildSequence: async function(paneId, requests) {
-        //console.log('rebuildSequence', paneId, requests);
-
         for (let req of requests) {
             if (req.writeHtml) {
                 const w = req.widget;
@@ -330,14 +329,33 @@ const ExampWidget = declare(Widget, {
             }
         }
 
+        const widgetsWithErrors = [];
+
         for (let req of requests) {
             const w0 = req.widget;
+
+            // Should we skip this one?
+            let skip = false;
+            for (let errW of widgetsWithErrors) {
+                if (errW.hasDescendant(w0)) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) {
+                continue;
+            }
+
+            // Not skipping. Try to rebuild.
             const response = await w0.rebuild(paneId, {
                 value: req.newValue,
                 writeHtml: req.writeHtml,
             });
+
+            // Handle the result.
             const errLvl = response.err_lvl;
             if (errLvl !== 0) {
+                widgetsWithErrors.push(w0);
                 if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME) {
                     const uid = response.blame_widget_uid;
                     const w = uid === this.uid ? this : this.descendants.get(uid);
@@ -351,8 +369,7 @@ const ExampWidget = declare(Widget, {
                 } else {
                     this.hub.errAlert2(response);
                 }
-                console.log(response);
-                break;
+                console.debug(response);
             } else if (req.writeHtml) {
                 const html = response.html;
                 // `acceptNewHtml()` includes a call to `markErrorFree()`.
