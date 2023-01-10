@@ -883,6 +883,7 @@ class ExampWidget(Widget):
             'libpath': the absolute libpath of an ExampWidget on which this one depends,
             'uid': the UID of that widget,
             'type': the `WidgetType` of that widget
+            'direct': boolean, true iff the dependency is direct (i.e. one edge in dep graph)
         }
         """
         dep_graph = {}
