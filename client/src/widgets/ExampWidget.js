@@ -228,7 +228,7 @@ const ExampWidget = declare(Widget, {
             }
         }
     },
-    
+
     okayToBuild: function() {
         return false;
     },
@@ -344,6 +344,56 @@ const ExampWidget = declare(Widget, {
         for (let req of requests) {
             req.widget.showLoadingOverlay(paneId, false);
         }
+    },
+
+    /* Make this examp widget receive a new raw value.
+     *
+     * paneId: the pane in which this value is to be received.
+     * newValue: the new value.
+     * writeHtml: boolean, whether to rewrite the html for this widget.
+     *  That of all descendants will be rewritten regardless.
+     */
+    receiveNewValue: async function(paneId, newValue, writeHtml) {
+        const activation = this.activationByPaneId.get(paneId);
+        await activation;
+
+        this.clearErrorMessage(paneId); // (presumed innocence)
+
+        // Sort all descendants in topological order.
+        const desc = Array.from(this.descendants.values());
+        desc.sort((a, b) => {
+            if (a.hasDescendant(b)) {
+                return -1;
+            } else if (b.hasDescendant(a)) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+        // Prepend self to list, so that we have the list of all widgets
+        // that we want to rebuild, and in the right order.
+        desc.unshift(this);
+
+        const rebuildRequests = [{
+            widget: this, newValue: newValue, writeHtml: writeHtml,
+        }];
+        // For all proper descendants, we need to rebuild without any new raw value.
+        // We also recompute HTML.
+        for (let w of desc.slice(1)) {
+            rebuildRequests.push({
+                widget: w,
+                newValue: null,
+                writeHtml: true,
+            });
+        }
+
+        this.rebuildSequence(paneId, rebuildRequests);
+
+        this.dispatch({
+            type: "widgetVisualUpdate",
+            paneId: paneId,
+            widget: this,
+        });
     },
 
     markErrorFree: function(paneId) {

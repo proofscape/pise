@@ -94,59 +94,17 @@ const ParamWidget = declare(ExampWidget, {
      *     chooser: the Chooser instance,
      *     value: the new value, which is `null` if Chooser currently has _no_ value.
      *   }
-     *
      */
     observeChooserChange: async function(event) {
         const paneId = event.chooser.pane.id;
-
-        const activation = this.activationByPaneId.get(paneId);
-        await activation;
-
-        this.clearErrorMessage(paneId); // (presumed innocence)
-
-
         const newValue = event.value;
-
-        // Sort all descendants in topological order.
-        const desc = Array.from(this.descendants.values());
-        desc.sort((a, b) => {
-            if (a.hasDescendant(b)) {
-                return -1;
-            } else if (b.hasDescendant(a)) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
-        // Prepend self to list, so that we have the list of all widgets
-        // that we want to rebuild, and in the right order.
-        desc.unshift(this);
-
         // This parameter, whose value has just changed, does need to be rebuilt,
         // in case the new value was free input from the user (i.e. not just clicking
         // a button and choosing from among preset alternatives), in order to check
         // for any errors in the raw value. But we do not need to recompute this
         // parameter's chooser HTML.
-        const rebuildRequests = [{
-            widget: this, newValue: newValue, writeHtml: false,
-        }];
-        // For all proper descendants, we need to rebuild without any new raw value.
-        // We also recompute HTML.
-        for (let w of desc.slice(1)) {
-            rebuildRequests.push({
-                widget: w,
-                newValue: null,
-                writeHtml: true,
-            });
-        }
-
-        this.rebuildSequence(paneId, rebuildRequests);
-
-        this.dispatch({
-            type: "widgetVisualUpdate",
-            paneId: paneId,
-            widget: this,
-        });
+        const writeHtml = false;
+        return this.receiveNewValue(paneId, newValue, writeHtml);
     },
 
     grayOut: function(paneId, makeGray) {
