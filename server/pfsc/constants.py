@@ -97,6 +97,10 @@ MOVE_MAPPING_NAME = "moved"
 # LHS for version number declaration.
 VERSION_NUMBER_LHS = "version"
 
+# Special comments for display widgets:
+DISP_WIDGET_BEGIN_EDIT = "# BEGIN EDIT"
+DISP_WIDGET_END_EDIT = "# END EDIT"
+
 # Prefix character for LaTeX math modes to indicate that VerTeX should be used
 VERTEX_KEY_CHAR = "@"
 # Max length for a libpath:
