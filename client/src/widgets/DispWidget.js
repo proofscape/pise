@@ -58,7 +58,6 @@ const DispWidget = declare(ExampWidget, {
 
     setNewHtml: function(pane, html) {
         this.makeNewGraphics(pane, html);
-        this.liveInfo.display_html = html;
     },
 
     makeNewGraphics: function(pane, html) {

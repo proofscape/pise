@@ -53,7 +53,6 @@ const ParamWidget = declare(ExampWidget, {
     setNewHtml: function(pane, html) {
         this.clearErrorMessage(pane.id);
         this.makeNewGraphics(pane, html);
-        this.liveInfo.chooser_html = html;
     },
 
     /* Make a new Chooser for a given pane where this widget appears.
@@ -105,8 +104,6 @@ const ParamWidget = declare(ExampWidget, {
 
         this.clearErrorMessage(paneId); // (presumed innocence)
 
-        const contentElement = this.contentElementByPaneId.get(paneId);
-        this.liveInfo.chooser_html = contentElement.innerHTML;
 
         const newValue = event.value;
 
