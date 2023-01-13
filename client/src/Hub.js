@@ -1133,6 +1133,8 @@ var Hub = declare(null, {
      * dismissCode: if defined, should be a unique string representing this particular choice.
      *   In that case, a checkbox will be displayed. If checked by the user, the dismissal will
      *   be recorded in localStorage. Subsequent calls to open this same choice dialog will not show it.
+     *   A prefix of 'pfsc:dismiss:' will automatically be prepended before writing to localStorage, so
+     *   you do not need to supply any such prefix.
      * dismissMessage: text to go beside the dismissal checkbox. Defaults to "Do not show this again."
      * mustShow: set true to ensure a dialog is shown, no matter what dismissal settings may have
      *   been made in local storage.
