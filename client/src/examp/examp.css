@@ -375,6 +375,21 @@ body.pyodideLoaded .pyodideLoading {
     background-color: #444;
 }
 
+.dispWidgetEditorResizeOverlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: black;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.themeDark .dispWidgetEditorResizeOverlay {
+    background-color: white;
+}
+
 .dispWidgetEditorResizeHandle {
     background: url('../img/icons/lrc_handle_16.png') center no-repeat;
     position: absolute;
