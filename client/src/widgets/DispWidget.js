@@ -71,26 +71,70 @@ const DispWidget = declare(ExampWidget, {
                     fixedCode.push(code);
                 } else {
                     const editorDiv = document.createElement('div');
-                    editorDiv.classList.add('dispWidgetEditor')
-
-                    //const editorSocket = document.createElement('div');
-                    //editorSocket.classList.add('dispWidgetEditorSocket')
-
-                    //editorSocket.appendChild(editorDiv);
-                    //editorsElement.appendChild(editorSocket);
-                    editorsElement.appendChild(editorDiv);
-
                     const numLines = code.split('\n').length;
                     editorDiv.style.height = `${numLines + 2}em`;
 
+                    const {editorPanel, buildButton, resetButton} = this.makeEditorPanel(editorDiv);
+                    editorsElement.appendChild(editorPanel);
+
                     const editor = this.makeEditor(pane, editorDiv, code);
                     editors.push(editor);
+
+                    buildButton.addEventListener('click', event => {
+                        this.buildWithLatestCode(pane.id);
+                    });
+
+                    resetButton.addEventListener('click', event => {
+                        if (editor.getValue() === code) {
+                            return;
+                        }
+                        this.hub.choice({
+                            title: 'Confirm Reset',
+                            content: `<div class="iseDialogContentsStyle02 iseDialogContentsStyle04">
+                                      <h2>Reset to original code?</h2>
+                                      <div class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(code)}</div>
+                                      </div>`,
+                            dismissCode: 'resetDisplayWidgetEditor',
+                        }).then(result => {
+                            if (result.accepted || !result.shown) {
+                                editor.setValue(code);
+                                editor.clearSelection();
+                                this.buildWithLatestCode(pane.id);
+                            }
+                        });
+                    });
                 }
             }
 
             this.fixedCodeByPaneId.set(pane.id, fixedCode);
             this.editorsByPaneId.set(pane.id, editors);
         });
+    },
+
+    makeEditorPanel: function(editorDiv) {
+        editorDiv.classList.add('dispWidgetEditor');
+
+        const editorPanel = document.createElement('div');
+        editorPanel.classList.add('dispWidgetEditorPanel');
+
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.classList.add('dispWidgetEditorButtonPanel');
+
+        const buildButton = document.createElement('div');
+        buildButton.classList.add('dispWidgetEditorButton', 'dispWidgetEditorBuildButton');
+        buildButton.setAttribute('title', 'Build (Ctrl-B)')
+
+        const resetButton = document.createElement('div');
+        resetButton.classList.add('dispWidgetEditorButton', 'dispWidgetEditorResetButton');
+        resetButton.setAttribute('title', 'Reset')
+
+        buttonsDiv.appendChild(buildButton);
+        buttonsDiv.appendChild(resetButton);
+
+        editorPanel.appendChild(editorDiv);
+        editorPanel.appendChild(buttonsDiv);
+
+        return {editorPanel, buildButton, resetButton};
     },
 
     makeEditor: function(pane, homeDiv, code) {
