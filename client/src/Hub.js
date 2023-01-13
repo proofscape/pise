@@ -881,6 +881,7 @@ var Hub = declare(null, {
         // Other managers
         this.editManager.setTheme(theme);
         this.pdfManager.setTheme(theme);
+        this.notesManager.setTheme(theme);
         // Store the new theme value.
         this.currentTheme = theme;
     },

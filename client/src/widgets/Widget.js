@@ -103,6 +103,10 @@ var Widget = declare(null, {
         // Subclasses may wish to override.
     },
 
+    setTheme: function(theme) {
+        // Subclasses may wish to override.
+    },
+
     noteNewMathWorker: function() {
         // Subclasses may wish to override.
     },

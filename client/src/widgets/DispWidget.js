@@ -124,6 +124,19 @@ const DispWidget = declare(ExampWidget, {
         return editor;
     },
 
+    /*
+    * Set the theme in all the editors.
+    * param theme: `light` or `dark`
+    */
+    setTheme: function(theme) {
+        const atp = iseUtil.getAceThemePath(theme);
+        for (const edArray of this.editorsByPaneId.values()) {
+            for (const ed of edArray) {
+                ed.setTheme(atp);
+            }
+        }
+    },
+
     buildWithLatestCode: function(paneId) {
         const newValue = this.val(paneId);
         return this.receiveNewValue(paneId, newValue, true);
