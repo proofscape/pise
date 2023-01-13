@@ -722,6 +722,73 @@ util.loadScript = function(url) {
     });
 };
 
+// Check if an object is a string.
+util.isString = function(obj) {
+    return typeof obj === 'string' || obj instanceof String;
+};
+
+// Escape a string
+util.escapeHtml = function(s){
+    return new Option(s).innerHTML;
+}
+
+// ---------------------------------------------------------------------------
+// Utilities for Ace editors
+
+// Translate a PISE theme name into an Ace theme path.
+util.getAceThemePath = function(theme) {
+    const aceThemeName = theme === 'light' ? 'tomorrow' : 'tomorrow_night_eighties';
+    return 'ace/theme/' + aceThemeName;
+};
+
+util.applyAceEditorFixes = function(editor) {
+    /*
+    * We make this setting in response to a console message we otherwise receive:
+    *   Automatically scrolling cursor into view after selection change
+    *   this will be disabled in the next version
+    *   set editor.$blockScrolling = Infinity to disable this message
+    */
+    editor.$blockScrolling = Infinity;
+};
+
+util.reclaimAceShortcutsForPise = function(editor) {
+    // Let ctrl-L go to the address bar
+    editor.commands.removeCommand('gotoline');
+    // We use Ctrl-] and Ctrl-[ to move right and left through the tabs in the active
+    // tab group. So we take these away from their default assignments in Ace:
+    editor.commands.removeCommand('blockindent');
+    editor.commands.removeCommand('blockoutdent');
+};
+
+/* The `Editor` and `EditSession` classes in Ace don't seem to offer
+ * a method just for detaching their many event listeners, and
+ * `Editor.destroy()` doesn't do it either.
+ * In particular, the EditSession listens to its Document's "change"
+ * event, while the Editor listens to quite a large number of its
+ * EditSession's events.
+ *
+ * If we don't detach all these listeners, when we close and destroy an
+ * editor, and if the Document in question
+ * is still open in any other editor panes, then we will get a crash the
+ * moment we next try to edit that document, as non-existent listeners
+ * are called.
+ *
+ * There _is_ code in the Ace codebase to cleanly detach all the listeners
+ * in question, but (as far as I have been able to find) it is only in
+ * the methods that set a new EditSession in the Editor, or set a new Document
+ * in the EditSession.
+ *
+ * Therefore our solution is to make a new, empty session and document, and
+ * set them in the editor and session (resp.) for the pane that is closing.
+ */
+util.detachListeners = function(editor, ace) {
+    const emptySesh = ace.createEditSession('');
+    const emptyDoc = emptySesh.getDocument();
+    const sesh = editor.getSession();
+    sesh.setDocument(emptyDoc);
+    editor.setSession(emptySesh);
+};
+
 // ---------------------------------------------------------------------------
 
 return util;

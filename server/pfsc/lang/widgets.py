@@ -1037,6 +1037,7 @@ class DispWidget(ExampWidget):
 
     def writeHTML(self, label=None):
         html = f'<div class="widget exampWidget dispWidget {self.writeUID()}">\n'
+        html += '<div class="dispWidgetEditors"></div>\n'
         html += '<div class="exampWidgetErrMsg"></div>\n'
         #html += '<div class="reload">\n'
         #html += '<img src="static/img/icons/reload.png"/>\n'

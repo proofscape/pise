@@ -14,6 +14,12 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+const ace = require("ace-builds/src-noconflict/ace.js");
+require("ace-builds/src-noconflict/mode-python.js");
+require("ace-builds/src-noconflict/theme-tomorrow.js");
+require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
+require("ace-builds/src-noconflict/ext-searchbox.js");
+
 define([
     "dojo/_base/declare",
     "ise/widgets/ExampWidget",
@@ -26,16 +32,119 @@ define([
 
 const DispWidget = declare(ExampWidget, {
 
-    codeByPaneId: null,
+    // paneId points to Array of strings:
+    fixedCodeByPaneId: null,
+    // paneId points to Array of Ace editor instances:
+    editorsByPaneId: null,
+    // paneId points to element where editors go (if any):
+    editorsElementByPaneId: null,
+
     contentElementSelector: '.display_container',
 
     constructor: function(hub, libpath, info) {
-        this.codeByPaneId = new Map();
+        this.fixedCodeByPaneId = new Map();
+        this.editorsByPaneId = new Map();
+        this.editorsElementByPaneId = new Map();
+    },
+
+    activate: function(wdq, uid, nm, pane) {
+        this.inherited(arguments);
+        const activation = this.activationByPaneId.get(pane.id);
+        activation.then(() => {
+            const widgetElement = this.widgetElementByPaneId.get(pane.id);
+            const editorsElement = widgetElement.querySelector('.dispWidgetEditors');
+            this.editorsElementByPaneId.set(pane.id, editorsElement);
+
+            // Grab the build code, and make sure it is an array of strings.
+            let buildCode = this.origInfo.build;
+            if (iseUtil.isString(buildCode)) {
+                buildCode = [buildCode];
+            }
+
+            // Even-indexed code strings are fixed; odd-indexed are editable.
+            const fixedCode = [];
+            const editors = [];
+
+            for (let i = 0; i < buildCode.length; i++) {
+                const code = buildCode[i];
+                if (i % 2 === 0) {
+                    fixedCode.push(code);
+                } else {
+                    const editorDiv = document.createElement('div');
+                    editorDiv.classList.add('dispWidgetEditor')
+
+                    //const editorSocket = document.createElement('div');
+                    //editorSocket.classList.add('dispWidgetEditorSocket')
+
+                    //editorSocket.appendChild(editorDiv);
+                    //editorsElement.appendChild(editorSocket);
+                    editorsElement.appendChild(editorDiv);
+
+                    const numLines = code.split('\n').length;
+                    editorDiv.style.height = `${numLines + 2}em`;
+
+                    const editor = this.makeEditor(pane, editorDiv, code);
+                    editors.push(editor);
+                }
+            }
+
+            this.fixedCodeByPaneId.set(pane.id, fixedCode);
+            this.editorsByPaneId.set(pane.id, editors);
+        });
+    },
+
+    makeEditor: function(pane, homeDiv, code) {
+        const editor = ace.edit(homeDiv);
+        const atp = iseUtil.getAceThemePath(this.hub.currentTheme);
+        editor.setTheme(atp);
+        editor.setOption('scrollPastEnd', 0.5);
+        editor.setFontSize(this.hub.getCurrentEditorFontSize());
+        iseUtil.applyAceEditorFixes(editor);
+        iseUtil.reclaimAceShortcutsForPise(editor);
+
+        const sesh = editor.getSession();
+        sesh.setMode("ace/mode/python");
+        sesh.setTabSize(4);
+        sesh.setUseSoftTabs(true);
+
+        editor.setValue(code);
+        editor.clearSelection();
+
+        const theDispWidget = this;
+        editor.commands.addCommand({
+            name: "Build",
+            bindKey: {mac: "Ctrl-B"},
+            exec: function (editor) {
+                theDispWidget.buildWithLatestCode(pane.id);
+            }
+        });
+
+        editor.resize(false);
+
+        return editor;
+    },
+
+    buildWithLatestCode: function(paneId) {
+        const newValue = this.val(paneId);
+        return this.receiveNewValue(paneId, newValue, true);
     },
 
     val: function(paneId) {
-        const code = this.codeByPaneId.get(paneId);
-        return code || null;
+        const fixedCode = this.fixedCodeByPaneId.get(paneId);
+        const editors = this.editorsByPaneId.get(paneId);
+
+        if (!fixedCode) {
+            return null;
+        }
+
+        const n = editors.length;
+        let code = ''
+        for (let i = 0; i < n; i++) {
+            code += fixedCode[i] + editors[i].getValue();
+        }
+        // fixedCode array should always be one longer than editors array
+        code += fixedCode[n];
+        return code;
     },
 
     okayToBuild: function() {
@@ -53,7 +162,16 @@ const DispWidget = declare(ExampWidget, {
     },
 
     writeSubstituteHtml: function() {
-        return `<pre>${this.liveInfo.build}</pre>`;
+        let buildCode = this.liveInfo.build;
+        if (!iseUtil.isString(buildCode)) {
+            let code = buildCode[0];
+            for (let i = 1; i < buildCode.length; i++) {
+                code += `# ${i%2===1 ? "BEGIN" : "END"} EDIT\n` + buildCode[i];
+            }
+            buildCode = code;
+        }
+        buildCode = iseUtil.escapeHtml(buildCode);
+        return `<pre>${buildCode}</pre>`;
     },
 
     setNewHtml: function(pane, html) {
@@ -71,19 +189,21 @@ const DispWidget = declare(ExampWidget, {
                 widget: this,
             });
         });
-
-        let code = '';
-        const codeElement = contentElement.querySelector('.displayCode');
-        // If the display was not trusted, there will be node code element.
-        if (codeElement) {
-            code = codeElement.innerText;
-        }
-        this.codeByPaneId.set(pane.id, code);
     },
 
     noteClosingPane: function(pane) {
         this.inherited(arguments);
-        this.codeByPaneId.delete(pane.id);
+        const paneId = pane.id;
+
+        const editors = this.editorsByPaneId.get(paneId);
+        for (let ed of editors) {
+            iseUtil.detachListeners(ed, ace);
+            ed.destroy();
+        }
+
+        this.fixedCodeByPaneId.delete(paneId);
+        this.editorsByPaneId.delete(paneId);
+        this.editorsElementByPaneId.delete(paneId);
     },
 
 });

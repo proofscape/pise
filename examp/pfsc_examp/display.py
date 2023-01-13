@@ -185,6 +185,5 @@ class ExampDisplay:
 
         self._html = (
             f'<div class="display">\n{html}\n</div>\n'
-            f'<code class="displayCode">{code}</code>\n'
         )
         self._exports = exports

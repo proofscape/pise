@@ -326,8 +326,8 @@ var EditManager = declare(null, {
             // (Could do this just in the case below, where this is the _last_ editor
             //  for this module, but -- better safe than sorry.)
             this.saveByModpath(modpath);
-            this.detachListeners(ed);
-            this.detachListeners(oed);
+            iseUtil.detachListeners(ed, ace);
+            iseUtil.detachListeners(oed, ace);
             delete this.modpaths[paneId];
             delete this.edsByModpath[modpath][paneId];
             this.numEdsPerModpath[modpath] -= 1;
@@ -348,35 +348,6 @@ var EditManager = declare(null, {
         delete this.initialInfos[paneId];
         ed.destroy();
         oed.destroy();
-    },
-
-    /* The `Editor` and `EditSession` classes in Ace don't seem to offer
-     * a method just for detaching their many event listeners, and
-     * `Editor.destroy()` doesn't do it either.
-     * In particular, the EditSession listens to its Document's "change"
-     * event, while the Editor listens to quite a large number of its
-     * EditSession's events.
-     *
-     * If we don't detach all these listeners, when we close and destroy an
-     * editor, and if the Document in question
-     * is still open in any other editor panes, then we will get a crash the
-     * moment we next try to edit that document, as non-existent listeners
-     * are called.
-     *
-     * There _is_ code in the Ace codebase to cleanly detach all the listeners
-     * in question, but (as far as I have been able to find) it is only in
-     * the methods that set a new EditSession in the Editor, or set a new Document
-     * in the EditSession.
-     *
-     * Therefore our solution is to make a new, empty session and document, and
-     * set them in the editor and session (resp.) for the pane that is closing.
-     */
-    detachListeners: function(editor) {
-        const emptySesh = ace.createEditSession('');
-        const emptyDoc = emptySesh.getDocument();
-        const sesh = editor.getSession();
-        sesh.setDocument(emptyDoc);
-        editor.setSession(emptySesh);
     },
 
     /*
@@ -497,20 +468,11 @@ var EditManager = declare(null, {
     },
 
     /*
-    * Map the themes `light` and `dark` to Ace theme paths.
-    */
-    getAceThemePath: function(theme) {
-        var aceThemeName = theme === 'light' ? 'tomorrow' : 'tomorrow_night_eighties',
-            aceThemePath = 'ace/theme/' + aceThemeName;
-        return aceThemePath;
-    },
-
-    /*
     * Set the theme in all the editors.
     * param theme: `light` or `dark`
     */
     setTheme: function(theme) {
-        var atp = this.getAceThemePath(theme);
+        var atp = iseUtil.getAceThemePath(theme);
         for (var k in this.editors) {
             var editor = this.editors[k];
             editor.setTheme(atp);
@@ -1188,7 +1150,7 @@ var EditManager = declare(null, {
         // Save a reference to it under the pane id.
         this.editors[paneId] = editor;
         // Set theme.
-        const atp = this.getAceThemePath(this.hub.currentTheme);
+        const atp = iseUtil.getAceThemePath(this.hub.currentTheme);
         editor.setTheme(atp);
         this.makeEditorReadOnly(paneId, readonly, false);
         editor.setOption('scrollPastEnd', 0.5);
@@ -1206,19 +1168,8 @@ var EditManager = declare(null, {
         });
         this.addOverviewContextMenu(overviewEditor, paneId);
 
-        /*
-        * We make this setting in response to a console message we otherwise receive:
-        *   Automatically scrolling cursor into view after selection change
-        *   this will be disabled in the next version
-        *   set editor.$blockScrolling = Infinity to disable this message
-        */
-        editor.$blockScrolling = Infinity;
-        // Let ctrl-L go to the address bar
-        editor.commands.removeCommand('gotoline');
-        // We use Ctrl-] and Ctrl-[ to move right and left through the tabs in the active
-        // tab group. So we take these away from their default assignments in Ace:
-        editor.commands.removeCommand('blockindent');
-        editor.commands.removeCommand('blockoutdent');
+        iseUtil.applyAceEditorFixes(editor);
+        iseUtil.reclaimAceShortcutsForPise(editor);
         return editor;
     },
 
