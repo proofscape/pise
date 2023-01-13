@@ -39,6 +39,7 @@ const DispWidget = declare(ExampWidget, {
     // paneId points to element where editors go (if any):
     editorsElementByPaneId: null,
 
+    editorMinHeightPixels: 50,
     contentElementSelector: '.display_container',
 
     constructor: function(hub, libpath, info) {
@@ -74,7 +75,7 @@ const DispWidget = declare(ExampWidget, {
                     const numLines = code.split('\n').length;
                     editorDiv.style.height = `${numLines + 2}em`;
 
-                    const {editorPanel, buildButton, resetButton} = this.makeEditorPanel(editorDiv);
+                    const {editorPanel, buildButton, resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
                     editorsElement.appendChild(editorPanel);
 
                     const editor = this.makeEditor(pane, editorDiv, code);
@@ -103,6 +104,37 @@ const DispWidget = declare(ExampWidget, {
                             }
                         });
                     });
+
+                    resizeHandle.addEventListener('mousedown', event => {
+                        const ay = event.clientY;
+                        const h0 = editorDiv.clientHeight;
+                        // If the bottom of the notes panel happens to be visible while you shrink the editor,
+                        // there is a subtle effect, wherein the scrollTop of the panel will adjust, essentially
+                        // bringing into view content that lies up above the editor being resized. This
+                        // causes separation between the mouse pointer and the resize handle, unless we
+                        // adjust for it, hence the ds term below.
+                        const scrollElt = pane.domNode.querySelector('.mainview');
+                        const s0 = scrollElt.scrollTop;
+                        const moveHandler = mEvent => {
+                            const ey = mEvent.clientY;
+                            const dy = ey - ay;
+                            const s1 = scrollElt.scrollTop;
+                            const ds = s1 - s0;
+                            const h1 = Math.max(this.editorMinHeightPixels, h0 + dy + ds);
+                            editorDiv.style.height = h1+'px';
+                            editor.resize(false);
+                            mEvent.stopPropagation();
+                        }
+                        const upHandler = uEvent => {
+                            document.documentElement.removeEventListener('mousemove', moveHandler);
+                            document.documentElement.removeEventListener('mouseup', upHandler);
+                            editor.resize(false);
+                            uEvent.stopPropagation();
+                        }
+                        document.documentElement.addEventListener('mousemove', moveHandler);
+                        document.documentElement.addEventListener('mouseup', upHandler);
+                        event.stopPropagation();
+                    });
                 }
             }
 
@@ -128,13 +160,17 @@ const DispWidget = declare(ExampWidget, {
         resetButton.classList.add('dispWidgetEditorButton', 'dispWidgetEditorResetButton');
         resetButton.setAttribute('title', 'Reset')
 
+        const resizeHandle = document.createElement('div');
+        resizeHandle.classList.add('dispWidgetEditorResizeHandle');
+
         buttonsDiv.appendChild(buildButton);
         buttonsDiv.appendChild(resetButton);
 
         editorPanel.appendChild(editorDiv);
         editorPanel.appendChild(buttonsDiv);
+        editorPanel.appendChild(resizeHandle);
 
-        return {editorPanel, buildButton, resetButton};
+        return {editorPanel, buildButton, resetButton, resizeHandle};
     },
 
     makeEditor: function(pane, homeDiv, code) {

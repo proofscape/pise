@@ -325,7 +325,7 @@ body.pyodideLoaded .pyodideLoading {
     display: none;
     position: absolute;
     top: 2px;
-    right: 2px;
+    right: 20px;
     background-color: #ccc;
     border-radius: 8px;
     padding: 6px;
@@ -373,4 +373,20 @@ body.pyodideLoaded .pyodideLoading {
 
 .themeDark .dispWidgetCodeResetPreview {
     background-color: #444;
+}
+
+.dispWidgetEditorResizeHandle {
+    background: url('../img/icons/lrc_handle_16.png') center no-repeat;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    height: 16px;
+    width: 16px;
+    cursor: ns-resize;
+    filter: brightness(1.5);
+    z-index: 10;
+}
+
+.themeDark .dispWidgetEditorResizeHandle {
+    filter: none;
 }
