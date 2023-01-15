@@ -62,24 +62,42 @@ def test_reject_str_args(code):
 
 @pytest.mark.parametrize('code', [
     'range(3)',
+    'max(3, S(4), 5.12)',
+    'min(3, S(4), 5.12)',
     'range(S(3))',
+    'binomial(3, 2)',
     'S(3)',
     'S(1)/2',
     'S(3.14)',
     'latex(S(3))',
-    'Matrix([[1, 2], [3, 4]])',
+    # latex() on a Matrix (which is not an Expr)
+    'latex(Matrix([[1, 2], [3, 4]]))',
     'mod_inverse(2, 7)',
     'x = Symbol("x"); Poly(x**2 - 2, x, modulus=7)',
     'Symbol("theta")',
     'Symbol("theta2")',
     'symbols("x, y0, z12")',
+    # Construct cyclotomic field on an Integer (instead of int)
+    'QQ.cyclotomic_field(S(7))',
     'k = QQ.cyclotomic_field(7); B = k.integral_basis()',
     'k = QQ.cyclotomic_field(7); P = k.primes_above(11); a = 4*P[0].ZK.parent(3); P[0].reduce_element(a)',
     'k = QQ.cyclotomic_field(7); P = k.primes_above(11); a = k([1, 2, 3]); P[0].reduce_ANP(a)',
     'k = QQ.cyclotomic_field(7); P = k.primes_above(11); a = k.to_alg_num(k([1, 2, 3])); P[0].reduce_alg_num(a)',
     'k = QQ.cyclotomic_field(7); a = k.to_sympy(k.new([1, 2, 3]))',
     'k = QQ.cyclotomic_field(7); a = k.to_sympy(k([1, 2, 3]))',
+    # EvalfMixin.evalf
+    'zeta = QQ.cyclotomic_field(3).ext; zeta.n(5)',
+    # Expr.expand
+    'x = Symbol("x"); ((x + 3)*(x - 5)).expand()',
+    # Expr.subs(Expr, Expr)
+    'x, y = symbols("x, y"); ((x + 3)*(x - 5)).subs(x, y)',
+    # Expr.subs(Iterable)
+    'x, y = symbols("x, y"); (x*y + 7).subs([(x, 1), (y, 2)], simultaneous=True)',
+    # Matrix.flat()
     'Matrix([[1, 2], [3, 4]]).flat()',
+    # Matrix.transpose()
+    'Matrix([[1, 2], [3, 4]]).transpose()',
+    # Poly.as_expr()
     'x = Symbol("x"); Poly(x**2 - 2).as_expr()',
 ])
 def test_allow_call(code):
