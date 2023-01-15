@@ -294,9 +294,11 @@ const DispWidget = declare(ExampWidget, {
         const paneId = pane.id;
 
         const editors = this.editorsByPaneId.get(paneId);
-        for (let ed of editors) {
-            iseUtil.detachListeners(ed, ace);
-            ed.destroy();
+        if (editors) {
+            for (let ed of editors) {
+                iseUtil.detachListeners(ed, ace);
+                ed.destroy();
+            }
         }
 
         this.fixedCodeByPaneId.delete(paneId);
