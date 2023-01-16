@@ -321,6 +321,20 @@ const DispWidget = declare(ExampWidget, {
         }
     },
 
+    noteCopy: async function(oldPaneId, newPaneId) {
+        await this.noteCopyInternal(oldPaneId, newPaneId);
+        if (!this.existsInPane(oldPaneId)) {
+            return;
+        }
+        const newEditors = this.editorsByPaneId.get(newPaneId);
+        const oldEditors = this.editorsByPaneId.get(oldPaneId);
+        for (let i = 0; i < newEditors.length; i++) {
+            const newEd = newEditors[i];
+            newEd.setValue(oldEditors[i].getValue());
+            newEd.clearSelection();
+        }
+    },
+
     noteClosingPane: function(pane) {
         this.inherited(arguments);
         const paneId = pane.id;

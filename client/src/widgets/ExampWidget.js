@@ -413,6 +413,14 @@ const ExampWidget = declare(Widget, {
     },
 
     noteCopy: async function(oldPaneId, newPaneId) {
+        await this.noteCopyInternal(oldPaneId, newPaneId);
+    },
+
+    /* Have to structure it this way since Dojo's `this.inherited()` doesn't seem to
+     * work with async functions, and DispWidget wants to override the `noteCopy()`
+     * method.
+     */
+    noteCopyInternal: async function(oldPaneId, newPaneId) {
         // If we don't exist in the pane that's being copied, then this doesn't concern us.
         if (!this.existsInPane(oldPaneId)) {
             return;
