@@ -75,72 +75,79 @@ const DispWidget = declare(ExampWidget, {
                     const numLines = code.split('\n').length;
                     editorDiv.style.height = `${numLines + 2}em`;
 
-                    const {editorPanel, buildButton, resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
+                    const {editorPanel, buildButton,
+                        resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
                     editorsElement.appendChild(editorPanel);
 
                     const editor = this.makeEditor(pane, editorDiv, code);
                     editors.push(editor);
 
-                    buildButton.addEventListener('click', event => {
-                        this.buildWithLatestCode(pane.id);
-                    });
-
-                    resetButton.addEventListener('click', event => {
-                        if (editor.getValue() === code) {
-                            return;
-                        }
-                        this.hub.choice({
-                            title: 'Confirm Reset',
-                            content: `<div class="iseDialogContentsStyle02 iseDialogContentsStyle04">
-                                      <h2>Reset to original code?</h2>
-                                      <div class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(code)}</div>
-                                      </div>`,
-                            dismissCode: 'resetDisplayWidgetEditor',
-                        }).then(result => {
-                            if (result.accepted || !result.shown) {
-                                editor.setValue(code);
-                                editor.clearSelection();
-                                this.buildWithLatestCode(pane.id);
-                            }
-                        });
-                    });
-
-                    resizeHandle.addEventListener('mousedown', event => {
-                        const ay = event.clientY;
-                        const h0 = editorDiv.clientHeight;
-                        const min_dy = Math.min(0, this.editorMinHeightPixels - h0);
-                        const resizeOverlay = editorPanel.querySelector('.dispWidgetEditorResizeOverlay');
-                        const resizeHandle = editorPanel.querySelector('.dispWidgetEditorResizeHandle');
-                        resizeOverlay.style.opacity = 0.2;
-                        let dy = 0;
-                        const moveHandler = mEvent => {
-                            const ey = mEvent.clientY;
-                            dy = ey - ay;
-                            dy = Math.max(min_dy, dy);
-                            resizeOverlay.style.bottom = (-dy)+'px';
-                            resizeHandle.style.bottom = (-dy)+'px';
-                            mEvent.stopPropagation();
-                        }
-                        const upHandler = uEvent => {
-                            document.documentElement.removeEventListener('mousemove', moveHandler);
-                            document.documentElement.removeEventListener('mouseup', upHandler);
-                            const h1 = Math.max(this.editorMinHeightPixels, h0 + dy);
-                            editorDiv.style.height = h1+'px';
-                            resizeOverlay.style.opacity = 0;
-                            resizeOverlay.style.bottom = 0;
-                            resizeHandle.style.bottom = 0;
-                            editor.resize(false);
-                            uEvent.stopPropagation();
-                        }
-                        document.documentElement.addEventListener('mousemove', moveHandler);
-                        document.documentElement.addEventListener('mouseup', upHandler);
-                        event.stopPropagation();
-                    });
+                    this.activateEditorPanel(pane, code, editor, editorDiv, editorPanel,
+                        buildButton, resetButton, resizeHandle);
                 }
             }
 
             this.fixedCodeByPaneId.set(pane.id, fixedCode);
             this.editorsByPaneId.set(pane.id, editors);
+        });
+    },
+
+    activateEditorPanel: function(pane, code, editor, editorDiv, editorPanel,
+                                  buildButton, resetButton, resizeHandle) {
+        buildButton.addEventListener('click', event => {
+            this.buildWithLatestCode(pane.id);
+        });
+
+        resetButton.addEventListener('click', event => {
+            if (editor.getValue() === code) {
+                return;
+            }
+            this.hub.choice({
+                title: 'Confirm Reset',
+                content: `<div class="iseDialogContentsStyle02 iseDialogContentsStyle04">
+                          <h2>Reset to original code?</h2>
+                          <div class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(code)}</div>
+                          </div>`,
+                dismissCode: 'resetDisplayWidgetEditor',
+            }).then(result => {
+                if (result.accepted || !result.shown) {
+                    editor.setValue(code);
+                    editor.clearSelection();
+                    this.buildWithLatestCode(pane.id);
+                }
+            });
+        });
+
+        resizeHandle.addEventListener('mousedown', dEvent => {
+            const ay = dEvent.clientY;
+            const h0 = editorDiv.clientHeight;
+            const min_dy = Math.min(0, this.editorMinHeightPixels - h0);
+            const resizeOverlay = editorPanel.querySelector('.dispWidgetEditorResizeOverlay');
+            const resizeHandle = editorPanel.querySelector('.dispWidgetEditorResizeHandle');
+            resizeOverlay.style.opacity = 0.2;
+            let dy = 0;
+            const moveHandler = mEvent => {
+                const ey = mEvent.clientY;
+                dy = ey - ay;
+                dy = Math.max(min_dy, dy);
+                resizeOverlay.style.bottom = (-dy)+'px';
+                resizeHandle.style.bottom = (-dy)+'px';
+                mEvent.stopPropagation();
+            }
+            const upHandler = uEvent => {
+                document.documentElement.removeEventListener('mousemove', moveHandler);
+                document.documentElement.removeEventListener('mouseup', upHandler);
+                const h1 = Math.max(this.editorMinHeightPixels, h0 + dy);
+                editorDiv.style.height = h1+'px';
+                resizeOverlay.style.opacity = 0;
+                resizeOverlay.style.bottom = 0;
+                resizeHandle.style.bottom = 0;
+                editor.resize(false);
+                uEvent.stopPropagation();
+            }
+            document.documentElement.addEventListener('mousemove', moveHandler);
+            document.documentElement.addEventListener('mouseup', upHandler);
+            dEvent.stopPropagation();
         });
     },
 
