@@ -99,14 +99,18 @@ const DispWidget = declare(ExampWidget, {
         });
 
         resetButton.addEventListener('click', event => {
-            if (editor.getValue() === code) {
+            const currentValue = editor.getValue();
+            if (currentValue === code) {
                 return;
             }
             this.hub.choice({
                 title: 'Confirm Reset',
                 content: `<div class="iseDialogContentsStyle02 iseDialogContentsStyle04">
                           <h2>Reset to original code?</h2>
-                          <div class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(code)}</div>
+                          <h5>Original:</h5>
+                          <pre class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(code)}</pre>
+                          <h5>Current:</h5>
+                          <pre class="dispWidgetCodeResetPreview">${iseUtil.escapeHtml(currentValue)}</pre>
                           </div>`,
                 dismissCode: 'resetDisplayWidgetEditor',
             }).then(result => {
