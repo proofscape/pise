@@ -29,13 +29,40 @@
 }
 
 .dispWidget {
+}
+
+.dispWidgetInputArea {
+    display: none;
+}
+
+.editableDispWidget .dispWidgetInputArea {
+    display: block;
+    background: #ffd;
+    border: 2px solid #ff8;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding: 0.13em;
+}
+
+.themeDark .dispWidgetInputArea {
+    background-color: #35352b;
+    border-color: #545400;
+}
+
+.dispWidgetOutputArea {
     background: #ddf;
     border: 2px solid #bbf;
     border-radius: 5px;
     padding: 0.13em;
 }
 
-.themeDark .dispWidget {
+.editableDispWidget .dispWidgetOutputArea {
+    border-radius: unset;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.themeDark .dispWidgetOutputArea {
     background-color: #2b2b35;
     border-color: #050590;
 }
@@ -93,13 +120,15 @@
     border-color: #545400;
 }
 
-.widgetHasError.dispWidget,
+.widgetHasError .dispWidgetInputArea,
+.widgetHasError .dispWidgetOutputArea,
 .widgetHasError.paramWidget {
     background-color: #fdd;
     border-color: #f88;
 }
 
-.themeDark .widgetHasError.dispWidget,
+.themeDark .widgetHasError .dispWidgetInputArea,
+.themeDark .widgetHasError .dispWidgetOutputArea,
 .themeDark .widgetHasError.paramWidget {
     background-color: #352b2b;
     border-color: #540000;

@@ -91,6 +91,9 @@ const DispWidget = declare(ExampWidget, {
             this.editorsElementByPaneId.set(pane.id, editorsElement);
 
             const eds = this.editorsByPaneId.get(pane.id);
+            if (eds.length > 0) {
+                widgetElement.classList.add('editableDispWidget');
+            }
             for (const editor of eds) {
                 const editorDiv = editor.container;
                 const code = editor.getValue();
