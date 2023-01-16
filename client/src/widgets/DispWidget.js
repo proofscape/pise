@@ -48,6 +48,40 @@ const DispWidget = declare(ExampWidget, {
         this.editorsElementByPaneId = new Map();
     },
 
+    preactivate: function(wdq, uid, nm, pane) {
+        // In case updating, destroy any existing editors.
+        this.destroyEditors(pane.id);
+
+        // Grab the build code, and make sure it is an array of strings.
+        let buildCode = this.origInfo.build;
+        if (iseUtil.isString(buildCode)) {
+            buildCode = [buildCode];
+        }
+
+        // Even-indexed code strings are fixed; odd-indexed are editable.
+        const fixedCode = [];
+        const editors = [];
+
+        for (let i = 0; i < buildCode.length; i++) {
+            const code = buildCode[i];
+            if (i % 2 === 0) {
+                fixedCode.push(code);
+            } else {
+                const editorDiv = document.createElement('div');
+                const numLines = code.split('\n').length;
+                editorDiv.style.height = `${numLines + 2}em`;
+                const editor = this.makeEditor(pane, editorDiv, code);
+                editors.push(editor);
+            }
+        }
+
+        // We want to set these up in a preactivation step, so that they are ready to
+        // be returned by `this.val()`, when that is called by `ExampWidget.makePyProxyAndBuild()`,
+        // which in turn is triggered by our superclass call of `ExampWidget.activate()`.
+        this.fixedCodeByPaneId.set(pane.id, fixedCode);
+        this.editorsByPaneId.set(pane.id, editors);
+    },
+
     activate: function(wdq, uid, nm, pane) {
         this.inherited(arguments);
         const activation = this.activationByPaneId.get(pane.id);
@@ -56,39 +90,16 @@ const DispWidget = declare(ExampWidget, {
             const editorsElement = widgetElement.querySelector('.dispWidgetEditors');
             this.editorsElementByPaneId.set(pane.id, editorsElement);
 
-            // Grab the build code, and make sure it is an array of strings.
-            let buildCode = this.origInfo.build;
-            if (iseUtil.isString(buildCode)) {
-                buildCode = [buildCode];
+            const eds = this.editorsByPaneId.get(pane.id);
+            for (const editor of eds) {
+                const editorDiv = editor.container;
+                const code = editor.getValue();
+                const {editorPanel, buildButton,
+                    resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
+                editorsElement.appendChild(editorPanel);
+                this.activateEditorPanel(pane, code, editor, editorDiv, editorPanel,
+                    buildButton, resetButton, resizeHandle);
             }
-
-            // Even-indexed code strings are fixed; odd-indexed are editable.
-            const fixedCode = [];
-            const editors = [];
-
-            for (let i = 0; i < buildCode.length; i++) {
-                const code = buildCode[i];
-                if (i % 2 === 0) {
-                    fixedCode.push(code);
-                } else {
-                    const editorDiv = document.createElement('div');
-                    const numLines = code.split('\n').length;
-                    editorDiv.style.height = `${numLines + 2}em`;
-
-                    const {editorPanel, buildButton,
-                        resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
-                    editorsElement.appendChild(editorPanel);
-
-                    const editor = this.makeEditor(pane, editorDiv, code);
-                    editors.push(editor);
-
-                    this.activateEditorPanel(pane, code, editor, editorDiv, editorPanel,
-                        buildButton, resetButton, resizeHandle);
-                }
-            }
-
-            this.fixedCodeByPaneId.set(pane.id, fixedCode);
-            this.editorsByPaneId.set(pane.id, editors);
         });
     },
 
@@ -300,10 +311,7 @@ const DispWidget = declare(ExampWidget, {
         });
     },
 
-    noteClosingPane: function(pane) {
-        this.inherited(arguments);
-        const paneId = pane.id;
-
+    destroyEditors: function(paneId) {
         const editors = this.editorsByPaneId.get(paneId);
         if (editors) {
             for (let ed of editors) {
@@ -311,6 +319,13 @@ const DispWidget = declare(ExampWidget, {
                 ed.destroy();
             }
         }
+    },
+
+    noteClosingPane: function(pane) {
+        this.inherited(arguments);
+        const paneId = pane.id;
+
+        this.destroyEditors(paneId);
 
         this.fixedCodeByPaneId.delete(paneId);
         this.editorsByPaneId.delete(paneId);
