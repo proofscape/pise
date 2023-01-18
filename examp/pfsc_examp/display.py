@@ -38,6 +38,24 @@ def parse_imports(s):
         import := CNAME ("as" CNAME)?
         %skip whitespace
 
+    Thus, imports can be as simple as,
+
+        import: {
+            'f': some_disp
+        }
+
+    importing `f` as 'f' from `some_disp`, or as complex as,
+
+        import: {
+            'f as g, a, b, alpha as zeta': some_disp
+        }
+
+    importing `f` as 'g', `a` as 'a', `b` as 'b', and `alpha` as 'zeta'.
+
+    Note that there is no risk of key collision in such an `import` dictionary,
+    because it does not make sense to import more than one thing under the same
+    local name.
+
     :param s: the import string to be parsed
     :return: list of ordered pairs (exported name, local name)
     """
@@ -74,6 +92,14 @@ class ExampDisplay:
 
     def __init__(self, parent, params, imports, build_code, export_names):
         """
+        Build an `ExampDisplay` instance based on a *built* display widget.
+        In other words, the args passed here are not identical with those a
+        user writes when defining a display in a pfsc module; they are instead
+        as processed by a `pfsc.lang.widgets.DispWidget()` at build time.
+        In particular, while users put all imports together in a single
+        `imports` dictionary, in a built display widget these are separated
+        into params, and imports from other displays.
+
         :param parent: DispWidget
             The widget that is constructing this display.
         :param params: dict
