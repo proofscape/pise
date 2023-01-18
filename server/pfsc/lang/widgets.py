@@ -1002,7 +1002,7 @@ class DispWidget(ExampWidget):
             ):
                 err()
 
-        return [parts[2*k] for k in range(2*m)] + [parts[-1]]
+        return [parts[2*k] for k in range(2*m + 1)]
 
     def enrich_data(self):
         super().enrich_data()
