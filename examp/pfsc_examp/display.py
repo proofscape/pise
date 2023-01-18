@@ -84,13 +84,13 @@ def make_disp(parent, info):
     params = info.get('params', {})
     imports = info.get('imports', {})
     build_code = info['build']
-    export_names = info.get('export', [])
+    export_names = info.get('export', None)
     return ExampDisplay(parent, params, imports, build_code, export_names)
 
 
 class ExampDisplay:
 
-    def __init__(self, parent, params, imports, build_code, export_names):
+    def __init__(self, parent, params, imports, build_code, export_names=None):
         """
         Build an `ExampDisplay` instance based on a *built* display widget.
         In other words, the args passed here are not identical with those a
@@ -113,8 +113,11 @@ class ExampDisplay:
         :param build_code: str or list[str]
             Python code that builds (a) our HTML display, and (b) any values we
             want to export.
-        :param export_names: list[str]
-            Names of vars defined in the build_code, which we want to export.
+        :param export_names: None or list[str]
+            Optional list of names of vars defined in the build_code. If given,
+            then *only* these vars will be exported, i.e. made available for
+            other displays to import. If ``None``, then *all* vars defined in
+            the build_code will be exported.
         """
         self.parent = parent
         self.params = params
@@ -186,6 +189,7 @@ class ExampDisplay:
         existing_values = {**self.param_values, **self.import_values}
 
         html = None
+        exports = {}
         if raw is None and self.last_attempted_raw_value is not None:
             # When attempting to build based on a previously attempted value,
             # we simply fail silently in case of a ControlledEvaluationException.
@@ -212,4 +216,6 @@ class ExampDisplay:
         self._html = (
             f'<div class="display">\n{html}\n</div>\n'
         )
+        if self.export_names is not None:
+            exports = {k: v for k, v in exports.items() if k in self.export_names}
         self._exports = exports
