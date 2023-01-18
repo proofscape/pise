@@ -185,7 +185,7 @@ class ExampDisplay:
         self.import_values = self.obtain_import_values()
         existing_values = {**self.param_values, **self.import_values}
 
-        self._html = None
+        html = None
         if raw is None and self.last_attempted_raw_value is not None:
             # When attempting to build based on a previously attempted value,
             # we simply fail silently in case of a ControlledEvaluationException.
@@ -199,7 +199,7 @@ class ExampDisplay:
                 )
             except ControlledEvaluationException:
                 pass
-        if self._html is None:
+        if html is None:
             # Here we are either attempting to build the value passed by the
             # user, or our default code. In either case, we do NOT catch
             # exceptions, because the user needs to know about any errors.
