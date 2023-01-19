@@ -221,6 +221,9 @@ def test_param_widget_1(app):
 
 @pytest.mark.psm
 def test_param_widget_2(app):
+    """
+    Check widget dependencies
+    """
     with app.app_context():
         ri = RepoInfo('test.comment.notes')
         ri.checkout('v0.1.0')
@@ -251,3 +254,26 @@ def test_param_widget_2(app):
             deps = d["dependencies"]
             actual_dep_set = {(p["libpath"].split("_")[-1], p["direct"]) for p in deps}
             assert actual_dep_set == expected_dep_set
+
+
+@pytest.mark.psm
+def test_disp_widget_1(app):
+    """
+    Check parsing of display widget build code
+    """
+    with app.app_context():
+        ri = RepoInfo('test.comment.notes')
+        ri.checkout('v0.1.0')
+        mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
+        anno = mod['Notes']
+        data = anno.get_anno_data()
+        widget_data = data["widgets"]
+        info = [
+            ("disp1", 3),
+            ('disp2', 1),
+            ('disp3', 1),
+            ('disp4', 5),
+        ]
+        for name, expected_num_sections in info:
+            d = widget_data[f'test-comment-notes-H-ilbert-ZB-Thm17-Notes-eg1_{name}_WIP']
+            assert len(d['build']) == expected_num_sections
