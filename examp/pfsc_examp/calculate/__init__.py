@@ -30,8 +30,15 @@ calculate = simple_calc
 
 """
 If we're running in pfsc-server, then we want to use controlled calculation.
+
+EDIT (230119): For now we're disabling this. Server side math jobs are no
+longer being used, and now the use of RQ in pise/server unit tests has begun
+to cause issues with pickling of certain SymPy types. Probably this old feature
+should just be removed.
+
+TODO: Remove support for server-side math jobs.
 """
-if PFSCSERVER:
+if PFSCSERVER and False:  # Disabled. See note above.
     calculate = from_import('pfsc_examp.calculate.server_calc', 'calculate')
 
 
