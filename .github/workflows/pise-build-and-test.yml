@@ -130,7 +130,7 @@ jobs:
       PISE_OCA_CTX_TAR: ${{ format('{0}/contexts/pise-oca-context.tar.gz', github.workspace) }}
       PISE_OCA_CTX_DIR: ${{ format('{0}/contexts/pise-oca-context', github.workspace) }}
       TEST_DEPLOY_DIR: testing
-      chromedriver-url: https://chromedriver.storage.googleapis.com/107.0.5304.62/chromedriver_linux64.zip
+      chromedriver-url: https://chromedriver.storage.googleapis.com/109.0.5414.74/chromedriver_linux64.zip
       # Ensure static assets are served locally.
       ISE_SERVE_LOCALLY: 1
       ELKJS_SERVE_LOCALLY: 1
