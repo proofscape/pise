@@ -28,6 +28,9 @@ from pfsc_examp.util import adapt
 from pfsc_util.imports import from_import
 
 
+__version__ = "0.23.0b0"
+
+
 def make_examp_generator_obj_from_js(info, pane_id):
     """
     This is the factory function for Parameters and ExampDisplays, which is
