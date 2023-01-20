@@ -3,6 +3,8 @@
 Improvements:
 
 * Improve output of `pfsc.blueprints.cli.auto_deps_build()`.
+* Support editable sections in display widgets
+  ([#13](https://github.com/proofscape/pise/pull/13)).
 
 ## 0.26.1 (221216)
 

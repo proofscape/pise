@@ -92,6 +92,7 @@ define([], function(){
         BAD_PARAMETER_RAW_VALUE_WITH_BLAME: 193,
         MISSING_DASHGRAPH: 229,
         MISSING_ANNOTATION: 230,
+        CONTROLLED_EVALUATION_EXCEPTION: 279,
     };
 
     return errors;

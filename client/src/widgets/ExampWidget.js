@@ -36,20 +36,6 @@ const ExampWidget = declare(Widget, {
     errmsgByPaneId: null,
     activationByPaneId: null,
 
-    // We keep two lookups of ParamWidgets, by UID:
-    // (1) "required" params are all those whose current value is required,
-    // if I am to recompute my own html, or request a validation.
-    // (2) "trigger" params are those such that I do want to recompute
-    // my html, and reset to a default value choice, when their value changes.
-
-    // Example: If I am an ideal prime lying above a rational prime p, then p
-    // is a trigger param, since I need to compute a whole new set of options
-    // when p changes. However, if I am just an integer that is supposed to be
-    // greater than p, then I don't want to reset my current value or compute a
-    // new chooser display when p changes. I might need to display an error message
-    // (if I am now not greater than p), but that is all. In this case, p is a
-    // required param, but not a trigger param.
-
     ancestorParams: null,
     parentParams: null,
     ancestorDisplays: null,
@@ -130,22 +116,6 @@ const ExampWidget = declare(Widget, {
         }
     },
 
-    /* Given an array of examp widgets, say whether this one
-     * depends directly on any of those in the array, i.e. whether
-     * any of those is a parent.
-     */
-    hasParentDependency: function(widgets) {
-        for (let w of widgets) {
-            if (this.parentParams.has(w.uid)) {
-                return true;
-            }
-        }
-        return false;
-    },
-
-    /* We often want to call `val()` on an examp widget, without worrying about whether it's
-     * a param or disp widget, and in such cases we're happy to get `null` for disp widgets.
-     */
     val: function(paneId) {
         return null;
     },
@@ -217,6 +187,12 @@ const ExampWidget = declare(Widget, {
             iseUtil.removeAllChildNodes(err_elt);
             err_elt.innerHTML = msg;
             if (msg.length) {
+
+                // A widget displaying an error should never be grayed out.
+                // It is important the user understand they are enabled to
+                // interact with -- and thus repair -- a widget having an error.
+                this.grayOut(paneId, false);
+
                 widget_elt.classList.add('widgetHasError');
                 iseUtil.typeset([err_elt]);
             } else {
@@ -253,23 +229,6 @@ const ExampWidget = declare(Widget, {
         }
     },
 
-    /* Get an object mapping param libpaths to current values
-     * for all this widget's ancestor params, in a given pane.
-     */
-    lookupAncestorParamValues: function(paneId) {
-        const values = {};
-        for (let param of this.ancestorParams.values()) {
-            values[param.libpath] = param.val(paneId);
-        }
-        return values;
-    },
-
-    takeNextEvalNum: function() {
-        const n = this.currentEvalNumber + 1;
-        this.currentEvalNumber = n;
-        return n;
-    },
-
     okayToBuild: function() {
         return false;
     },
@@ -282,7 +241,7 @@ const ExampWidget = declare(Widget, {
      *
      * param paneId: the id of the pane where we want to build HTML for this widget
      * param options: {
-     *   value: (any) new raw value on which to build (if it's a parameter)
+     *   value: (any) new raw value on which to build
      *   writeHtml: (bool) whether to rewrite the widget's HTML (as opposed to just rebuilding)
      * }
      * return: Promise that resolves with a formatted object (with 'err_lvl' and other fields).
@@ -312,19 +271,18 @@ const ExampWidget = declare(Widget, {
     /* Rebuild a sequence of examp widgets.
      *
      * This method manages all the appropriate visual updates. It manages gray-out, spinners, and
-     * error message displays. It tries to rebuild each widget, in order, stopping if and when any
-     * errors arise, and displaying error messages accordingly.
+     * error message displays. It tries to rebuild each widget, in order. If a widget has an error,
+     * we display an error message. We cancel the rebuild for any of this widget's descendants, but
+     * continue trying to rebuild non-descendants.
      *
      * paneId: the pane where rebuilding should happen
      * requests: array of objects of the form {
      *  widget: the examp widget instance to be rebuilt,
-     *  newValue: if defined and not `null`, a new value for this widget (which must be a ParamWidget),
+     *  newValue: if defined and not `null`, a new value for this widget,
      *  writeHtml: (bool) whether to regenerate this widget's HTML (as opposed to just rebuilding)
      * } It is assumed that this array is in topological order, w.r.t. widget dependencies.
      */
     rebuildSequence: async function(paneId, requests) {
-        //console.log('rebuildSequence', paneId, requests);
-
         for (let req of requests) {
             if (req.writeHtml) {
                 const w = req.widget;
@@ -333,15 +291,35 @@ const ExampWidget = declare(Widget, {
             }
         }
 
+        const widgetsWithErrors = [];
+
         for (let req of requests) {
             const w0 = req.widget;
+
+            // Should we skip this one?
+            let skip = false;
+            for (let errW of widgetsWithErrors) {
+                if (errW.hasDescendant(w0)) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) {
+                continue;
+            }
+
+            // Not skipping. Try to rebuild.
             const response = await w0.rebuild(paneId, {
                 value: req.newValue,
                 writeHtml: req.writeHtml,
             });
+
+            // Handle the result.
             const errLvl = response.err_lvl;
             if (errLvl !== 0) {
-                if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME) {
+                widgetsWithErrors.push(w0);
+                if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME ||
+                    errLvl === iseErrors.serverSideErrorCodes.CONTROLLED_EVALUATION_EXCEPTION) {
                     const uid = response.blame_widget_uid;
                     const w = uid === this.uid ? this : this.descendants.get(uid);
                     // Sometimes the uid is not among our descendants. This happens if C depends on A and B,
@@ -354,8 +332,7 @@ const ExampWidget = declare(Widget, {
                 } else {
                     this.hub.errAlert2(response);
                 }
-                console.log(response);
-                break;
+                console.debug(response);
             } else if (req.writeHtml) {
                 const html = response.html;
                 // `acceptNewHtml()` includes a call to `markErrorFree()`.
@@ -368,6 +345,56 @@ const ExampWidget = declare(Widget, {
         for (let req of requests) {
             req.widget.showLoadingOverlay(paneId, false);
         }
+    },
+
+    /* Make this examp widget receive a new raw value.
+     *
+     * paneId: the pane in which this value is to be received.
+     * newValue: the new value.
+     * writeHtml: boolean, whether to rewrite the html for this widget.
+     *  That of all descendants will be rewritten regardless.
+     */
+    receiveNewValue: async function(paneId, newValue, writeHtml) {
+        const activation = this.activationByPaneId.get(paneId);
+        await activation;
+
+        this.clearErrorMessage(paneId); // (presumed innocence)
+
+        // Sort all descendants in topological order.
+        const desc = Array.from(this.descendants.values());
+        desc.sort((a, b) => {
+            if (a.hasDescendant(b)) {
+                return -1;
+            } else if (b.hasDescendant(a)) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+        // Prepend self to list, so that we have the list of all widgets
+        // that we want to rebuild, and in the right order.
+        desc.unshift(this);
+
+        const rebuildRequests = [{
+            widget: this, newValue: newValue, writeHtml: writeHtml,
+        }];
+        // For all proper descendants, we need to rebuild without any new raw value.
+        // We also recompute HTML.
+        for (let w of desc.slice(1)) {
+            rebuildRequests.push({
+                widget: w,
+                newValue: null,
+                writeHtml: true,
+            });
+        }
+
+        this.rebuildSequence(paneId, rebuildRequests);
+
+        this.dispatch({
+            type: "widgetVisualUpdate",
+            paneId: paneId,
+            widget: this,
+        });
     },
 
     markErrorFree: function(paneId) {
@@ -386,6 +413,14 @@ const ExampWidget = declare(Widget, {
     },
 
     noteCopy: async function(oldPaneId, newPaneId) {
+        await this.noteCopyInternal(oldPaneId, newPaneId);
+    },
+
+    /* Have to structure it this way since Dojo's `this.inherited()` doesn't seem to
+     * work with async functions, and DispWidget wants to override the `noteCopy()`
+     * method.
+     */
+    noteCopyInternal: async function(oldPaneId, newPaneId) {
         // If we don't exist in the pane that's being copied, then this doesn't concern us.
         if (!this.existsInPane(oldPaneId)) {
             return;
@@ -397,7 +432,7 @@ const ExampWidget = declare(Widget, {
         const activation = this.activationByPaneId.get(newPaneId);
         await activation;
         // Now a rebuild after copying the old pane's value will put the new pane in the same
-        // state as the old. (In case of DispWidget, call to `.val()` just returns `null`.)
+        // state as the old.
         await this.rebuildSequence(newPaneId, [{
             widget: this,
             newValue: this.val(oldPaneId),

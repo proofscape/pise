@@ -19,7 +19,10 @@ import re, json
 from flask import escape, Markup
 import jinja2
 
-from pfsc.constants import IndexType
+from pfsc.constants import (
+    IndexType,
+    DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
+)
 from pfsc.lang.freestrings import render_anno_markdown
 from pfsc.build.lib.libpath import (
     expand_multipath,
@@ -883,6 +886,7 @@ class ExampWidget(Widget):
             'libpath': the absolute libpath of an ExampWidget on which this one depends,
             'uid': the UID of that widget,
             'type': the `WidgetType` of that widget
+            'direct': boolean, true iff the dependency is direct (i.e. one edge in dep graph)
         }
         """
         dep_graph = {}
@@ -975,6 +979,31 @@ class DispWidget(ExampWidget):
         make_disp = from_import('pfsc_examp', 'make_disp')
         return make_disp(self, self.writeData())
 
+    @staticmethod
+    def split_build_code(build_code):
+        """
+        Split the build string into alternating fixed and user-editable
+        segments, and validate the "begin"-"end" pairs.
+        """
+        parts = re.split(rf'({DISP_WIDGET_BEGIN_EDIT}|{DISP_WIDGET_END_EDIT})\n', build_code)
+
+        def err():
+            msg = 'Mismatched editable section markers in build code'
+            raise PfscExcep(msg, PECode.MALFORMED_BUILD_CODE)
+
+        n = len(parts)
+        if n % 4 != 1:
+            err()
+        m = (n - 1) // 4
+        for k in range(m):
+            if (
+                parts[4*k + 1] != DISP_WIDGET_BEGIN_EDIT or
+                parts[4*k + 3] != DISP_WIDGET_END_EDIT
+            ):
+                err()
+
+        return [parts[2*k] for k in range(2*m + 1)]
+
     def enrich_data(self):
         super().enrich_data()
 
@@ -1000,15 +1029,21 @@ class DispWidget(ExampWidget):
         if not isinstance(build_code, Markup):
             build_code = Markup(build_code)
         build_code = build_code.unescape()
-        self.data['build'] = build_code
+
+        # Split on "BEGIN EDIT" / "END EDIT" comments
+        parts = self.split_build_code(build_code)
+
+        self.data['build'] = parts
 
     def writeHTML(self, label=None):
         html = f'<div class="widget exampWidget dispWidget {self.writeUID()}">\n'
-        html += '<div class="exampWidgetErrMsg"></div>\n'
-        #html += '<div class="reload">\n'
-        #html += '<img src="static/img/icons/reload.png"/>\n'
-        #html += '</div>\n'
-        html += '<div class="display_container">\n' # <-- display HTML to be set as inner HTML here
+        html += '<div class="dispWidgetInputArea">\n'
+        html += '  <div class="dispWidgetEditors"></div>\n'
+        html += '  <div class="exampWidgetErrMsg"></div>\n'
+        html += '</div>\n'
+        html += '<div class="dispWidgetOutputArea">\n'
+        html += '  <div class="display_container">\n' # <-- display HTML to be set as inner HTML here
+        html += '  </div>\n'
         html += '</div>\n'
         html += (
             '<div class="exampWidgetOverlay">'

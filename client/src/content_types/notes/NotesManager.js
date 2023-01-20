@@ -319,6 +319,12 @@ var NotesManager = declare(null, {
         delete this.viewers[paneId];
     },
 
+    setTheme: function(theme) {
+        for (const w of this.widgets.values()) {
+            w.setTheme(theme);
+        }
+    },
+
     /* Given the libpathv of an annotation, get an array of the UIDs of all
      * widgets currently loaded in memory that belong to that annotation.
      */

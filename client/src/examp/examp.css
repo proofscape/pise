@@ -29,19 +29,50 @@
 }
 
 .dispWidget {
+}
+
+.dispWidgetInputArea {
+    display: none;
+}
+
+.editableDispWidget .dispWidgetInputArea {
+    display: block;
+    background: #ffd;
+    border: 2px solid #ff8;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding: 0.13em;
+}
+
+.themeDark .dispWidgetInputArea {
+    background-color: #35352b;
+    border-color: #545400;
+}
+
+.dispWidgetOutputArea {
     background: #ddf;
     border: 2px solid #bbf;
     border-radius: 5px;
     padding: 0.13em;
 }
 
-.themeDark .dispWidget {
+.editableDispWidget .dispWidgetOutputArea {
+    border-radius: unset;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.themeDark .dispWidgetOutputArea {
     background-color: #2b2b35;
     border-color: #050590;
 }
 
 .display {
     padding: 0.13em 2em;
+}
+
+.displayCode {
+    display: none;
 }
 
 .reload {
@@ -89,11 +120,15 @@
     border-color: #545400;
 }
 
+.widgetHasError .dispWidgetInputArea,
+.widgetHasError .dispWidgetOutputArea,
 .widgetHasError.paramWidget {
     background-color: #fdd;
     border-color: #f88;
 }
 
+.themeDark .widgetHasError .dispWidgetInputArea,
+.themeDark .widgetHasError .dispWidgetOutputArea,
 .themeDark .widgetHasError.paramWidget {
     background-color: #352b2b;
     border-color: #540000;
@@ -106,6 +141,7 @@
 
 input {
     font-size: 1em;
+    color: #333;
 }
 
 select {
@@ -297,4 +333,104 @@ body.pyodideLoaded .pyodideLoading {
 .exampWidgetErrMsg p {
     font-size: small;
     margin: 0.25em 0;
+}
+
+.dispWidgetEditorPanel {
+    position: relative;
+    border: 1px solid #888;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.themeDark .dispWidgetEditorPanel {
+    border-color: #444;
+}
+
+.dispWidgetEditorPanel:focus-within {
+    opacity: 1;
+}
+
+.dispWidgetEditorButtonPanel {
+    display: none;
+    position: absolute;
+    top: 2px;
+    right: 20px;
+    background-color: #ccc;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.themeDark .dispWidgetEditorButtonPanel {
+    background-color: #222;
+}
+
+.dispWidgetEditorPanel:hover .dispWidgetEditorButtonPanel {
+    display: block;
+}
+
+.dispWidgetEditorButton {
+    display: inline-block;
+    cursor: pointer;
+    height: 24px;
+    width: 24px;
+    margin: 3px 8px 0;
+    filter: invert(0.7);
+}
+
+.themeDark .dispWidgetEditorButton {
+    filter: none;
+}
+
+.dispWidgetEditorBuildButton {
+    background: url('../img/icons/hammer_24_dark.png') center no-repeat;
+}
+
+.dispWidgetEditorResetButton {
+    background: url('../img/icons/reset_24_dark.png') center no-repeat;
+}
+
+.dispWidgetEditor {
+}
+
+.dispWidgetCodeResetPreview {
+    background-color: #ccc;
+    padding: 1em;
+    border: 2px inset;
+    font-size: 1.2em;
+    font-family: monospace;
+}
+
+.themeDark .dispWidgetCodeResetPreview {
+    background-color: #444;
+}
+
+.dispWidgetEditorResizeOverlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: black;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.themeDark .dispWidgetEditorResizeOverlay {
+    background-color: white;
+}
+
+.dispWidgetEditorResizeHandle {
+    background: url('../img/icons/lrc_handle_16.png') center no-repeat;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    height: 16px;
+    width: 16px;
+    cursor: ns-resize;
+    filter: brightness(1.5);
+    z-index: 10;
+}
+
+.themeDark .dispWidgetEditorResizeHandle {
+    filter: none;
 }

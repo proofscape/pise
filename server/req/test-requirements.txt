@@ -51,9 +51,9 @@ coverage[toml]==6.4.2 \
     --hash=sha256:f23876b018dfa5d3e98e96f5644b109090f16a4acb22064e0f06933663005d39 \
     --hash=sha256:f7bd0ffbcd03dc39490a1f40b2669cc414fae0c4e16b77bb26806a4d0b7d1452
     # via pytest-cov
-displaylang==0.22.8 \
-    --hash=sha256:40d9538016e473e9538e32f2e8a594e4dbb187d387db63479864fbb27434933f \
-    --hash=sha256:7e419cf97f1e9aea6cda2f0d60430df125b99deba33533dc7583c127420cea96
+displaylang==0.23.0 \
+    --hash=sha256:15d8b9f37c325cdf0803bda328acefc4d13d50fc480a928cbc9738e9b4a7648f \
+    --hash=sha256:dcb12d4ea52ea34524f431686eec39e7a1461cb721f43b1aa6ba397de10a180d
     # via
     #   displaylang-sympy
     #   pfsc-examp
@@ -134,9 +134,9 @@ packaging==21.3 \
     --hash=sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb \
     --hash=sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522
     # via pytest
-pfsc-examp==0.22.8 \
-    --hash=sha256:27a4243011fedbbdd246c1b612d74df7992d0c660561d27a337fb8f5e23cae70 \
-    --hash=sha256:7300595bfab9a7edd87f210672cc299dbadd79eec396927e48f52f2411f11938
+pfsc-examp==0.23.0b0 \
+    --hash=sha256:418dad0543d44dd8d4890c5a809ac01885df48c4d11d3c425fc2bf74a92c7ede \
+    --hash=sha256:62a843daae149de16ca66db7c16755198f744ea4e2d95481eb86fde7924b1c66
     # via -r test-requirements.in
 pfsc-util==0.22.8 \
     --hash=sha256:2967e36233fc05b303257d1639317e9d8db3e50f8054cc5f48b8da6dd36042a0 \
