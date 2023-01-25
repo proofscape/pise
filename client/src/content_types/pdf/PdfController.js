@@ -444,7 +444,9 @@ var PdfController = declare(null, {
      *   These keys define desired effects relating to selection highlights.
      *
      *   selection: {string|array} Should be either a single selection code (string) or
-     *     an array of selection codes, defining the desired highlight boxes.
+     *     an array of selection codes, defining the desired highlight boxes. A "selection code"
+     *     is the same as a "combiner code string", i.e. a string describing a combination of
+     *     boxes. (See docs on that subject elsewhere.)
      *
      *   gotosel: {string} default = 'altKey'. This should be equal to one of the keywords
      *     defined below, and controls whether we will scroll to the selection. To be precise,
