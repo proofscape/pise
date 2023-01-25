@@ -431,6 +431,7 @@ var ChartManager = declare(null, {
      * @param req: a color request object.
      * @param gid: the group id of the forest chain to which this coloring
      *   is meant to apply.
+     * @param uuid: the uuid of the Forest that initiated the coloring event.
      */
     handleGroupcastForestColoring: function({ req, gid, uuid }) {
         for (let forest of Object.values(this.forestsByPaneId)) {
