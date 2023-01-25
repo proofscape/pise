@@ -17,6 +17,8 @@
 // Utilities for loading and managing the various content types that go
 // in the ContentPanes in the Proofscape ISE app.
 
+import { v4 as uuid4 } from 'uuid';
+
 define([
     "dojo/_base/declare",
     "dojo/query",
@@ -453,6 +455,13 @@ var ContentManager = declare(null, {
      */
     openContentInPane: async function(info, pane) {
         await this.hub.contentLoadingOkay();
+        // Every content panel must have a uuid. This goes above and beyond Dijit's
+        // panel ids, because it's unique across windows, and across reloads.
+        // If you already supplied a uuid, we assume you have good reason,
+        // and we leave it alone. Otherwise we supply one.
+        if (info.uuid === undefined) {
+            info.uuid = uuid4();
+        }
         // Grab the specified info type.
         var type = info.type;
         // Get the pane setup method.
@@ -492,11 +501,13 @@ var ContentManager = declare(null, {
      * param serialOnly: boolean; set true if you want only serializable info
      */
     getCurrentStateInfo: function(existingPane, serialOnly) {
-        var info = this.contentRegistry[existingPane.id],
-            mgr  = this.getManager(info.type),
-            currentInfo = mgr.writeStateInfo(existingPane.id, serialOnly);
+        const origInfo = this.contentRegistry[existingPane.id];
+        const mgr  = this.getManager(origInfo.type);
+        const currentInfo = mgr.writeStateInfo(existingPane.id, serialOnly);
         // Copy the title.
         currentInfo.tab_title = existingPane.title;
+        // Ensure that the original uuid is reproduced.
+        currentInfo.uuid = origInfo.uuid;
         return currentInfo;
     },
 
@@ -530,8 +541,11 @@ var ContentManager = declare(null, {
      * return: the info object describing the content in the new pane
      */
     openCopy: function(oldCP, newCP) {
-        var newInfo = this.getCurrentStateInfo(oldCP),
-            mgr = this.getManager(newInfo.type);
+        const newInfo = this.getCurrentStateInfo(oldCP);
+        // The new content description is the same as the old in all respects,
+        // *except* that it gets its own, distinct uuid.
+        newInfo.uuid = uuid4();
+        const mgr = this.getManager(newInfo.type);
         this.openContentInPane(newInfo, newCP).then(() => {
             // Let the manager know that the new pane is a copy of the old one.
             mgr.noteCopy(oldCP.id, newCP.id);
