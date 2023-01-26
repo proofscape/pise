@@ -66,6 +66,8 @@ var ContentManager = declare(null, {
     // Types for which a study page can be loaded:
     studyPageTypes: null,
     // Content registry will map pane IDs to the info object on which that pane was initialized.
+    // Note: We do not maintain a lookup of Dijit panes themselves, because we have a `getPane()`
+    // method for that.
     contentRegistry: null,
     // This will be a mapping from content types to methods for setting up content panes
     // to hold content of that type.
@@ -455,10 +457,11 @@ var ContentManager = declare(null, {
      */
     openContentInPane: async function(info, pane) {
         await this.hub.contentLoadingOkay();
-        // Every content panel must have a uuid. This goes above and beyond Dijit's
-        // panel ids, because it's unique across windows, and across reloads.
+        // Every content pane must have a uuid. This goes above and beyond Dijit's
+        // pane ids, because it's unique across windows, and across reloads.
         // If you already supplied a uuid, we assume you have good reason,
-        // and we leave it alone. Otherwise we supply one.
+        // and we leave it alone. (For example, this happens when content is being
+        // *moved* from one window to another.) Otherwise we supply one.
         if (info.uuid === undefined) {
             info.uuid = uuid4();
         }
