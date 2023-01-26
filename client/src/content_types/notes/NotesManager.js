@@ -89,10 +89,8 @@ var NotesManager = declare(null, {
     widgets: null,
 
     // At any given time, a widget group may or may not have a controlled pane.
-    // When it does, we keep a mapping from group ID to pane location, and the
-    // inverse mapping as well.
-    groupId2paneLoc: null,
-    paneLoc2groupId: null,
+    // When it does, we keep a mapping from group ID to uuid.
+    groupId2PaneUuid: null,
 
     navEnableHandlers: null,
 
@@ -107,8 +105,7 @@ var NotesManager = declare(null, {
         this.viewers = {};
         this.openAnnopathvCopyCount = new Map();
         this.widgets = new Map();
-        this.groupId2paneLoc = new Map();
-        this.paneLoc2groupId = new Map();
+        this.groupId2PaneUuid = new Map();
         this.navEnableHandlers = [];
         this.annopathsToSubscribedPaneIds = new iseUtil.LibpathSetMapping();
         this.modpathsToAnnopathsHavingSubscribers = new iseUtil.LibpathSetMapping();
@@ -118,8 +115,6 @@ var NotesManager = declare(null, {
     activate: function() {
         this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('paneClose', this.checkForClosingWidgetPane.bind(this));
-        this.hub.windowManager.on('paneMove', this.updateControlledPaneLocation.bind(this));
-        this.hub.windowManager.on('updateMapping', this.handleUpdatedWindowMapping.bind(this));
     },
 
     /* Control visibility of the overview sidebar for a given notes pane.
@@ -145,7 +140,7 @@ var NotesManager = declare(null, {
     },
 
     groupHasControlledPane: function(groupId) {
-        return this.groupId2paneLoc.has(groupId);
+        return this.groupId2PaneUuid.has(groupId);
     },
 
     /* Say whether we currently have any widgets belonging to a given widget group.
@@ -159,12 +154,8 @@ var NotesManager = declare(null, {
         return false;
     },
 
-    getPaneLocForGroup: function(groupId) {
-        return this.groupId2paneLoc.get(groupId);
-    },
-
-    getPaneLoc2GroupIdMapping: function() {
-        return this.paneLoc2groupId;
+    getPaneUuidForGroup: function(groupId) {
+        return this.groupId2PaneUuid.get(groupId);
     },
 
     getPanesForAnnopathv: function(annopathv) {
@@ -245,7 +236,6 @@ var NotesManager = declare(null, {
         stateInfo.ptr = viewer.ptr;
         stateInfo.wgcm = this.getWidgetGroupControlMapping({
             annopathv: `${stateInfo.libpath}@${stateInfo.version}`,
-            absolute: true,
         });
         return stateInfo;
     },
@@ -338,60 +328,9 @@ var NotesManager = declare(null, {
         return uids;
     },
 
-    /* Respond to the fact that a content pane has moved to a new location.
-     * This may or may not affect our current WGCM. The purpose of this method
-     * is to update our mapping as necessary.
-     *
-     * @param oldAbsLoc {string} the absolute location from which a pane has moved.
-     * @param newAbsLoc {string} the absolute location to which the pane has moved.
-     */
-    updateControlledPaneLocation: function({ oldAbsLoc, newAbsLoc }) {
-        const groupId = this.paneLoc2groupId.get(oldAbsLoc);
-        if (groupId) {
-            this.paneLoc2groupId.delete(oldAbsLoc);
-            this.setPaneLocForWidgetGroup(newAbsLoc, groupId);
-        }
-    },
-
-    /* Respond to the fact that the window group enumeration has changed.
-     * Existing windows may have received new numbers, and/or an existing
-     * window may have closed. We must update the WGCM accordingly.
-     *
-     * @param numberUpdates {Obj} pairs oldNumber:newNumber for windows that
-     *   received a new number.
-     * @param deletedNumber {int|null} at most one window goes away per event;
-     *   this either the number of the window that went away, or null if none did.
-     */
-    handleUpdatedWindowMapping: function({ numberUpdates, deletedNumber }) {
-        // We'll iterate over `this.groupId2paneLoc`. So we can safely
-        // delete entries from `this.paneLoc2groupId` as we go, but must also
-        // build up a plan of changes to be carried out after iteration.
-        // This includes deletions from `this.groupId2paneLoc`, and all setting
-        // of new locations.
-        const groupUpdates = new Map();
-        for (let [groupId, paneLoc] of this.groupId2paneLoc) {
-            const [n, paneId] = this.hub.windowManager.digestLocation(paneLoc);
-            if (n === deletedNumber) {
-                groupUpdates.set(groupId, null);
-                this.paneLoc2groupId.delete(paneLoc);
-            } else if (numberUpdates.hasOwnProperty(n)) {
-                const newLoc = `${numberUpdates[n]}:${paneId}`;
-                groupUpdates.set(groupId, newLoc);
-                this.paneLoc2groupId.delete(paneLoc);
-            }
-        }
-        for (let [groupId, update] of groupUpdates) {
-            if (update === null) {
-                this.groupId2paneLoc.delete(groupId);
-            } else {
-                this.setPaneLocForWidgetGroup(update, groupId);
-            }
-        }
-    },
-
     /* A "widget group control mapping" (WGCM) is a mapping from widget group IDs
-     * to "pane locs" (pane locations) for controlled panes. The complete, current mapping
-     * is maintained in our `groupId2paneLoc` Map.
+     * to pane uuids for controlled panes. The complete, current mapping
+     * is maintained in our `groupId2PaneUuid` Map.
      *
      * This method computes a WGCM based on our current one, and according to certain
      * options.
@@ -401,7 +340,6 @@ var NotesManager = declare(null, {
      *     the mapping to those group IDs falling under this annotation and version.
      *   asMap: {bool, default false} if true we return a Map; otherwise just an object in which
      *     the key-value pairs represent the mapping.
-     *   absolute: {bool, default false} if true we ensure that all pane locations are absolute.
      * }
      * @return: the computed mapping.
      */
@@ -409,26 +347,18 @@ var NotesManager = declare(null, {
         const {
             annopathv = null,
             asMap = false,
-            absolute = false,
         } = options || {};
-        const uids = annopathv ? this.getAllOpenWidgetUidsUnderAnnopathv(annopathv) : this.widgets.keys();
-        const wgcm = asMap ? new Map() : {};
-        for (let uid of uids) {
-            const widget = this.widgets.get(uid);
+        const widgetUids = annopathv ? this.getAllOpenWidgetUidsUnderAnnopathv(annopathv) : this.widgets.keys();
+        const wgcm = new Map();
+        for (let widgetUid of widgetUids) {
+            const widget = this.widgets.get(widgetUid);
             const groupId = widget.groupId;
-            let paneLoc = this.groupId2paneLoc.get(groupId);
-            if (paneLoc) {
-                if (absolute) {
-                    paneLoc = this.hub.windowManager.makeLocationAbsolute(paneLoc);
-                }
-                if (asMap) {
-                    wgcm.set(groupId, paneLoc);
-                } else {
-                    wgcm[groupId] = paneLoc;
-                }
+            const paneUuid = this.groupId2PaneUuid.get(groupId);
+            if (paneUuid) {
+                wgcm.set(groupId, paneUuid);
             }
         }
-        return wgcm;
+        return asMap ? wgcm : Object.fromEntries(wgcm);
     },
 
     /* Purge all widgets that belong to a given annotation.
@@ -446,7 +376,7 @@ var NotesManager = declare(null, {
      */
     purgeWidget: function(uid) {
         this.widgets.delete(uid);
-        /* Note: we make no effort to clean up the `this.groupId2paneLoc` mapping (and its inverse)
+        /* Note: we make no effort to clean up the `this.groupId2PaneUuid` mapping
          * when the last widget belonging to a given group is purged; we actually prefer to keep this
          * mapping in place. For suppose notes pane N is controlling, say, chart pane C. Suppose then
          * that N is closed while C remains open. The user might want to reopen N, and will be happy
@@ -481,18 +411,19 @@ var NotesManager = declare(null, {
      * in any window is closing. We can then check whether this was a controlled
      * pane, and, if so, update the WGCM accordingly.
      *
-     * @param paneId: the id of the ContentPane that is closing
+     * @param uuid: the uuid of the ContentPane that is closing
+     * @param paneId: the Dijit pane id of the ContentPane that is closing
      * @param origin: the window number where the pane was located
      */
-    checkForClosingWidgetPane: function({paneId, origin}) {
-        const paneLoc = `${origin}:${paneId}`;
-        const groupId = this.paneLoc2groupId.get(paneLoc);
-        if (groupId) {
-            // It was a controlled pane.
-            // We clean up our records of that pane, so that a new one can be
-            // spawned if any widget in that group is clicked again.
-            this.groupId2paneLoc.delete(groupId);
-            this.paneLoc2groupId.delete(paneLoc);
+    checkForClosingWidgetPane: function(event) {
+        const uuid = event.uuid;
+        for (let groupId of Object.keys(this.groupId2PaneUuid)) {
+            if (this.groupId2PaneUuid[groupId] === uuid) {
+                // It was a controlled pane.
+                // We clean up our records of that pane, so that a new one can be
+                // spawned if any widget in that group is clicked again.
+                this.groupId2PaneUuid.delete(groupId);
+            }
         }
     },
 
@@ -503,7 +434,7 @@ var NotesManager = declare(null, {
      * param uid: The unique id of the widget that was clicked.
      * param clickedElt: The DOM element that was clicked.
      */
-    click: function(uid, clickedElt) {
+    click: async function(uid, clickedElt) {
         // Retrieve the widget and its info.
         const widget = this.widgets.get(uid);
         // Not all widget types have pane groups (e.g. `qna` widgets).
@@ -514,46 +445,43 @@ var NotesManager = declare(null, {
             return;
         }
         // Attempt to retrieve the pane location for this group.
-        let paneLoc = this.groupId2paneLoc.get(widget.groupId);
+        let paneUuid = this.groupId2PaneUuid.get(widget.groupId);
         const info = widget.getInfoCopy();
-        if (paneLoc) {
+        if (paneUuid) {
             // In this case the pane group already has (or had) a pane, so we attempt to use it.
-            try {
-                this.hub.contentManager.updateContent(info, paneLoc, { selectPane: true });
-            } catch (e) {
-                // Following MDN's recommendation for conditional catch blocks:
-                //   <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch#Conditional_catch-blocks>
-                if (e instanceof UnknownPeerError) {
-                    // This case can arise if the controlled pane was in another window, and
-                    // that window was closed without closing the pane first, _and_ if the socket
-                    // disconnect has not yet been detected and handled. It should be a corner case.
-                    paneLoc = null;
-                } else {
-                    throw e;
-                }
+            // However, we begin with a check to see if it still exists or not, and self-repair if not.
+            // One reason for anticipating such a case is our `purgeWidget()` method, which
+            // deliberately does not clean up the `groupId2PaneUuid` mapping.
+            // Another reason is just as a safety net, in case our maintenance system, based on
+            // things like `beforeunload` handlers, should fail for any reason.
+            const stillExists = await this.hub.contentManager.uuidExistsInAnyWindow(paneUuid);
+            if (stillExists) {
+                this.hub.contentManager.updateContentAnywhereByUuid(info, paneUuid, { selectPane: true });
+            } else {
+                this.groupId2PaneUuid.delete(widget.groupId);
+                paneUuid = null;
             }
         }
-        if (!paneLoc) {
+        if (!paneUuid) {
             // The pane group does not have a pane. Get one, and associate it with the group.
-            const pane = this.hub.contentManager.openContentBeside(info, clickedElt).pane;
-            this.setPaneLocForWidgetGroup(pane.id, widget.groupId);
+            const {pane, promise} = this.hub.contentManager.openContentBeside(info, clickedElt);
+            promise.then(() => {
+                let info = this.hub.contentManager.getContentInfo(pane.id);
+                this.setUuidForWidgetGroup(info.uuid, widget.groupId);
+            });
         }
     },
 
     /* Set the content pane that is to be controlled by a given widget group.
      *
-     * @param paneLoc {string} the location of the pane that is to be controlled.
-     *   Callers may pass an absolute or relative location, but we will make relative
-     *   locations absolute by prepending the present window number.
+     * @param uuid {string} the uuid of the pane that is to be controlled.
      * @param groupId {string} the id of a pane group.
      */
-    setPaneLocForWidgetGroup: function(paneLoc, groupId) {
-        paneLoc = this.hub.windowManager.makeLocationAbsolute(paneLoc);
-        this.groupId2paneLoc.set(groupId, paneLoc);
-        this.paneLoc2groupId.set(paneLoc, groupId);
+    setUuidForWidgetGroup: function(uuid, groupId) {
+        this.groupId2PaneUuid.set(groupId, uuid);
     },
 
-    /* Like the `setPaneLocForWidgetGroup` method, except this time it is implied
+    /* Like the `setUuidForWidgetGroup` method, except this time it is implied
      * that the NotesManager should decide whether or not to accept the mapping.
      *
      * The intention is that this be used when moving a controlling pane to another
@@ -562,11 +490,11 @@ var NotesManager = declare(null, {
      * Our behavior is to reject the suggestion if the group currently has both a
      * controlled pane, and a loaded widget representing it. Otherwise we accept.
      */
-    suggestPaneLocForWidgetGroup: function(paneLoc, groupId) {
+    suggestUuidForWidgetGroup: function(uuid, groupId) {
         if (this.groupHasControlledPane(groupId) && this.groupHasRepresentative(groupId)) {
-            console.log(`Reject WGC mapping ${groupId} --> ${paneLoc}`);
+            console.debug(`Reject WGC mapping ${groupId} --> ${uuid}`);
         } else {
-            this.setPaneLocForWidgetGroup(paneLoc, groupId);
+            this.setUuidForWidgetGroup(uuid, groupId);
         }
     },
 
@@ -574,8 +502,8 @@ var NotesManager = declare(null, {
      */
     considerWgcm(wgcm)  {
         for (let groupId of Object.keys(wgcm)) {
-            const paneLoc = wgcm[groupId];
-            this.suggestPaneLocForWidgetGroup(paneLoc, groupId);
+            const uuid = wgcm[groupId];
+            this.suggestUuidForWidgetGroup(uuid, groupId);
         }
     },
 

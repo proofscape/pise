@@ -105,6 +105,13 @@ var ContentManager = declare(null, {
         ];
     },
 
+    activate: function() {
+        this.hub.windowManager.on(
+            'contentUpdateByUuidBroadcast',
+            this.handleContentUpdateByUuidBroadcast.bind(this)
+        );
+    },
+
     // Locate a ContentPane by its id.
     getPane: function(id) {
         return this.lookUpInDijitRegistry(id);
@@ -387,27 +394,39 @@ var ContentManager = declare(null, {
     },
 
     /* This method will be called before a ContentPane closes.
-     * We take this opportunity to give the appropriate manager a chance to do something
-     * before the pane closes.
      */
     noteClosingPane: function(closingPane) {
-        const info = this.contentRegistry[closingPane.id];
-        if (info) {
+        this.handleClosingPaneId(closingPane.id);
+    },
+
+    handleClosingPaneId: function(paneId) {
+        const closingPane = this.getPane(paneId);
+        const info = this.contentRegistry[paneId];
+        if (info && closingPane) {
             const mgr = this.getManager(info.type);
             if (mgr) {
                 mgr.noteClosingContent(closingPane);
             }
         }
+        const uuid = info?.uuid;
         const {myNumber} = this.hub.windowManager.getNumbers();
         this.hub.windowManager.groupcastEvent({
             type: 'paneClose',
-            paneId: closingPane.id,
+            uuid: uuid,
+            paneId: paneId,
             origin: myNumber,
         }, {
             includeSelf: true,
         });
         // Delete the entry from the content registry.
-        delete this.contentRegistry[closingPane.id];
+        delete this.contentRegistry[paneId];
+    },
+
+    handleClosingWindow: function() {
+        const paneIds = Object.keys(this.contentRegistry);
+        for (let paneId of paneIds) {
+            this.handleClosingPaneId(paneId);
+        }
     },
 
     buildTabContainerMenu: function(menu) {
@@ -713,46 +732,54 @@ var ContentManager = declare(null, {
     },
 
     /*
-     * Update the content in any pane.
+     * Update the content in any pane, in any window.
      *
      * param info: Object of the kind returned by a manager's `writeStateInfo` method.
      *             Must contain `type` field.
-     * param paneLoc: The location (absolute or relative) of the ContentPane whose content is to be updated.
+     * param uuid: The uuid of the ContentPane whose content is to be updated.
      * param options: {
      *   selectPane {bool}: set true if you want the updated pane to also become the
      *       selected pane in its tab container.
      * }
      * return: nothing
      */
-    updateContent: function(info, paneLoc, options) {
-        const d = this.hub.windowManager.digestLocation(paneLoc);
-        if (d.length === 1) {
-            const cpId = d[0];
-            const {
-                selectPane = false,
-            } = options || {};
-            if (selectPane) {
-                const pane = this.getPane(cpId);
-                this.tct.selectPane(pane);
-            }
-            const mgr = this.getManager(info.type);
-            mgr.updateContent(info, cpId);
-        } else {
-            const n = d[0];
-            const args = { info: info, paneLoc: d[1], options: options };
-            this.hub.windowManager.makeWindowRequest(n, 'contentManager.updateContent_m', args);
-        }
+    updateContentAnywhereByUuid: function(info, uuid, options) {
+        const event = {
+            type: 'contentUpdateByUuidBroadcast',
+            info: info,
+            uuid: uuid,
+            options: options,
+        };
+        this.hub.windowManager.groupcastEvent(event, {
+            includeSelf: true,
+        });
     },
 
-    /* "..._m" means a "message-based" version of another function or method.
-     * It is intended for use across systems that send serializable messages.
-     * It accepts a single argument, containing the args required by the main
-     * function, and it tries to return a serializable version of the return
-     * value of the main function.
+    /* Handle a 'contentUpdateByUuidBroadcast' event.
+     * The format of the event is: {
+     *   type: 'contentUpdateByUuidBroadcast',
+     *   info: as passed to ContentManager.updateContentAnywhereByUuid(),
+     *   uuid: as passed to ContentManager.updateContentAnywhereByUuid(),
+     *   options: as passed to ContentManager.updateContentAnywhereByUuid(),
+     * }
+     * If we have a pane with the given uuid, we ask it to update its
+     * content. If not, we simply do nothing.
      */
-    updateContent_m: function(m) {
-        this.updateContent(m.info, m.paneLoc, m.options);
-    }
+    handleContentUpdateByUuidBroadcast: function(event) {
+        const paneId = this.getPaneIdByUuid(event.uuid);
+        if (paneId !== null) {
+            const {
+                selectPane = false,
+            } = event.options || {};
+            if (selectPane) {
+                const pane = this.getPane(paneId);
+                this.tct.selectPane(pane);
+            }
+            const info = event.info;
+            const mgr = this.getManager(info.type);
+            mgr.updateContent(info, paneId);
+        }
+    },
 
 });
 

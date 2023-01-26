@@ -207,6 +207,7 @@ function construct(ISE_state) {
     repoManager.activate();
     studyManager.activate();
     pdfManager.activate();
+    contentManager.activate();
 
     // Listen for window focus changes and document visibility changes.
     window.addEventListener("focus", function(){
