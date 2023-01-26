@@ -521,8 +521,8 @@ var Hub = declare(null, {
         //
         // While we work, we also generate a mapping from pane IDs to
         // strings `i:j` indicating the tab container (i) and tab (j) in
-        // which that pane is found. This is useful for subsequent steps in
-        // recording the state.
+        // which that pane is found. This may be useful for subsequent steps in
+        // recording the state. (Currently not; used to be used for recording the WGCM.)
         var tcs = [];
         var paneId2ij = {};
         var activeTcIndex = null;
@@ -561,16 +561,7 @@ var Hub = declare(null, {
         // Widget Panes
         // If any panes are linked with widget groups, we want to record that
         // info, so those links can be restored.
-        var paneLoc2GroupId = this.notesManager.getPaneLoc2GroupIdMapping();
-        var widgetGroupId2ij = {};
-        for (let [paneLoc, wgid] of paneLoc2GroupId) {
-            const paneId = paneLoc.split(":")[1];
-            const ij = paneId2ij[paneId];
-            if (ij) {
-                widgetGroupId2ij[wgid] = ij;
-            }
-        }
-        content.widgetPanes = widgetGroupId2ij;
+        content.widgetPanes = this.notesManager.getWidgetGroupControlMapping({asMap: false});
 
         state.content = content;
 
@@ -649,7 +640,7 @@ var Hub = declare(null, {
         // Load tabs.
         const tcs = content.tcs;
         const tcids = this.tabContainerTree.getTcIds();
-        const ij2pane = {};
+        const uuids = new Set();
         const contentLoadingPromises = [];
         for (let i of Object.keys(tcs)) {
             const tcInfo = tcs[i];
@@ -659,13 +650,15 @@ var Hub = declare(null, {
             let activePane = null;
             for (let j of Object.keys(tcTabInfos)) {
                 const info = tcTabInfos[j];
+                if (info.uuid) {
+                    uuids.add(info.uuid);
+                }
                 const { pane, promise } = this.contentManager.openContentInTC(info, tcId);
                 contentLoadingPromises.push(promise);
                 // Be sure to compare j and activeTabIndex _as integers_.
                 if (+j === +activeTabIndex) {
                     activePane = pane;
                 }
-                ij2pane[i+":"+j] = pane;
             }
             if (activePane !== null) {
                 this.tabContainerTree.selectPane(activePane);
@@ -682,9 +675,10 @@ var Hub = declare(null, {
         // Associate widget groups with panes.
         if (typeof(content.widgetPanes) !== 'undefined') {
             for (let widgetGroupId of Object.keys(content.widgetPanes)) {
-                const ij = content.widgetPanes[widgetGroupId];
-                const pane = ij2pane[ij];
-                this.notesManager.setPaneLocForWidgetGroup(pane.id, widgetGroupId);
+                const uuid = content.widgetPanes[widgetGroupId];
+                if (uuids.has(uuid)) {
+                    this.notesManager.setUuidForWidgetGroup(uuid, widgetGroupId);
+                }
             }
         }
     },
@@ -1075,6 +1069,7 @@ var Hub = declare(null, {
      */
     noteAppUnload: function() {
         this.recordStateIfPrimary();
+        this.contentManager.handleClosingWindow();
     },
 
     recordStateIfPrimary: function() {
