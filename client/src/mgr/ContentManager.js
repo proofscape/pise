@@ -160,6 +160,83 @@ var ContentManager = declare(null, {
         return this.contentRegistry[cpId];
     },
 
+    /* Search this window for a pane having a given uuid.
+     * Return the Dijit paneId if found, else null.
+     */
+    getPaneIdByUuid: function(uuid) {
+        for (let paneId of Object.keys(this.contentRegistry)) {
+            const info = this.contentRegistry[paneId];
+            if (info.uuid === uuid) {
+                return paneId;
+            }
+        }
+        return null;
+    },
+
+    /* Search for a pane having a given uuid, in this window alone.
+     * If found, return an object of the form {
+     *   windowNumber: int,
+     *   paneId: the Dijit pane id used in that window,
+     * }
+     * If not found, return null.
+     *
+     * Note: This method is synchronous, and searches only the present window.
+     * It is designed to be callable by other windows.
+     * If working purely locally, consider using `getPaneIdByUuid()` instead.
+     *
+     * See also:
+     *   ContentManager.getPaneIdByUuid()
+     *   ContentManager.getGlobalAddressByUuidAllWindows()
+     */
+    getGlobalAddressByUuidThisWindow: function({uuid}) {
+        const numbers = this.hub.windowManager.getNumbers();
+        const myNumber = numbers.myNumber;
+        const paneId = this.getPaneIdByUuid(uuid);
+        if (paneId !== null) {
+            return {
+                windowNumber: myNumber,
+                paneId: paneId,
+            };
+        }
+        return null;
+    },
+
+    /* Search for a pane having a given uuid, across all windows.
+     * If found, return an object of the form {
+     *   windowNumber: int,
+     *   paneId: the Dijit pane id used in that window,
+     * }
+     * If not found, return null.
+     *
+     * Note: This method is asynchronous, and searches all windows.
+     * See also:
+     *   ContentManager.getPaneIdByUuid()
+     *   ContentManager.getGlobalAddressByUuidThisWindow()
+     */
+    getGlobalAddressByUuidAllWindows: async function(uuid) {
+        const searches = this.hub.windowManager.broadcastRequest(
+            'contentManager.getGlobalAddressByUuidThisWindow',
+            {uuid},
+            {
+                excludeSelf: false,
+            }
+        );
+        return Promise.all(searches).then(values => {
+            for (let value of values) {
+                if (value !== null) {
+                    return value;
+                }
+            }
+            return null;
+        });
+    },
+
+    // Say whether a pane uuid exists, in this or any other window.
+    uuidExistsInAnyWindow: async function(uuid) {
+        const addr = await this.getGlobalAddressByUuidAllWindows(uuid);
+        return addr !== null;
+    },
+
     /*
      * Make a title for a tab.
      *
