@@ -234,6 +234,10 @@ def test_widget_braces(app):
 
 @pytest.mark.psm
 def test_extended_json_syntax(app):
+    """
+    Show that libpaths occurring in assignments are replaced by the objects
+    they point to.
+    """
     print()
     with app.app_context():
         ri = RepoInfo('test.foo.bar')
