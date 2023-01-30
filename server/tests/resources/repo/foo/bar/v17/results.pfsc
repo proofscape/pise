@@ -1,0 +1,65 @@
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm.C {
+
+    asrt R {
+        en = "Something self-evident"
+    }
+
+    asrt S {
+        en = "An easy consequence"
+    }
+
+    meson = "
+    R, so S, therefore Thm.C
+    "
+
+}
+
+deduc Thm2 {
+    supp S {
+        sy="$S$"
+    }
+    asrt A {
+        sy="$A$"
+    }
+    meson="Suppose S. Then A."
+}
+
+
+deduc Pf2 of Thm2.A {
+
+    asrt B {
+        sy="$B$"
+    }
+
+    mthd M wolog {
+        en="
+        Adding an
+        appropriate constant
+        to $f(x)$
+        "
+    }
+
+    asrt C {
+        sy="$C$"
+    }
+
+    # ISSUE @v0.25.0: https://github.com/proofscape/pfsc-server/issues/7
+    # Meson script should not say `by B` (since it is redundant).
+    # If you delete that, it builds just fine.
+    # However, with it, not only does it fail to build, but the build process crashes.
+    meson="
+    From Thm2.S get B.
+    Then C, by B, applying M, hence Thm2.A.
+    "
+}

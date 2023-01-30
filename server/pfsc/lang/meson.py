@@ -197,6 +197,9 @@ class Graph:
 
             (N2) A non-modal node never occurs inside a supposition.
 
+            (N3) Only certain types of proofscsape objects (deducs and nodes)
+                can be referenced by a ghost node in a Meson script.
+
         Checks on the endpoints of arrows (edges):
 
             (E1) A deduction arrow may not have a subdeduction or a
@@ -219,7 +222,8 @@ class Graph:
           targets of this deduction.
         """
 
-        # (I) Check supp and intr nodes.
+        # (I) Check nodes.
+        # (N1 and N2) Check supp and intr nodes.
         for node in self.nodes.values():
             node_is_modal = node.actualNode.isModal()
             if (self.src_type == GraphSource.MESON and node_is_modal
@@ -231,6 +235,15 @@ class Graph:
                 msg = 'Only modal nodes may occur after modal keywords'
                 msg += ', but node "%s" breaks this rule.' % node.name
                 raise PfscExcep(msg, PECode.MESON_MODAL_MISMATCH)
+        # (N3) ghost node references
+        for node in self.nodes.values():
+            if node.actualNode.isGhostNode():
+                r = node.actualNode.realObj()
+                if not r.canAppearAsGhostInMesonScript():
+                    msg = (f'Node "{node.name}" of type {r.__class__} cannot'
+                           ' occur in a meson script. Did you mean to reference'
+                           ' something defined within it?')
+                    raise PfscExcep(msg, PECode.MESON_BAD_GHOST_NODE)
 
         # (II) Check edges.
         # Get the list of libpaths of the targets.

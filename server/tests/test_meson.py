@@ -423,6 +423,21 @@ def test_issue_7(app):
             assert dg['edges'] == Pf2_edges
 
 
+@pytest.mark.psm
+def test_issue_14(app):
+    """
+    See https://github.com/proofscape/pise/issues/14
+    """
+    with app.app_context():
+        libpath = "test.foo.bar.expansions"
+        version = "v17.0.0"
+        ri = get_repo_info(libpath)
+        with checkout(ri, version):
+            with pytest.raises(PfscExcep) as ei:
+                load_module(libpath)
+            assert ei.value.code() == PECode.MESON_BAD_GHOST_NODE
+
+
 ######################################################################
 # Manual testing
 

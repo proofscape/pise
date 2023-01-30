@@ -586,6 +586,9 @@ class Deduction(Enrichment, NodeLikeObj):
             fn = S.groups()[0]
         return fn
 
+    def canAppearAsGhostInMesonScript(self):
+        return True
+
     def generateGhostName(self):
         gn = self.generateFriendlyName()
         if len(gn) >= 5 and gn[:5] == 'Proof':
@@ -688,7 +691,6 @@ class Deduction(Enrichment, NodeLikeObj):
         # Mark bridge edges.
         graph.findAndMarkBridges()
         graph.markFlowLinkOutsAsBridges()
-
 
     def buildDashgraph(self, lang='en'):
         """
@@ -992,6 +994,9 @@ class Node(NodeLikeObj):
             text += ref.write_pdf_render_div()
 
         return text
+
+    def canAppearAsGhostInMesonScript(self):
+        return True
 
     def generateGhostName(self):
         home = self.getDeduction()

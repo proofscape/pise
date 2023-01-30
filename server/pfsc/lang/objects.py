@@ -216,6 +216,9 @@ class PfscObj:
     def isGhostNode(self):
         return False
 
+    def canAppearAsGhostInMesonScript(self):
+        return False
+
     def isSubNode(self):
         return False
 
