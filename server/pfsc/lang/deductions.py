@@ -714,6 +714,14 @@ class Deduction(Enrichment, NodeLikeObj):
 
         self.add_comparisons_to_dashgraph(dg)
 
+        # Children:
+        dg['children'] = {}
+        items = (self.nodeSeq + self.subdeducSeq + self.ghostNodes + self.specialNodes)
+        for item in items:
+            idg = item.buildDashgraph(lang=lang)
+            lp = item.getLibpath()
+            dg['children'][lp] = idg
+
         # Doc Info
         # We build a dictionary of the form
         # {
@@ -741,23 +749,20 @@ class Deduction(Enrichment, NodeLikeObj):
             'refs': {},
         }
 
-        # Children:
-        dg['children'] = {}
-        items = (self.nodeSeq + self.subdeducSeq + self.ghostNodes + self.specialNodes)
-        for item in items:
-            idg = item.buildDashgraph(lang=lang)
-            lp = item.getLibpath()
-            dg['children'][lp] = idg
-
-            ref = item.getDocRef()
+        def grabHighlights(obj):
+            ref = obj.getDocRef()
             if isinstance(ref, DocReference):
                 doc_id = ref.doc_id
                 if doc_id not in docInfo['docs']:
                     docInfo['docs'][doc_id] = ref.doc_info
                 if doc_id not in docInfo['refs']:
                     docInfo['refs'][doc_id] = []
-                hld = ref.write_highlight_descriptor(lp, self.libpath, "CHART")
+                hld = ref.write_highlight_descriptor(
+                    obj.getLibpath(), self.libpath, "CHART")
                 docInfo['refs'][doc_id].append(hld)
+
+        self.recursiveItemVisit(grabHighlights)
+
 
         # deducInfo -------------------
         if not self.isSubDeduc():
