@@ -1,0 +1,34 @@
+
+from .. import doc1, doc2
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+
+        doc = "doc2#v2;s3;(146:1758:2666:814:390:279:45);n;x+35;y+4;(146:1758:2666:1095:386:205:49)"
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm.C {
+
+    asrt R {
+        en = "Something self-evident"
+
+        doc = "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)"
+    }
+
+    asrt S {
+        en = "An easy consequence"
+
+        doc = "doc2#v2;s3;(146:1758:2666:210:450:90:46);"
+    }
+
+    meson = "
+    R, so S, therefore Thm.C
+    "
+
+}

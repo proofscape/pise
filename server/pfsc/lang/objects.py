@@ -293,7 +293,7 @@ class PfscObj:
             sas.append(s)
         return sas
 
-    def getReferencedDocInfos(self):
+    def getDocRef(self):
         return {}
 
     def __getitem__(self, path):

@@ -76,14 +76,40 @@ class DocReference:
             "OPT": {f:url_type for f in possible_url_fields}
         }, reify_undefined=False)
 
-        self.docId = doc_info['docId']
+        self.doc_id = doc_info['docId']
         self.doc_info = doc_info
         self.doc_info_name = doc_info_name
 
     def write_doc_render_div(self):
-        return f'<div class="doc-render" data-doc-id="{self.docId}" data-doc-combinercode="{self.combiner_code}"></div>'
+        return f'<div class="doc-render" data-doc-id="{self.doc_id}" data-doc-combinercode="{self.combiner_code}"></div>'
 
-    def get_info_lookup(self):
+    def write_highlight_descriptor(self, siid, slp, stype):
+        """
+        Assemble a dictionary that describes this reference as a "highlight".
+
+        param siid: "supplier internal id": some id that the supplier of the
+            highlight can interpret, in order to navigate in response to a
+            click on this highlight.
+        param slp: supplier libpath: the libpath of the supplier
+        param stype: supplier type: the content type of the supplier
+
+        Examples
+        ========
+
+        Suppose the doc ref was defined by a node ``u`` in a deduc ``D``.
+        In this case, the deduction ``D`` is the supplier, and we would want:
+            siid = u.libpath
+            slp = D.libpath
+            stype = "CHART"
+
+        This would make it possible so that, when the highlight was clicked
+        in a document panel, a chart panel containing deduction ``D`` could
+        navigate to show node ``u`` (after first being opened, if not already).
+
+        """
         return {
-            self.doc_info_name: self.doc_info
+            'ccode': self.combiner_code,
+            'siid': siid,
+            'slp': slp,
+            'stype': stype,
         }

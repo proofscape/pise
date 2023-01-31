@@ -714,15 +714,50 @@ class Deduction(Enrichment, NodeLikeObj):
 
         self.add_comparisons_to_dashgraph(dg)
 
+        # Doc Info
+        # We build a dictionary of the form
+        # {
+        #     'docs': {
+        #         docId1: {
+        #             ...docInfo1...
+        #         },
+        #         docId2: {
+        #             ...docInfo2...
+        #         },
+        #     },
+        #     'refs': {
+        #         docId1: [
+        #             {...ref1...},
+        #             {...ref2...},
+        #         ],
+        #         docId2: [
+        #             {...ref3...},
+        #             {...ref4...},
+        #         ],
+        #     },
+        # }
+        docInfo = {
+            'docs': {},
+            'refs': {},
+        }
+
         # Children:
         dg['children'] = {}
         items = (self.nodeSeq + self.subdeducSeq + self.ghostNodes + self.specialNodes)
-        docInfos = {}
         for item in items:
             idg = item.buildDashgraph(lang=lang)
             lp = item.getLibpath()
             dg['children'][lp] = idg
-            docInfos.update(item.getReferencedDocInfos())
+
+            ref = item.getDocRef()
+            if isinstance(ref, DocReference):
+                doc_id = ref.doc_id
+                if doc_id not in docInfo['docs']:
+                    docInfo['docs'][doc_id] = ref.doc_info
+                if doc_id not in docInfo['refs']:
+                    docInfo['refs'][doc_id] = []
+                hld = ref.write_highlight_descriptor(lp, self.libpath, "CHART")
+                docInfo['refs'][doc_id].append(hld)
 
         # deducInfo -------------------
         if not self.isSubDeduc():
@@ -743,7 +778,7 @@ class Deduction(Enrichment, NodeLikeObj):
             di['target_deduc'] = self.getTargetDeductionLibpath()
             di['target_version'] = self.getTargetVersion()
             di['target_subdeduc'] = self.getTargetSubdeducLibpath()
-            di['docInfo'] = docInfos
+            di['docInfo'] = docInfo
             di['textRange'] = self.textRange
             # Finally:
             dg['deducInfo'] = di
@@ -841,10 +876,8 @@ class Node(NodeLikeObj):
             ref = DocReference(ref_text, mod)
             self.docReference = ref
 
-    def getReferencedDocInfos(self):
-        if self.docReference:
-            return self.docReference.get_info_lookup()
-        return {}
+    def getDocRef(self):
+        return self.docReference or None
 
     def listNativeNodesByLibpath(self, nodelist):
         nodelist.append(self.getLibpath())
@@ -912,7 +945,7 @@ class Node(NodeLikeObj):
 
         if self.docReference:
             dg['docRef'] = self.docReference.combiner_code
-            dg['docId'] = self.docReference.docId
+            dg['docId'] = self.docReference.doc_id
 
         self.add_comparisons_to_dashgraph(dg)
 
