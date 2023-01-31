@@ -1414,7 +1414,7 @@ var PdfController = declare(null, {
         templateBox.style.width = '50%';
         templateBox.style.height = '10%';
         iseUtil.noCorrect(templateBox);
-        templateBox.value = 'pdfL="pdf#${code}"';
+        templateBox.value = 'doc = "#${code}"';
         pane.domNode.appendChild(templateBox);
 
         return dlg;
