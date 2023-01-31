@@ -47,7 +47,8 @@ export class PdfLabelRenderer {
      *
      * @param pdfDivs: Array of divs that must be of the form:
      *
-     *   <div class="pdf-render" data-pdf-fingerprint="${fp}" data-pdf-combinercode="${code}"></div>
+     *   <div class="doc-render" data-doc-id-type="pdffp" data-doc-id-code="${fp}"
+     *                           data-doc-combinercode="{code}"></div>
      *
      * @return: Promise that resolves when rendering is done.
      */
@@ -77,7 +78,8 @@ export class PdfLabelRenderer {
      *
      * The divs look like:
      *
-     *   <div class="pdf-render" data-pdf-fingerprint="${fp}" data-pdf-combinercode="${code}"></div>
+     *   <div class="doc-render" data-doc-id-type="pdffp" data-doc-id-code="${fp}"
+     *                           data-doc-combinercode="{code}"></div>
      *
      * and represent a desired PDF-based label for a node.
      *
@@ -96,8 +98,8 @@ export class PdfLabelRenderer {
     buildMapping(pdfDivs) {
         const fps2codes2divs = new Map();
         for (let pdfDiv of pdfDivs) {
-            const fp = pdfDiv.getAttribute('data-pdf-fingerprint');
-            const code = pdfDiv.getAttribute('data-pdf-combinercode');
+            const fp = pdfDiv.getAttribute('data-doc-id-code');
+            const code = pdfDiv.getAttribute('data-doc-combinercode');
             if (fp === null || code === null) {
                 console.error(`Malformed pdf label div`, pdfDiv);
                 continue;
