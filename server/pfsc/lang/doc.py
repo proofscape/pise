@@ -76,12 +76,18 @@ class DocReference:
             "OPT": {f:url_type for f in possible_url_fields}
         }, reify_undefined=False)
 
-        self.doc_id = doc_info['docId']
+        checked_doc_id = doc_info['docId']
+        doc_info['docId'] = checked_doc_id.full_id
+
+        self.doc_id = checked_doc_id.full_id
+        self.id_type = checked_doc_id.id_type
+        self.id_code = checked_doc_id.id_code
+
         self.doc_info = doc_info
         self.doc_info_name = doc_info_name
 
     def write_doc_render_div(self):
-        return f'<div class="doc-render" data-doc-id="{self.doc_id}" data-doc-combinercode="{self.combiner_code}"></div>'
+        return f'<div class="doc-render" data-doc-id-type="{self.id_type}" data-doc-id-code="{self.id_code}" data-doc-combinercode="{self.combiner_code}"></div>'
 
     def write_highlight_descriptor(self, siid, slp, stype):
         """

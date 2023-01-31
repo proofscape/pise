@@ -26,6 +26,14 @@ NONEMPTY_HEXADECIMAL_PATTERN = re.compile(r'^[a-fA-F0-9]+$')
 PDF_FINGERPRINT_ID_TYPE = 'pdffp'
 
 
+class CheckedDocId:
+
+    def __init__(self, full_id, id_type, id_code):
+        self.full_id = full_id
+        self.id_type = id_type
+        self.id_code = id_code
+
+
 def check_doc_id(key, raw, typedef):
     """
     A doc id is a unique identifier for various types of documents such as
@@ -65,7 +73,7 @@ def check_doc_id(key, raw, typedef):
     else:
         reject()
 
-    return raw
+    return CheckedDocId(raw, id_type, id_code)
 
 
 combiner_code_grammar = r"""
