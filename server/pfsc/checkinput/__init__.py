@@ -45,8 +45,8 @@ from pfsc.checkinput.version import (
     check_major_version,
     check_full_version,
 )
-from pfsc.checkinput.pdf import (
-    check_pdf_fingerprint,
+from pfsc.checkinput.doc import (
+    check_doc_id,
     check_combiner_code,
 )
 from pfsc.checkinput.ise import (
@@ -205,7 +205,7 @@ class IType:
     ISE_SPLIT = 'ise_split'
     ISE_ACTIVE = 'ise_active'
     ISE_WIDGET_LINK = 'ise_widget_link'
-    PDF_FINGERPRINT = 'pdf_fingerprint'
+    DOC_ID = 'doc_id'
     COMBINER_CODE = 'combiner_code'
 
 TYPE_HANDLERS = {
@@ -259,7 +259,7 @@ TYPE_HANDLERS = {
     IType.ISE_SPLIT: check_ise_split,
     IType.ISE_ACTIVE: check_ise_active,
     IType.ISE_WIDGET_LINK: check_ise_widget_link,
-    IType.PDF_FINGERPRINT: check_pdf_fingerprint,
+    IType.DOC_ID: check_doc_id,
     IType.COMBINER_CODE: check_combiner_code,
 }
 

@@ -22,36 +22,36 @@ from pfsc.excep import PfscExcep, PECode
 
 @pytest.mark.parametrize("mod, expected_code", [
     ["X0", PECode.MISSING_INPUT],
-    ["X1", PECode.MALFORMED_PDF_FINGERPRINT],
+    ["X1", PECode.MALFORMED_DOC_ID],
     ["X2", PECode.BAD_URL],
     ["Y1", PECode.MALFORMED_COMBINER_CODE],
-    ["Y2", PECode.PDF_COMBINER_CODE_UKNOWN_VERS],
+    ["Y2", PECode.DOC_COMBINER_CODE_UKNOWN_VERS],
     ["Y3", PECode.MALFORMED_COMBINER_CODE],
-    ["Y4", PECode.MALFORMED_PDF_REF_CODE],
+    ["Y4", PECode.MALFORMED_DOC_REF_CODE],
 ])
 @pytest.mark.psm
-def test_pdf_ref_validate_1(app, mod, expected_code):
+def test_doc_ref_validate_1(app, mod, expected_code):
     with app.app_context():
-        ri = get_repo_info('test.foo.pdf')
+        ri = get_repo_info('test.foo.doc')
         ri.checkout('v0')
         print()
         with pytest.raises(PfscExcep) as ei:
-            load_module(f'test.foo.pdf.{mod}')
+            load_module(f'test.foo.doc.{mod}')
         pe = ei.value
         code = pe.code()
         print(pe, code)
         assert code == expected_code
 
 @pytest.mark.psm
-def test_pdf_ref_validate_2(app):
+def test_doc_ref_validate_2(app):
     with app.app_context():
-        ri = get_repo_info('test.foo.pdf')
+        ri = get_repo_info('test.foo.doc')
         ri.checkout('v0')
-        mod = load_module('test.foo.pdf.Z1')
+        mod = load_module('test.foo.doc.Z1')
         print()
         dg = mod['Z1'].buildDashgraph()
-        pdf_info = dg['deducInfo']['pdf']['pdf3']
+        doc_info = dg['deducInfo']['docInfo']['doc3']
         #import json
-        #print(json.dumps(dg['deducInfo']['pdf'], indent=4))
-        assert pdf_info['url'] == "https://example.org/pdf/foo.pdf"
-        assert pdf_info['fingerprint'] == 'abcdef0123456789'
+        #print(json.dumps(dg['deducInfo']['docInfo'], indent=4))
+        assert doc_info['url'] == "https://example.org/pdf/foo.pdf"
+        assert doc_info['docId'] == 'pdffp:abcdef0123456789'

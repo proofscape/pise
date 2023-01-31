@@ -35,7 +35,7 @@ from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn
 from pfsc import util
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
-from pfsc.lang.pdf import PdfReference
+from pfsc.lang.doc import DocReference
 from pfsc.lang.nodelabels import NodeLabelRenderer, ll, writeNodelinkHTML
 
 
@@ -319,13 +319,13 @@ class Deduction(Enrichment, NodeLikeObj):
         self.find_rdefs()
         self.resolve_node_targets()
         self.link_cases()
-        self.resolvePdfRefs()
+        self.resolveDocRefs()
         self.resolveComparisons()
 
-    def resolvePdfRefs(self):
+    def resolveDocRefs(self):
         def visit(item):
             if isinstance(item, Node):
-                item.resolvePdfRefs()
+                item.resolveDocRefs()
         self.recursiveItemVisit(visit)
 
     def find_rdefs(self):
@@ -717,12 +717,12 @@ class Deduction(Enrichment, NodeLikeObj):
         # Children:
         dg['children'] = {}
         items = (self.nodeSeq + self.subdeducSeq + self.ghostNodes + self.specialNodes)
-        pdfInfos = {}
+        docInfos = {}
         for item in items:
             idg = item.buildDashgraph(lang=lang)
             lp = item.getLibpath()
             dg['children'][lp] = idg
-            pdfInfos.update(item.getReferencedPdfInfos())
+            docInfos.update(item.getReferencedDocInfos())
 
         # deducInfo -------------------
         if not self.isSubDeduc():
@@ -743,7 +743,7 @@ class Deduction(Enrichment, NodeLikeObj):
             di['target_deduc'] = self.getTargetDeductionLibpath()
             di['target_version'] = self.getTargetVersion()
             di['target_subdeduc'] = self.getTargetSubdeducLibpath()
-            di['pdf'] = pdfInfos
+            di['docInfo'] = docInfos
             di['textRange'] = self.textRange
             # Finally:
             dg['deducInfo'] = di
@@ -815,7 +815,7 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.textRange = None
-        self.pdfReferences = {}
+        self.docReference = None
 
     def getChildren(self):
         return self.subnodeSeq
@@ -834,19 +834,16 @@ class Node(NodeLikeObj):
         "Define the range in the module text over which this node was defined."
         self.textRange = (row0, col0, row1, col1)
 
-    def resolvePdfRefs(self):
-        pdf_reference_names = ['pdf']
-        mod = self.getModule()
-        for name in pdf_reference_names:
-            ref_text = self.get(name)
-            if ref_text:
-                ref = PdfReference(ref_text, mod)
-                self.pdfReferences[name] = ref
+    def resolveDocRefs(self):
+        ref_text = self.get('doc')
+        if ref_text:
+            mod = self.getModule()
+            ref = DocReference(ref_text, mod)
+            self.docReference = ref
 
-    def getReferencedPdfInfos(self):
-        if 'pdf' in self.pdfReferences:
-            ref = self.pdfReferences['pdf']
-            return ref.get_info_lookup()
+    def getReferencedDocInfos(self):
+        if self.docReference:
+            return self.docReference.get_info_lookup()
         return {}
 
     def listNativeNodesByLibpath(self, nodelist):
@@ -913,10 +910,9 @@ class Node(NodeLikeObj):
         dg['intraDeducPath'] = self.getIntradeducPath()
         dg['textRange'] = self.textRange
 
-        if 'pdf' in self.pdfReferences:
-            ref = self.pdfReferences['pdf']
-            dg['pdfRef'] = ref.combiner_code
-            dg['pdfFingerprint'] = ref.fingerprint
+        if self.docReference:
+            dg['docRef'] = self.docReference.combiner_code
+            dg['docId'] = self.docReference.docId
 
         self.add_comparisons_to_dashgraph(dg)
 
@@ -988,10 +984,9 @@ class Node(NodeLikeObj):
         renderer = NodeLabelRenderer(self)
         text = mistletoe.markdown(text, renderer)
 
-        # Add a PDF label if defined, and if no latex label.
-        if 'pdf' in self.pdfReferences and not latex_label:
-            ref = self.pdfReferences['pdf']
-            text += ref.write_pdf_render_div()
+        # Add a doc label if defined, and if no latex label.
+        if self.docReference and not latex_label:
+            text += self.docReference.write_doc_render_div()
 
         return text
 

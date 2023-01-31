@@ -23,16 +23,50 @@ from pfsc.excep import PfscExcep, PECode
 
 NONEMPTY_HEXADECIMAL_PATTERN = re.compile(r'^[a-fA-F0-9]+$')
 
-def check_pdf_fingerprint(key, raw, typedef):
+PDF_FINGERPRINT_ID_TYPE = 'pdffp'
+
+
+def check_doc_id(key, raw, typedef):
     """
+    A doc id is a unique identifier for various types of documents such as
+    PDFs, as well as other forms in which docs may be delivered.
+
+    Every doc id has the form,
+
+        type:code
+
+    At present we recognize one type:
+
+        pdffp: PDF fingerprint
+
     A PDF fingerprint is a hexadecimal hash computed by Mozilla's pdf.js
-    in order to (probably uniquely) identify a PDF document.
+    in order to (probably uniquely) identify a PDF document. A full docId of
+    this type might look like e.g.
+
+        pdffp:ae4cc6056dbf2e389704cc8ef99f9720
+
     """
+    def reject():
+        raise PfscExcep('Malformed doc ID', PECode.MALFORMED_DOC_ID, bad_field=key)
+
     if not isinstance(raw, str):
-        raise PfscExcep('Malformed PDF Fingerprint', PECode.MALFORMED_PDF_FINGERPRINT, bad_field=key)
-    if not NONEMPTY_HEXADECIMAL_PATTERN.match(raw):
-        raise PfscExcep('Malformed PDF Fingerprint', PECode.MALFORMED_PDF_FINGERPRINT, bad_field=key)
+        reject()
+
+    first_colon = raw.find(":")
+    if first_colon < 0:
+        reject()
+
+    id_type = raw[:first_colon]
+    id_code = raw[first_colon + 1:]
+
+    if id_type == PDF_FINGERPRINT_ID_TYPE:
+        if not NONEMPTY_HEXADECIMAL_PATTERN.match(id_code):
+            reject()
+    else:
+        reject()
+
     return raw
+
 
 combiner_code_grammar = r"""
     program: version scale content_command+
@@ -53,10 +87,11 @@ combiner_code_grammar = r"""
 
 combiner_code_parser = Lark(combiner_code_grammar, start='program', parser='lalr', lexer='standard')
 
+
 def check_combiner_code(key, raw, typedef):
     """
     A combiner code is a little program used to indicate a way of selecting and
-    combining boxes (from a PDF document).
+    combining boxes (from a document).
 
     typedef:
         opt:
@@ -67,7 +102,7 @@ def check_combiner_code(key, raw, typedef):
     desired_version = typedef.get('version', 2)
     if desired_version != 2:
         msg = f'Trying to check unknown combiner code version: {desired_version}'
-        raise PfscExcep(msg, PECode.PDF_COMBINER_CODE_UKNOWN_VERS, bad_field=key)
+        raise PfscExcep(msg, PECode.DOC_COMBINER_CODE_UKNOWN_VERS, bad_field=key)
     desired_v_code = f'v{desired_version}'
 
     try:
@@ -79,6 +114,6 @@ def check_combiner_code(key, raw, typedef):
     commands = raw.split(';')
     if commands[0] != desired_v_code:
         msg = f'Combiner code of unknown version: {commands[0]}'
-        raise PfscExcep(msg, PECode.PDF_COMBINER_CODE_UKNOWN_VERS, bad_field=key)
+        raise PfscExcep(msg, PECode.DOC_COMBINER_CODE_UKNOWN_VERS, bad_field=key)
 
     return raw
