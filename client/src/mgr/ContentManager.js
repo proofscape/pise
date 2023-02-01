@@ -79,7 +79,7 @@ var ContentManager = declare(null, {
 
     // Methods
 
-    constructor: function(tct) {
+    constructor: function() {
 
         this.contentRegistry = {};
 
