@@ -28,19 +28,21 @@ import { NoGroupError } from "browser-peers/src/errors";
 define([
     "dojo/_base/declare",
     "dojo/_base/lang",
+    "ise/content_types/AbstractContentManager",
     "ise/plugins/MooseContextMenuPlugin",
     "ise/util",
     "ise/errors"
 ], function(
     declare,
     lang,
+    AbstractContentManager,
     MooseContextMenuPlugin,
     iseUtil,
     iseErrors
 ) {
 
 // ChartManager class
-var ChartManager = declare(null, {
+var ChartManager = declare(AbstractContentManager, {
 
     // Properties
 

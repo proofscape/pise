@@ -32,6 +32,7 @@ define([
     "dijit/PopupMenuItem",
     "dijit/MenuSeparator",
     "dijit/ConfirmDialog",
+    "ise/content_types/AbstractContentManager",
     "ise/util",
     "dojo/NodeList-dom",
     "dojo/NodeList-manipulate",
@@ -44,11 +45,12 @@ define([
     PopupMenuItem,
     MenuSeparator,
     ConfirmDialog,
+    AbstractContentManager,
     iseUtil
 ) {
 
 // EditManager class
-var EditManager = declare(null, {
+var EditManager = declare(AbstractContentManager, {
 
     // Properties
     hub: null,

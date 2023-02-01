@@ -26,12 +26,14 @@ define([
     "dojo/_base/declare",
     "dojo/dom-construct",
     "dijit/Dialog",
+    "ise/content_types/AbstractContentManager",
     "ise/content_types/pdf/PdfController",
     "ise/errors"
 ], function(
     declare,
     domConstruct,
     Dialog,
+    AbstractContentManager,
     PdfController,
     pfscErrors
 ) {
@@ -47,7 +49,7 @@ define([
  * will find the key `pdfjs.history`.
  *
  */
-var PdfManager = declare(null, {
+var PdfManager = declare(AbstractContentManager, {
 
     // Properties
 

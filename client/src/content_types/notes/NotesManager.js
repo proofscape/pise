@@ -19,6 +19,7 @@ import { UnknownPeerError } from "browser-peers/src/errors";
 define([
     "dojo/_base/declare",
     "dojo/query",
+    "ise/content_types/AbstractContentManager",
     "ise/content_types/notes/PageViewer",
     "ise/widgets/Widget",
     "ise/widgets/ChartWidget",
@@ -37,6 +38,7 @@ define([
 ], function(
     declare,
     query,
+    AbstractContentManager,
     PageViewer,
     Widget,
     ChartWidget,
@@ -76,7 +78,7 @@ function constructWidget(hub, libpath, info) {
 }
 
 // NotesManager class
-var NotesManager = declare(null, {
+var NotesManager = declare(AbstractContentManager, {
 
     // Properties
     hub: null,
