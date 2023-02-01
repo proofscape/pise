@@ -153,6 +153,7 @@ var ContentManager = declare(null, {
         tct.registerClosingPaneListener(this);
         tct.registerMenuBuilder(this);
         tct.registerMenuOpenListener(this);
+        tct.registerActivePaneListener(this);
     },
 
     getTabContainerTree: function() {
@@ -776,6 +777,37 @@ var ContentManager = declare(null, {
             const info = event.info;
             const mgr = this.getManager(info.type);
             mgr.updateContent(info, paneId);
+        }
+    },
+
+    /* When there's a new active pane, we check to see if its content
+     * defines any doc highlights. If so, we groupcast an event containing
+     * the list of docIds for which highlights are available, and the uuid
+     * of the newly active panel. This allows documents open in any
+     * window to (potentially) follow up and request full highlight info.
+     */
+    noteActivePane: function(pane) {
+        const info = this.contentRegistry[pane.id];
+        // Our event structure is not perfect; it seems the active pane event
+        // will sometimes be triggered twice: once on a new pane's `show`
+        // event, and then again when we invoke `this.tct.announceActivePane()`
+        // in our `openContentInPane()` method, after actually loading the content.
+        // We have to wait until that second event, for the info to actually be
+        // available in our contentRegistry. Could some day try to perfect all this,
+        // but for now we just check to see if we got an info.
+        if (info) {
+            const mgr = this.getManager(info.type);
+            const docInfo = mgr.getSuppliedDocHighlights(pane.id);
+            const docIds = Array.from(docInfo.docs.keys());
+            if (docIds.length) {
+                this.hub.windowManager.groupcastEvent({
+                    type: 'newlyActiveHighlightSupplierPanel',
+                    uuid: info.uuid,
+                    docIds: docIds,
+                }, {
+                    includeSelf: true,
+                });
+            }
         }
     },
 
