@@ -149,12 +149,8 @@ var ContentManager = declare(null, {
     },
 
     setTabContainerTree: function(tct) {
-        // Record a reference to the TabContainerTree.
         this.tct = tct;
-        // Register ourselves as a closing pane listener.
-        // This gives us a chance to do something before any pane closes.
         tct.registerClosingPaneListener(this);
-        // Also register as menu builder, and menu open listener.
         tct.registerMenuBuilder(this);
         tct.registerMenuOpenListener(this);
     },
