@@ -578,8 +578,10 @@ var ContentManager = declare(null, {
         const p = mgr.initContent(info, elt, pane);
         // Record the info object in our content registry.
         this.contentRegistry[pane.id] = info;
-        // Announce the active pane.
-        this.tct.announceActivePane(pane);
+        // Announce the active pane after the content has finished loading.
+        p.then(() => {
+            this.tct.announceActivePane();
+        });
         // Need to resize the tab container in order to recover the
         // line at the top that separates the tabs from the content.
         // Possibly related issue: https://bugs.dojotoolkit.org/ticket/9849
