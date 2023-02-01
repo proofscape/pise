@@ -91,6 +91,11 @@ var ChartManager = declare(AbstractContentManager, {
         return this.forestsByPaneId[paneId];
     },
 
+    getSuppliedDocHighlights: function(paneId) {
+        const forest = this.forestsByPaneId[paneId];
+        return forest.getMergedDocInfos();
+    },
+
     addNavEnableHandler: function(callback) {
         this.navEnableHandlers.push(callback);
     },

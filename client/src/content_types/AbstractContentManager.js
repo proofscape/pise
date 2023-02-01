@@ -98,6 +98,46 @@ var AbstractContentManager = declare(null, {
         return Promise.resolve([false, false]);
     },
 
+    /* For the content in a given pane, return an object describing all the
+     * document highlights (if any) defined by that content.
+     *
+     * param paneId: The id of the pane in question.
+     * return: Object of the form {
+     *     'docs': Map(
+     *         docId1 => {
+     *             ...,
+     *             ISBN: ...
+     *             url: ...
+     *             docId: ...
+     *         },
+     *         docId2 => {
+     *             ...docInfo2...
+     *         },
+     *     ),
+     *     'refs': Map(
+     *         docId1 => [
+     *             {
+     *                  ccode: ...a combiner code string...,
+     *                  siid: ...a "supplier internal id"...--some unique id that makes sense to the supplier,
+     *                  slp: the supplier libpath,
+     *                  stype: the supplier type ("CHART", "NOTES", anything else?)
+     *              },
+     *             {...ref2...},
+     *         ],
+     *         docId2 => [
+     *             {...ref3...},
+     *             {...ref4...},
+     *         ],
+     *     ),
+     * }
+     */
+    getSuppliedDocHighlights: function(paneId) {
+        return {
+            docs: new Map(),
+            refs: new Map(),
+        };
+    },
+
 });
 
 return AbstractContentManager;
