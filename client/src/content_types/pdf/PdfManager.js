@@ -93,6 +93,8 @@ var PdfManager = declare(AbstractContentManager, {
 
     activate: function() {
         this.localPdfLibraryUrlPrefix = this.hub.urlFor('static') + "/PDFLibrary/";
+        this.hub.windowManager.on('newlyActiveHighlightSupplierPanel',
+            this.onNewlyActiveHighlightSupplierPanel.bind(this));
     },
 
     retryPausedDownloads: function() {
@@ -588,6 +590,55 @@ var PdfManager = declare(AbstractContentManager, {
         }
 
         dlg.show();
+    },
+
+    onNewlyActiveHighlightSupplierPanel: function({uuid, docIds}) {
+        console.debug('PdfManager.onNewlyActiveHighlightSupplierPanel', uuid, docIds);
+        // For now, we request the lists of highlights from the new supplier for any docIds
+        // that are currently open, and load these into those docs without question.
+        // In the future, we may make this more selective if we have developed systems, e.g.
+        // via drag and drop, whereby the user can form a more permanent link between a given
+        // document panel, and a given supplier.
+
+        const controllersByDocId = new Map();
+        for (const pdfc of Object.values(this.pdfcsByPaneId)) {
+            const docId = pdfc.docId;
+            if (docIds.includes(docId)) {
+                if (!controllersByDocId.has(docId)) {
+                    controllersByDocId.set(docId, []);
+                }
+                controllersByDocId.get(docId).push(pdfc);
+            }
+        }
+
+        const desiredDocIds = Array.from(controllersByDocId.keys());
+        if (desiredDocIds.length) {
+            const requests = this.hub.windowManager.broadcastRequest(
+                'contentManager.getHighlightsFromSupplier',
+                {
+                    supplierUuid: uuid,
+                    docIds: desiredDocIds,
+                },
+                {
+                    excludeSelf: false,
+                }
+            );
+            Promise.all(requests).then(values => {
+                for (let value of values) {
+                    if (value) {
+                        for (const docId of Object.keys(value)) {
+                            const hls = value[docId];
+                            if (hls.length) {
+                                for (const pdfc of controllersByDocId.get(docId)) {
+                                    pdfc.receiveNewHighlights(uuid, hls);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            });
+        }
     },
 
 });

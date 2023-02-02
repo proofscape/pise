@@ -811,6 +811,28 @@ var ContentManager = declare(null, {
         }
     },
 
+    /* Search for a pane of a given `uuid`. If found in this window,
+     * then return the array of doc highlights defined by the content in
+     * that pane, for the documents of those ids named in the `docIds`
+     * array. Otherwise return `null`.
+     */
+    getHighlightsFromSupplier: function({supplierUuid, docIds}) {
+        const paneId = this.getPaneIdByUuid(supplierUuid);
+        if (paneId !== null) {
+            const info = this.contentRegistry[paneId];
+            const mgr = this.getManager(info.type);
+            const docInfo = mgr.getSuppliedDocHighlights(paneId);
+            const hls = {};
+            for (const [key, value] of docInfo.refs) {
+                if (docIds.includes(key)) {
+                    hls[key] = value;
+                }
+            }
+            return hls;
+        }
+        return null;
+    },
+
 });
 
 return ContentManager;

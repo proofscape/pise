@@ -89,6 +89,7 @@ var PdfController = declare(null, {
     history: null,
     document: null,
     fingerprint: null,
+    docId: null,
 
     urlBar: null,
     pdfUrlBox: null,
@@ -111,7 +112,8 @@ var PdfController = declare(null, {
     // functions that should be called after that page's text layer has rendered. These
     // functions are called only once. Then their records here are cleared.
     callbackOnTextLayerRenderLookup: null,
-    // ---------
+
+    highlightSupplierUuidsByLibpath: null,
 
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
@@ -123,6 +125,8 @@ var PdfController = declare(null, {
         this.selboxCombineDialog = this.buildSelboxCombineDialog();
 
         this.stateRequestPromise = Promise.resolve();
+
+        this.highlightSupplierUuidsByLibpath = new Map();
     },
 
     initialize: function(info) {
@@ -655,6 +659,7 @@ var PdfController = declare(null, {
         this.showLoadingGif(false);
         this.document = this.viewer.pdfDocument;
         this.fingerprint = this.document.fingerprint;
+        this.docId = `pdffp:${this.fingerprint}`;
 
         const wm = this.mgr.hub.windowManager;
         const {myNumber} = wm.getNumbers();
@@ -676,6 +681,14 @@ var PdfController = declare(null, {
         this.docLoadResolve();
         this.docIsLoaded = true;
         this.pausedOnDownload = false;
+    },
+
+    receiveNewHighlights: function(supplierUuid, hls) {
+        console.debug(`PdfController received new highlights from ${supplierUuid}:`, hls);
+        this.highlightSupplierUuidsByLibpath.set(hls[0].slp, supplierUuid);
+        // TODO:
+        //  (1) Drop existing highlights
+        //  (2) Rebuild box layer with new highlights
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.
