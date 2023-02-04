@@ -40,6 +40,7 @@
  */
 
 import { LackingHostPermissionError } from "browser-peers/src/errors";
+import { Highlight, PageOfHighlights } from "../venn";
 
 define([
     "dojo/_base/declare",
@@ -114,6 +115,7 @@ var PdfController = declare(null, {
     callbackOnTextLayerRenderLookup: null,
 
     highlightSupplierUuidsByLibpath: null,
+    highlightsByPageNum: null,
 
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
@@ -127,6 +129,7 @@ var PdfController = declare(null, {
         this.stateRequestPromise = Promise.resolve();
 
         this.highlightSupplierUuidsByLibpath = new Map();
+        this.highlightsByPageNum = new Map();
     },
 
     initialize: function(info) {
@@ -683,12 +686,24 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
-    receiveNewHighlights: function(supplierUuid, hls) {
-        console.debug(`PdfController received new highlights from ${supplierUuid}:`, hls);
-        this.highlightSupplierUuidsByLibpath.set(hls[0].slp, supplierUuid);
-        // TODO:
-        //  (1) Drop existing highlights
-        //  (2) Rebuild box layer with new highlights
+    /* Receive the array of highlight descriptors, from a new highlight supplier.
+     * Existing highlights are dropped. New ones are immediately inserted on existing
+     * rendered pages, and set up to appear on new pages, as they render.
+     */
+    receiveNewHighlights: function(supplierUuid, hlDescriptors) {
+        console.debug(`PdfController received new highlights from ${supplierUuid}:`, hlDescriptors);
+        this.highlightSupplierUuidsByLibpath.set(hlDescriptors[0].slp, supplierUuid);
+        this.highlightsByPageNum.clear();
+        for (let hlDescriptor of hlDescriptors) {
+            const hl = new Highlight(this, hlDescriptor);
+            for (const p of hl.listPageNums()) {
+                if (!this.highlightsByPageNum.has(p)) {
+                    this.highlightsByPageNum.set(p, []);
+                }
+                this.highlightsByPageNum.get(p).push(hl);
+            }
+        }
+        this.redoExistingHighlightLayers();
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.
@@ -701,7 +716,7 @@ var PdfController = declare(null, {
      * This is dispatched after the text layer of a pdf page has finished rendering.
      */
     onTextLayerRendered: function({source, pageNumber, numTextDivs}) {
-        this.addBoxLayer(pageNumber);
+        this.addPageLayers(pageNumber);
         this.callbackOnTextLayerRender(pageNumber);
     },
 
@@ -1133,9 +1148,61 @@ var PdfController = declare(null, {
         return this.outerContainer.classList.contains('boxSelect');
     },
 
-    addBoxLayer: function(pageNumber) {
-        var canvas = this.outerContainer.querySelector('.page'+pageNumber);
-        var page = canvas.parentNode.parentNode;
+    addPageLayers: function(pageNumber) {
+        const canvas = this.outerContainer.querySelector('.page'+pageNumber);
+        const page = canvas.parentNode.parentNode;
+        this.addBoxLayer(page, pageNumber);
+        this.addHighlightLayer(page, pageNumber);
+    },
+
+    // Add a brand new highlight layer to a page.
+    addHighlightLayer: function(page, pageNumber) {
+        const hlLayer = document.createElement("div");
+        hlLayer.style.width = page.style.width;
+        hlLayer.style.height = page.style.height;
+        hlLayer.classList.add('highlightLayer');
+        this.buildHighlightsForHighlightLayer(hlLayer, pageNumber);
+        page.appendChild(hlLayer);
+    },
+
+    // Find all existing highlight layers, and redo each one.
+    // Useful when moving to a new highlight supplier.
+    redoExistingHighlightLayers: function() {
+        const highlightLayers = Array.from(this.outerContainer.querySelectorAll('.highlightLayer'));
+        for (const highlightLayer of highlightLayers) {
+            const pageNumber = +highlightLayer.parentNode.getAttribute('data-page-number');
+            this.redoHighlightLayer(highlightLayer, pageNumber);
+        }
+    },
+
+    // Clear out an existing highlight layer, and rebuild its contents.
+    redoHighlightLayer: function(highlightLayer, pageNumber) {
+        iseUtil.removeAllChildNodes(highlightLayer);
+        this.buildHighlightsForHighlightLayer(highlightLayer, pageNumber);
+    },
+
+    // Build the contents of a highlight layer.
+    buildHighlightsForHighlightLayer: function(highlightLayer, pageNumber) {
+        const hls = this.highlightsByPageNum.get(pageNumber) || [];
+        if (!hls.length) {
+            return;
+        }
+        const W = highlightLayer.clientWidth;
+        const hlPage = new PageOfHighlights(this, pageNumber, W);
+        hlPage.addHighlights(hls);
+        hlPage.populateHighlightLayer(highlightLayer);
+    },
+
+    // Named highlights are those that appear in the highlightLayer of a page, and come from
+    // a highlight descriptor from a highlight supplier.
+    // See also: `clearAdHocHighlight()`
+    clearNamedHighlight: function() {
+        this.outerContainer.querySelectorAll('.hl-zone.selected').forEach(zone => {
+            zone.classList.remove('selected');
+        });
+    },
+
+    addBoxLayer: function(page, pageNumber) {
         var boxLayer = document.createElement("div");
         boxLayer.style.width = page.style.width;
         boxLayer.style.height = page.style.height;

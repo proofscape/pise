@@ -51,7 +51,8 @@
     pointer-events: none;
 }
 
-.boxLayer {
+.boxLayer,
+.highlightLayer {
     pointer-events: none;
     position: absolute;
     top: 0px;
@@ -61,6 +62,11 @@
 }
 
 .pfsc-ise-pdf.boxSelect .boxLayer {
+    pointer-events: all;
+    cursor: crosshair;
+}
+
+.pfsc-ise-pdf.highlightNav .highlightLayer {
     pointer-events: all;
     cursor: crosshair;
 }
@@ -108,4 +114,54 @@
     cursor: move;
     background: #00f;
     outline: none;
+}
+
+.hl-zone {
+    cursor: default;
+    position: absolute;
+    opacity: 0.3;
+}
+
+.hl-region {
+    position: absolute;
+}
+
+.hl-zone.selected .hl-region {
+    background: #0ff;
+}
+
+.hl-zone.temp-color-0 .hl-region {
+    background: #0f0;
+}
+
+.hl-zone.temp-color-1 .hl-region {
+    background: #f00;
+}
+
+.hl-zone.temp-color-2 .hl-region {
+    background: #f0f;
+}
+
+.hl-zone.temp-color-3 .hl-region {
+    background: #ff0;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.selected .hl-region {
+    background: #f00;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-0 .hl-region {
+    background: #f0f;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-1 .hl-region {
+    background: #0ff;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-2 .hl-region {
+    background: #0f0;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-3 .hl-region {
+    background: #00f;
 }
