@@ -322,7 +322,7 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/package.json")}:/home/pfsc/proofscape/src/client/package.json:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/web.py")}:/home/pfsc/proofscape/src/pfsc-server/web.py:ro')
-        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise/ise.bundle.js")}:/home/pfsc/proofscape/src/pfsc-server/static/ise/v{versions["pise"]}/ise.bundle.js:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/dist/ise")}:/home/pfsc/proofscape/src/pfsc-server/static/ise/v{versions["pise"]}:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-pdf/build/generic")}:/home/pfsc/proofscape/src/pfsc-server/static/pdfjs/v{versions["pfsc-pdf"]}:ro')
         d['volumes'].append(f'{PFSC_ROOT}/src/whl:/home/pfsc/proofscape/src/pfsc-server/static/whl:ro')
 
