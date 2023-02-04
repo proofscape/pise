@@ -577,7 +577,7 @@ var PdfController = declare(null, {
                 return pdfc.highlightFromCodes(codes, doAutoScroll, color);
             } else {
                 // If no selection specified, clear any existing highlights.
-                pdfc.clearHighlight();
+                pdfc.clearAdHocHighlight();
                 return Promise.resolve();
             }
         });
@@ -803,7 +803,7 @@ var PdfController = declare(null, {
      */
     // <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#Object_destructuring>
     highlightSelection_OLD: function({pageIdx, beginDivIdx, beginOffset, endDivIdx, endOffset, autoScroll}) {
-        this.clearHighlight();
+        this.clearHighlight_OLD();
         if (!this.app) return;
         var viewer = this.app.pdfViewer;
         if (!viewer) return;
@@ -887,9 +887,10 @@ var PdfController = declare(null, {
 
     // -----------------------------------------------------------------------
 
-    /* Remove all highlight boxes.
-     */
-    clearHighlight: function() {
+    // Ad hoc highlights are those that do not come from a highlight supplier, but
+    // are just specified by passing an array of combiner codes to the `highlightFromCodes()` method.
+    // See also: `clearNamedHighlight()`
+    clearAdHocHighlight: function() {
         this.outerContainer.querySelectorAll('.highlightBox').forEach(box => box.remove());
     },
 
@@ -947,7 +948,7 @@ var PdfController = declare(null, {
                     }
                 });
             }
-            ctrl.clearHighlight();
+            ctrl.clearAdHocHighlight();
             startNextJob(0);
         });
     },

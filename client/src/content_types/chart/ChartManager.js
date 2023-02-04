@@ -394,7 +394,7 @@ var ChartManager = declare(AbstractContentManager, {
                         if (docRef) {
                             pdfc.highlightFromCodes([docRef], e.altKey);
                         } else {
-                            pdfc.clearHighlight();
+                            pdfc.clearAdHocHighlight();
                         }
                     }
                 }
