@@ -229,15 +229,6 @@ var PdfManager = declare(AbstractContentManager, {
         }
     },
 
-    /* Set (b === true) or unset (b === false) box select mode in all pdf panes.
-     */
-    setBoxSelectMode: function(b) {
-        for (let id in this.pdfcsByPaneId) {
-            var pdfc = this.pdfcsByPaneId[id];
-            pdfc.setBoxSelectMode(b);
-        }
-    },
-
     /* Pass a PDF fingerprint. We return an array of the panes where
      * that PDF document is open, if any.
      */

@@ -231,8 +231,6 @@ var PdfController = declare(null, {
                             });
                         });
 
-                        pdfc.setBoxSelectMode(pdfc.mgr.hub.menuManager.pdfOpt_SetBoxSelect.checked);
-
                         // Add custom CSS
                         var link = document.createElement("link");
                         link.href = pdfc.mgr.hub.urlFor('staticISE') + "/pdf.css";
@@ -1135,19 +1133,6 @@ var PdfController = declare(null, {
     },
     */
     // // // // //
-
-    setBoxSelectMode: function(b) {
-        if (b) {
-            this.outerContainer.classList.add('boxSelect');
-        } else {
-            this.outerContainer.classList.remove('boxSelect');
-            this.getSelectionBoxes().forEach(box => box.remove());
-        }
-    },
-
-    isInBoxSelectMode: function() {
-        return this.outerContainer.classList.contains('boxSelect');
-    },
 
     addPageLayers: function(pageNumber) {
         const canvas = this.outerContainer.querySelector('.page'+pageNumber);

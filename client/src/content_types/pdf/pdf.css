@@ -44,10 +44,8 @@
     filter: invert(0.8);
 }
 
-/* When we are in "box select" mode, turn off pointer events on annotation layers,
- * so they do not interfere.
- */
-.pfsc-ise-pdf.boxSelect .annotationLayer {
+.enrichmentsMode .annotationLayer,
+.boxSelectMode .annotationLayer {
     pointer-events: none;
 }
 
@@ -61,14 +59,14 @@
     right: 0px;
 }
 
-.pfsc-ise-pdf.boxSelect .boxLayer {
+.boxSelectMode .boxLayer {
     pointer-events: all;
     cursor: crosshair;
 }
 
-.pfsc-ise-pdf.highlightNav .highlightLayer {
+.enrichmentsMode .highlightLayer {
     pointer-events: all;
-    cursor: crosshair;
+    cursor: default;
 }
 
 .highlightBox {
@@ -117,7 +115,7 @@
 }
 
 .hl-zone {
-    cursor: default;
+    cursor: alias;
     position: absolute;
     opacity: 0.3;
 }
