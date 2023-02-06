@@ -89,6 +89,12 @@ export class Highlight {
         }
     }
 
+    clearAllTempColors() {
+        for (let n = 0; n < 4; n++) {
+            this.setTempColor(false, n);
+        }
+    }
+
     // Set/unset selected class on all zones.
     // b: true to make selected, false to remove
     select(b) {
@@ -116,6 +122,7 @@ export class Highlight {
         });
         div.addEventListener('click', event => {
             this.documentController.clearNamedHighlight();
+            this.clearAllTempColors();
             this.select(true);
             event.stopPropagation();
             // TODO: tell this.documentController to send a navigation event
