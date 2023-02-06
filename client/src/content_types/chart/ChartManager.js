@@ -75,6 +75,7 @@ var ChartManager = declare(AbstractContentManager, {
     activate: function(ISE_state) {
         this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('forestColoring', this.handleGroupcastForestColoring.bind(this));
+        this.hub.windowManager.on('docHighlightClick', this.handleDocHighlightClick.bind(this));
         this.setAppUrlPrefix(ISE_state.appUrlPrefix || '');
         // Make Moose's XHRs go through the Hub, so we can add our CSRF token.
         moose.head.xhr = this.hub.xhr.bind(this.hub);
@@ -364,6 +365,24 @@ var ChartManager = declare(AbstractContentManager, {
             hm.goForward();
         }
         return Promise.resolve([hm.canGoBack(), hm.canGoForward()]);
+    },
+
+    handleDocHighlightClick: function({supplierUuid, siid, altKey}) {
+        // The supplier could be in another window, or could be something other than a chart.
+        // So we begin by checking if it happens to be a chart in this window.
+        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+            const info = {};
+            // For highlights supplied by a chart, the siid's simply are the libpaths
+            // of the nodes that supplied them. So we either want to view or select
+            // that node, according to whether the alt key was held.
+            if (altKey) {
+                info.view = siid;
+            } else {
+                info.select = siid;
+            }
+            this.updateContent(info, paneId);
+        }
     },
 
     /* Note that a node was clicked in a Forest.

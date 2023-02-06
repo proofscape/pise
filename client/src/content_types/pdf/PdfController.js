@@ -693,6 +693,17 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
+    broadcastHighlightClick: function(event, highlightDescriptor) {
+        this.mgr.hub.windowManager.groupcastEvent({
+            type: 'docHighlightClick',
+            supplierUuid: this.highlightSupplierUuidsByLibpath.get(highlightDescriptor.slp),
+            siid: highlightDescriptor.siid,
+            altKey: event.altKey,
+        }, {
+            includeSelf: true,
+        });
+    },
+
     /* Receive the array of highlight descriptors, from a new highlight supplier.
      * Existing highlights are dropped. New ones are immediately inserted on existing
      * rendered pages, and set up to appear on new pages, as they render.

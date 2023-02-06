@@ -125,7 +125,9 @@ export class Highlight {
             this.clearAllTempColors();
             this.select(true);
             event.stopPropagation();
-            // TODO: tell this.documentController to send a navigation event
+            this.documentController.broadcastHighlightClick(
+                event, this.highlightDescriptor
+            );
         });
         this.zoneDivsByPageNum.set(pageNum, div);
         return div;
