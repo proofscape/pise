@@ -125,6 +125,9 @@ var PdfController = declare(null, {
     // This is a mapping from document page numbers to arrays of Highlight instances
     // that have been constructed for that page.
     highlightsByPageNum: null,
+    // This mapping provides a way to look up our current Highlights by id strings of
+    // the form `${slp}:${siid}` (supplier libpath : supplier internal id).
+    highlightsBySlpSiid: null,
 
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
@@ -139,6 +142,7 @@ var PdfController = declare(null, {
 
         this.highlightSupplierUuidsByLibpath = new Map();
         this.highlightsByPageNum = new Map();
+        this.highlightsBySlpSiid = new Map();
     },
 
     initialize: function(info) {
@@ -720,6 +724,8 @@ var PdfController = declare(null, {
         this.highlightSupplierUuidsByLibpath.set(hlDescriptors[0].slp, supplierUuid);
         for (let hlDescriptor of hlDescriptors) {
             const hl = new Highlight(this, hlDescriptor);
+            const slpSiid = `${hlDescriptor.slp}:${hlDescriptor.siid}`;
+            this.highlightsBySlpSiid.set(slpSiid, hl);
             for (const p of hl.listPageNums()) {
                 if (!this.highlightsByPageNum.has(p)) {
                     this.highlightsByPageNum.set(p, []);
@@ -730,8 +736,20 @@ var PdfController = declare(null, {
         this.redoExistingHighlightLayers();
     },
 
+    selectNamedHighlight: function(slpSiid, altKey) {
+        const hl = this.highlightsBySlpSiid.get(slpSiid);
+        if (hl) {
+            this.clearNamedHighlight();
+            hl.select(true);
+            if (altKey) {
+                hl.scrollIntoView();
+            }
+        }
+    },
+
     dropAllExistingHighlights: function() {
         this.highlightsByPageNum.clear();
+        this.highlightsBySlpSiid.clear();
         this.highlightSupplierUuidsByLibpath.clear();
     },
 
@@ -975,7 +993,7 @@ var PdfController = declare(null, {
                         if (doAutoScroll) {
                             // Scroll not just to the first page, but to the first highlight box on that page.
                             var rect = ctrl.outerContainer.querySelector('.highlightBox');
-                            ctrl.viewer._scrollIntoView({pageDiv: rect});
+                            ctrl.scrollIntoView(rect);
                         }
                         resolve();
                     }
@@ -984,6 +1002,10 @@ var PdfController = declare(null, {
             ctrl.clearAdHocHighlight();
             startNextJob(0);
         });
+    },
+
+    scrollIntoView: function(element) {
+        this.viewer._scrollIntoView({pageDiv: element});
     },
 
     /* Suppose you have an operation to perform on a page, and that you may or

@@ -403,17 +403,19 @@ var ChartManager = declare(AbstractContentManager, {
         var selMgr = forest.getSelectionManager(),
             singleton = selMgr.getSingletonNode();
         if (singleton !== null && singleton.uid === nodepath) {
-            const docRef = singleton.docRef;
             const docId = singleton.docId;
             if (docId) {
                 if (docId.startsWith('pdffp:')) {
                     const pdfFingerprint = docId.slice(6);
                     const pdfc = this.hub.pdfManager.getMostRecentPdfcForFingerprint(pdfFingerprint);
                     if (pdfc) {
-                        if (docRef) {
-                            pdfc.highlightFromCodes([docRef], e.altKey);
-                        } else {
-                            pdfc.clearAdHocHighlight();
+                        // Note: we used to use singleton.docRef to make an ad hoc highlight. Now we
+                        // instead want to use named highlights.
+                        const deducInfo = singleton.getDeducInfo();
+                        const deducpath = deducInfo?.getLibpath();
+                        if (deducpath) {
+                            const highlightId = `${deducpath}:${nodepath}`;
+                            pdfc.selectNamedHighlight(highlightId, e.altKey);
                         }
                     }
                 }

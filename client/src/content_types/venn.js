@@ -53,6 +53,11 @@ export class Highlight {
         return Array.from(this.selectionBoxesByPageNum.keys());
     }
 
+    firstPage() {
+        const pageNums = this.listPageNums();
+        return Math.min(...pageNums);
+    }
+
     // Given the size of a rendered page, produce the initial regions for
     // that page, for this highlight. There is one initial region for each
     // box making up the highlight.
@@ -106,6 +111,12 @@ export class Highlight {
                 zoneDiv.classList.remove(className);
             }
         }
+    }
+
+    scrollIntoView() {
+        const firstZone = this.zoneDivsByPageNum.get(this.firstPage());
+        const firstRegion = firstZone.querySelector('.hl-region');
+        this.documentController.scrollIntoView(firstRegion);
     }
 
     buildZoneDiv(pageNum) {
