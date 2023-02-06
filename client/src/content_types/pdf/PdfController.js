@@ -724,6 +724,10 @@ var PdfController = declare(null, {
         this.highlightSupplierUuidsByLibpath.clear();
     },
 
+    hasHighlightsForUuid: function(uuid) {
+        return Array.from(this.highlightSupplierUuidsByLibpath.values()).includes(uuid);
+    },
+
     /* Respond to the PDF viewer app's `pagerendered` event.
      * This is dispatched after the canvas layer of a pdf page has finished rendering.
      */

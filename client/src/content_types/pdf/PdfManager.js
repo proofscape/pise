@@ -584,17 +584,22 @@ var PdfManager = declare(AbstractContentManager, {
     },
 
     onNewlyActiveHighlightSupplierPanel: function({uuid, docIds}) {
-        console.debug('PdfManager.onNewlyActiveHighlightSupplierPanel', uuid, docIds);
+        //console.debug('PdfManager.onNewlyActiveHighlightSupplierPanel', uuid, docIds);
         // For now, we request the lists of highlights from the new supplier for any docIds
         // that are currently open, and load these into those docs without question.
         // In the future, we may make this more selective if we have developed systems, e.g.
         // via drag and drop, whereby the user can form a more permanent link between a given
         // document panel, and a given supplier.
 
+        // Build a mapping from docId's to PdfController instances.
+        // The docId's must:
+        //  - be in the incoming `docIds` list, and
+        //  - be hosted by an existing PdfController that doesn't already have
+        //    the highlights from the supplier of the given `uuid`.
         const controllersByDocId = new Map();
         for (const pdfc of Object.values(this.pdfcsByPaneId)) {
             const docId = pdfc.docId;
-            if (docIds.includes(docId)) {
+            if (docIds.includes(docId) && !pdfc.hasHighlightsForUuid(uuid)) {
                 if (!controllersByDocId.has(docId)) {
                     controllersByDocId.set(docId, []);
                 }
