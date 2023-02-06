@@ -689,9 +689,15 @@ var PdfController = declare(null, {
      * rendered pages, and set up to appear on new pages, as they render.
      */
     receiveNewHighlights: function(supplierUuid, hlDescriptors) {
-        console.debug(`PdfController received new highlights from ${supplierUuid}:`, hlDescriptors);
+        //console.debug(`PdfController received new highlights from ${supplierUuid}:`, hlDescriptors);
+
+        // TODO:
+        //  At some point, we contemplate allowing a single document to simultaneously be host
+        //  to the enrichments from multiple different suppliers. For the moment, we're holding
+        //  off on that, which means that when we receive new highlights, we drop all existing ones.
+        this.dropAllExistingHighlights();
+
         this.highlightSupplierUuidsByLibpath.set(hlDescriptors[0].slp, supplierUuid);
-        this.highlightsByPageNum.clear();
         for (let hlDescriptor of hlDescriptors) {
             const hl = new Highlight(this, hlDescriptor);
             for (const p of hl.listPageNums()) {
@@ -702,6 +708,11 @@ var PdfController = declare(null, {
             }
         }
         this.redoExistingHighlightLayers();
+    },
+
+    dropAllExistingHighlights: function() {
+        this.highlightsByPageNum.clear();
+        this.highlightSupplierUuidsByLibpath.clear();
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.
