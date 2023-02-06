@@ -124,6 +124,10 @@
     position: absolute;
 }
 
+.hl-intersection-region {
+    cursor: default;
+}
+
 .hl-zone.selected .hl-region {
     background: #0ff;
 }

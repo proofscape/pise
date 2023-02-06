@@ -161,6 +161,7 @@ class Region {
     activateIfMulti(div) {
         const hlArray = Array.from(this.highlights);
         if (hlArray.length > 1) {
+            div.classList.add('hl-intersection-region')
             div.addEventListener('click', event => {
                 // Only purpose here is to stop the click from reaching
                 // the enclosing hl-zone.
