@@ -114,7 +114,16 @@ var PdfController = declare(null, {
     // functions are called only once. Then their records here are cleared.
     callbackOnTextLayerRenderLookup: null,
 
+    // When we receive highlights, their descriptors contain the libpath of the
+    // supplier, but not its uuid. Here we maintain a mapping so that we can resolve
+    // those supplier libpaths to the uuid of the panel where the specific supplier
+    // instance is found.
+    // Note: Having such a map indicates our intention to (eventually) support multiple
+    // suppliers hosted by a single doc; but this isn't supported yet. See note in the
+    // `receiveNewHighlights()` method, below.
     highlightSupplierUuidsByLibpath: null,
+    // This is a mapping from document page numbers to arrays of Highlight instances
+    // that have been constructed for that page.
     highlightsByPageNum: null,
 
     constructor: function(mgr, pane, info) {
