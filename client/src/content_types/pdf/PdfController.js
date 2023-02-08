@@ -1204,7 +1204,7 @@ var PdfController = declare(null, {
         hlLayer.style.width = page.style.width;
         hlLayer.style.height = page.style.height;
         hlLayer.classList.add('highlightLayer');
-        this.buildHighlightsForHighlightLayer(hlLayer, pageNumber);
+        this.buildHighlightsForHighlightLayer(hlLayer, pageNumber, page.clientWidth);
         page.appendChild(hlLayer);
     },
 
@@ -1221,17 +1221,16 @@ var PdfController = declare(null, {
     // Clear out an existing highlight layer, and rebuild its contents.
     redoHighlightLayer: function(highlightLayer, pageNumber) {
         iseUtil.removeAllChildNodes(highlightLayer);
-        this.buildHighlightsForHighlightLayer(highlightLayer, pageNumber);
+        this.buildHighlightsForHighlightLayer(highlightLayer, pageNumber, highlightLayer.clientWidth);
     },
 
     // Build the contents of a highlight layer.
-    buildHighlightsForHighlightLayer: function(highlightLayer, pageNumber) {
+    buildHighlightsForHighlightLayer: function(highlightLayer, pageNumber, pageWidth) {
         const hls = this.highlightsByPageNum.get(pageNumber) || [];
         if (!hls.length) {
             return;
         }
-        const W = highlightLayer.clientWidth;
-        const hlPage = new PageOfHighlights(this, pageNumber, W);
+        const hlPage = new PageOfHighlights(this, pageNumber, pageWidth);
         hlPage.addHighlights(hls);
         hlPage.populateHighlightLayer(highlightLayer);
     },
