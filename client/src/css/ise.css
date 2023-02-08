@@ -695,6 +695,14 @@ h6.labelWidget:hover .labellink {
     background-repeat: unset;
 }
 
+.themeDark .pfsc-ise .dijitTab.pisePreNavGlow {
+    background-color: #686868;
+}
+
+.pfsc-ise .dijitTab.pisePreNavGlow {
+    background-color: #aaa;
+}
+
 .themeDark .pfsc-ise .dijitTabChecked {
     color: #adadad;
     background-color: #515658;

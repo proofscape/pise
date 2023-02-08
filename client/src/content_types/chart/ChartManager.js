@@ -75,7 +75,9 @@ var ChartManager = declare(AbstractContentManager, {
     activate: function(ISE_state) {
         this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('forestColoring', this.handleGroupcastForestColoring.bind(this));
-        this.hub.windowManager.on('docHighlightClick', this.handleDocHighlightClick.bind(this));
+        this.hub.windowManager.on('docHighlight_click', this.handleDocHighlightClick.bind(this));
+        this.hub.windowManager.on('docHighlight_mouseover', this.handleDocHighlightMouseover.bind(this));
+        this.hub.windowManager.on('docHighlight_mouseout', this.handleDocHighlightMouseout.bind(this));
         this.setAppUrlPrefix(ISE_state.appUrlPrefix || '');
         // Make Moose's XHRs go through the Hub, so we can add our CSRF token.
         moose.head.xhr = this.hub.xhr.bind(this.hub);
@@ -382,6 +384,26 @@ var ChartManager = declare(AbstractContentManager, {
                 info.select = siid;
             }
             this.updateContent(info, paneId);
+        }
+    },
+
+    handleDocHighlightMouseover: function({supplierUuid, siid, altKey}) {
+        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+            const pane = this.hub.contentManager.getPane(paneId);
+            const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
+            const buttonNode = button.domNode;
+            buttonNode.classList.add('pisePreNavGlow');
+        }
+    },
+
+    handleDocHighlightMouseout: function({supplierUuid, siid, altKey}) {
+        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+            const pane = this.hub.contentManager.getPane(paneId);
+            const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
+            const buttonNode = button.domNode;
+            buttonNode.classList.remove('pisePreNavGlow');
         }
     },
 

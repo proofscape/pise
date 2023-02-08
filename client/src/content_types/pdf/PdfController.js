@@ -697,9 +697,9 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
-    broadcastHighlightClick: function(event, highlightDescriptor) {
+    broadcastHighlightMouseEvent: function(event, highlightDescriptor) {
         this.mgr.hub.windowManager.groupcastEvent({
-            type: 'docHighlightClick',
+            type: 'docHighlight_' + event.type,
             supplierUuid: this.highlightSupplierUuidsByLibpath.get(highlightDescriptor.slp),
             siid: highlightDescriptor.siid,
             altKey: event.altKey,

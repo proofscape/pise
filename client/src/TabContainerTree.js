@@ -964,6 +964,13 @@ tct.TabContainerTree = declare(null, {
         }
     },
 
+    getTabButtonForPane : function(pane) {
+        const tc = pane.getParent();
+        const leaf = this.leavesByTCIds[tc.id];
+        const controller = leaf.tabController;
+        return controller.pane2button(pane.id);
+    },
+
     /* Compute an array of fractions indicating, for each binary node, what
      * fraction of its size is occupied by the primary region (left for vertical
      * splits, top for horizontal splits). The fractions are reported in the
