@@ -118,9 +118,12 @@ var PdfController = declare(null, {
     // supplier, but not its uuid. Here we maintain a mapping so that we can resolve
     // those supplier libpaths to the uuid of the panel where the specific supplier
     // instance is found.
-    // Note: Having such a map indicates our intention to (eventually) support multiple
-    // suppliers hosted by a single doc; but this isn't supported yet. See note in the
-    // `receiveNewHighlights()` method, below.
+    // Note: One reason such a map is needed is that, even when all the highlights come
+    // from a single panel, they may belong to different supplier libpaths. This is because
+    // the panel could be chart panel, which can host multiple deductions, and each
+    // deduction is a different supplier. Another reason such a map will be needed is that
+    // we eventually want to support simultaneous hosting of enrichments supplied by more
+    // than one panel (e.g. one chart panel and one notes panel, say).
     highlightSupplierUuidsByLibpath: null,
     // This is a mapping from document page numbers to arrays of Highlight instances
     // that have been constructed for that page.
@@ -717,7 +720,7 @@ var PdfController = declare(null, {
 
         // TODO:
         //  At some point, we contemplate allowing a single document to simultaneously be host
-        //  to the enrichments from multiple different suppliers. For the moment, we're holding
+        //  to the enrichments from multiple different panels. For the moment, we're holding
         //  off on that, which means that when we receive new highlights, we drop all existing ones.
         this.dropAllExistingHighlights();
 
