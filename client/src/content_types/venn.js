@@ -24,6 +24,36 @@ define([
     ise.pdf_util = pdf_util;
 });
 
+/* This module solves the problem of multiple, intersecting highlights on a
+ * given page of a document.
+ *
+ * A highlight is a union of boxes. When we speak of computing the "Venn diagram"
+ * for a collection of highlights, we mean that we want to compute all the
+ * intersections of all these boxes, resulting in a "refined" set of rectangles, which
+ * are pairwise disjoint, but whose union equals the union of the original highlights.
+ *
+ * We refer to the refined rectangles as "regions". So, a Venn diagram consists of
+ * a collection of disjoint regions.
+ *
+ * We have a Highlight class, and a Region class. After refinement, each Region is
+ * aware of all the Highlights to which it belongs, and each Highlight is aware of
+ * all the Regions that belong to it.
+ *
+ * We also have a Page class, and the notion of a "zone". A single highlight can
+ * span multiple pages. We refer to the portion of a highlight belonging to a single
+ * page as a "zone" of that highlight. Venn diagrams are only computed one page
+ * at a time, i.e. for the highlight zones that land on that page.
+ *
+ * Just for future reference, there are SVG methods like `getIntersectionList` that you
+ * might consider employing for such applications, but (a) these methods are not currently
+ * supported by all browsers (namely Firefox; see
+ *   https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement#browser_compatibility
+ *   https://bugzilla.mozilla.org/show_bug.cgi?id=501421
+ * ),
+ * and (b) our method has the advantage of computing the intersections once and for all,
+ * and therefore saving computation costs if such intersections matter (as they do in our
+ * application!) on events like `mouseover` that can happen many times in rapid succession.
+ */
 
 // A collection of boxes, potentially spanning multiple pages.
 export class Highlight {
