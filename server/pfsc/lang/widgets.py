@@ -32,6 +32,7 @@ from pfsc.build.lib.libpath import (
 from pfsc.build.repo import get_repo_part, make_repo_versioned_libpath
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj
+from pfsc.lang.doc import doc_ref_factory, validate_doc_info
 from pfsc.util import topological_sort
 from pfsc.excep import PfscExcep, PECode
 from pfsc_util.imports import from_import
@@ -539,10 +540,43 @@ class PdfWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.PDF, name, label, data, anno, lineno)
+        self.docInfo = {}
+        self.docReference = None
 
     def enrich_data(self):
         super().enrich_data()
         self.set_pane_group()
+
+        doc_field_name = 'doc'
+        docInfo = self.data.get(doc_field_name)
+
+        sel_field_name = 'selection'
+        try:
+            if sel_field_name in self.data:
+                sel = self.data[sel_field_name]
+                self.docReference = doc_ref_factory(sel, doc_info_obj=docInfo)
+                docInfo = self.docReference.doc_info
+            elif not docInfo:
+                msg = 'failed to define doc info under `doc` or `selection`'
+                raise PfscExcep(msg, PECode.MISSING_INPUT)
+            else:
+                validate_doc_info(docInfo)
+                del self.data[doc_field_name]
+        except PfscExcep as e:
+            e.extendMsg(f'in pdf widget {self.libpath}')
+            raise
+
+        self.docInfo = docInfo
+
+        docId_field_name = 'docId'
+        self.data[docId_field_name] = docInfo[docId_field_name]
+
+        url_field_name = 'url'
+        if url_field_name in docInfo:
+            self.data[url_field_name] = docInfo[url_field_name]
+
+    def getDocRef(self):
+        return self.docReference
 
     def writeHTML(self, label=None):
         if label is None: label = escape(self.label)
