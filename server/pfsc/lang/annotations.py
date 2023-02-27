@@ -20,8 +20,13 @@ from pfsc.lang.objects import PfscObj, Enrichment
 from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.excep import PfscExcep, PECode
 from pfsc.constants import IndexType
-from pfsc.lang.freestrings import PfscJsonTransformer, json_parser, split_on_widgets, render_anno_markdown
-from pfsc.lang.widgets import UnknownTypeWidget, MalformedWidget, WIDGET_TYPE_TO_CLASS, replace_data
+from pfsc.lang.freestrings import (
+    PfscJsonTransformer, json_parser, split_on_widgets, render_anno_markdown
+)
+from pfsc.lang.widgets import (
+    UnknownTypeWidget, MalformedWidget,
+    WIDGET_TYPE_TO_CLASS, replace_data
+)
 
 class Annotation(Enrichment):
     """
@@ -249,7 +254,8 @@ class Annotation(Enrichment):
         if anno_data is None or not caching:
             widget_data = {}
             for widget in self.widget_seq:
-                if isinstance(widget, MalformedWidget): continue
+                if isinstance(widget, MalformedWidget):
+                    continue
                 widget.enrich_data()
                 uid = widget.writeUID()
                 data = widget.writeData()
@@ -259,7 +265,8 @@ class Annotation(Enrichment):
                 'version': self.getVersion(),
                 'widgets': widget_data,
             }
-            if caching: self.anno_data = anno_data
+            if caching:
+                self.anno_data = anno_data
         return anno_data
 
     def get_notespage_data(self, caching=True):
