@@ -264,6 +264,7 @@ class Annotation(Enrichment):
                 'libpath': self.getLibpath(),
                 'version': self.getVersion(),
                 'widgets': widget_data,
+                'docInfo': self.gather_doc_info(),
             }
             if caching:
                 self.anno_data = anno_data
