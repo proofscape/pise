@@ -18,6 +18,8 @@ from collections import defaultdict
 
 from pfsc.build.versions import get_major_version_part
 from pfsc.excep import PfscExcep, PECode
+from pfsc.lang.doc import DocReference
+
 
 class PfscObj:
     """
@@ -506,6 +508,56 @@ class Enrichment(PfscObj):
         if self.targets:
             lps = [t.getLibpath() for t in self.targets]
         return lps
+
+    def gather_doc_info(self):
+        """
+        Do a recursive item visit to build up a docInfo object of the form,
+         {
+             'docs': {
+                 docId1: {
+                     ...docInfo1...
+                 },
+                 docId2: {
+                     ...docInfo2...
+                 },
+             },
+             'refs': {
+                 docId1: [
+                     {...ref1...},
+                     {...ref2...},
+                 ],
+                 docId2: [
+                     {...ref3...},
+                     {...ref4...},
+                 ],
+             },
+         }
+        """
+        docInfo = {
+            'docs': {},
+            'refs': {},
+        }
+
+        stype = {
+            'deduction': 'CHART',
+            'annotation': 'NOTES',
+        }.get(self.typename)
+
+        def grabHighlights(obj):
+            ref = obj.getDocRef()
+            if isinstance(ref, DocReference):
+                doc_id = ref.doc_id
+                if doc_id not in docInfo['docs']:
+                    docInfo['docs'][doc_id] = ref.doc_info
+                if doc_id not in docInfo['refs']:
+                    docInfo['refs'][doc_id] = []
+                hld = ref.write_highlight_descriptor(
+                    obj.getLibpath(), self.libpath, stype)
+                docInfo['refs'][doc_id].append(hld)
+
+        self.recursiveItemVisit(grabHighlights)
+
+        return docInfo
 
     @staticmethod
     def find_targets(target_paths, module,

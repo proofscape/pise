@@ -722,48 +722,6 @@ class Deduction(Enrichment, NodeLikeObj):
             lp = item.getLibpath()
             dg['children'][lp] = idg
 
-        # Doc Info
-        # We build a dictionary of the form
-        # {
-        #     'docs': {
-        #         docId1: {
-        #             ...docInfo1...
-        #         },
-        #         docId2: {
-        #             ...docInfo2...
-        #         },
-        #     },
-        #     'refs': {
-        #         docId1: [
-        #             {...ref1...},
-        #             {...ref2...},
-        #         ],
-        #         docId2: [
-        #             {...ref3...},
-        #             {...ref4...},
-        #         ],
-        #     },
-        # }
-        docInfo = {
-            'docs': {},
-            'refs': {},
-        }
-
-        def grabHighlights(obj):
-            ref = obj.getDocRef()
-            if isinstance(ref, DocReference):
-                doc_id = ref.doc_id
-                if doc_id not in docInfo['docs']:
-                    docInfo['docs'][doc_id] = ref.doc_info
-                if doc_id not in docInfo['refs']:
-                    docInfo['refs'][doc_id] = []
-                hld = ref.write_highlight_descriptor(
-                    obj.getLibpath(), self.libpath, "CHART")
-                docInfo['refs'][doc_id].append(hld)
-
-        self.recursiveItemVisit(grabHighlights)
-
-
         # deducInfo -------------------
         if not self.isSubDeduc():
             di = {}
@@ -783,7 +741,7 @@ class Deduction(Enrichment, NodeLikeObj):
             di['target_deduc'] = self.getTargetDeductionLibpath()
             di['target_version'] = self.getTargetVersion()
             di['target_subdeduc'] = self.getTargetSubdeducLibpath()
-            di['docInfo'] = docInfo
+            di['docInfo'] = self.gather_doc_info()
             di['textRange'] = self.textRange
             # Finally:
             dg['deducInfo'] = di
