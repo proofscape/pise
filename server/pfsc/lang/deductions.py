@@ -35,7 +35,7 @@ from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn
 from pfsc import util
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
-from pfsc.lang.doc import DocReference
+from pfsc.lang.doc import doc_ref_factory
 from pfsc.lang.nodelabels import NodeLabelRenderer, ll, writeNodelinkHTML
 
 
@@ -323,9 +323,12 @@ class Deduction(Enrichment, NodeLikeObj):
         self.resolveComparisons()
 
     def resolveDocRefs(self):
+        default_doc_info = self.get('docInfo', lazy_load=False)
+
         def visit(item):
             if isinstance(item, Node):
-                item.resolveDocRefs()
+                item.resolveDocRefs(default_doc_info)
+
         self.recursiveItemVisit(visit)
 
     def find_rdefs(self):
@@ -832,12 +835,12 @@ class Node(NodeLikeObj):
         "Define the range in the module text over which this node was defined."
         self.textRange = (row0, col0, row1, col1)
 
-    def resolveDocRefs(self):
+    def resolveDocRefs(self, default_doc_info):
         ref_text = self.get('doc')
         if ref_text:
             mod = self.getModule()
-            ref = DocReference(ref_text, mod)
-            self.docReference = ref
+            self.docReference = doc_ref_factory(ref_text,
+                                  doc_info_obj=default_doc_info, context=mod)
 
     def getDocRef(self):
         return self.docReference or None
