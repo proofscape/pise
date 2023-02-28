@@ -739,6 +739,12 @@ var PdfController = declare(null, {
         this.redoExistingHighlightLayers();
     },
 
+    /* Select a named (as opposed to ad hoc) highlight.
+     * param slpSiid: the id of the form `{slp}:{siid}` that uniquely
+     *  identifies the named highlight
+     * param altKey: boolean saying whether alt was held during the
+     *  initiating event
+     */
     selectNamedHighlight: function(slpSiid, altKey) {
         const hl = this.highlightsBySlpSiid.get(slpSiid);
         if (hl) {
