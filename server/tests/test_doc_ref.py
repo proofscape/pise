@@ -120,3 +120,45 @@ def test_doc_ref_assemble_2(app):
         #import json
         #print(json.dumps(doc_info, indent=4))
         assert doc_info == Pf_docInfo
+
+
+@pytest.mark.psm
+def test_doc_ref_formats_1(app):
+    """
+    Test that doc refs can be made in various formats, both on nodes,
+    and in pdf widgets.
+    """
+    with app.app_context():
+        ri = get_repo_info('test.foo.doc')
+        ri.checkout('v2')
+        mod = load_module('test.foo.doc.results')
+        print()
+        dg = mod['Pf'].buildDashgraph()
+        pf_doc_info = dg['deducInfo']['docInfo']
+        anno = mod['Discussion'].get_anno_data()
+
+        verbose = False
+        if verbose:
+            import json
+            print(json.dumps(pf_doc_info, indent=4))
+            print('=' * 80)
+            print(json.dumps(anno, indent=4))
+
+        assert len(pf_doc_info['docs']) == 2 == len(pf_doc_info['refs'])
+        assert pf_doc_info['refs']['pdffp:fedcba9876543210'][0]['siid'][-1] == 'R'
+        assert pf_doc_info['refs']['pdffp:0123456789abcdef'][0]['siid'][-1] == 'S'
+
+        widgets = anno['widgets']
+        wk = list(widgets.keys())
+        assert len(wk) == 4
+        assert 'selection' not in widgets[wk[0]]
+        assert all('selection' in widgets[wk[i]] for i in [1, 2, 3])
+        assert all(widgets[wk[i]]['docId'] == 'pdffp:fedcba9876543210' for i in range(4))
+        anno_doc_info = anno['docInfo']
+        assert len(anno_doc_info['docs']) == 1
+        assert len(anno_doc_info['refs']) == 1
+        assert len(anno_doc_info['refs']['pdffp:fedcba9876543210']) == 3
+        assert all(
+            hld['ccode'] == 'v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)'
+            for hld in anno_doc_info['refs']['pdffp:fedcba9876543210']
+        )

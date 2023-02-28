@@ -1,0 +1,12 @@
+
+# A first document
+doc1 = {
+  url: "https://example.org/pdf/foo1.pdf",
+  docId: "pdffp:fedcba9876543210"
+}
+
+# A second document
+doc2 = {
+  url: "https://example.org/pdf/foo2.pdf",
+  docId: "pdffp:0123456789abcdef"
+}

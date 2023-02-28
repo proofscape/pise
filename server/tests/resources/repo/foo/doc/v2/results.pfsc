@@ -1,0 +1,58 @@
+
+from .. import doc1, doc2
+
+deduc Thm {
+
+    asrt C {
+        en = "Some amazing theorem statement."
+
+        doc = "doc2#v2;s3;(146:1758:2666:814:390:279:45);n;x+35;y+4;(146:1758:2666:1095:386:205:49)"
+    }
+
+    meson = "C"
+
+}
+
+deduc Pf of Thm.C {
+
+    # Set doc1 as the default doc info.
+    docInfo=doc1
+
+    asrt R {
+        en = "Something self-evident"
+
+        # Since we set doc1 as the default doc info, we can omit the leading ref here:
+        doc = "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)"
+    }
+
+    asrt S {
+        en = "An easy consequence"
+
+        # Since we want a doc other than the default one, need a leading ref here:
+        doc = "doc2#v2;s3;(146:1758:2666:210:450:90:46);"
+    }
+
+    meson = "
+    R, so S, therefore Thm.C
+    "
+
+}
+
+anno Discussion @@@
+Let's talk about this stuff, and refer to <pdf:>[doc1 as a whole]{
+    doc: doc1,
+}, and then say something about <pdf:>[a particular spot within doc1]{
+    doc: doc1,
+    selection: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+}.
+
+Let's then imagine we refer twice more to points within doc1. The first time,
+<pdf:>[we'll pass the doc reference as a string]{
+    doc: "doc1",
+    selection: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+}, and the second time we'll omit the `doc` field altogether, and instead use
+<pdf:>[a two-part code in the `selection field`]{
+    selection: "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+}.
+All these different forms should work.
+@@@
