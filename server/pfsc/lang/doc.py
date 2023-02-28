@@ -57,7 +57,9 @@ def doc_ref_factory(code=None, doc_info_obj=None, context=None, doc_info_libpath
     default, to be used only if a ref is not defined in the code.
     """
     combiner_code = None
-    if isinstance(code, str):
+    if code is not None:
+        if not isinstance(code, str):
+            raise malformedReferenceCodeError(code, extra_msg='Doc ref code must be string')
         parts = code.split("#")
         n = len(parts)
         if n < 1 or n > 2:
