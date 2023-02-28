@@ -22,7 +22,7 @@ from pfsc.excep import PfscExcep, PECode
 
 
 @pytest.mark.parametrize("mod, expected_code", [
-    ["X0", PECode.MISSING_INPUT],
+    ["X0", PECode.MISSING_DOC_INFO],
     ["X1", PECode.MALFORMED_DOC_ID],
     ["X2", PECode.BAD_URL],
     ["Y1", PECode.MALFORMED_COMBINER_CODE],
