@@ -32,7 +32,7 @@ from pfsc.build.lib.libpath import (
 from pfsc.build.repo import get_repo_part, make_repo_versioned_libpath
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj
-from pfsc.lang.doc import doc_ref_factory, validate_doc_info
+from pfsc.lang.doc import doc_ref_factory
 from pfsc.util import topological_sort
 from pfsc.excep import PfscExcep, PECode
 from pfsc_util.imports import from_import
@@ -540,7 +540,6 @@ class PdfWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.PDF, name, label, data, anno, lineno)
-        self.docInfo = {}
         self.docReference = None
 
     def enrich_data(self):
@@ -548,32 +547,32 @@ class PdfWidget(Widget):
         self.set_pane_group()
 
         doc_field_name = 'doc'
-        docInfo = self.data.get(doc_field_name)
-
         sel_field_name = 'selection'
+        doc_info_obj = self.data.get(doc_field_name)
+        code = self.data.get(sel_field_name)
+
         try:
-            if sel_field_name in self.data:
-                sel = self.data[sel_field_name]
-                self.docReference = doc_ref_factory(sel, doc_info_obj=docInfo)
-                docInfo = self.docReference.doc_info
-            elif not docInfo:
+            if code is None and doc_info_obj is None:
                 msg = 'failed to define doc info under `doc` or `selection`'
                 raise PfscExcep(msg, PECode.MISSING_INPUT)
-            else:
-                validate_doc_info(docInfo)
-                del self.data[doc_field_name]
+            self.docReference = doc_ref_factory(
+                code=code, doc_info_obj=doc_info_obj, context=self.parent
+            )
         except PfscExcep as e:
             e.extendMsg(f'in pdf widget {self.libpath}')
             raise
 
-        self.docInfo = docInfo
+        if doc_field_name in self.data:
+            del self.data[doc_field_name]
 
-        docId_field_name = 'docId'
-        self.data[docId_field_name] = docInfo[docId_field_name]
+        doc_info = self.docReference.doc_info
+
+        doc_id_field_name = 'docId'
+        self.data[doc_id_field_name] = doc_info[doc_id_field_name]
 
         url_field_name = 'url'
-        if url_field_name in docInfo:
-            self.data[url_field_name] = docInfo[url_field_name]
+        if url_field_name in doc_info:
+            self.data[url_field_name] = doc_info[url_field_name]
 
     def getDocRef(self):
         return self.docReference

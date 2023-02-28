@@ -839,8 +839,8 @@ class Node(NodeLikeObj):
         ref_text = self.get('doc')
         if ref_text:
             mod = self.getModule()
-            self.docReference = doc_ref_factory(ref_text,
-                                  doc_info_obj=default_doc_info, context=mod)
+            self.docReference = doc_ref_factory(
+                code=ref_text, doc_info_obj=default_doc_info, context=mod)
 
     def getDocRef(self):
         return self.docReference or None

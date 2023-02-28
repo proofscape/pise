@@ -553,7 +553,8 @@ class Enrichment(PfscObj):
                     docInfo['refs'][doc_id] = []
                 hld = ref.write_highlight_descriptor(
                     obj.getLibpath(), self.libpath, stype)
-                docInfo['refs'][doc_id].append(hld)
+                if hld:
+                    docInfo['refs'][doc_id].append(hld)
 
         self.recursiveItemVisit(grabHighlights)
 
