@@ -546,30 +546,50 @@ class PdfWidget(Widget):
         super().enrich_data()
         self.set_pane_group()
 
+        doc_info_obj = None
+        doc_info_libpath = None
+
         doc_field_name = 'doc'
         sel_field_name = 'selection'
-        doc_info_obj = self.data.get(doc_field_name)
+        doc_field_value = self.data.get(doc_field_name)
         code = self.data.get(sel_field_name)
 
         try:
-            if code is None and doc_info_obj is None:
-                msg = 'failed to define doc info under `doc` or `selection`'
+            if code is None and doc_field_value is None:
+                msg = 'Failed to define doc info under `doc` or `selection`'
                 raise PfscExcep(msg, PECode.MISSING_INPUT)
+            if doc_field_value is not None:
+                if isinstance(doc_field_value, dict):
+                    doc_info_obj = doc_field_value
+                elif isinstance(doc_field_value, str):
+                    doc_info_libpath = doc_field_value
+                else:
+                    msg = '`doc` field should be dict (full info) or string (libpath)'
+                    raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
             self.docReference = doc_ref_factory(
-                code=code, doc_info_obj=doc_info_obj, context=self.parent
+                code=code, doc_info_obj=doc_info_obj,
+                context=self.parent, doc_info_libpath=doc_info_libpath
             )
         except PfscExcep as e:
             e.extendMsg(f'in pdf widget {self.libpath}')
             raise
 
+        # Clean up. Doc descriptors go at top level of anno.json; don't need
+        # to repeat them in each pdf widget.
         if doc_field_name in self.data:
             del self.data[doc_field_name]
 
         doc_info = self.docReference.doc_info
 
+        # Final widget data needs docId. We extract it from the doc info.
         doc_id_field_name = 'docId'
         self.data[doc_id_field_name] = doc_info[doc_id_field_name]
 
+        # Final selection code must be pure combiner code (no two-part ref code)
+        if (cc := self.docReference.combiner_code) is not None:
+            self.data[sel_field_name] = cc
+
+        # If a URL was provided, we want that in the widget data.
         url_field_name = 'url'
         if url_field_name in doc_info:
             self.data[url_field_name] = doc_info[url_field_name]
