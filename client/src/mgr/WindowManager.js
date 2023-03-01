@@ -91,6 +91,11 @@ export class WindowManager {
         return this.windowPeer.off(eventType, callback);
     }
 
+    addHandler(name, handler) {
+        this.windowPeer.addHandler(name, handler);
+        return this;
+    }
+
     getGroupId() {
         return this.windowPeer.getGroupId();
     }

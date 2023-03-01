@@ -21,6 +21,9 @@ import {
     ExtensionUnavailableError,
     LackingHostPermissionError,
 } from "browser-peers/src/errors";
+import {
+    GlobalLinkingMap,
+} from "../linking";
 
 define([
     "dojo/_base/declare",
@@ -71,6 +74,8 @@ var PdfManager = declare(AbstractContentManager, {
 
     navEnableHandlers: null,
 
+    linkingMap: null,
+
     // Methods
 
     constructor: function(ISE_state) {
@@ -95,6 +100,13 @@ var PdfManager = declare(AbstractContentManager, {
         this.localPdfLibraryUrlPrefix = this.hub.urlFor('static') + "/PDFLibrary/";
         this.hub.windowManager.on('newlyActiveHighlightSupplierPanel',
             this.onNewlyActiveHighlightSupplierPanel.bind(this));
+        this.initLinking();
+    },
+
+    initLinking: function() {
+        const name = 'linking_docs';
+        this.linkingMap = new GlobalLinkingMap(this.hub, name);
+        this.linkingMap.activate();
     },
 
     retryPausedDownloads: function() {
