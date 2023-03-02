@@ -282,8 +282,6 @@ export class WindowManager {
         const button = dojo.registry.byNode(clicked.currentTarget);
         const pane = button.page;
         const oldRelLoc = pane.id;
-        const info = this.hub.contentManager.getCurrentStateInfo(pane, true);
-        const peer = this.windowPeer;
         const windowMgr = this;
         const moveSubMenu = menu.pfsc_ise_windowManager_moveSubMenu;
         const moveOption = menu.pfsc_ise_windowManager_moveOption;
@@ -294,16 +292,14 @@ export class WindowManager {
                     label: `${n}`,
                     disabled: n === myNumber,
                     onClick: () => {
-                        //console.log(`Move to window ${n}`, info);
-                        peer.makeWindowRequest(n, 'contentManager.openContentInActiveTCReturnId', info)
-                            .then(newPaneId => {
+                        windowMgr.hub.contentManager.movePaneToAnotherWindow(pane, n)
+                            .then(info => {
                                 const event = {
                                     type: 'movePaneToWindow',
                                     uuid: info.uuid,
                                     oldWindow: myNumber,
                                     oldPaneId: oldRelLoc,
                                     newWindow: n,
-                                    newPaneId: newPaneId,
                                 }
                                 // We used to dispatch this event in order to update our WGCM, but we no longer need
                                 // to do that, since we switched to using UUIDs to identify controlled panels.
@@ -318,7 +314,6 @@ export class WindowManager {
                                     includeSelf: true,
                                     selfSync: true,
                                 });
-                                pane.onClose();
                             });
                     }
                 });

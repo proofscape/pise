@@ -77,6 +77,9 @@ var ContentManager = declare(null, {
     // Place to store info for pane whose tab's context menu has been opened:
     currentContextMenuInfo: null,
 
+    // We use iseUtil.eventsMixin to make this class listenable.
+    listeners: null,
+
     // Methods
 
     constructor: function() {
@@ -103,6 +106,8 @@ var ContentManager = declare(null, {
         this.studyPageTypes = [
             this.crType.NOTES
         ];
+
+        this.listeners = {};
     },
 
     activate: function() {
@@ -407,6 +412,22 @@ var ContentManager = declare(null, {
         }
         const uuid = info?.uuid;
         const {myNumber} = this.hub.windowManager.getNumbers();
+
+        // We have a mixed (local/synchronous) / (global/asynchronous) event design.
+        // Sometimes you want to respond to an event only when it happened in your own
+        // window; we call such events "local", and we dispatch them synchronously.
+        // Other times, you want to respond to an event no matter in which window
+        // it happened; we call such events "global," and they are handled
+        // asynchronously (over BroadcastChannel).
+
+        // Local/synchronous event:
+        this.dispatch({
+            type: 'localPaneClose',
+            uuid: uuid,
+            paneId: paneId,
+        });
+
+        // Global/asynchronous event:
         this.hub.windowManager.groupcastEvent({
             type: 'paneClose',
             uuid: uuid,
@@ -415,6 +436,7 @@ var ContentManager = declare(null, {
         }, {
             includeSelf: true,
         });
+
         // Delete the entry from the content registry.
         delete this.contentRegistry[paneId];
     },
@@ -833,7 +855,38 @@ var ContentManager = declare(null, {
         return null;
     },
 
+    /* Move a content pane to another window.
+     *
+     * return: Promise that resolves when the entire operation is complete, including all
+     *   necessary update of relevant data structures. The resolved value is the state
+     *   descriptor object that was used to open the new copy in the other window.
+     */
+    movePaneToAnotherWindow: async function(pane, newWindowNumber) {
+        const stateDescriptor = this.getCurrentStateInfo(pane, true);
+        await this.hub.windowManager.makeWindowRequest(
+            newWindowNumber, 'contentManager.openContentInActiveTCReturnId', stateDescriptor
+        );
+
+        pane.onClose();
+        // Closing the pane should *eventually* result in our `handleClosingPaneId()` method
+        // being invoked, and that will (among other things) perform the very same deletion we
+        // do here, on the next line (doing it twice is fine). But we can't wait for that; we
+        // need it to happen now, so that things like `GlobalLinkingMaps`, which have registered
+        // to listen to our 'paneMovedToAnotherWindow' event, can update correctly.
+        delete this.contentRegistry[pane.id];
+
+        await this.dispatch({
+            type: 'paneMovedToAnotherWindow',
+            uuid: stateDescriptor.uuid,
+            newWindow: newWindowNumber,
+        });
+
+        return stateDescriptor;
+    },
+
 });
+
+Object.assign(ContentManager.prototype, iseUtil.eventsMixin);
 
 return ContentManager;
 });

@@ -234,6 +234,12 @@ export class GlobalLinkingMap {
     activate() {
         this.localComponent = new LinkingMapComponent(this.hub);
         this.hub.windowManager.addHandler(this.name, this.localComponent);
+        this.hub.contentManager.on('localPaneClose', async event => {
+            await this.purgeTarget(event.uuid);
+        });
+        this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
+            await this.noteMovedPanel(event.uuid);
+        }, {'await': true});
     }
 
     // Broadcast a request to all components (this one included).
@@ -313,18 +319,20 @@ export class GlobalLinkingMap {
         return this._broadcastAndConcat('getAllXForU', {u});
     }
 
-    /* Remove and re-add all entries (u, x) for a given panel uuid u.
+    /* Respond to the event of a panel having been moved to a new window.
      *
-     * This causes the entries to be recorded in the correct window, if they
-     * were not already.
+     * Our job is to ensure that our distributed design is maintained, meaning
+     * that all the map entries for the moved panel have to be moved into the
+     * component for that window.
      *
-     * This MUST be done after moving a panel from one window to another,
-     * and it will not happen automatically.
+     * In order to achieve this, we remove and re-add all entries (u, x) for
+     * the given panel uuid u. Given the way our `add` operation works, this
+     * achieves the desired result.
      *
      * return: promise that resolves with the number of x such that (u, x) was
      *  moved.
      */
-    async movePanel(u) {
+    async noteMovedPanel(u) {
         const X = await this.getAllXForU(u);
         for (const x of X) {
             const W = await this.delete(u, x);
