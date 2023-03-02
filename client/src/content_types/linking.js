@@ -229,7 +229,6 @@ export class GlobalLinkingMap {
     constructor(hub, name) {
         this.hub = hub;
         this.name = name;
-        this.wm = this.hub.windowManager;
     }
 
     activate() {
@@ -239,7 +238,7 @@ export class GlobalLinkingMap {
 
     // Broadcast a request to all components (this one included).
     _broadcast(funcName, args) {
-        return this.wm.broadcastRequest(
+        return this.hub.windowManager.broadcastRequest(
             `${this.name}.${funcName}`,
             args,
             {excludeSelf: false}
