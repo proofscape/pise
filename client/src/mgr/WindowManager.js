@@ -281,7 +281,6 @@ export class WindowManager {
         const { myNumber, otherNumbers, allNumbers } = this.getNumbers();
         const button = dojo.registry.byNode(clicked.currentTarget);
         const pane = button.page;
-        const oldRelLoc = pane.id;
         const windowMgr = this;
         const moveSubMenu = menu.pfsc_ise_windowManager_moveSubMenu;
         const moveOption = menu.pfsc_ise_windowManager_moveOption;
@@ -292,29 +291,7 @@ export class WindowManager {
                     label: `${n}`,
                     disabled: n === myNumber,
                     onClick: () => {
-                        windowMgr.hub.contentManager.movePaneToAnotherWindow(pane, n)
-                            .then(info => {
-                                const event = {
-                                    type: 'movePaneToWindow',
-                                    uuid: info.uuid,
-                                    oldWindow: myNumber,
-                                    oldPaneId: oldRelLoc,
-                                    newWindow: n,
-                                }
-                                // We used to dispatch this event in order to update our WGCM, but we no longer need
-                                // to do that, since we switched to using UUIDs to identify controlled panels.
-                                //
-                                // At this point, there are no consumers of the event. I'm keeping it
-                                // for now, because it seems potentially useful.
-                                //
-                                // It seems advisable to dispatch the event to this window synchronously, so it
-                                // happens before the pane closes. If the pane closes first, there's a good chance
-                                // this loss of information could be problematic (depending on the application).
-                                windowMgr.groupcastEvent(event, {
-                                    includeSelf: true,
-                                    selfSync: true,
-                                });
-                            });
+                        windowMgr.hub.contentManager.movePaneToAnotherWindow(pane, n);
                     }
                 });
                 moveSubMenu.addChild(item);
