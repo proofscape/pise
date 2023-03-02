@@ -657,40 +657,96 @@ util.openPopupWindow = function(url, target, options) {
     return window.open(url, target, features);
 }
 
+/* This mix-in can be used to make a class "listenable."
+ *
+ * Given class `Foo`, you must
+ *   1. Ensure `Foo` has a `this.listeners = {}` property (i.e. it's initialized
+ *      to be an empty object), and
+ *   2. Do
+ *          Object.assign(Foo.prototype, util.eventsMixin);
+ *
+ * Then class `Foo` will be listenable:
+ *
+ *  Register an event listener:
+ *
+ *      function barHandler(event) {
+ *          //...
+ *      }
+ *      const f = Foo();
+ *      f.on('bar', barHandler);
+ *
+ *  Event dispatch happens inside some `Foo` method:
+ *
+ *      Foo.someProcess = function() {
+ *          //...
+ *          const event = {
+ *              type: 'bar',
+ *              otherInfo: 'stuff',
+ *              moreInfo: 'moreStuff',
+ *          }
+ *          this.dispatch(event);
+ *          //...
+ *      }
+ *
+ * Note that event handling is synchronous, in the sense that every registered
+ * event handler function will have been invoked and returned, before any code
+ * following `this.dispatch(event)` is executed.
+ *
+ * If an event handler involves asynchronous processing, and you want it to be
+ * awaited, you can say so by passing {await: true} in the options arg to the
+ * `on()` call when you register the handler.
+ */
 util.eventsMixin = {
 
+    /* eventType: string, naming the event you want to listen to
+     * callback: function that should be passed the event when it happens
+     * options: {
+     *  nodup: do not add this callback if it has already been added before,
+     *  await: set true if you want the callback to be awaited when it is invoked
+     *         (if you think we should just await everything, consider https://stackoverflow.com/a/55263084),
+     * }
+     */
     on(eventType, callback, options) {
         options = options || {};
-        const cbs = this.listeners[eventType] || [];
-        if (options.nodup && cbs.includes(callback)) {
+        const cbInfos = this.listeners[eventType] || [];
+        if (options.nodup && cbInfos.find(info => info.callback === callback)) {
             // FIXME: nodup should be the default.
             //  But we're adding this as afterthought, so must review all
             //  existing usages first.
             return;
         }
-        cbs.push(callback);
-        this.listeners[eventType] = cbs;
+        const newInfo = {
+            callback: callback,
+            await: options.await,
+        }
+        cbInfos.push(newInfo);
+        this.listeners[eventType] = cbInfos;
     },
 
     off(eventType, callback) {
-        const cbs = this.listeners[eventType] || [];
-        const i0 = cbs.indexOf(callback);
+        const cbInfos = this.listeners[eventType] || [];
+        const i0 = cbInfos.findIndex(info => info.callback === callback);
         if (i0 >= 0) {
-            cbs.splice(i0, 1);
-            this.listeners[eventType] = cbs;
+            cbInfos.splice(i0, 1);
+            this.listeners[eventType] = cbInfos;
         }
     },
 
-    dispatch(event) {
+    async dispatch(event) {
         /* Subtle point: In general, we are always careful not to modify an
          * iterable while we are in the process of iterating over it. Here, we don't
          * know whether a callback might `off` itself as a part of its process,
          * thereby modifying our array of listeners while we are iterating over it!
          * Therefore, to be safe, we have to iterate over a _copy_ of our array of
          * registered listeners. */
-        const cbs = (this.listeners[event.type] || []).slice();
-        for (let cb of cbs) {
-            cb(event);
+        const cbInfos = (this.listeners[event.type] || []).slice();
+        for (const info of cbInfos) {
+            const cb = info.callback;
+            if (info.await) {
+                await cb(event);
+            } else {
+                cb(event);
+            }
         }
     },
 };
