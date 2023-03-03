@@ -119,6 +119,20 @@ var NotesManager = declare(AbstractContentManager, {
         this.hub.windowManager.on('paneClose', this.checkForClosingWidgetPane.bind(this));
     },
 
+    getSuppliedDocHighlights: function(paneId) {
+        const viewer = this.viewers[paneId];
+        const docInfoObj = viewer?.currentPageDocInfo;
+        const hls = {
+            docs: new Map(),
+            refs: new Map(),
+        };
+        if (docInfoObj) {
+            hls.docs = new Map(Object.entries(docInfoObj.docs));
+            hls.refs = new Map(Object.entries(docInfoObj.refs));
+        }
+        return hls;
+    },
+
     /* Control visibility of the overview sidebar for a given notes pane.
      #
      * param paneId: the pane id of the notes pane in question.

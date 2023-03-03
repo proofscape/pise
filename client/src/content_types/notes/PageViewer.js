@@ -73,6 +73,9 @@ var PageViewer = declare(null, {
     ptr: null,
     // subscribedLibpath: the libpath to which we are currently subscribed
     subscribedLibpath: null,
+    // Each time we load a new page, we overwrite this with the docInfo for
+    // that page (i.e. info about referenced documents, if any).
+    currentPageDocInfo: null,
 
     navEnableHandlers: null,
 
@@ -727,11 +730,12 @@ var PageViewer = declare(null, {
      * requesting MathJax typesetting, and setting up the widgets.
      */
     setPageContents: function(html, data) {
-        // We can set the HTML into our document element ourselves.
         const elt = this.elt;
         query(elt).innerHTML(html);
         iseUtil.typeset([elt]);
-        // But we still rely on the NotesManager to set up the widgets.
+
+        this.currentPageDocInfo = data.docInfo;
+
         this.nm.setupWidgets(data, this.elt, this.pane);
     },
 
