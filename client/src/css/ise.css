@@ -779,6 +779,11 @@ a.widget {
     color: rgb(113, 184, 239);
 }
 
+a.widget:focus {
+    border-width: 1px;
+    border-style: dashed;
+}
+
 a.external {
     color: blue;
     background-position: center right;

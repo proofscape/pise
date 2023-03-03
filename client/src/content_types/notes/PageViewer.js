@@ -352,6 +352,7 @@ var PageViewer = declare(null, {
      *      scrollFrac: a float between 0 and 1 indicating what fraction of
      *          the page we should scroll to vertically. If scrollSel is
      *          also defined, scrollFrac overrides it.
+     *      focus: a CSS selector. Will try to focus this element.
      *
      * return: a Promise that resolves after we have finished loading and updating history
      */
@@ -670,6 +671,7 @@ var PageViewer = declare(null, {
         return pageContentsStep
             .then(this.updateContextMenu.bind(this))
             .then(this.doScrolling.bind(this))
+            .then(this.doFocus.bind(this))
             .then(this.updateOverview.bind(this));
     },
 
@@ -750,6 +752,19 @@ var PageViewer = declare(null, {
         } else if (loc.scrollSel || loc.scrollSel === null) {
             this.scrollToSelector(loc.scrollSel);
         }
+        return loc;
+    },
+
+    /* Try to make any focus requested by the location descriptor.
+     */
+    doFocus: function(loc) {
+        if (loc.focus) {
+            const focusElt = this.elt.querySelector(loc.focus);
+            if (focusElt) {
+                focusElt.focus();
+            }
+        }
+        return loc;
     },
 
     /* Scroll a fraction of the way down the page.

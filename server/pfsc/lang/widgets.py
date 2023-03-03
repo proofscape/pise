@@ -531,7 +531,7 @@ class ChartWidget(Widget):
         }
         return chart_widget_template.render(context)
 
-pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" href="#">{{ label }}</a>""")
+pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" tabindex="-1" href="#">{{ label }}</a>""")
 
 class PdfWidget(Widget):
     """
