@@ -74,6 +74,7 @@ var PdfController = declare(null, {
 
     mgr: null,
     pane: null,
+    uuid: null,
     iframe: null,
 
     stateRequestPromise: null,
@@ -114,17 +115,6 @@ var PdfController = declare(null, {
     // functions are called only once. Then their records here are cleared.
     callbackOnTextLayerRenderLookup: null,
 
-    // When we receive highlights, their descriptors contain the libpath of the
-    // supplier, but not its uuid. Here we maintain a mapping so that we can resolve
-    // those supplier libpaths to the uuid of the panel where the specific supplier
-    // instance is found.
-    // Note: One reason such a map is needed is that, even when all the highlights come
-    // from a single panel, they may belong to different supplier libpaths. This is because
-    // the panel could be chart panel, which can host multiple deductions, and each
-    // deduction is a different supplier. Another reason such a map will be needed is that
-    // we eventually want to support simultaneous hosting of enrichments supplied by more
-    // than one panel (e.g. one chart panel and one notes panel, say).
-    highlightSupplierUuidsByLibpath: null,
     // This is a mapping from document page numbers to arrays of Highlight instances
     // that have been constructed for that page.
     highlightsByPageNum: null,
@@ -135,6 +125,7 @@ var PdfController = declare(null, {
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
         this.pane = pane;
+        this.uuid = info.uuid;
         this.origInfo = info;
         this.iframe = pane.domNode.children[0].children[0];
 
@@ -143,7 +134,6 @@ var PdfController = declare(null, {
 
         this.stateRequestPromise = Promise.resolve();
 
-        this.highlightSupplierUuidsByLibpath = new Map();
         this.highlightsByPageNum = new Map();
         this.highlightsBySlpSiid = new Map();
     },
@@ -700,10 +690,10 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
-    broadcastHighlightMouseEvent: function(event, highlightDescriptor) {
+    broadcastHighlightMouseEvent: async function(event, highlightDescriptor) {
         this.mgr.hub.windowManager.groupcastEvent({
             type: 'docHighlight_' + event.type,
-            supplierUuid: this.highlightSupplierUuidsByLibpath.get(highlightDescriptor.slp),
+            supplierUuids: await this.mgr.linkingMap.get(this.uuid, highlightDescriptor.slp),
             siid: highlightDescriptor.siid,
             altKey: event.altKey,
         }, {
@@ -715,16 +705,16 @@ var PdfController = declare(null, {
      * Existing highlights are dropped. New ones are immediately inserted on existing
      * rendered pages, and set up to appear on new pages, as they render.
      */
-    receiveNewHighlights: function(supplierUuid, hlDescriptors) {
+    receiveNewHighlights: async function(supplierUuid, hlDescriptors) {
         //console.debug(`PdfController received new highlights from ${supplierUuid}:`, hlDescriptors);
 
         // TODO:
         //  At some point, we contemplate allowing a single document to simultaneously be host
         //  to the enrichments from multiple different panels. For the moment, we're holding
         //  off on that, which means that when we receive new highlights, we drop all existing ones.
-        this.dropAllExistingHighlights();
+        await this.dropAllExistingHighlights();
 
-        this.highlightSupplierUuidsByLibpath.set(hlDescriptors[0].slp, supplierUuid);
+        await this.mgr.linkingMap.add(this.uuid, hlDescriptors[0].slp, supplierUuid);
         for (let hlDescriptor of hlDescriptors) {
             const hl = new Highlight(this, hlDescriptor);
             const slpSiid = `${hlDescriptor.slp}:${hlDescriptor.siid}`;
@@ -756,14 +746,10 @@ var PdfController = declare(null, {
         }
     },
 
-    dropAllExistingHighlights: function() {
+    dropAllExistingHighlights: async function() {
         this.highlightsByPageNum.clear();
         this.highlightsBySlpSiid.clear();
-        this.highlightSupplierUuidsByLibpath.clear();
-    },
-
-    hasHighlightsForUuid: function(uuid) {
-        return Array.from(this.highlightSupplierUuidsByLibpath.values()).includes(uuid);
+        await this.mgr.linkingMap.deleteForAllX(this.uuid);
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.

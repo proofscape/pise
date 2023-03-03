@@ -369,41 +369,47 @@ var ChartManager = declare(AbstractContentManager, {
         return Promise.resolve([hm.canGoBack(), hm.canGoForward()]);
     },
 
-    handleDocHighlightClick: function({supplierUuid, siid, altKey}) {
-        // The supplier could be in another window, or could be something other than a chart.
-        // So we begin by checking if it happens to be a chart in this window.
-        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
-        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
-            const info = {};
-            // For highlights supplied by a chart, the siid's simply are the libpaths
-            // of the nodes that supplied them. So we either want to view or select
-            // that node, according to whether the alt key was held.
-            if (altKey) {
-                info.view = siid;
-            } else {
-                info.select = siid;
+    handleDocHighlightClick: function({supplierUuids, siid, altKey}) {
+        for (let supplierUuid of supplierUuids) {
+            // The supplier could be in another window, or could be something other than a chart.
+            // So we begin by checking if it happens to be a chart in this window.
+            const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+            if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+                const info = {};
+                // For highlights supplied by a chart, the siid's simply are the libpaths
+                // of the nodes that supplied them. So we either want to view or select
+                // that node, according to whether the alt key was held.
+                if (altKey) {
+                    info.view = siid;
+                } else {
+                    info.select = siid;
+                }
+                this.updateContent(info, paneId);
             }
-            this.updateContent(info, paneId);
         }
     },
 
-    handleDocHighlightMouseover: function({supplierUuid, siid, altKey}) {
-        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
-        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
-            const pane = this.hub.contentManager.getPane(paneId);
-            const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
-            const buttonNode = button.domNode;
-            buttonNode.classList.add('pisePreNavGlow');
+    handleDocHighlightMouseover: function({supplierUuids, siid, altKey}) {
+        for (let supplierUuid of supplierUuids) {
+            const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+            if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+                const pane = this.hub.contentManager.getPane(paneId);
+                const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
+                const buttonNode = button.domNode;
+                buttonNode.classList.add('pisePreNavGlow');
+            }
         }
     },
 
-    handleDocHighlightMouseout: function({supplierUuid, siid, altKey}) {
-        const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
-        if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
-            const pane = this.hub.contentManager.getPane(paneId);
-            const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
-            const buttonNode = button.domNode;
-            buttonNode.classList.remove('pisePreNavGlow');
+    handleDocHighlightMouseout: function({supplierUuids, siid, altKey}) {
+        for (let supplierUuid of supplierUuids) {
+            const paneId = this.hub.contentManager.getPaneIdByUuid(supplierUuid);
+            if (paneId && this.forestsByPaneId.hasOwnProperty(paneId)) {
+                const pane = this.hub.contentManager.getPane(paneId);
+                const button = this.hub.tabContainerTree.getTabButtonForPane(pane);
+                const buttonNode = button.domNode;
+                buttonNode.classList.remove('pisePreNavGlow');
+            }
         }
     },
 

@@ -74,6 +74,8 @@ var PdfManager = declare(AbstractContentManager, {
 
     navEnableHandlers: null,
 
+    // Our GlobalLinkingMap instance.
+    // The "secondary IDs" ("x" in method calls) are highlight supplier libpaths.
     linkingMap: null,
 
     // Methods
@@ -595,8 +597,7 @@ var PdfManager = declare(AbstractContentManager, {
         dlg.show();
     },
 
-    onNewlyActiveHighlightSupplierPanel: function({uuid, docIds}) {
-        //console.debug('PdfManager.onNewlyActiveHighlightSupplierPanel', uuid, docIds);
+    onNewlyActiveHighlightSupplierPanel: async function({uuid, docIds}) {
         // For now, we request the lists of highlights from the new supplier for any docIds
         // that are currently open, and load these into those docs without question.
         // In the future, we may make this more selective if we have developed systems, e.g.
@@ -611,7 +612,11 @@ var PdfManager = declare(AbstractContentManager, {
         const controllersByDocId = new Map();
         for (const pdfc of Object.values(this.pdfcsByPaneId)) {
             const docId = pdfc.docId;
-            if (docIds.includes(docId) && !pdfc.hasHighlightsForUuid(uuid)) {
+            if (!docIds.includes(docId)) {
+                continue;
+            }
+            const alreadyLinked = await this.linkingMap.isInRangeForU(pdfc.uuid, uuid);
+            if (!alreadyLinked) {
                 if (!controllersByDocId.has(docId)) {
                     controllersByDocId.set(docId, []);
                 }
@@ -631,14 +636,14 @@ var PdfManager = declare(AbstractContentManager, {
                     excludeSelf: false,
                 }
             );
-            Promise.all(requests).then(values => {
+            Promise.all(requests).then(async values => {
                 for (let value of values) {
                     if (value) {
                         for (const docId of Object.keys(value)) {
                             const hls = value[docId];
                             if (hls.length) {
                                 for (const pdfc of controllersByDocId.get(docId)) {
-                                    pdfc.receiveNewHighlights(uuid, hls);
+                                    await pdfc.receiveNewHighlights(uuid, hls);
                                 }
                             }
                         }
