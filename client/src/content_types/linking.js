@@ -261,6 +261,7 @@ export class GlobalLinkingMap {
         this.hub.windowManager.addHandler(this.name, this.localComponent);
         this.hub.contentManager.on('localPaneClose', async event => {
             await this.purgeTarget(event.uuid);
+            await this.deleteForAllX(event.uuid);
         });
         this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
             await this.noteMovedPanel(event.uuid);
