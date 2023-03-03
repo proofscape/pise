@@ -858,7 +858,10 @@ var ContentManager = declare(null, {
         if (info) {
             const mgr = this.getManager(info.type);
             const docInfo = mgr.getSuppliedDocHighlights(pane.id);
-            const docIds = Array.from(docInfo.docs.keys());
+            // Make sure we grab only those docIds for which there actually are (one or more) highlights.
+            const docIds = Array.from(docInfo.refs.keys()).filter(
+                docId => docInfo.refs.get(docId).length > 0
+            );
             if (docIds.length) {
                 this.hub.windowManager.groupcastEvent({
                     type: 'newlyActiveHighlightSupplierPanel',
