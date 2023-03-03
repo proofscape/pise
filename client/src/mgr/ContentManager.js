@@ -111,10 +111,10 @@ var ContentManager = declare(null, {
     },
 
     activate: function() {
-        this.hub.windowManager.on(
-            'contentUpdateByUuidBroadcast',
-            this.handleContentUpdateByUuidBroadcast.bind(this)
-        );
+        this.hub.windowManager.on('contentUpdateByUuidBroadcast', this.handleContentUpdateByUuidBroadcast.bind(this));
+        this.hub.windowManager.on('docHighlight_click', this.handleDocHighlightClick.bind(this));
+        this.hub.windowManager.on('docHighlight_mouseover', this.handleDocHighlightMouseover.bind(this));
+        this.hub.windowManager.on('docHighlight_mouseout', this.handleDocHighlightMouseout.bind(this));
     },
 
     // Locate a ContentPane by its id.
@@ -799,6 +799,44 @@ var ContentManager = declare(null, {
             const info = event.info;
             const mgr = this.getManager(info.type);
             mgr.updateContent(info, paneId);
+        }
+    },
+
+    handleDocHighlightClick: function(event) {
+        for (let supplierUuid of event.supplierUuids) {
+            const paneId = this.getPaneIdByUuid(supplierUuid);
+            if (paneId) {
+                // If we got a paneId, then the panel belongs to this window.
+                const info = this.contentRegistry[paneId];
+                const mgr = this.getManager(info.type);
+                mgr.handleDocHighlightClick(paneId, event);
+            }
+        }
+    },
+
+    handleDocHighlightMouseover: function(event) {
+        for (let supplierUuid of event.supplierUuids) {
+            const paneId = this.getPaneIdByUuid(supplierUuid);
+            if (paneId) {
+                // If we got a paneId, then the panel belongs to this window.
+                const pane = this.getPane(paneId);
+                const button = this.tct.getTabButtonForPane(pane);
+                const buttonNode = button.domNode;
+                buttonNode.classList.add('pisePreNavGlow');
+            }
+        }
+    },
+
+    handleDocHighlightMouseout: function(event) {
+        for (let supplierUuid of event.supplierUuids) {
+            const paneId = this.getPaneIdByUuid(supplierUuid);
+            if (paneId) {
+                // If we got a paneId, then the panel belongs to this window.
+                const pane = this.getPane(paneId);
+                const button = this.tct.getTabButtonForPane(pane);
+                const buttonNode = button.domNode;
+                buttonNode.classList.remove('pisePreNavGlow');
+            }
         }
     },
 
