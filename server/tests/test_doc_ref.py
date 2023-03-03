@@ -162,3 +162,6 @@ def test_doc_ref_formats_1(app):
             hld['ccode'] == 'v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)'
             for hld in anno_doc_info['refs']['pdffp:fedcba9876543210']
         )
+
+        # Getting widget uids for siids for pdf widgets:
+        assert anno_doc_info['refs']['pdffp:fedcba9876543210'][0]["siid"] == "test-foo-doc-results-Discussion-w2_WIP"

@@ -298,6 +298,9 @@ class PfscObj:
     def getDocRef(self):
         return {}
 
+    def getDocRefInternalId(self):
+        return self.getLibpath()
+
     def __getitem__(self, path):
         """
         As in the `get` method, you may access objects within objects by passing a path, and the
@@ -552,7 +555,7 @@ class Enrichment(PfscObj):
                 if doc_id not in docInfo['refs']:
                     docInfo['refs'][doc_id] = []
                 hld = ref.write_highlight_descriptor(
-                    obj.getLibpath(), self.libpath, stype)
+                    obj.getDocRefInternalId(), self.libpath, stype)
                 if hld:
                     docInfo['refs'][doc_id].append(hld)
 

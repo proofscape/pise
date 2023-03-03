@@ -597,6 +597,12 @@ class PdfWidget(Widget):
     def getDocRef(self):
         return self.docReference
 
+    def getDocRefInternalId(self):
+        # For siid in our highlight descriptors, we want to use the widget uid.
+        # This is most useful on the client side for scrolling a notes page to
+        # the widget in question.
+        return self.writeUID()
+
     def writeHTML(self, label=None):
         if label is None: label = escape(self.label)
         context = {
