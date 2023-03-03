@@ -191,6 +191,14 @@ export class LinkingMapComponent {
         return W;
     }
 
+    /* Make m(u, x) undefined for all x (in other words, undefined at u).
+     *
+     * return: boolean saying whether anything was deleted
+     */
+    deleteForAllX({u}) {
+        return this.map.delete(u);
+    }
+
     /* Get the value of m(u, x).
      *
      * return: array equal to the value of m(u, x), or empty array if
@@ -211,6 +219,23 @@ export class LinkingMapComponent {
             return [];
         } else {
             return Array.from(mu.keys());
+        }
+    }
+
+    /* For a given u, say whether a given w is in m(u, x) for any x.
+     * return: boolean
+     */
+    isInRangeForU({u, w}) {
+        const mu = this.map.get(u);
+        if (mu === undefined) {
+            return false;
+        } else {
+            for (const W of mu.values()) {
+                if (W.includes(w)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -269,6 +294,12 @@ export class GlobalLinkingMap {
         ));
     }
 
+    // Broadcast and do an "any" (logical disjunction) on the (!! boolified) results.
+    _broadcastAndAny(funcName, args) {
+        const requests = this._broadcast(funcName, args);
+        return Promise.all(requests).then(values => values.some(e => !!e));
+    }
+
     /* Add the uuid w to the set L(u, x).
      * return: promise resolving with the number of additions that happened
      */
@@ -305,6 +336,13 @@ export class GlobalLinkingMap {
         return this._broadcastAndConcat('delete', {u, x});
     }
 
+    /* Make L undefined at (u, x) for all x (in other words, undefined at u).
+     * return: promise resolving with boolean saying whether anything was deleted
+     */
+    deleteForAllX(u) {
+        return this._broadcastAndAny('deleteForAllX', {u});
+    }
+
     /* Get the value of L(u, x).
      * return: promise resolving with array (empty array if L(u, x) undefined)
      */
@@ -317,6 +355,13 @@ export class GlobalLinkingMap {
      */
     getAllXForU(u) {
         return this._broadcastAndConcat('getAllXForU', {u});
+    }
+
+    /* For a given u, say whether a given w is in L(u, x) for any x.
+     * return: promise resolving with boolean
+     */
+    isInRangeForU(u, w) {
+        return this._broadcastAndAny('isInRangeForU', {u, w});
     }
 
     /* Respond to the event of a panel having been moved to a new window.
