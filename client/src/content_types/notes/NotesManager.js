@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 import { UnknownPeerError } from "browser-peers/src/errors";
+import { GlobalLinkingMap } from "../linking";
 
 define([
     "dojo/_base/declare",
@@ -101,6 +102,10 @@ var NotesManager = declare(AbstractContentManager, {
 
     wvuCallback: null,
 
+    // Our GlobalLinkingMap instance.
+    // The "secondary IDs" ("x" in method calls) are widget group IDs.
+    linkingMap: null,
+
     // Methods
 
     constructor: function() {
@@ -117,6 +122,13 @@ var NotesManager = declare(AbstractContentManager, {
     activate: function() {
         this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('paneClose', this.checkForClosingWidgetPane.bind(this));
+        this.initLinking();
+    },
+
+    initLinking: function() {
+        const name = 'linking_notes';
+        this.linkingMap = new GlobalLinkingMap(this.hub, name);
+        this.linkingMap.activate();
     },
 
     getSuppliedDocHighlights: function(paneId) {
