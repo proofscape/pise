@@ -182,6 +182,17 @@ var ContentManager = declare(null, {
         return null;
     },
 
+    /* Search this window for a pane having a given Dijit paneId.
+     * Return the pane's uuid if found, else null.
+     */
+    getUuidByPaneId: function(paneId) {
+        const info = this.contentRegistry[paneId];
+        if (info) {
+            return info.uuid;
+        }
+        return null;
+    },
+
     /* Search for a pane having a given uuid, in this window alone.
      * If found, return an object of the form {
      *   windowNumber: int,
@@ -244,6 +255,25 @@ var ContentManager = declare(null, {
     uuidExistsInAnyWindow: async function(uuid) {
         const addr = await this.getGlobalAddressByUuidAllWindows(uuid);
         return addr !== null;
+    },
+
+    /* Given an array of uuids, determine which ones still exist in any window,
+     * and which ones do not.
+     */
+    sortUuidsByExistenceInAnyWindow: async function(uuids) {
+        const ex = [];
+        const ne = [];
+        for (const uuid of uuids) {
+            if (await this.uuidExistsInAnyWindow(uuid)) {
+                ex.push(uuid);
+            } else {
+                ne.push(uuid);
+            }
+        }
+        return {
+            existing: ex,
+            nonExisting: ne,
+        };
     },
 
     /*
@@ -774,6 +804,41 @@ var ContentManager = declare(null, {
         this.hub.windowManager.groupcastEvent(event, {
             includeSelf: true,
         });
+    },
+
+    /* Update a list of existing panels, or spawn a new one beside an existing one, and
+     * set its contents.
+     *
+     * param info: content descriptor object that can be used to update existing panels,
+     *  or to initialize a new one
+     * param uuids: array of uuids of panels to be updated. If this is empty, or it turns
+     *  out none of these exists (in any window), then we spawn a new panel instead.
+     * param elt: some DOM element from inside the panel we want to spawn beside, if we
+     *  do spawn.
+     *
+     * return: Object {
+     *  existing: array of those given uuids that were confirmed to exist,
+     *  nonExisting: array of those given uuids that turned out not to exist,
+     *  spawned: uuid of newly spawned panel if that happened, else null
+     * }
+     */
+    updateOrSpawnBeside: async function(info, uuids, elt) {
+        let spawned = null;
+
+        const {existing, nonExisting} = await this.sortUuidsByExistenceInAnyWindow(uuids);
+
+        if (existing.length > 0) {
+            // Update existing panels.
+            for (const uuid of existing) {
+                this.updateContentAnywhereByUuid(info, uuid, {selectPane: true});
+            }
+        } else {
+            // Spawn new panel.
+            const {pane, promise} = this.openContentBeside(info, elt);
+            await promise;
+            spawned = this.getUuidByPaneId(pane.id);
+        }
+        return {existing, nonExisting, spawned};
     },
 
     /* Handle a 'contentUpdateByUuidBroadcast' event.
