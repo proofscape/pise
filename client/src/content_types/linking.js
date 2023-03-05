@@ -73,14 +73,17 @@ export class LinkingMapComponent {
 
     // Make m(u, x) undefined.
     // If this makes m(u) empty, then make m(u) undefined too.
+    // Return boolean saying whether we deleted anything.
     _delete(u, x) {
         let mu = this.map.get(u);
         if (mu !== undefined) {
-            mu.delete(x);
+            let deleted = mu.delete(x);
             if (mu.size === 0) {
                 this.map.delete(u);
             }
+            return deleted
         }
+        return false;
     }
 
     // Get m(u, x), making it into a new empty array if not yet defined.
@@ -180,6 +183,21 @@ export class LinkingMapComponent {
         return places.length;
     }
 
+    /* Make m undefined at (u, x) for any u at which it is currently defined.
+     *
+     * return: the number of u at which m(u, x) used to be defined.
+     */
+    purgeSecondaryId(x) {
+        let count = 0;
+        const U = Array.from(this.map.keys());
+        for (let u of U) {
+            if (this._delete(u, x)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /* Make m(u, x) undefined.
      *
      * return: array equal to the previous value of m(u, x), or empty array if
@@ -222,6 +240,22 @@ export class LinkingMapComponent {
         }
     }
 
+    /* Represent this component as an array of triples [u, x, w].
+     *
+     * return: array of triples [[u, x, w], [u, x, w], ...]
+     */
+    asTriples({}) {
+        const triples = [];
+        for (const [u, mu] of this.map) {
+            for (const [x, W] of mu) {
+                for (const w of W) {
+                    triples.push([u, x, w]);
+                }
+            }
+        }
+        return triples;
+    }
+
     /* For a given u, say whether a given w is in m(u, x) for any x.
      * return: boolean
      */
@@ -254,6 +288,7 @@ export class GlobalLinkingMap {
     constructor(hub, name) {
         this.hub = hub;
         this.name = name;
+        this.localComponent = null;
     }
 
     activate() {
@@ -329,6 +364,24 @@ export class GlobalLinkingMap {
         return this._broadcastAndSum('purgeTarget', {w});
     }
 
+    /* Make L undefined at (u, x) for any u at which it is currently defined.
+     * return: promise resolving with the number of u at which L(u, x) used to be defined.
+     */
+    purgeSecondaryId(x) {
+        return this._broadcastAndSum('purgeSecondaryId', {x});
+    }
+
+    /* Synchronously make L undefined at (u, x) for any u belonging to our local component,
+     * at which it is currently defined.
+     * return: the number of u at which L(u, x) used to be defined in our component
+     */
+    purgeSecondaryIdLocal(x) {
+        if (!this.localComponent) {
+            return 0;
+        }
+        return this.localComponent.purgeSecondaryId({x});
+    }
+
     /* Make L undefined at (u, x).
      * return: promise resolving with array giving the old value L(u, x) before
      *  deletion (empty array if it was undefined)
@@ -356,6 +409,25 @@ export class GlobalLinkingMap {
      */
     getAllXForU(u) {
         return this._broadcastAndConcat('getAllXForU', {u});
+    }
+
+    /* Represent the entire global map as an array of triples [u, x, w].
+     * return: promise resolving with array of triples [[u, x, w], [u, x, w], ...]
+     */
+    asTriples() {
+        return this._broadcastAndConcat('asTriples', {});
+    }
+
+    /* Synchronously represent our local component of the map as an array of
+     *   triples [u, x, w].
+     *
+     * return: array of triples [[u, x, w], [u, x, w], ...]
+     */
+    asTriplesLocal() {
+        if (!this.localComponent) {
+            return [];
+        }
+        return this.localComponent.asTriples({});
     }
 
     /* For a given u, say whether a given w is in L(u, x) for any x.
