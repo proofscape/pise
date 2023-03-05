@@ -56,19 +56,18 @@ var ChartWidget = declare(PaneSpawnWidget, {
         if (info.hovercolor) {
             const over = info.hovercolor.over,
                 out  = info.hovercolor.out;
-            wdq.on('mouseover', () => {
-                const paneUuid = nm.getPaneUuidForGroup(this.groupId);
-                /* Note: whereas, when a user _clicks_ on a chart widget, we do want a controlled
-                 * pane to pop up if it's not there already, on mere mouseover we do not want that.
-                 * So here the behavior occurs only if there is already a controlled pane. */
-                if (paneUuid) {
-                    this.hub.contentManager.updateContentAnywhereByUuid({type: "CHART", color: over}, paneUuid, { selectPane: true });
+            wdq.on('mouseover', async () => {
+                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId);
+                for (const targetUuid of targetUuids) {
+                    this.hub.contentManager.updateContentAnywhereByUuid(
+                        {type: "CHART", color: over}, targetUuid, { selectPane: true });
                 }
             });
-            wdq.on('mouseout', () => {
-                const paneUuid = nm.getPaneUuidForGroup(this.groupId);
-                if (paneUuid) {
-                    this.hub.contentManager.updateContentAnywhereByUuid({type: "CHART", color: out}, paneUuid, { selectPane: true });
+            wdq.on('mouseout', async () => {
+                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId);
+                for (const targetUuid of targetUuids) {
+                    this.hub.contentManager.updateContentAnywhereByUuid(
+                        {type: "CHART", color: out}, targetUuid, { selectPane: true });
                 }
             });
         }
