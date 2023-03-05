@@ -24,6 +24,7 @@ const moose = {
 
 import { MooseNodeLabelPlugin } from "../../plugins/MooseNodeLabelPlugin";
 import { NoGroupError } from "browser-peers/src/errors";
+import {GlobalLinkingMap} from "../linking";
 
 define([
     "dojo/_base/declare",
@@ -61,6 +62,10 @@ var ChartManager = declare(AbstractContentManager, {
 
     defaultSelectionStyle: "NodeEdges",
 
+    // Our GlobalLinkingMap instance.
+    // The "secondary IDs" ("x" in method calls) are docIDs.
+    linkingMap: null,
+
     // Methods
 
     constructor: function() {
@@ -78,6 +83,13 @@ var ChartManager = declare(AbstractContentManager, {
         this.setAppUrlPrefix(ISE_state.appUrlPrefix || '');
         // Make Moose's XHRs go through the Hub, so we can add our CSRF token.
         moose.head.xhr = this.hub.xhr.bind(this.hub);
+        this.initLinking();
+    },
+
+    initLinking: function() {
+        const name = 'linking_charts';
+        this.linkingMap = new GlobalLinkingMap(this.hub, name);
+        this.linkingMap.activate();
     },
 
     paneCount: function() {
