@@ -469,8 +469,10 @@ var Hub = declare(null, {
      *                 activeTab: <int>
      *             }
      *         ],
-     *         widgetPanes: {
-     *             ...
+     *         linking: {
+     *             C: [[u, x, w], [u, x, w], ...],
+     *             D: [[u, x, w], [u, x, w], ...],
+     *             N: [[u, x, w], [u, x, w], ...]
      *         }
      *     }
      * }
@@ -558,10 +560,13 @@ var Hub = declare(null, {
 
         content.activeTcIndex = activeTcIndex;
 
-        // Widget Panes
-        // If any panes are linked with widget groups, we want to record that
-        // info, so those links can be restored.
-        content.widgetPanes = this.notesManager.getWidgetGroupControlMapping({asMap: false});
+        // Note: we use `asTriplesLocal()` because we only want to describe the state of *this* window,
+        // not any other. This is a synchronous method, so no need to await.
+        content.linking = {
+            C: this.chartManager.asTriplesLocal(),
+            D: this.pdfManager.asTriplesLocal(),
+            N: this.notesManager.asTriplesLocal(),
+        };
 
         state.content = content;
 
@@ -628,7 +633,7 @@ var Hub = declare(null, {
         });
     },
 
-    loadContentByDescription: function(content) {
+    loadContentByDescription: async function(content) {
         // We need a clean slate. So close all tabs, and remove all splits.
         this.tabContainerTree.closeAllPanes();
         // Set the desired split structure...
@@ -664,20 +669,26 @@ var Hub = declare(null, {
                 this.tabContainerTree.selectPane(activePane);
             }
         }
+        // For further steps, want to wait until content has finished loading.
+        await Promise.all(contentLoadingPromises);
         // Set active tab container.
+        // (Need all content loaded first, so that NavManager can get a valid reading.)
+        // Careful: use typeof test, since index could be zero!
         if (typeof(content.activeTcIndex) !== 'undefined') {
             const tcId = tcids[content.activeTcIndex];
-            // Wait until after all content has loaded, so that NavManager can get a valid reading.
-            Promise.all(contentLoadingPromises).then(values => {
-                this.tabContainerTree.setActiveTcById(tcId);
-            })
+            this.tabContainerTree.setActiveTcById(tcId);
         }
-        // Associate widget groups with panes.
-        if (typeof(content.widgetPanes) !== 'undefined') {
-            for (let widgetGroupId of Object.keys(content.widgetPanes)) {
-                const uuid = content.widgetPanes[widgetGroupId];
-                if (uuids.has(uuid)) {
-                    this.notesManager.setUuidForWidgetGroup(uuid, widgetGroupId);
+        // Re-establish links
+        if (content.linking) {
+            for (const [key, mgr] of [
+                ["C", this.chartManager], ["D", this.pdfManager], ["N", this.notesManager],
+            ]) {
+                for (const [u, x, w] of (content.linking[key] || [])) {
+                    if (await this.contentManager.uuidExistsInAnyWindow(w)) {
+                        // No need to check for existence of `u`, since it will automatically
+                        // only be added in that window (if any) where u exists.
+                        await mgr.linkingMap.add(u, x, w);
+                    }
                 }
             }
         }
