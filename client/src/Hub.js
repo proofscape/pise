@@ -1068,13 +1068,16 @@ var Hub = declare(null, {
      * If we are the first, or the only Proofscape window, we record our state.
      */
     noteAppUnload: function() {
-        this.recordStateIfPrimary();
+        // Important to record the state first, since when the ContentManager handles
+        // the closing window below, it will take away things like linked panels, which
+        // we want to record as a part of the state.
+        this.recordStateIfSoleWindow();
         this.contentManager.handleClosingWindow();
     },
 
-    recordStateIfPrimary: function() {
-        const { myNumber, allNumbers } = this.windowManager.getNumbers();
-        if (myNumber < 2 || allNumbers.length < 2) {
+    recordStateIfSoleWindow: function() {
+        const { allNumbers } = this.windowManager.getNumbers();
+        if (allNumbers.length < 2) {
             this.recordState();
         }
     },
