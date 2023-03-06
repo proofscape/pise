@@ -222,23 +222,32 @@ var ContentManager = declare(null, {
     },
 
     /* Search for a pane having a given uuid, across all windows.
-     * If found, return an object of the form {
+     *
+     * param uuid: The uuid to search for.
+     * param options: {
+     *   excludeSelf: if false (the default), include our own window in the search;
+     *     if true, exclude this window from the search.
+     * }
+     *
+     * return: null or an object of the form {
      *   windowNumber: int,
      *   paneId: the Dijit pane id used in that window,
      * }
-     * If not found, return null.
      *
      * Note: This method is asynchronous, and searches all windows.
      * See also:
      *   ContentManager.getPaneIdByUuid()
      *   ContentManager.getGlobalAddressByUuidThisWindow()
      */
-    getGlobalAddressByUuidAllWindows: async function(uuid) {
+    getGlobalAddressByUuidAllWindows: async function(uuid, options) {
+        const {
+            excludeSelf = false,
+        } = (options || {});
         const searches = this.hub.windowManager.broadcastRequest(
             'contentManager.getGlobalAddressByUuidThisWindow',
             {uuid},
             {
-                excludeSelf: false,
+                excludeSelf: excludeSelf,
             }
         );
         return Promise.all(searches).then(values => {
@@ -252,8 +261,8 @@ var ContentManager = declare(null, {
     },
 
     // Say whether a pane uuid exists, in this or any other window.
-    uuidExistsInAnyWindow: async function(uuid) {
-        const addr = await this.getGlobalAddressByUuidAllWindows(uuid);
+    uuidExistsInAnyWindow: async function(uuid, options) {
+        const addr = await this.getGlobalAddressByUuidAllWindows(uuid, options);
         return addr !== null;
     },
 

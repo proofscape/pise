@@ -295,7 +295,13 @@ export class GlobalLinkingMap {
         this.localComponent = new LinkingMapComponent(this.hub);
         this.hub.windowManager.addHandler(this.name, this.localComponent);
         this.hub.contentManager.on('localPaneClose', async event => {
-            await this.purgeTarget(event.uuid);
+            // Purge the target only if its uuid is absent from any other window. It will be present
+            // in another window if we are in the process of moving it to that window.
+            const existsElsewhere = await this.hub.contentManager.uuidExistsInAnyWindow(
+                event.uuid, {excludeSelf: true});
+            if (!existsElsewhere) {
+                await this.purgeTarget(event.uuid);
+            }
             this.localComponent.deleteForAllX({u: event.uuid});
         });
         this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
