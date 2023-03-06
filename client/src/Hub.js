@@ -563,9 +563,9 @@ var Hub = declare(null, {
         // Note: we use `asTriplesLocal()` because we only want to describe the state of *this* window,
         // not any other. This is a synchronous method, so no need to await.
         content.linking = {
-            C: this.chartManager.asTriplesLocal(),
-            D: this.pdfManager.asTriplesLocal(),
-            N: this.notesManager.asTriplesLocal(),
+            C: this.chartManager.linkingMap.asTriplesLocal(),
+            D: this.pdfManager.linkingMap.asTriplesLocal(),
+            N: this.notesManager.linkingMap.asTriplesLocal(),
         };
 
         state.content = content;
