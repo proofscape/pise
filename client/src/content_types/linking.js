@@ -304,17 +304,20 @@ export class GlobalLinkingMap {
     }
 
     // Broadcast a request to all components (this one included).
-    _broadcast(funcName, args) {
+    _broadcast(funcName, args, options) {
+        const {
+            excludeSelf = false,
+        } = (options || {});
         return this.hub.windowManager.broadcastRequest(
             `${this.name}.${funcName}`,
             args,
-            {excludeSelf: false}
+            {excludeSelf: excludeSelf}
         );
     }
 
     // Broadcast and sum the (int or bool) results.
-    _broadcastAndSum(funcName, args) {
-        const requests = this._broadcast(funcName, args);
+    _broadcastAndSum(funcName, args, options) {
+        const requests = this._broadcast(funcName, args, options);
         return Promise.all(requests).then(values => values.reduce(
             (a, c) => a + (+c),
             0
@@ -322,8 +325,8 @@ export class GlobalLinkingMap {
     }
 
     // Broadcast and concatenate the (array) results.
-    _broadcastAndConcat(funcName, args) {
-        const requests = this._broadcast(funcName, args);
+    _broadcastAndConcat(funcName, args, options) {
+        const requests = this._broadcast(funcName, args, options);
         return Promise.all(requests).then(values => values.reduce(
             (a, c) => a.concat(c),
             []
@@ -331,23 +334,23 @@ export class GlobalLinkingMap {
     }
 
     // Broadcast and do an "any" (logical disjunction) on the (!! boolified) results.
-    _broadcastAndAny(funcName, args) {
-        const requests = this._broadcast(funcName, args);
+    _broadcastAndAny(funcName, args, options) {
+        const requests = this._broadcast(funcName, args, options);
         return Promise.all(requests).then(values => values.some(e => !!e));
     }
 
     /* Add the uuid w to the set L(u, x).
      * return: promise resolving with the number of additions that happened
      */
-    add(u, x, w) {
-        return this._broadcastAndSum('add', {u, x, w});
+    add(u, x, w, options) {
+        return this._broadcastAndSum('add', {u, x, w}, options);
     }
 
     /* Add the array of W of uuids to the set L(u, x).
      * return: promise resolving with the number of additions that happened
      */
-    addSet(u, x, W) {
-        return this._broadcastAndSum('addSet', {u, x, W});
+    addSet(u, x, W, options) {
+        return this._broadcastAndSum('addSet', {u, x, W}, options);
     }
 
     /* Remove the uuid w from the set L(u, x).
