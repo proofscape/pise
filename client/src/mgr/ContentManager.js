@@ -758,11 +758,12 @@ var ContentManager = declare(null, {
      * param info: An object specifying the content to be opened.
      *             Must include at least a `type` field.
      *
-     * return: the new content pane
+     * return: the id of the content pane where the content was loaded
      */
-    openContentInActiveTC: function(info) {
+    openContentInActiveTC: async function(info) {
+        let paneId = null;
         // If requested to use existing pane, and if there is a (most recent)
-        // existing pane, then use (and return) that.
+        // existing pane, then use that.
         const mgr = this.getManager(info.type);
         if (info.useExisting && mgr.getExistingPaneIds) {
             const pane = this.findMostRecentlyActivePaneHostingContent(info);
@@ -770,16 +771,14 @@ var ContentManager = declare(null, {
                 const makeActive = true;
                 this.hub.tabContainerTree.selectPane(pane, makeActive);
                 mgr.updateContent(info, pane.id);
-                return pane;
+                paneId = pane.id;
             }
+        } else {
+            const newCP = this.tct.addContentPaneToActiveTC();
+            await this.openContentInPane(info, newCP);
+            paneId = newCP.id;
         }
-        var newCP = this.tct.addContentPaneToActiveTC();
-        this.openContentInPane(info, newCP);
-        return newCP;
-    },
-
-    openContentInActiveTCReturnId: function(info) {
-        return this.openContentInActiveTC(info).id;
+        return paneId;
     },
 
     /*
@@ -970,7 +969,7 @@ var ContentManager = declare(null, {
     movePaneToAnotherWindow: async function(pane, newWindowNumber) {
         const stateDescriptor = this.getCurrentStateInfo(pane, true);
         await this.hub.windowManager.makeWindowRequest(
-            newWindowNumber, 'contentManager.openContentInActiveTCReturnId', stateDescriptor
+            newWindowNumber, 'contentManager.openContentInActiveTC', stateDescriptor
         );
 
         await this.dispatch({
