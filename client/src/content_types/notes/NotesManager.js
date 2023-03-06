@@ -372,25 +372,32 @@ var NotesManager = declare(AbstractContentManager, {
      * @param uid: the UID of the widget to be purged.
      */
     purgeWidget: function(uid) {
-        // Remove from lookup.
-        this.widgets.delete(uid);
+        if (this.widgets.has(uid)) {
+            const widget = this.widgets.get(uid);
 
-        // Clean up our linking map.
-        // There are two circumstances under which we can find ourselves purging widgets:
-        // (1) the last open copy of a notes page is closing, and (2) a notes page has been
-        // rebuilt. If there were only case (1), we would have nothing to do here, because
-        // linking maps are already self-maintaining in response to closing panels. But because
-        // of case (2), we need to do some clean up here.
-        //
-        // Note that we only act locally, i.e. only within this window. This results in correct
-        // behavior in both cases (1) and (2). In case (1), generally it's just the last copy of
-        // a notes page in *this* window that's closing, so we shouldn't mess with linking map
-        // components held by other windows. In case (2), any and all windows that have an open
-        // copy of a notes page that has just been rebuilt, will receive the socket event notifying
-        // about this, so each window will take the necessary clean up action on its own.
-        const gid = widget.groupId;
-        if (gid) {
-            this.linkingMap.purgeSecondaryIdLocal(gid);
+            // Remove from lookup.
+            this.widgets.delete(uid);
+
+            // Clean up our linking map.
+            // There are two circumstances under which we can find ourselves purging widgets:
+            // (1) the last open copy of a notes page is closing, and (2) a notes page has been
+            // rebuilt. If there were only case (1), we would have nothing to do here, because
+            // linking maps are already self-maintaining in response to closing panels. But because
+            // of case (2), we need to do some clean up here.
+            //
+            // Note that we only act locally, i.e. only within this window. This results in correct
+            // behavior in both cases (1) and (2). In case (1), generally it's just the last copy of
+            // a notes page in *this* window that's closing, so we shouldn't mess with linking map
+            // components held by other windows. Our behavior here will be redundant, but not incorrect.
+            //
+            // In case (2), any and all windows that have an open
+            // copy of a notes page that has just been rebuilt, will receive the socket event notifying
+            // about this, so each window will take the necessary clean up action on its own. There is
+            // no need for one window to broadcast an event to all others.
+            const gid = widget.groupId;
+            if (gid) {
+                this.linkingMap.purgeSecondaryIdLocal(gid);
+            }
         }
     },
 
