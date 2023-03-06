@@ -296,7 +296,7 @@ export class GlobalLinkingMap {
         this.hub.windowManager.addHandler(this.name, this.localComponent);
         this.hub.contentManager.on('localPaneClose', async event => {
             await this.purgeTarget(event.uuid);
-            await this.deleteForAllX(event.uuid);
+            this.localComponent.deleteForAllX({u: event.uuid});
         });
         this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
             await this.noteMovedPanel(event.uuid);
@@ -457,7 +457,7 @@ export class GlobalLinkingMap {
         const X = await this.getAllXForU(u);
         for (const x of X) {
             const W = await this.delete(u, x);
-            await this.addSet(u, x, W);
+            await this.addSet(u, x, W, {excludeSelf: true});
         }
         return X.length;
     }

@@ -973,19 +973,13 @@ var ContentManager = declare(null, {
             newWindowNumber, 'contentManager.openContentInActiveTCReturnId', stateDescriptor
         );
 
-        pane.onClose();
-        // Closing the pane should *eventually* result in our `handleClosingPaneId()` method
-        // being invoked, and that will (among other things) perform the very same deletion we
-        // do here, on the next line (doing it twice is fine). But we can't wait for that; we
-        // need it to happen now, so that things like `GlobalLinkingMaps`, which have registered
-        // to listen to our 'paneMovedToAnotherWindow' event, can update correctly.
-        delete this.contentRegistry[pane.id];
-
         await this.dispatch({
             type: 'paneMovedToAnotherWindow',
             uuid: stateDescriptor.uuid,
             newWindow: newWindowNumber,
         });
+
+        pane.onClose();
 
         return stateDescriptor;
     },
