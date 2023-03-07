@@ -779,9 +779,10 @@ a.widget {
     color: rgb(113, 184, 239);
 }
 
+.themeDark a.widget.selected,
 a.widget.selected {
-    border-width: 1px;
-    border-style: dashed;
+    background: #dd0;
+    color: blue;
 }
 
 a.external {
