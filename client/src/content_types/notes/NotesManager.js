@@ -153,7 +153,7 @@ var NotesManager = declare(AbstractContentManager, {
         // of the widgets that supplied them.
         const selector = `.${siid}`;
 
-        info.focus = selector;
+        info.select = selector;
 
         if (altKey) {
             info.scrollSel = selector;
@@ -445,9 +445,11 @@ var NotesManager = declare(AbstractContentManager, {
 
         const cm = this.hub.contentManager;
         const clickedPane = cm.getSurroundingPane(clickedElt);
+        const viewer = this.viewers[clickedPane.id];
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await this.linkingMap.get(clickedPanelUuid, gid);
 
+        viewer.markWidgetElementAsSelected(clickedElt);
         const {nonExisting, spawned} = await cm.updateOrSpawnBeside(info, targetUuids, clickedElt);
 
         // Do we really need this self-repairing step here? Theoretically, we're already

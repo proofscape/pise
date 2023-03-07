@@ -107,6 +107,7 @@ var PageViewer = declare(null, {
         parent.appendChild(this.sidebar);
 
         main.addEventListener('scroll', this.observeMainAreaScroll.bind(this));
+        main.addEventListener('click', this.backgroundClick.bind(this));
         this.attachContextMenu(this.elt);
         this.attachSidebarContextMenu();
 
@@ -210,6 +211,25 @@ var PageViewer = declare(null, {
 
     observeMainAreaScroll: function(evt) {
         this.updateOverviewGlass();
+    },
+
+    backgroundClick: function(event) {
+        // Do not clear the selection if the click target itself is selected.
+        const selectedTargetClick = event.target.classList.contains('selected');
+        if (!selectedTargetClick) {
+            this.clearWidgetSelection();
+        }
+    },
+
+    markWidgetElementAsSelected: function(elt) {
+        this.clearWidgetSelection();
+        elt.classList.add('selected');
+    },
+
+    clearWidgetSelection: function() {
+        document.querySelectorAll('a.widget.selected').forEach(a => {
+            a.classList.remove('selected');
+        });
     },
 
     showOverviewSidebar: function(doShow) {
@@ -352,7 +372,9 @@ var PageViewer = declare(null, {
      *      scrollFrac: a float between 0 and 1 indicating what fraction of
      *          the page we should scroll to vertically. If scrollSel is
      *          also defined, scrollFrac overrides it.
-     *      focus: a CSS selector. Will try to focus this element.
+     *      select: a CSS selector. Will mark this element as "selected" by
+     *          adding the 'selected' class to it, after removing that class
+     *          from all others.
      *
      * return: a Promise that resolves after we have finished loading and updating history
      */
@@ -671,7 +693,7 @@ var PageViewer = declare(null, {
         return pageContentsStep
             .then(this.updateContextMenu.bind(this))
             .then(this.doScrolling.bind(this))
-            .then(this.doFocus.bind(this))
+            .then(this.doSelection.bind(this))
             .then(this.updateOverview.bind(this));
     },
 
@@ -755,13 +777,13 @@ var PageViewer = declare(null, {
         return loc;
     },
 
-    /* Try to make any focus requested by the location descriptor.
+    /* Mark any selection requested by the location descriptor.
      */
-    doFocus: function(loc) {
-        if (loc.focus) {
-            const focusElt = this.elt.querySelector(loc.focus);
-            if (focusElt) {
-                focusElt.focus();
+    doSelection: function(loc) {
+        if (loc.select) {
+            const selectedElt = this.elt.querySelector(loc.select);
+            if (selectedElt) {
+                this.markWidgetElementAsSelected(selectedElt);
             }
         }
         return loc;

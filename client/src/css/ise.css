@@ -779,7 +779,7 @@ a.widget {
     color: rgb(113, 184, 239);
 }
 
-a.widget:focus {
+a.widget.selected {
     border-width: 1px;
     border-style: dashed;
 }
