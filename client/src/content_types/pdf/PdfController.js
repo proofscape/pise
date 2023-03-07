@@ -448,11 +448,18 @@ var PdfController = declare(null, {
      * if the document has an Nth page. Math PDFs often have other built-in location names
      * like 'lemma.2' etc.
      *
+     * highlightId
      * selection
      * gotosel
      * selcolor
      *
      *   These keys define desired effects relating to selection highlights.
+     *
+     *   highlightId: {string} A highlight ID (i.e. string of the form `{slp}:{siid}`)
+     *     indicating a "named highlight" that should be selected. This is as opposed to
+     *     an "ad hoc highlight" that can be defined by the `selection` field (see below).
+     *     If both `highlightId` and `selection` are defined, then `highlightId` is followed,
+     *     and `selection` ignored.
      *
      *   selection: {string|array} Should be either a single selection code (string) or
      *     an array of selection codes, defining the desired highlight boxes. A "selection code"
@@ -567,20 +574,27 @@ var PdfController = declare(null, {
         }).then(() => {
             // ----------------------------------------------------------------
             // Selections
-            if (info.selection) {
-                let codes = Array.isArray(info.selection) ? info.selection : [info.selection];
+            if (info.highlightId || info.selection) {
                 let g = info.gotosel || 'altKey';
                 let doAutoScroll = (
                     ( g === 'always' ) ||
                     ( g === 'altKey' && event && event.altKey )
                 );
-                let color = info.selcolor || defaultPdfHighlightColor;
-                pdfc.origInfo.selection = codes;
                 pdfc.origInfo.gotosel = g;
-                pdfc.origInfo.selcolor = color;
-                return pdfc.highlightFromCodes(codes, doAutoScroll, color);
+                // If a "named highlight" is defined, this overrules any "ad hoc highlight".
+                if (info.highlightId) {
+                    pdfc.selectNamedHighlight(info.highlightId, doAutoScroll);
+                    return Promise.resolve();
+                } else {
+                    let codes = Array.isArray(info.selection) ? info.selection : [info.selection];
+                    pdfc.origInfo.selection = codes;
+                    let color = info.selcolor || defaultPdfHighlightColor;
+                    pdfc.origInfo.selcolor = color;
+                    return pdfc.highlightFromCodes(codes, doAutoScroll, color);
+                }
             } else {
                 // If no selection specified, clear any existing highlights.
+                pdfc.clearNamedHighlight();
                 pdfc.clearAdHocHighlight();
                 return Promise.resolve();
             }

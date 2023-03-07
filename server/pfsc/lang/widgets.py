@@ -551,6 +551,8 @@ class PdfWidget(Widget):
 
         doc_field_name = 'doc'
         sel_field_name = 'selection'
+        hid_field_name = 'highlightId'
+
         doc_field_value = self.data.get(doc_field_name)
         code = self.data.get(sel_field_name)
 
@@ -585,9 +587,13 @@ class PdfWidget(Widget):
         doc_id_field_name = 'docId'
         self.data[doc_id_field_name] = doc_info[doc_id_field_name]
 
-        # Final selection code must be pure combiner code (no two-part ref code)
+        # Do we define a doc highlight?
         if (cc := self.docReference.combiner_code) is not None:
+            # Final selection code must be pure combiner code (no two-part ref code)
             self.data[sel_field_name] = cc
+            # The combiner code can be used for "ad hoc highlights"; for
+            # "named highlights" we need a highlight ID:
+            self.data[hid_field_name] = f'{self.parent.getLibpath()}:{self.getDocRefInternalId()}'
 
         # If a URL was provided, we want that in the widget data.
         url_field_name = 'url'

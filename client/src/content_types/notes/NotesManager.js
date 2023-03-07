@@ -430,7 +430,7 @@ var NotesManager = declare(AbstractContentManager, {
      * param uid: The unique id of the widget that was clicked.
      * param clickedElt: The DOM element that was clicked.
      */
-    click: async function(uid, clickedElt) {
+    click: async function(uid, clickedElt, altKey) {
         // Retrieve the widget and its info.
         const widget = this.widgets.get(uid);
         // Not all widget types have pane groups (e.g. `qna` widgets).
@@ -442,6 +442,17 @@ var NotesManager = declare(AbstractContentManager, {
             return;
         }
         const info = widget.getInfoCopy();
+
+        // This is our hacky way of getting the "alt key semantics" passed all the
+        // way to the content update, without trying to pipe an event object all the
+        // way there.
+        // Currently just doing this for PDF widgets.
+        // Do we want sth similar for chart widgets? There we have long supported the
+        // author in saying whether navigation happens. It seems we're moving toward
+        // making this the user's choice instead, but, not ready to implement this today.
+        if (info.type === "PDF") {
+            info.gotosel = altKey ? 'always' : 'never';
+        }
 
         const cm = this.hub.contentManager;
         const clickedPane = cm.getSurroundingPane(clickedElt);

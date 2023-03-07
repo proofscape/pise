@@ -30,10 +30,13 @@ define([
 var PaneSpawnWidget = declare(Widget, {
 
     activate: function(wdq, uid, nm, pane) {
-        wdq.on('click', function(){
+        wdq.on('click', function(event){
             // In the context of this click handler, `this` will
             // point to the DOM element that was clicked.
-            nm.click(uid, this);
+            nm.click(uid, this, event.altKey);
+            // Alt-click on an <a> tag seems to trigger a request to download
+            // (observed in Chrome on macOS), so we need to prevent the default.
+            event.preventDefault();
         });
     },
 
