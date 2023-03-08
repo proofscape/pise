@@ -583,8 +583,8 @@ var PdfController = declare(null, {
                 pdfc.origInfo.gotosel = g;
                 // If a "named highlight" is defined, this overrules any "ad hoc highlight".
                 if (info.highlightId) {
-                    pdfc.selectNamedHighlight(info.highlightId, doAutoScroll);
-                    return Promise.resolve();
+                    return pdfc.selectNamedHighlight(
+                        info.highlightId, doAutoScroll, info.requestingUuid);
                 } else {
                     let codes = Array.isArray(info.selection) ? info.selection : [info.selection];
                     pdfc.origInfo.selection = codes;
@@ -715,49 +715,113 @@ var PdfController = declare(null, {
         });
     },
 
-    /* Receive the array of highlight descriptors, from a new highlight supplier.
-     * Existing highlights are dropped. New ones are immediately inserted on existing
-     * rendered pages, and set up to appear on new pages, as they render.
+    /* Receive an array of highlight descriptors.
+     *
+     * New highlights in this array (those having highlightId not already present here) are
+     * immediately inserted on existing rendered pages, and set up to appear on new
+     * pages, as they render.
+     *
+     * param hlDescriptors: array of highlight descriptors
+     * param supplierUuid: optional uuid of the panel that supplied these. If given, we will
+     *   establish a new link, so that clicking these highlights navigates that panel (in addition
+     *   to any others already registered).
      */
-    receiveNewHighlights: async function(supplierUuid, hlDescriptors) {
-        //console.debug(`PdfController received new highlights from ${supplierUuid}:`, hlDescriptors);
-
-        // TODO:
-        //  At some point, we contemplate allowing a single document to simultaneously be host
-        //  to the enrichments from multiple different panels. For the moment, we're holding
-        //  off on that, which means that when we receive new highlights, we drop all existing ones.
-        await this.dropAllExistingHighlights();
-
-        await this.mgr.linkingMap.add(this.uuid, hlDescriptors[0].slp, supplierUuid);
+    receiveHighlights: async function(hlDescriptors, supplierUuid) {
+        if (supplierUuid) {
+            await this.mgr.linkingMap.add(this.uuid, hlDescriptors[0].slp, supplierUuid);
+        }
+        let numberOfNewHighlights = 0;
         for (let hlDescriptor of hlDescriptors) {
-            const hl = new Highlight(this, hlDescriptor);
             const slpSiid = `${hlDescriptor.slp}:${hlDescriptor.siid}`;
-            this.highlightsBySlpSiid.set(slpSiid, hl);
-            for (const p of hl.listPageNums()) {
-                if (!this.highlightsByPageNum.has(p)) {
-                    this.highlightsByPageNum.set(p, []);
+            if (!this.highlightsBySlpSiid.has(slpSiid)) {
+                numberOfNewHighlights++;
+                const hl = new Highlight(this, hlDescriptor);
+                this.highlightsBySlpSiid.set(slpSiid, hl);
+                for (const p of hl.listPageNums()) {
+                    if (!this.highlightsByPageNum.has(p)) {
+                        this.highlightsByPageNum.set(p, []);
+                    }
+                    this.highlightsByPageNum.get(p).push(hl);
                 }
-                this.highlightsByPageNum.get(p).push(hl);
             }
         }
-        this.redoExistingHighlightLayers();
+        if (numberOfNewHighlights > 0) {
+            this.redoExistingHighlightLayers();
+        }
     },
 
     /* Select a named (as opposed to ad hoc) highlight.
+     *
      * param slpSiid: the id of the form `{slp}:{siid}` that uniquely
-     *  identifies the named highlight
-     * param altKey: boolean saying whether alt was held during the
-     *  initiating event
+     *  identifies the named highlight.
+     * param doAutoScroll: boolean saying whether to scroll to the highlight.
+     * param supplierUuid: optional argument giving the uuid of a panel
+     *  where the desired highlight definition can be obtained, in case we don't
+     *  have it already.
+     *
+     * return: promise that resolves when the operation is complete.
      */
-    selectNamedHighlight: function(slpSiid, altKey) {
+    selectNamedHighlight: async function(slpSiid, doAutoScroll, supplierUuid) {
+        // If we don't already have the highlight, try to obtain it.
+        if (!this.highlightsBySlpSiid.has(slpSiid)) {
+            if (supplierUuid) {
+                const hls = await this.getHighlightsFromSupplierPanel(supplierUuid);
+                if (hls?.length) {
+                    await this.receiveHighlights(hls, supplierUuid);
+                }
+            }
+        }
+        // If we have the highlight, proceed.
         const hl = this.highlightsBySlpSiid.get(slpSiid);
         if (hl) {
             this.clearNamedHighlight();
-            hl.select(true);
-            if (altKey) {
-                hl.scrollIntoView();
+            // The pages where the highlight exists have to be rendered first.
+            const pages = hl.listPageNums();
+            const firstPage = hl.firstPage();
+            pages.reverse();  // Work by descending page number.
+            for (const n of pages) {
+                await this.operateOnRenderedPage(n, doAutoScroll, pageView => {
+                    // When the last of the rendering jobs -- the page with the smallest
+                    // number -- has completed, then we can select the highlight.
+                    if (n === firstPage) {
+                        hl.select(true);
+                        if (doAutoScroll) {
+                            hl.scrollIntoView();
+                        }
+                    }
+                })
             }
         }
+    },
+
+    /* Given the uuid of a panel (in any window), try to obtain the array of
+     * all highlights defined in that panel, for our document.
+     *
+     * return: promise resolving with array of highlights, or null if none
+     *   were found
+     */
+    getHighlightsFromSupplierPanel: function(supplierUuid) {
+        const requests = this.mgr.hub.windowManager.broadcastRequest(
+            'contentManager.getHighlightsFromSupplier',
+            {
+                supplierUuid: supplierUuid,
+                docIds: [this.docId],
+            },
+            {
+                excludeSelf: false,
+            }
+        );
+        return Promise.all(requests).then(async values => {
+            for (let value of values) {
+                if (value) {
+                    const hls = value[this.docId];
+                    if (hls?.length) {
+                        return hls;
+                    }
+                }
+            }
+            return null;
+        });
     },
 
     dropAllExistingHighlights: async function() {
@@ -1018,7 +1082,7 @@ var PdfController = declare(null, {
     },
 
     /* Suppose you have an operation to perform on a page, and that you may or
-     * may not want to autoscroll to that page. There are several possibilites:
+     * may not want to autoscroll to that page. There are several possibilities:
      *
      * If the page is not currently rendered, then...
      *   ...if you also don't want to autoscroll to it, you might as well do nothing.

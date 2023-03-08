@@ -78,6 +78,11 @@ var PdfManager = declare(AbstractContentManager, {
     // The "secondary IDs" ("x" in method calls) are highlight supplier libpaths.
     linkingMap: null,
 
+    // For now, we're simply shutting off dynamic linking (linking to highlight supplier
+    // panels when they become active) by setting this false. Could some day want to revive
+    // some of this functionality, maybe in a user-configurable way?
+    doDynamicLinking: false,
+
     // Methods
 
     constructor: function(ISE_state) {
@@ -598,6 +603,11 @@ var PdfManager = declare(AbstractContentManager, {
     },
 
     onNewlyActiveHighlightSupplierPanel: async function({uuid, docIds}) {
+        // Are we actually interested in dynamic linking?
+        if (!this.doDynamicLinking) {
+            return;
+        }
+
         // For now, we request the lists of highlights from the new supplier for any docIds
         // that are currently open, and load these into those docs without question.
         // In the future, we may make this more selective if we have developed systems, e.g.
@@ -643,7 +653,7 @@ var PdfManager = declare(AbstractContentManager, {
                             const hls = value[docId];
                             if (hls.length) {
                                 for (const pdfc of controllersByDocId.get(docId)) {
-                                    await pdfc.receiveNewHighlights(uuid, hls);
+                                    await pdfc.receiveHighlights(hls, uuid);
                                 }
                             }
                         }

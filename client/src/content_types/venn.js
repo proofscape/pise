@@ -80,7 +80,7 @@ export class Highlight {
 
     // List the page numbers on which this highlight has presence.
     listPageNums() {
-        return Array.from(this.selectionBoxesByPageNum.keys());
+        return Array.from(this.selectionBoxesByPageNum.keys()).sort();
     }
 
     firstPage() {

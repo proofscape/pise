@@ -460,6 +460,12 @@ var NotesManager = declare(AbstractContentManager, {
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await this.linkingMap.get(clickedPanelUuid, gid);
 
+        // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
+        // to obtain named highlights, if we requested one under `highlightId`.
+        if (info.type === "PDF") {
+            info.requestingUuid = clickedPanelUuid;
+        }
+
         viewer.markWidgetElementAsSelected(clickedElt);
         const {nonExisting, spawned} = await cm.updateOrSpawnBeside(info, targetUuids, clickedElt);
 
