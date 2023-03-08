@@ -396,7 +396,7 @@ var NotesManager = declare(AbstractContentManager, {
             // no need for one window to broadcast an event to all others.
             const gid = widget.groupId;
             if (gid) {
-                this.linkingMap.purgeSecondaryIdLocal(gid);
+                this.linkingMap.localComponent.removeTriples({x: gid});
             }
         }
     },
@@ -456,7 +456,7 @@ var NotesManager = declare(AbstractContentManager, {
         // doing bookkeeping elsewhere, so should never have to purge lost targets here....
         if (nonExisting) {
             for (const missingUuid of nonExisting) {
-                await this.linkingMap.purgeTarget(missingUuid)
+                await this.linkingMap.removeTriples({w: missingUuid})
             }
         }
 

@@ -827,7 +827,7 @@ var PdfController = declare(null, {
     dropAllExistingHighlights: async function() {
         this.highlightsByPageNum.clear();
         this.highlightsBySlpSiid.clear();
-        await this.mgr.linkingMap.deleteForAllX(this.uuid);
+        await this.mgr.linkingMap.removeTriples({u: this.uuid});
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.

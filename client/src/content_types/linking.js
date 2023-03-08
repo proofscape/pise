@@ -43,8 +43,9 @@
  */
 export class LinkingMapComponent {
 
-    constructor(hub) {
+    constructor(hub, name) {
         this.hub = hub;
+        this.name = name;
         this.map = new Map();
     }
 
@@ -72,18 +73,42 @@ export class LinkingMapComponent {
     }
 
     // Make m(u, x) undefined.
+    // Broadcast the corresponding 'linkingMapNewlyUndefinedAt' event.
     // If this makes m(u) empty, then make m(u) undefined too.
     // Return boolean saying whether we deleted anything.
     _delete(u, x) {
         let mu = this.map.get(u);
         if (mu !== undefined) {
             let deleted = mu.delete(x);
+            if (deleted) {
+                this.notifyOfNewlyUndefined(u, x);
+            }
             if (mu.size === 0) {
                 this.map.delete(u);
             }
             return deleted
         }
         return false;
+    }
+
+    // Remove the triple (u, x, w) from this mapping, if present.
+    // Return boolean saying whether it was found and removed.
+    _remove_triple(u, x, w) {
+        const mux = this._get(u, x);
+        if (mux === undefined) {
+            return false;
+        } else {
+            const i0 = mux.indexOf(w);
+            if (i0 < 0) {
+                return false;
+            } else {
+                mux.splice(i0, 1);
+                if (mux.length === 0) {
+                    this._delete(u, x);
+                }
+                return true;
+            }
+        }
     }
 
     // Get m(u, x), making it into a new empty array if not yet defined.
@@ -99,6 +124,16 @@ export class LinkingMapComponent {
     // return: `null` if not hosted here; else the Dijit paneId (guaranteed truthy)
     myWindowHostsUuid(u) {
         return this.hub.contentManager.getPaneIdByUuid(u);
+    }
+
+    notifyOfNewlyUndefined(u, x) {
+        this.hub.windowManager.groupcastEvent({
+            type: 'linkingMapNewlyUndefinedAt',
+            name: this.name,
+            pair: [u, x],
+        }, {
+            includeSelf: true,
+        });
     }
 
     // ------------------------------------------------------------------------
@@ -137,84 +172,35 @@ export class LinkingMapComponent {
         return count;
     }
 
-    /* Remove the uuid w from the set m(u, x).
+    /* Remove existing definitions from this local component.
      *
-     * Fail silently if m(u, x) undefined, or w not in it to begin with.
+     * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
+     * we delete from the global mapping any and all triples [u, x, w] where the corresponding
+     * variables have the values you set.
      *
-     * If removal happens, and m(u, x) becomes empty, delete the entry, making
-     * m undefined at (u, x).
-     *
-     * return: true if w was removed, false if not
+     * return: the total number of triples [u, x, w] that were removed from this component
      */
-    remove({u, x, w}) {
-        const mux = this._get(u, x);
-        if (mux === undefined) {
-            return false;
-        } else {
-            const i0 = mux.indexOf(w);
-            if (i0 < 0) {
-                return false;
-            } else {
-                mux.splice(i0, 1);
-                if (mux.length === 0) {
-                    this._delete(u, x);
-                }
-                return true;
-            }
-        }
-    }
+    removeTriples({u, x, w}) {
+        // We have a choice about how to implement this method: we can make it efficient,
+        // or we can make it simple, uniform, and easily understood. We're opting for the latter,
+        // since, in real usage, I will be surprised if the map ever holds as many as twenty entries.
+        // We're talking about links from one open panel to another open panel, in PISE. How many
+        // of those do you think the user will ever have at once?
 
-    /* Remove the uuid w from any and all sets m(u, x) in which it currently occurs.
-     *
-     * return: the number of removals that happened
-     */
-    purgeTarget({w}) {
-        const places = [];
-        for (const [u, mu] of this.map) {
-            for (const [x, W] of mu) {
-                if (W.includes(w)) {
-                    places.push([u, x]);
-                }
-            }
-        }
-        for (const [u, x] of places) {
-            this.remove({u, x, w});
-        }
-        return places.length;
-    }
+        const uFree = (u === undefined);
+        const xFree = (x === undefined);
+        const wFree = (w === undefined);
 
-    /* Make m undefined at (u, x) for any u at which it is currently defined.
-     *
-     * return: the number of u at which m(u, x) used to be defined.
-     */
-    purgeSecondaryId(x) {
-        let count = 0;
-        const U = Array.from(this.map.keys());
-        for (let u of U) {
-            if (this._delete(u, x)) {
-                count++;
-            }
+        const allTriples = this.asTriples({});
+        const triplesToRemove = allTriples.filter(([u1, x1, w1]) => (
+            (uFree || u1 === u) && (xFree || x1 === x) && (wFree || w1 === w)
+        ));
+
+        for (const [u1, x1, w1] of triplesToRemove) {
+            this._remove_triple(u1, x1, w1);
         }
-        return count;
-    }
 
-    /* Make m(u, x) undefined.
-     *
-     * return: array equal to the previous value of m(u, x), or empty array if
-     *   m(u, x) was already undefined
-     */
-    delete({u, x}) {
-        const W = this._get_default(u, x);
-        this._delete(u, x);
-        return W;
-    }
-
-    /* Make m(u, x) undefined for all x (in other words, undefined at u).
-     *
-     * return: boolean saying whether anything was deleted
-     */
-    deleteForAllX({u}) {
-        return this.map.delete(u);
+        return triplesToRemove.length;
     }
 
     /* Get the value of m(u, x).
@@ -292,7 +278,7 @@ export class GlobalLinkingMap {
     }
 
     activate() {
-        this.localComponent = new LinkingMapComponent(this.hub);
+        this.localComponent = new LinkingMapComponent(this.hub, this.name);
         this.hub.windowManager.addHandler(this.name, this.localComponent);
         this.hub.contentManager.on('localPaneClose', async event => {
             // Purge the target only if its uuid is absent from any other window. It will be present
@@ -300,9 +286,9 @@ export class GlobalLinkingMap {
             const existsElsewhere = await this.hub.contentManager.uuidExistsInAnyWindow(
                 event.uuid, {excludeSelf: true});
             if (!existsElsewhere) {
-                await this.purgeTarget(event.uuid);
+                await this.removeTriples({w: event.uuid});
             }
-            this.localComponent.deleteForAllX({u: event.uuid});
+            this.localComponent.removeTriples({u: event.uuid});
         });
         this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
             await this.noteMovedPanel(event.uuid);
@@ -359,51 +345,16 @@ export class GlobalLinkingMap {
         return this._broadcastAndSum('addSet', {u, x, W}, options);
     }
 
-    /* Remove the uuid w from the set L(u, x).
-     * return: promise resolving with the number of removals that happened
+    /* Remove existing definitions from the global map.
+     *
+     * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
+     * we delete from the global mapping any and all triples [u, x, w] where the corresponding
+     * variables have the values you set.
+     *
+     * return: promise resolving with the total number of triples [u, x, w] that were removed
      */
-    remove(u, x, w) {
-        return this._broadcastAndSum('remove', {u, x, w});
-    }
-
-    /* Remove the uuid w from any and all sets L(u, x) in which it currently occurs.
-     * return: promise resolving with the number of removals that happened
-     */
-    purgeTarget(w) {
-        return this._broadcastAndSum('purgeTarget', {w});
-    }
-
-    /* Make L undefined at (u, x) for any u at which it is currently defined.
-     * return: promise resolving with the number of u at which L(u, x) used to be defined.
-     */
-    purgeSecondaryId(x) {
-        return this._broadcastAndSum('purgeSecondaryId', {x});
-    }
-
-    /* Synchronously make L undefined at (u, x) for any u belonging to our local component,
-     * at which it is currently defined.
-     * return: the number of u at which L(u, x) used to be defined in our component
-     */
-    purgeSecondaryIdLocal(x) {
-        if (!this.localComponent) {
-            return 0;
-        }
-        return this.localComponent.purgeSecondaryId({x});
-    }
-
-    /* Make L undefined at (u, x).
-     * return: promise resolving with array giving the old value L(u, x) before
-     *  deletion (empty array if it was undefined)
-     */
-    delete(u, x) {
-        return this._broadcastAndConcat('delete', {u, x});
-    }
-
-    /* Make L undefined at (u, x) for all x (in other words, undefined at u).
-     * return: promise resolving with boolean saying whether anything was deleted
-     */
-    deleteForAllX(u) {
-        return this._broadcastAndAny('deleteForAllX', {u});
+    removeTriples({u, x, w}) {
+        return this._broadcastAndSum('removeTriples', {u, x, w});
     }
 
     /* Get the value of L(u, x).
@@ -462,7 +413,8 @@ export class GlobalLinkingMap {
     async noteMovedPanel(u) {
         const X = await this.getAllXForU(u);
         for (const x of X) {
-            const W = await this.delete(u, x);
+            const W = await this.get(u, x);
+            await this.removeTriples({u, x});
             await this.addSet(u, x, W, {excludeSelf: true});
         }
         return X.length;
