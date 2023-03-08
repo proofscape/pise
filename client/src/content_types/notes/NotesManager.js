@@ -443,31 +443,14 @@ var NotesManager = declare(AbstractContentManager, {
         }
         const info = widget.getInfoCopy();
 
-        // This is our hacky way of getting the "alt key semantics" passed all the
-        // way to the content update, without trying to pipe an event object all the
-        // way there.
-        // Currently just doing this for PDF widgets.
-        // Do we want sth similar for chart widgets? There we have long supported the
-        // author in saying whether navigation happens. It seems we're moving toward
-        // making this the user's choice instead, but, not ready to implement this today.
-        if (info.type === "PDF") {
-            info.gotosel = altKey ? 'always' : 'never';
-        }
-
         const cm = this.hub.contentManager;
         const clickedPane = cm.getSurroundingPane(clickedElt);
         const viewer = this.viewers[clickedPane.id];
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await this.linkingMap.get(clickedPanelUuid, gid);
 
-        // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
-        // to obtain named highlights, if we requested one under `highlightId`.
-        if (info.type === "PDF") {
-            info.requestingUuid = clickedPanelUuid;
-        }
-
         viewer.markWidgetElementAsSelected(clickedElt);
-        const {nonExisting, spawned} = await cm.updateOrSpawnBeside(info, targetUuids, clickedElt);
+        const {existing, nonExisting} = await cm.sortUuidsByExistenceInAnyWindow(targetUuids);
 
         // Do we really need this self-repairing step here? Theoretically, we're already
         // doing bookkeeping elsewhere, so should never have to purge lost targets here....
@@ -476,6 +459,29 @@ var NotesManager = declare(AbstractContentManager, {
                 await this.linkingMap.purgeTarget(missingUuid)
             }
         }
+
+        if (info.type === "PDF") {
+            if (existing.length === 0) {
+                // The only reason not to auto-scroll to a selection is to avoid disrupting sth
+                // the user was already looking at; hence, with a newly spawned panel, we should
+                // always scroll.
+                info.gotosel = 'always';
+            } else {
+                // This is our hacky way of getting the "alt key semantics" passed all the
+                // way to the content update, without trying to pipe an event object all the
+                // way there.
+                // Currently just doing this for PDF widgets.
+                // Do we want sth similar for chart widgets? There we have long supported the
+                // author in saying whether navigation happens. It seems we're moving toward
+                // making this the user's choice instead, but, not ready to implement this today.
+                info.gotosel = altKey ? 'always' : 'never';
+            }
+            // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
+            // to obtain named highlights, if we requested one under `highlightId`.
+            info.requestingUuid = clickedPanelUuid;
+        }
+
+        const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
 
         if (spawned) {
             await this.linkingMap.add(clickedPanelUuid, gid, spawned);
