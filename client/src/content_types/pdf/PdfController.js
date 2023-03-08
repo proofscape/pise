@@ -122,6 +122,13 @@ var PdfController = declare(null, {
     // the form `${slp}:${siid}` (supplier libpath : supplier internal id).
     highlightsBySlpSiid: null,
 
+    // This is for linking a doc panel to a tree item,
+    // meaning that all the highlights at and under that item in a repo are loaded
+    // "permanently" into this panel. "Permanent" means that they stay even when panels
+    // hosting their suppliers are closed, and that clicking them can spawn such a panel,
+    // if none is yet present.
+    linkedTreeItemLibpath: null,
+
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
         this.pane = pane;
@@ -134,8 +141,8 @@ var PdfController = declare(null, {
 
         this.stateRequestPromise = Promise.resolve();
 
-        this.highlightsByPageNum = new Map();
-        this.highlightsBySlpSiid = new Map();
+        this.highlightsByPageNum = new iseUtil.SetMapping();
+        this.highlightsBySlpSiid = new iseUtil.PairKeyMapping(":");
     },
 
     initialize: function(info) {
@@ -738,10 +745,7 @@ var PdfController = declare(null, {
                 const hl = new Highlight(this, hlDescriptor);
                 this.highlightsBySlpSiid.set(slpSiid, hl);
                 for (const p of hl.listPageNums()) {
-                    if (!this.highlightsByPageNum.has(p)) {
-                        this.highlightsByPageNum.set(p, []);
-                    }
-                    this.highlightsByPageNum.get(p).push(hl);
+                    this.highlightsByPageNum.add(p, hl);
                 }
             }
         }
@@ -824,10 +828,44 @@ var PdfController = declare(null, {
         });
     },
 
+    libpathBelongsToLinkedTreeSet: function(lp) {
+        return (this.linkedTreeItemLibpath &&
+            iseUtil.libpathIsPrefix(this.linkedTreeItemLibpath, lp));
+    },
+
+    /* Drop any existing highlights we are holding from a particular supplier.
+     *
+     * Note: We ignore the request if we are holding *permanent* highlights from
+     * that supplier.
+     *
+     * param slp: the libpath of the supplier
+     */
+    dropHighlightsFromSupplier: async function(slp) {
+        if (this.libpathBelongsToLinkedTreeSet(slp)) {
+            return;
+        }
+        const hls = Array.from(this.highlightsBySlpSiid.getValuesUnderFirstKey(slp));
+        this.highlightsBySlpSiid.deleteFirstKey(slp);
+
+        for (const hl of hls) {
+            for (const p of hl.listPageNums()) {
+                this.highlightsByPageNum.remove(p, hl);
+            }
+        }
+
+        // Finally, since removing any highlights can completely change the Venn diagram
+        // for any given page, we have to redo existing highlight layers.
+        this.redoExistingHighlightLayers();
+    },
+
     dropAllExistingHighlights: async function() {
         this.highlightsByPageNum.clear();
         this.highlightsBySlpSiid.clear();
-        await this.mgr.linkingMap.removeTriples({u: this.uuid});
+        // For now I'm commenting out the linking map clean up. We have to settle on the
+        // maintenance system. Is this method responsible for cleaning up the linking map?
+        // Or vice versa? Or does a third thing handle both?
+        // await this.mgr.linkingMap.removeTriples({u: this.uuid});
+        this.redoExistingHighlightLayers();
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.
@@ -1282,7 +1320,7 @@ var PdfController = declare(null, {
     },
 
     // Find all existing highlight layers, and redo each one.
-    // Useful when moving to a new highlight supplier.
+    // Useful when changing the set of highlights loaded into this doc.
     redoExistingHighlightLayers: function() {
         const highlightLayers = Array.from(this.outerContainer.querySelectorAll('.highlightLayer'));
         for (const highlightLayer of highlightLayers) {
@@ -1299,7 +1337,7 @@ var PdfController = declare(null, {
 
     // Build the contents of a highlight layer.
     buildHighlightsForHighlightLayer: function(highlightLayer, pageNumber, pageWidth) {
-        const hls = this.highlightsByPageNum.get(pageNumber) || [];
+        const hls = Array.from(this.highlightsByPageNum.get(pageNumber) || []);
         if (!hls.length) {
             return;
         }

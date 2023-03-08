@@ -296,6 +296,8 @@ util.getParentPath = function(libpath) {
     return parts.join('.');
 };
 
+// Say whether one libpath is a prefix of another, including the case that they
+// are identical.
 util.libpathIsPrefix = function(potential_prefix, other_libpath) {
     const n = potential_prefix.length;
     const front = other_libpath.slice(0, n);
@@ -433,6 +435,14 @@ class SetMapping {
     has(key, value) {
         return this.mapping.has(key) && this.mapping.get(key).has(value);
     }
+
+    get(key) {
+        return this.mapping.get(key);
+    }
+
+    clear() {
+        this.mapping.clear();
+    }
 }
 
 util.SetMapping = SetMapping;
@@ -460,6 +470,90 @@ class LibpathSetMapping extends SetMapping {
 }
 
 util.LibpathSetMapping = LibpathSetMapping;
+
+
+/* Mapping in which the keys can be presented either as a
+ * pair of strings, or as a single string joined by a specified character.
+ */
+class PairKeyMapping {
+
+    constructor(joinChar) {
+        this.joinChar = joinChar || ":";
+        this.map = new Map();
+    }
+
+    // Parse the varargs passed to a method, which starts with a one- or two-arg
+    // specification of a key, followed by some number of other args.
+    //
+    // For internal use.
+    //
+    // args: the "rest parameter" array passed to one of our methods
+    // n: the number of args we expect to come after the specification of a key
+    //
+    // return: {
+    //   a: first part of key,
+    //   b: second part of key,
+    //   other: [...],
+    // }
+    _parseArgs(args, n) {
+        let a = null, b = null;
+        let other = null;
+        if (args.length === n + 1) {
+            [a, b] = args[0].split(this.joinChar);
+            other = args.slice(1);
+        } else {
+            [a, b] = args.slice(0, 2);
+            other = args.slice(2);
+        }
+        return {a, b, other};
+    }
+
+    has(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        if (this.map.has(a)) {
+            return this.map.get(a).has(b);
+        } else {
+            return false;
+        }
+    }
+
+    get(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        if (this.map.has(a)) {
+            return this.map.get(a).get(b);
+        }
+        return undefined;
+    }
+
+    set(...args) {
+        const {a, b, other} = this._parseArgs(args, 1);
+        const v = other[0];
+        if (!this.map.has(a)) {
+            this.map.set(a, new Map());
+        }
+        this.map.get(a).set(b, v);
+    }
+
+    clear() {
+        this.map.clear();
+    }
+
+    getValuesUnderFirstKey(a) {
+        if (this.map.has(a)) {
+            return this.map.get(a).values();
+        } else {
+            return [];
+        }
+    }
+
+    deleteFirstKey(a) {
+        return this.map.delete(a);
+    }
+
+}
+
+util.PairKeyMapping = PairKeyMapping;
+
 
 util.setUnion = function(p, q) {
     const r = new Set(p)

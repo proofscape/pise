@@ -107,6 +107,8 @@ var PdfManager = declare(AbstractContentManager, {
         this.localPdfLibraryUrlPrefix = this.hub.urlFor('static') + "/PDFLibrary/";
         this.hub.windowManager.on('newlyActiveHighlightSupplierPanel',
             this.onNewlyActiveHighlightSupplierPanel.bind(this));
+        this.hub.windowManager.on('linkingMapNewlyUndefinedAt',
+            this.onLinkingMapNewlyUndefinedAt.bind(this));
         this.initLinking();
     },
 
@@ -663,6 +665,19 @@ var PdfManager = declare(AbstractContentManager, {
             });
         }
     },
+
+    onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+        if (name === this.linkingMap.name) {
+            const [u, x] = pair;
+            const paneId = this.hub.contentManager.getPaneIdByUuid(u);
+            if (paneId) {
+                const pdfc = this.pdfcsByPaneId[paneId];
+                if (pdfc) {
+                    await pdfc.dropHighlightsFromSupplier(x);
+                }
+            }
+        }
+    }
 
 });
 
