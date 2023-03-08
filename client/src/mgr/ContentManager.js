@@ -782,7 +782,9 @@ var ContentManager = declare(null, {
                 mgr.updateContent(info, pane.id);
                 paneId = pane.id;
             }
-        } else {
+        }
+        // If didn't already find a pane, make a new one.
+        if (!paneId) {
             const newCP = this.tct.addContentPaneToActiveTC();
             await this.openContentInPane(info, newCP);
             paneId = newCP.id;
