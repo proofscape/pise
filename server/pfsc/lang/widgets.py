@@ -206,13 +206,26 @@ class Widget(PfscObj):
     def get_type(self):
         return self.type_
 
-    def set_pane_group(self, default_group_name=''):
-        group_name = self.data.get('group', default_group_name)
-        pane_group = ":".join([
+    def set_pane_group(self, subtype=None, default_group_name=''):
+        # Pane group ID consists of ":"-separated parts.
+        # First two parts are always:
+        #  * repo-versioned libpath of the anno to which we belong
+        #  * our widget type
+        parts = [
             make_repo_versioned_libpath(self.parent.libpath, self.getVersion()),
             self.get_type(),
-            str(group_name)
-        ])
+        ]
+
+        # Sometimes we may want a "subtype", to be a third part:
+        if subtype is not None:
+            parts.append(subtype)
+
+        # Final part is always the group's name, which is either the default,
+        # or a name the author chose to supply.
+        group_name = self.data.get('group', default_group_name)
+        parts.append(str(group_name))
+
+        pane_group = ":".join(parts)
         self.data['pane_group'] = pane_group
 
     def check_required_fields(self, req):
@@ -544,7 +557,6 @@ class PdfWidget(Widget):
 
     def enrich_data(self):
         super().enrich_data()
-        self.set_pane_group()
 
         doc_info_obj = None
         doc_info_libpath = None
@@ -583,9 +595,15 @@ class PdfWidget(Widget):
 
         doc_info = self.docReference.doc_info
 
-        # Final widget data needs docId. We extract it from the doc info.
+        # docId
+        # We extract this from the doc info.
+        # It is needed:
+        #  * in the final widget data
+        #  * as a subtype in our pane group
         doc_id_field_name = 'docId'
-        self.data[doc_id_field_name] = doc_info[doc_id_field_name]
+        doc_id = doc_info[doc_id_field_name]
+        self.data[doc_id_field_name] = doc_id
+        self.set_pane_group(subtype=doc_id)
 
         # Do we define a doc highlight?
         if (cc := self.docReference.combiner_code) is not None:
