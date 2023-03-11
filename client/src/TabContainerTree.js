@@ -814,8 +814,6 @@ tct.TabContainerTree = declare(null, {
     tcIdCounter: 0,
     // Counter for Ids of ContentPanes:
     cpIdCounter: 0,
-    // Counter for selection sequence:
-    selectionCounter: 0,
     // Our Id
     id: null,
     // A place to store LeafNodes under the Id of the TabContainer they manage:
@@ -1071,15 +1069,12 @@ tct.TabContainerTree = declare(null, {
         // Does this TC have a selected pane?
         var pane = tc.selectedChildWidget;
         if (pane) {
-            // Advance the selected pane's selection sequence number.
+            // Advance the selected pane's selection time stamp.
             // This is an integer we stash directly in the ContentPane,
-            // under the property, `_pfsc_ise_selectionSequenceNumber`.
+            // under the property, `_pfsc_ise_selectionTimestamp`.
             // It is useful in determining which pane has been most recently
             // selected.
-            var n = this.selectionCounter;
-            this.selectionCounter = n + 1;
-            pane._pfsc_ise_selectionSequenceNumber = n;
-            //console.log(pane.id, n);
+            pane._pfsc_ise_selectionTimestamp = (new Date()).getTime();
         }
 
         // Next check if this is actually different from the currently active TC.
@@ -1340,22 +1335,25 @@ tct.TabContainerTree = declare(null, {
 
     /* This is a "staticmethod"; i.e. it needn't be a member of the TCT class; it is
      * just defined here for convenience, and because it deals with TCT-related stuff
-     * (namely, the _pfsc_ise_selectionSequenceNumber attribute of ContentPanes).
+     * (namely, the _pfsc_ise_selectionTimestamp attribute of ContentPanes).
      *
      * :param panes: any object in which the _values_ are ContentPanes. So could be
      *   a lookup by pane id, or could just be an array of panes.
      * :return: the pane which has been most recently active, as judged by
-     *   its _pfsc_ise_selectionSequenceNumber attribute. (But if panes is empty,
+     *   its _pfsc_ise_selectionTimestamp attribute. (But if panes is empty,
      *   then return null.)
      */
     findMostRecentlyActivePane : function(panes) {
         var mostRecentPane = null,
-            maxSeqNum = -1;
+            latestTimeStamp = -1;
         for (var k in panes) {
             var pane = panes[k],
-                seqNum = pane._pfsc_ise_selectionSequenceNumber;
-            if (seqNum > maxSeqNum) {
-                maxSeqNum = seqNum;
+                timeStamp = pane._pfsc_ise_selectionTimestamp;
+            // Note: the following test is fine even for a pane that has never been active,
+            // and therefore has undefined `_pfsc_ise_selectionTimestamp` property.
+            // This is because `undefined > n` simply evaluates as `false` for all integers n.
+            if (timeStamp > latestTimeStamp) {
+                latestTimeStamp = timeStamp;
                 mostRecentPane = pane;
             }
         }
