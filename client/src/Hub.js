@@ -560,12 +560,12 @@ var Hub = declare(null, {
 
         content.activeTcIndex = activeTcIndex;
 
-        // Note: we use `asTriplesLocal()` because we only want to describe the state of *this* window,
+        // Note: we want only local triples, because we only want to describe the state of *this* window,
         // not any other. This is a synchronous method, so no need to await.
         content.linking = {
-            C: this.chartManager.linkingMap.asTriplesLocal(),
-            D: this.pdfManager.linkingMap.asTriplesLocal(),
-            N: this.notesManager.linkingMap.asTriplesLocal(),
+            C: this.chartManager.linkingMap.localComponent.getTriples({}),
+            D: this.pdfManager.linkingMap.localComponent.getTriples({}),
+            N: this.notesManager.linkingMap.localComponent.getTriples({}),
         };
 
         state.content = content;

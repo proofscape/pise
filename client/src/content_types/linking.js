@@ -111,6 +111,22 @@ export class LinkingMapComponent {
         }
     }
 
+    /* Represent this component as an array of triples [u, x, w].
+     *
+     * return: array of triples [[u, x, w], [u, x, w], ...]
+     */
+    _asTriples() {
+        const triples = [];
+        for (const [u, mu] of this.map) {
+            for (const [x, W] of mu) {
+                for (const w of W) {
+                    triples.push([u, x, w]);
+                }
+            }
+        }
+        return triples;
+    }
+
     // Get m(u, x), making it into a new empty array if not yet defined.
     _get_default(u, x) {
         let mux = this._get(u, x);
@@ -186,21 +202,29 @@ export class LinkingMapComponent {
         // since, in real usage, I will be surprised if the map ever holds as many as twenty entries.
         // We're talking about links from one open panel to another open panel, in PISE. How many
         // of those do you think the user will ever have at once?
-
-        const uFree = (u === undefined);
-        const xFree = (x === undefined);
-        const wFree = (w === undefined);
-
-        const allTriples = this.asTriples({});
-        const triplesToRemove = allTriples.filter(([u1, x1, w1]) => (
-            (uFree || u1 === u) && (xFree || x1 === x) && (wFree || w1 === w)
-        ));
-
+        const triplesToRemove = this.getTriples({u, x, w});
         for (const [u1, x1, w1] of triplesToRemove) {
             this._remove_triple(u1, x1, w1);
         }
-
         return triplesToRemove.length;
+    }
+
+    /* Get existing definitions from this local component.
+     *
+     * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
+     * we return from the global mapping any and all triples [u, x, w] where the corresponding
+     * variables have the values you set.
+     *
+     * return: array of triples [u, x, w] that were found in this component
+     */
+    getTriples({u, x, w}) {
+        const uFree = (u === undefined);
+        const xFree = (x === undefined);
+        const wFree = (w === undefined);
+        const allTriples = this._asTriples();
+        return allTriples.filter(([u1, x1, w1]) => (
+            (uFree || u1 === u) && (xFree || x1 === x) && (wFree || w1 === w)
+        ));
     }
 
     /* Get the value of m(u, x).
@@ -224,22 +248,6 @@ export class LinkingMapComponent {
         } else {
             return Array.from(mu.keys());
         }
-    }
-
-    /* Represent this component as an array of triples [u, x, w].
-     *
-     * return: array of triples [[u, x, w], [u, x, w], ...]
-     */
-    asTriples({}) {
-        const triples = [];
-        for (const [u, mu] of this.map) {
-            for (const [x, W] of mu) {
-                for (const w of W) {
-                    triples.push([u, x, w]);
-                }
-            }
-        }
-        return triples;
     }
 
     /* For a given u, say whether a given w is in m(u, x) for any x.
@@ -357,6 +365,18 @@ export class GlobalLinkingMap {
         return this._broadcastAndSum('removeTriples', {u, x, w});
     }
 
+    /* Get existing definitions from the global map.
+     *
+     * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
+     * we return from the global mapping any and all triples [u, x, w] where the corresponding
+     * variables have the values you set.
+     *
+     * return: promise resolving with array of triples [u, x, w] that were found
+     */
+    getTriples({u, x, w}) {
+        return this._broadcastAndConcat('getTriples', {u, x, w});
+    }
+
     /* Get the value of L(u, x).
      * return: promise resolving with array (empty array if L(u, x) undefined)
      */
@@ -369,25 +389,6 @@ export class GlobalLinkingMap {
      */
     getAllXForU(u) {
         return this._broadcastAndConcat('getAllXForU', {u});
-    }
-
-    /* Represent the entire global map as an array of triples [u, x, w].
-     * return: promise resolving with array of triples [[u, x, w], [u, x, w], ...]
-     */
-    asTriples() {
-        return this._broadcastAndConcat('asTriples', {});
-    }
-
-    /* Synchronously represent our local component of the map as an array of
-     *   triples [u, x, w].
-     *
-     * return: array of triples [[u, x, w], [u, x, w], ...]
-     */
-    asTriplesLocal() {
-        if (!this.localComponent) {
-            return [];
-        }
-        return this.localComponent.asTriples({});
     }
 
     /* For a given u, say whether a given w is in L(u, x) for any x.
