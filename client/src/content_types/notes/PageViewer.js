@@ -73,9 +73,9 @@ var PageViewer = declare(null, {
     ptr: null,
     // subscribedLibpath: the libpath to which we are currently subscribed
     subscribedLibpath: null,
-    // Each time we load a new page, we overwrite this with the docInfo for
-    // that page (i.e. info about referenced documents, if any).
-    currentPageDocInfo: null,
+    // Each time we load a new page, we overwrite this with the data JSON for
+    // that page.
+    currentPageData: null,
 
     navEnableHandlers: null,
 
@@ -758,7 +758,7 @@ var PageViewer = declare(null, {
         query(elt).innerHTML(html);
         iseUtil.typeset([elt]);
 
-        this.currentPageDocInfo = data.docInfo;
+        this.currentPageData = data;
 
         this.nm.setupWidgets(data, this.elt, this.pane);
     },
