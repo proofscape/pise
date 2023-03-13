@@ -197,25 +197,26 @@ var ContentManager = declare(null, {
      * If found, return an object of the form {
      *   windowNumber: int,
      *   paneId: the Dijit pane id used in that window,
+     *   activityTimestamp: int giving the time at which this panel was last active,
+     *   uuid: just echoing the given uuid,
      * }
      * If not found, return null.
      *
      * Note: This method is synchronous, and searches only the present window.
      * It is designed to be callable by other windows.
      * If working purely locally, consider using `getPaneIdByUuid()` instead.
-     *
-     * See also:
-     *   ContentManager.getPaneIdByUuid()
-     *   ContentManager.getGlobalAddressByUuidAllWindows()
      */
-    getGlobalAddressByUuidThisWindow: function({uuid}) {
+    getPaneInfoByUuidThisWindow: function({uuid}) {
         const numbers = this.hub.windowManager.getNumbers();
         const myNumber = numbers.myNumber;
         const paneId = this.getPaneIdByUuid(uuid);
         if (paneId !== null) {
+            const pane = this.getPane(paneId);
             return {
                 windowNumber: myNumber,
                 paneId: paneId,
+                activityTimestamp: pane._pfsc_ise_selectionTimestamp,
+                uuid: uuid,
             };
         }
         return null;
@@ -229,22 +230,17 @@ var ContentManager = declare(null, {
      *     if true, exclude this window from the search.
      * }
      *
-     * return: null or an object of the form {
-     *   windowNumber: int,
-     *   paneId: the Dijit pane id used in that window,
-     * }
+     * return: null or a "pane info" object of the same kind returned by
+     *   the `getPaneInfoByUuidThisWindow()` method.
      *
      * Note: This method is asynchronous, and searches all windows.
-     * See also:
-     *   ContentManager.getPaneIdByUuid()
-     *   ContentManager.getGlobalAddressByUuidThisWindow()
      */
-    getGlobalAddressByUuidAllWindows: async function(uuid, options) {
+    getPaneInfoByUuidAllWindows: async function(uuid, options) {
         const {
             excludeSelf = false,
         } = (options || {});
         const searches = this.hub.windowManager.broadcastRequest(
-            'contentManager.getGlobalAddressByUuidThisWindow',
+            'contentManager.getPaneInfoByUuidThisWindow',
             {uuid},
             {
                 excludeSelf: excludeSelf,
@@ -262,8 +258,50 @@ var ContentManager = declare(null, {
 
     // Say whether a pane uuid exists, in this or any other window.
     uuidExistsInAnyWindow: async function(uuid, options) {
-        const addr = await this.getGlobalAddressByUuidAllWindows(uuid, options);
-        return addr !== null;
+        const info = await this.getPaneInfoByUuidAllWindows(uuid, options);
+        return info !== null;
+    },
+
+    // Select the most recently active uuid from an array.
+    // return: uuid; else null if empty array, or no panel can be found, or no
+    //   panel has an activity stamp
+    mostRecentlyActive: async function(U) {
+        const panelInfos = [];
+        for (const u of U) {
+            const info = await this.getPaneInfoByUuidAllWindows(u);
+            panelInfos.push(info || {uuid: u, activityTimestamp: -1});
+        }
+        let timeToBeat = -1;
+        let mra = null;
+        for (const info of panelInfos) {
+            const ats = info.activityTimestamp;
+            if (ats > timeToBeat) {
+                timeToBeat = ats;
+                mra = info.uuid;
+            }
+        }
+        return mra;
+    },
+
+    // Say whether panel of uuid u was more recently active than panel of uuid v.
+    // The panels can belong to any window.
+    // If v undefined or null, return true.
+    // If we can't locate panel v, return true.
+    // Else if we can't locate panel u, return false.
+    // Else actually compare their timestamps.
+    moreRecentlyActiveThan: async function(u, v) {
+        if (!v) {
+            return true;
+        }
+        const vInfo = await this.getPaneInfoByUuidAllWindows(v)
+        if (!vInfo) {
+            return true;
+        }
+        const uInfo = await this.getPaneInfoByUuidAllWindows(u)
+        if (!uInfo) {
+            return false;
+        }
+        return uInfo.activityTimestamp > vInfo.activityTimestamp;
     },
 
     /* Given an array of uuids, determine which ones still exist in any window,
