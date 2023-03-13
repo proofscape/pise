@@ -61,6 +61,30 @@ export class WindowManager {
         return this.windowPeer.broadcastRequest(handlerDescrip, args, options);
     }
 
+    // Broadcast a request, and sum the (int or bool) results.
+    broadcastAndSum(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.reduce(
+            (a, c) => a + (+c),
+            0
+        ));
+    }
+
+    // Broadcast a request, and concatenate the (array) results.
+    broadcastAndConcat(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.reduce(
+            (a, c) => a.concat(c),
+            []
+        ));
+    }
+
+    // Broadcast a request, and do an "any" (logical disjunction) on the (!! boolified) results.
+    broadcastAndAny(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.some(e => !!e));
+    }
+
     /* Groupcast an event to the window group.
      *
      * @param event: the event to be groupcast

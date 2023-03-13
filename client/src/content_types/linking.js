@@ -303,40 +303,22 @@ export class GlobalLinkingMap {
         }, {'await': true});
     }
 
-    // Broadcast a request to all components (this one included).
-    _broadcast(funcName, args, options) {
-        const {
-            excludeSelf = false,
-        } = (options || {});
-        return this.hub.windowManager.broadcastRequest(
-            `${this.name}.${funcName}`,
-            args,
-            {excludeSelf: excludeSelf}
-        );
-    }
-
     // Broadcast and sum the (int or bool) results.
     _broadcastAndSum(funcName, args, options) {
-        const requests = this._broadcast(funcName, args, options);
-        return Promise.all(requests).then(values => values.reduce(
-            (a, c) => a + (+c),
-            0
-        ));
+        const handlerDescrip = `${this.name}.${funcName}`;
+        return this.hub.windowManager.broadcastAndSum(handlerDescrip, args, options);
     }
 
     // Broadcast and concatenate the (array) results.
     _broadcastAndConcat(funcName, args, options) {
-        const requests = this._broadcast(funcName, args, options);
-        return Promise.all(requests).then(values => values.reduce(
-            (a, c) => a.concat(c),
-            []
-        ));
+        const handlerDescrip = `${this.name}.${funcName}`;
+        return this.hub.windowManager.broadcastAndConcat(handlerDescrip, args, options);
     }
 
     // Broadcast and do an "any" (logical disjunction) on the (!! boolified) results.
     _broadcastAndAny(funcName, args, options) {
-        const requests = this._broadcast(funcName, args, options);
-        return Promise.all(requests).then(values => values.some(e => !!e));
+        const handlerDescrip = `${this.name}.${funcName}`;
+        return this.hub.windowManager.broadcastAndAny(handlerDescrip, args, options);
     }
 
     /* Add the uuid w to the set L(u, x).
