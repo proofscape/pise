@@ -240,7 +240,7 @@ var ContentManager = declare(null, {
             excludeSelf = false,
         } = (options || {});
         const searches = this.hub.windowManager.broadcastRequest(
-            'contentManager.getPaneInfoByUuidThisWindow',
+            'hub.contentManager.getPaneInfoByUuidThisWindow',
             {uuid},
             {
                 excludeSelf: excludeSelf,
@@ -1018,7 +1018,7 @@ var ContentManager = declare(null, {
     movePaneToAnotherWindow: async function(pane, newWindowNumber) {
         const stateDescriptor = this.getCurrentStateInfo(pane, true);
         await this.hub.windowManager.makeWindowRequest(
-            newWindowNumber, 'contentManager.openContentInActiveTC', stateDescriptor
+            newWindowNumber, 'hub.contentManager.openContentInActiveTC', stateDescriptor
         );
 
         await this.dispatch({

@@ -639,7 +639,7 @@ var PdfManager = declare(AbstractContentManager, {
         const desiredDocIds = Array.from(controllersByDocId.keys());
         if (desiredDocIds.length) {
             const requests = this.hub.windowManager.broadcastRequest(
-                'contentManager.getHighlightsFromSupplier',
+                'hub.contentManager.getHighlightsFromSupplier',
                 {
                     supplierUuid: uuid,
                     docIds: desiredDocIds,

@@ -693,7 +693,7 @@ var EditManager = declare(AbstractContentManager, {
         this.freezeAllEditors(true);
         const theEditManager = this;
         // Cannot procede until all windows say it is okay to read these modules.
-        const readyPromises = this.hub.windowManager.broadcastRequest('editManager.checkReadOkay', readpaths);
+        const readyPromises = this.hub.windowManager.broadcastRequest('hub.editManager.checkReadOkay', readpaths);
         Promise.all(readyPromises).then(() => {
             // Load the source code for every open document.
             return this.hub.xhrFor('loadSource', {
@@ -850,7 +850,7 @@ var EditManager = declare(AbstractContentManager, {
         const allpaths = writepaths.concat(buildpaths);
         //console.log('Preparing to emitWriteAndBuild for:', allpaths);
         const readyPromises = this.hub.windowManager.broadcastRequest(
-            'editManager.checkWriteOkay', allpaths, { excludeSelf: true }
+            'hub.editManager.checkWriteOkay', allpaths, { excludeSelf: true }
         );
         return Promise.all(readyPromises).then(() => {
             for (let wp of (args.writepaths || [])) {

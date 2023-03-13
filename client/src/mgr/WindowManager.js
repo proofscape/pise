@@ -232,8 +232,7 @@ export class WindowManager {
         this.initializePeer();
         this.setupPeer();
         this.windowPeer
-            .addHandler('contentManager', this.hub.contentManager)
-            .addHandler('editManager', this.hub.editManager)
+            .addHandler('hub', this.hub)
             .setReady();
         // Safari still does not support BroadcastChannels, so we check for their presence
         // and choose the transport accordingly.

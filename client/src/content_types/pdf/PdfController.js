@@ -806,7 +806,7 @@ var PdfController = declare(null, {
      */
     getHighlightsFromSupplierPanel: function(supplierUuid) {
         const requests = this.mgr.hub.windowManager.broadcastRequest(
-            'contentManager.getHighlightsFromSupplier',
+            'hub.contentManager.getHighlightsFromSupplier',
             {
                 supplierUuid: supplierUuid,
                 docIds: [this.docId],
