@@ -391,6 +391,14 @@ export class GlobalLinkingMap {
         return this._broadcastAndConcat('getAllXForU', {u});
     }
 
+    /* Get all uuids in the range of the global map.
+     * return: promise resolving with array
+     */
+    async range() {
+        const T = await this.getTriples();
+        return Array.from(new Set(T.map(t => t[2])));
+    }
+
     /* For a given u, say whether a given w is in L(u, x) for any x.
      * return: promise resolving with boolean
      */
