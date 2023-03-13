@@ -108,6 +108,48 @@ var ChartManager = declare(AbstractContentManager, {
         return forest.getMergedDocInfos();
     },
 
+    /* Synchronously return array of all triples (u, s, d),
+     * in just this window,
+     * where:
+     *   u is a chart panel uuid,
+     *   s is the libpath of a deduc hosted by that panel,
+     *   d is the docId of a document referenced by that deduc, or null if that
+     *     deduc does not reference any documents
+     */
+    getAllDocRefTriplesLocal: function({}) {
+        const triples = [];
+        for (const [paneId, forest] of Object.entries(this.forestsByPaneId)) {
+            const u = this.hub.contentManager.getUuidByPaneId(paneId);
+            const m = forest.getReferencedDocIdsByDeduc();
+            for (const [s, D] of m) {
+                if (D) {
+                    for (const d of D) {
+                        triples.push([u, s, d]);
+                    }
+                } else {
+                    triples.push([u, s, null]);
+                }
+            }
+        }
+        return triples;
+    },
+
+    /* Return promise that resolves with array of all triples (u, s, d),
+     * across all windows,
+     * where:
+     *   u is a chart panel uuid,
+     *   s is the libpath of a deduc hosted by that panel,
+     *   d is the docId of a document referenced by that deduc, or null if that
+     *     deduc does not reference any documents
+     */
+    getAllDocRefTriples: function() {
+        return this.hub.windowManager.broadcastAndConcat(
+            'hub.chartManager.getAllDocRefTriplesLocal',
+            {},
+            {excludeSelf: false}
+        );
+    },
+
     addNavEnableHandler: function(callback) {
         this.navEnableHandlers.push(callback);
     },

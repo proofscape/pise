@@ -139,6 +139,54 @@ var NotesManager = declare(AbstractContentManager, {
         return hls;
     },
 
+    /* Synchronously return array of all quadruples (u, s, g, d),
+     * in just this window,
+     * where:
+     *   u is a notes panel uuid,
+     *   s is the libpath of the notes page hosted by that panel,
+     *   g is a widget group id present in that page,
+     *   d is the docId of the document referenced by that widget group,
+     *     or null if it's not a doc widget group
+     */
+    getAllDocRefQuadsLocal: function({}) {
+        const quads = [];
+        for (const [paneId, viewer] of Object.entries(this.viewers)) {
+            const u = this.hub.contentManager.getUuidByPaneId(paneId);
+            const notesData = viewer.currentPageData;
+            const s = notesData.libpath;
+            const W = notesData.widgets;
+            const groupsToDocs = new Map();
+            for (const w of Object.values(W)) {
+                const g = w.pane_group;
+                const d = w.docId || null;
+                if (g) {
+                    groupsToDocs.set(g, d);
+                }
+            }
+            for (const [g, d] of groupsToDocs) {
+                quads.push([u, s, g, d]);
+            }
+        }
+        return quads;
+    },
+
+    /* Return promise that resolves with array of all quadruples (u, s, g, d),
+     * across all windows,
+     * where:
+     *   u is a notes panel uuid,
+     *   s is the libpath of the notes page hosted by that panel,
+     *   g is a widget group id present in that page,
+     *   d is the docId of the document referenced by that widget group,
+     *     or null if it's not a doc widget group
+     */
+    getAllDocRefQuads: function() {
+        return this.hub.windowManager.broadcastAndConcat(
+            'hub.notesManager.getAllDocRefQuadsLocal',
+            {},
+            {excludeSelf: false}
+        );
+    },
+
     handleDocHighlightClick: function(paneId, {supplierUuids, siid, altKey}) {
         const info = {};
 

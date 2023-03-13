@@ -250,6 +250,51 @@ var PdfManager = declare(AbstractContentManager, {
         }
     },
 
+    /* Synchronously return array of all pairs (u, d),
+     * in just this window,
+     * where:
+     *   u is a doc panel uuid,
+     *   d is the docId of the document hosted by that panel
+     */
+    getAllHostingPairsLocal: function({}) {
+        const pairs = [];
+        for (const [paneId, pdfc] of Object.entries(this.pdfcsByPaneId)) {
+            const u = this.hub.contentManager.getUuidByPaneId(paneId);
+            const d = pdfc.docId;
+            pairs.push([u, d]);
+        }
+        return pairs;
+    },
+
+    /* Return promise that resolves with array of all pairs (u, d),
+     * across all windows,
+     * where:
+     *   u is a doc panel uuid,
+     *   d is the docId of the document hosted by that panel
+     */
+    getAllHostingPairs: function() {
+        return this.hub.windowManager.broadcastAndConcat(
+            'hub.pdfManager.getAllHostingPairsLocal',
+            {},
+            {excludeSelf: false}
+        );
+    },
+
+    /* Return promise resolving to an object mapping doc ids to arrays of panel uuids hosting that doc,
+     * across all windows.
+     */
+    getHostingMapping: async function() {
+        const pairs = await this.getAllHostingPairs();
+        const m = new Map();
+        for (const [u, d] of pairs) {
+            if (!m.has(d)) {
+                m.set(d, []);
+            }
+            m.get(d).push(u);
+        }
+        return m;
+    },
+
     /* Pass a PDF fingerprint. We return an array of the panes where
      * that PDF document is open, if any.
      */
