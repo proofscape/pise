@@ -377,7 +377,7 @@ export class GlobalLinkingMap {
      * return: promise resolving with array
      */
     async range() {
-        const T = await this.getTriples();
+        const T = await this.getTriples({});
         return Array.from(new Set(T.map(t => t[2])));
     }
 
