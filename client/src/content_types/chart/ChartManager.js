@@ -103,6 +103,11 @@ var ChartManager = declare(AbstractContentManager, {
         return this.forestsByPaneId[paneId];
     },
 
+    getPanelUuidOfForest: function(forest) {
+        const paneId = this.paneIdByForestId[forest.id];
+        return this.hub.contentManager.getUuidByPaneId(paneId);
+    },
+
     getSuppliedDocHighlights: function(paneId) {
         const forest = this.forestsByPaneId[paneId];
         return forest.getMergedDocInfos();
@@ -148,6 +153,100 @@ var ChartManager = declare(AbstractContentManager, {
             {},
             {excludeSelf: false}
         );
+    },
+
+    makeDefaultLinks: async function(deducpath, uuid) {
+        // TODO:
+        //  Refactor to handle more cases? As a first approximation, we are only
+        //  *consciously* handling the case of a newly-opened (not reloaded) deduction.
+        //  Maybe this also works for reloaded? Maybe not? Haven't thought it through yet...
+
+        // Refer to the newly opened deduc as E.
+        const drt = await this.getAllDocRefTriples();
+        // Panel uuids where E is hosted:
+        const UE = [];
+        // Docs referenced by E:
+        const DE = [];
+        for (const [u, s, d] of drt) {
+            if (s === deducpath) {
+                UE.push(u);
+                if (d) {
+                    DE.push(d);
+                }
+            }
+        }
+        if (DE.length === 0) {
+            // The new deduc does not reference any docs. Nothing to do.
+            return;
+        }
+
+        // Linking maps:
+        const LC = this.linkingMap;
+        const LD = this.hub.pdfManager.linkingMap;
+        const LN = this.hub.notesManager.linkingMap;
+
+        // Range of L_N:
+        const WN = await LN.range();
+        // Map from open docIds to array of panel uuids where they are hosted:
+        const mD = await this.hub.pdfManager.getHostingMapping();
+
+        // Utility method:
+        const cm = this.hub.contentManager;
+        const mra = cm.mostRecentlyActive.bind(cm);
+
+        for (const d of DE) {
+            if (!mD.has(d)) {
+                // The new deduc references doc d, but doc d is not currently on the board.
+                continue;
+            }
+            const Ud = mD.get(d);
+            const LC_current = await LC.get(uuid, d);
+            // If the panel where the deduc has been opened does not currently have a place
+            // to navigate doc d, then we choose one now.
+            if (LC_current.length === 0) {
+                let v;
+                const T = await LC.getTriples({x: d});
+                // Does *any* chart panel currently navigate a copy of doc d?
+                if (T.length > 0) {
+                    // ...if so, then we choose a most-recently-active one of these
+                    // doc panels. We prefer one navigated by a chart panel that hosts
+                    // deduc E, if possible.
+                    const WE = T.filter(t => UE.includes(t[0])).map(t => t[2]);
+                    if (WE.length > 0) {
+                        v = await mra(WE);
+                    } else {
+                        v = await mra(T.map(t => t[2]));
+                    }
+                } else {
+                    // ...if not, is doc d currently navigated by any notes panel?
+                    const Ud_and_WN = Ud.filter(u => WN.includes(u));
+                    if (Ud_and_WN.length > 0) {
+                        // ...if so, choose a most-recently-active doc panel that is
+                        // so navigated.
+                        v = await mra(Ud_and_WN);
+                    } else {
+                        // ...if not, then just choose any most-recently-active panel
+                        // where d is hosted.
+                        v = await mra(Ud);
+                    }
+                }
+                await LC.add(uuid, d, v);
+            }
+            // Every panel hosting doc d should navigate *some* panel hosting deduc E.
+            for (const u of Ud) {
+                const LD_current = await LD.get(u, deducpath);
+                if (LD_current.length === 0) {
+                    // Inductive hypothesis says that, in this case, the newly opened copy of E
+                    // must be the *first* occurrence in any panel, in any window. (Otherwise,
+                    // some link would have already been established.) So, we're happy to make
+                    // it be the navigated copy.
+                    await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
+                        acceptFrom: [deducpath],
+                        linkTo: [deducpath],
+                    });
+                }
+            }
+        }
     },
 
     addNavEnableHandler: function(callback) {
@@ -288,10 +387,34 @@ var ChartManager = declare(AbstractContentManager, {
         //...
     },
 
-    noteForestClosedAndOpenedDeductions: function(info) {
+    noteForestClosedAndOpenedDeductions: async function(info) {
         const forest = info.forest;
-        const openedDeducs = info.opened; // Map from deducpaths to deducs themselves
+        const uuid = this.getPanelUuidOfForest(forest);
+
+        const openedDeducs = info.opened; // Object mapping from deducpaths to deducs themselves
         const closedDeducpaths = info.closed; // Array of deducpaths
+
+        // All deducpaths that were opened, whether newly opened, or just reloaded:
+        const openedDeducpaths = Array.from(openedDeducs.keys());
+        // Deducpaths that were newly opened, i.e. not reloaded:
+        const newlyOpenedDeducpaths = [];
+        // Deducpaths that were reloaded, i.e. both closed and opened:
+        const reloadedDeducpaths = [];
+        // Deducpaths that were just closed, i.e. not reloaded:
+        const trulyClosedDeducpaths = [];
+
+        for (const deducpath of openedDeducpaths) {
+            if (closedDeducpaths.includes(deducpath)) {
+                reloadedDeducpaths.push(deducpath);
+            } else {
+                newlyOpenedDeducpaths.push(deducpath);
+            }
+        }
+        for (const deducpath of closedDeducpaths) {
+            if (!reloadedDeducpaths.includes(deducpath)) {
+                trulyClosedDeducpaths.push(deducpath);
+            }
+        }
 
         // Gather any PDF info
         for (let [deducpath, deduc] of openedDeducs) {
@@ -309,31 +432,35 @@ var ChartManager = declare(AbstractContentManager, {
             }
         }
 
-        // Manage auto-refresh
         const menuPlugin = forest.contextMenuPlugin;
-        if (typeof(menuPlugin) === 'undefined') return;
-        // For newly opened deducs, set auto-refresh option.
-        const openedDeducpaths = Array.from(openedDeducs.keys());
-        for (let deducpath of openedDeducpaths) {
-            // If deduc was also closed, then it was reloaded, so we do not
-            // consider it _newly_ opened.
-            if (closedDeducpaths.includes(deducpath)) continue;
-            let autoReloadMenuItem = menuPlugin.autoReloadByDeducpath.get(deducpath);
-            if (autoReloadMenuItem) {
-                // TODO:
-                //   Make checked state a configurable ISE option.
-                //   For now, it defaults to true.
-                autoReloadMenuItem.set('checked', true);
-                autoReloadMenuItem.onChange();
+        if (typeof(menuPlugin) !== 'undefined') {
+            // Manage auto-refresh
+            // For newly opened deducs, set auto-refresh option.
+            for (let deducpath of newlyOpenedDeducpaths) {
+                let autoReloadMenuItem = menuPlugin.autoReloadByDeducpath.get(deducpath);
+                if (autoReloadMenuItem) {
+                    // TODO:
+                    //   Make checked state a configurable ISE option.
+                    //   For now, it defaults to true.
+                    autoReloadMenuItem.set('checked', true);
+                    autoReloadMenuItem.onChange();
+                }
+            }
+            // For deducs that have been closed (and not reloaded), unsubscribe from refresh,
+            // and delete the auto reload menu item from the menu plugin's mapping to free memory.
+            for (let deducpath of trulyClosedDeducpaths) {
+                this.setAutoRefreshDeduc(forest, deducpath, false);
+                // Free memory:
+                menuPlugin.autoReloadByDeducpath.delete(deducpath);
             }
         }
-        // For deducs that have been closed (and not reloaded), unsubscribe from refresh,
-        // and delete the auto reload menu item from the menu plugin's mapping to free memory.
-        for (let deducpath of closedDeducpaths) {
-            if (openedDeducpaths.includes(deducpath)) continue;
-            this.setAutoRefreshDeduc(forest, deducpath, false);
-            // Free memory:
-            menuPlugin.autoReloadByDeducpath.delete(deducpath);
+
+        // Linking
+        // TODO:
+        //  Decide how to handle (a) truly-closed and (b) reloaded cases.
+        //  For now, we start out with just the newly-opened case.
+        for (const deducpath of newlyOpenedDeducpaths) {
+            await this.makeDefaultLinks(deducpath, uuid);
         }
     },
 
@@ -439,37 +566,39 @@ var ChartManager = declare(AbstractContentManager, {
      * param nodepath: the libpath of the node that was clicked
      * param e: the click event
      */
-    noteNodeClick: function(forest, nodepath, e) {
-
+    noteNodeClick: async function(forest, nodepath, e) {
         // For now we just implement one thing:
         // If the clicked node is now the singleton selection,
-        // and if it carries a doc reference, attempt to highlight
-        // the referenced selection in an open doc.
+        // and if it carries a doc reference, navigate to that highlight
+        // in a linked doc panel, if any.
         // If Alt key was pressed, then also auto scroll the selection into view.
-
-        //console.log(nodepath, e);
-        var selMgr = forest.getSelectionManager(),
-            singleton = selMgr.getSingletonNode();
+        const selMgr = forest.getSelectionManager();
+        const singleton = selMgr.getSingletonNode();
         if (singleton !== null && singleton.uid === nodepath) {
             const docId = singleton.docId;
             if (docId) {
+                // For now we're only handling pdffp-type docs.
                 if (docId.startsWith('pdffp:')) {
-                    const pdfFingerprint = docId.slice(6);
-                    const pdfc = this.hub.pdfManager.getMostRecentPdfcForFingerprint(pdfFingerprint);
-                    if (pdfc) {
-                        // Note: we used to use singleton.docRef to make an ad hoc highlight. Now we
-                        // instead want to use named highlights.
-                        const deducInfo = singleton.getDeducInfo();
-                        const deducpath = deducInfo?.getLibpath();
-                        if (deducpath) {
-                            const highlightId = `${deducpath}:${nodepath}`;
-                            pdfc.selectNamedHighlight(highlightId, e.altKey);
+                    const uuid = this.getPanelUuidOfForest(forest);
+                    const deducInfo = singleton.getDeducInfo();
+                    const deducpath = deducInfo?.getLibpath();
+                    if (deducpath) {
+                        const highlightId = `${deducpath}:${nodepath}`;
+                        const info = {
+                            type: "PDF",
+                            highlightId: highlightId,
+                            gotosel: e.altKey ? 'always' : 'never',
+                        }
+                        const W = await this.linkingMap.get(uuid, docId);
+                        for (const w of W) {
+                            this.hub.contentManager.updateContentAnywhereByUuid(info, w, {
+                                selectPane: true
+                            });
                         }
                     }
                 }
             }
         }
-
     },
 
     /* Handle a 'setColor' event from a Forest's ColorManager.
