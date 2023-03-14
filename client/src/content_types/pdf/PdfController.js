@@ -729,26 +729,55 @@ var PdfController = declare(null, {
      * pages, as they render.
      *
      * param hlDescriptors: array of highlight descriptors
-     * param supplierUuid: optional uuid of the panel that supplied these. If given, we will
-     *   establish a new link, so that clicking these highlights navigates that panel (in addition
-     *   to any others already registered).
+     * param options: {
+     *   panelUuid: the uuid of the panel that supplied these highlights. Must be
+     *     given if want to establish navigation links. See 'linkTo' option below.
+     *   acceptFrom: optional array of libpaths. If defined, accept highlights only
+     *     from suppliers of these libpaths. If undefined, accept from all.
+     *   linkTo: optional array of libpaths. If defined, set up navigation links to
+     *     the panel, for these suppliers. If undefined, set up links for all.
+     *     NOTE: In all cases, the links established will be for a subset of the
+     *     suppliers accepted by 'acceptFrom' (see above).
+     *     NOTE: If 'panelUuid' (see above) is not defined, no links will be established.
+     * }
      */
-    receiveHighlights: async function(hlDescriptors, supplierUuid) {
-        if (supplierUuid) {
-            await this.mgr.linkingMap.add(this.uuid, hlDescriptors[0].slp, supplierUuid);
-        }
+    receiveHighlights: async function(hlDescriptors, options) {
+        const {
+            panelUuid = null,
+            acceptFrom = true,
+            linkTo = true,
+        } = (options || {});
+
+        const newLinksEstablished = new Set();
         let numberOfNewHighlights = 0;
+
         for (let hlDescriptor of hlDescriptors) {
-            const slpSiid = `${hlDescriptor.slp}:${hlDescriptor.siid}`;
-            if (!this.highlightsBySlpSiid.has(slpSiid)) {
+            const slp = hlDescriptor.slp;
+            const siid = hlDescriptor.siid;
+
+            // If we don't want to accept from this supplier, go to next.
+            if (Array.isArray(acceptFrom) && !acceptFrom.includes(slp)) {
+                continue;
+            }
+
+            // Set up link if desired, and possible, and not done already.
+            const wantLink = (linkTo === true) || (linkTo.includes(slp));
+            if (panelUuid && wantLink && !newLinksEstablished.has(slp)) {
+                await this.mgr.linkingMap.add(this.uuid, slp, panelUuid);
+                newLinksEstablished.add(slp);
+            }
+
+            // If we don't already have this highlight, accept it.
+            if (!this.highlightsBySlpSiid.has(slp, siid)) {
                 numberOfNewHighlights++;
                 const hl = new Highlight(this, hlDescriptor);
-                this.highlightsBySlpSiid.set(slpSiid, hl);
+                this.highlightsBySlpSiid.set(slp, siid, hl);
                 for (const p of hl.listPageNums()) {
                     this.highlightsByPageNum.add(p, hl);
                 }
             }
         }
+
         if (numberOfNewHighlights > 0) {
             this.redoExistingHighlightLayers();
         }
@@ -769,10 +798,11 @@ var PdfController = declare(null, {
         // If we don't already have the highlight, try to obtain it.
         if (!this.highlightsBySlpSiid.has(slpSiid)) {
             if (supplierUuid) {
-                const hls = await this.getHighlightsFromSupplierPanel(supplierUuid);
-                if (hls?.length) {
-                    await this.receiveHighlights(hls, supplierUuid);
-                }
+                const [slp, siid] = slpSiid.split(":");
+                await this.getAndLoadHighlightsFromSupplierPanel(supplierUuid, {
+                    acceptFrom: [slp],
+                    linkTo: [slp],
+                });
             }
         }
         // If we have the highlight, proceed.
@@ -796,6 +826,29 @@ var PdfController = declare(null, {
                 })
             }
         }
+    },
+
+    /* Given the uuid of a panel (in any window), try to obtain the array of
+     * all highlights defined in that panel, for our document. If obtained,
+     * load them.
+     *
+     * param supplierUuid: the uuid of the supplier panel
+     * param options: {
+     *   acceptFrom: as in the `receiveHighlights()` method.
+     *   linkTo: as in the `receiveHighlights()` method.
+     * }
+     *
+     * return: promise resolving with boolean saying whether we managed to
+     *   get and load the highlights.
+     */
+    getAndLoadHighlightsFromSupplierPanel: async function(supplierUuid, options) {
+        const hls = await this.getHighlightsFromSupplierPanel(supplierUuid);
+        if (hls?.length) {
+            options.panelUuid = supplierUuid;
+            await this.receiveHighlights(hls, options);
+            return true;
+        }
+        return false;
     },
 
     /* Given the uuid of a panel (in any window), try to obtain the array of

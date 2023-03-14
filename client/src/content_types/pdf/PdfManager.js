@@ -323,6 +323,14 @@ var PdfManager = declare(AbstractContentManager, {
         return this.pdfcsByPaneId[pane.id];
     },
 
+    getPdfcByUuid: function(uuid) {
+        const paneId = this.hub.contentManager.getPaneIdByUuid(uuid);
+        if (paneId) {
+            return this.pdfcsByPaneId[paneId];
+        }
+        return null;
+    },
+
     /* Given an array of panes, return the PdfController for the most recently
      * active one. If the array is empty, return null.
      */
@@ -647,6 +655,49 @@ var PdfManager = declare(AbstractContentManager, {
         }
 
         dlg.show();
+    },
+
+    /* Try to load the highlights from a supplier panel into a doc panel.
+     * Optionally, also establish the navigation link from the doc to the supplier.
+     *
+     * This method is designed to be called via broadcast request. The two panels
+     * can belong to any windows. We do something iff the doc panel belongs to *our*
+     * window.
+     *
+     * param docPanelUuid: the uuid of the doc panel
+     * param supplierPanelUuid: the uuid of the supplier panel
+     * param options: as in `PdfController.getAndLoadHighlightsFromSupplierPanel()`
+     *
+     * return: promise resolving with boolean saying whether we managed to
+     *   get and load the highlights.
+     */
+    loadHighlightsLocal: async function({docPanelUuid, supplierPanelUuid, options}) {
+        let loaded = false;
+        const pdfc = this.getPdfcByUuid(docPanelUuid);
+        if (pdfc) {
+            loaded = await pdfc.getAndLoadHighlightsFromSupplierPanel(supplierPanelUuid, options);
+        }
+        return loaded;
+    },
+
+    /* Try to load the highlights from a supplier panel into a doc panel.
+     * Optionally, also establish the navigation link from the doc to the supplier.
+     *
+     * This method can be called in any window, in order to achieve the loading, no matter
+     * in which windows the two panels may live.
+     *
+     * param docPanelUuid: the uuid of the doc panel
+     * param supplierPanelUuid: the uuid of the supplier panel
+     * param options: as in `PdfController.getAndLoadHighlightsFromSupplierPanel()`
+     *
+     * return: promise resolving with boolean saying whether the highlights were loaded or not.
+     */
+    loadHighlightsGlobal: function(docPanelUuid, supplierPanelUuid, options) {
+        return this.hub.windowManager.broadcastAndAny(
+            'hub.pdfManager.loadHighlightsLocal',
+            {docPanelUuid, supplierPanelUuid, options},
+            {excludeSelf: false},
+        );
     },
 
     onNewlyActiveHighlightSupplierPanel: async function({uuid, docIds}) {
