@@ -551,8 +551,7 @@ class SoftwarePackage:
         )
 
         license_url = self.get_license_url(quiet=True)
-        if license_url:
-            s += f'\n  License URL: {self.license_url}'
+        s += f'\n  License URL: {self.license_url if license_url else "unknkown"}'
 
         if self.license_not_provided:
             s += '\n  License not provided.'
