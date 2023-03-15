@@ -1189,8 +1189,14 @@ def get_manual_py_pkg_info_lookup():
         'Flask-SocketIO': {
             'license_name': 'MIT',
         },
+        'greenlet': {
+            'license_url': 'https://github.com/python-greenlet/greenlet/blob/master/LICENSE',
+        },
         'gremlinpython': {
             'gh_url': 'https://github.com/apache/tinkerpop',
+        },
+        'hiredis': {
+            'license_url': 'https://github.com/redis/hiredis-py/blob/master/LICENSE',
         },
         'importlib-metadata': {
             'license_name': 'Apache 2.0',
@@ -1211,6 +1217,7 @@ def get_manual_py_pkg_info_lookup():
         },
         'mmh3': {
             'license_name': 'CC0 1.0',
+            'license_url': 'https://github.com/hajimes/mmh3/blob/master/LICENSE',
         },
         'neo4j': {
             'license_name': 'Apache 2.0',
