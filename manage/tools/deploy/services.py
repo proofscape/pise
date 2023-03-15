@@ -126,6 +126,7 @@ class GdbCode:
 def redis(host=conf.REDIS_HOST, port=conf.REDIS_PORT, tag=conf.REDIS_IMAGE_TAG):
     d = {
         'image': f'redis:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
     }
     if port is not None:
         d['ports'] = [
@@ -137,6 +138,7 @@ def redis(host=conf.REDIS_HOST, port=conf.REDIS_PORT, tag=conf.REDIS_IMAGE_TAG):
 def redisgraph(tag=conf.REDISGRAPH_IMAGE_TAG):
     return {
         'image': f'redislabs/redisgraph:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
         'volumes': [
             f'{get_proofscape_subdir_abs_fs_path_on_host("graphdb")}/{GdbCode.RE}:/data'
         ],
@@ -149,6 +151,7 @@ def redisgraph(tag=conf.REDISGRAPH_IMAGE_TAG):
 def redisinsight(tag=conf.REDISINSIGHT_IMAGE_TAG):
     return {
         'image': f'redislabs/redisinsight:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
         'ports': [
             f'{conf.REDISINSIGHT_HOST}:{conf.REDISINSIGHT_PORT}:8001',
         ],
@@ -160,6 +163,7 @@ def neo4j(hosts=(conf.NEO4J_BROWSE_HOST, conf.NEO4J_BOLT_HOST),
           tag=conf.NEO4J_IMAGE_TAG):
     d = {
         'image': f'neo4j:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
         'volumes': [
             f'{get_proofscape_subdir_abs_fs_path_on_host("graphdb")}/{GdbCode.NJ}/data:/data',
             f'{get_proofscape_subdir_abs_fs_path_on_host("graphdb")}/{GdbCode.NJ}/logs:/logs',
@@ -179,6 +183,7 @@ def neo4j(hosts=(conf.NEO4J_BROWSE_HOST, conf.NEO4J_BOLT_HOST),
 def tinkergraph(tag=conf.GREMLIN_SERVER_IMAGE_TAG):
     return {
         'image': f'tinkerpop/gremlin-server:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
         'ports': [
             f'{conf.TINKERGRAPH_HOST}:{conf.TINKERGRAPH_PORT}:8182',
         ],
@@ -188,6 +193,7 @@ def tinkergraph(tag=conf.GREMLIN_SERVER_IMAGE_TAG):
 def janusgraph(tag=conf.JANUSGRAPH_IMAGE_TAG):
     return {
         'image': f'janusgraph/janusgraph:{tag}',
+        'platform': conf.DOCKER_PLATFORM,
         'ports': [
             f'{conf.JANUSGRAPH_HOST}:{conf.JANUSGRAPH_PORT}:8182',
         ],
@@ -197,6 +203,7 @@ def janusgraph(tag=conf.JANUSGRAPH_IMAGE_TAG):
 def pfsc_dummy_server(deploy_dir_path, flask_config, tag='latest'):
     d = {
         'image': f"pfsc-dummy-server:{tag}",
+        'platform': conf.DOCKER_PLATFORM,
         'environment': {
             "FLASK_CONFIG": flask_config,
         }
@@ -236,6 +243,7 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
                 no_redis=False):
     d = {
         'image': f"{'proofscape/' if official else ''}pise-server:{tag}",
+        'platform': conf.DOCKER_PLATFORM,
         'depends_on': [
         ],
         'volumes': [
@@ -293,6 +301,7 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
                    lib_vol=None, build_vol=None, gdb_vol=None):
     d = {
         'image': f"pise:{tag}",
+        'platform': conf.DOCKER_PLATFORM,
         'ports': [
             f'{conf.REDISGRAPH_OCA_HOST}:{conf.REDISGRAPH_OCA_PORT}:6379',
             f'{conf.PFSC_ISE_OCA_HOST}:{conf.PFSC_ISE_OCA_PORT}:7372'
@@ -340,6 +349,7 @@ def nginx(deploy_dir_path, tag=None,
         'image': (f'nginx:{conf.NGINX_IMAGE_TAG}'
                   if conf.USE_BASE_NGINX_FRONTEND
                   else f'{"proofscape/" if official else ""}pise-frontend:{tag}'),
+        'platform': conf.DOCKER_PLATFORM,
         'depends_on': [
             'pfscweb',
         ],
@@ -387,6 +397,7 @@ def maintenance_nginx(deploy_dir_path, tag=conf.NGINX_IMAGE_TAG,
           host=conf.PFSC_ISE_MCA_HOST, port=conf.PFSC_ISE_MCA_PORT):
     d = {
         'image': f"nginx:{tag}",
+        'platform': conf.DOCKER_PLATFORM,
         'ports': [
             f"{host}:{port}:{443 if conf.SSL else 80}"
         ],
