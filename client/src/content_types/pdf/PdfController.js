@@ -1406,6 +1406,8 @@ var PdfController = declare(null, {
         this.outerContainer.querySelectorAll('.hl-zone.selected').forEach(zone => {
             zone.classList.remove('selected');
         });
+        // Also make sure the box-select layer is clear:
+        this.removeAllHighlightBoxes();
     },
 
     addBoxLayer: function(page, pageNumber) {
