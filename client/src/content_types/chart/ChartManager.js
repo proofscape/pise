@@ -164,17 +164,20 @@ var ChartManager = declare(AbstractContentManager, {
         // Refer to the newly opened deduc as E.
         const drt = await this.getAllDocRefTriples();
         // Panel uuids where E is hosted:
-        const UE = [];
+        let UE = new Set();
         // Docs referenced by E:
-        const DE = [];
+        let DE = new Set();
         for (const [u, s, d] of drt) {
             if (s === deducpath) {
-                UE.push(u);
+                UE.add(u);
                 if (d) {
-                    DE.push(d);
+                    DE.add(d);
                 }
             }
         }
+        UE = Array.from(UE);
+        DE = Array.from(DE);
+
         if (DE.length === 0) {
             // The new deduc does not reference any docs. Nothing to do.
             return;
