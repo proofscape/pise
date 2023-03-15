@@ -921,6 +921,8 @@ var ContentManager = declare(null, {
             const paneId = this.getPaneIdByUuid(supplierUuid);
             if (paneId) {
                 // If we got a paneId, then the panel belongs to this window.
+                const pane = this.getPane(paneId);
+                this.tct.selectPane(pane);
                 const info = this.contentRegistry[paneId];
                 const mgr = this.getManager(info.type);
                 mgr.handleDocHighlightClick(paneId, event);
