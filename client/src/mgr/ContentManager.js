@@ -915,6 +915,7 @@ var ContentManager = declare(null, {
         }
     },
 
+    // Handle the click of a named highlight, in a doc panel's highlight layer.
     handleDocHighlightClick: function(event) {
         for (let supplierUuid of event.supplierUuids) {
             const paneId = this.getPaneIdByUuid(supplierUuid);
@@ -927,6 +928,7 @@ var ContentManager = declare(null, {
         }
     },
 
+    // Handle the mouseover of a named highlight, in a doc panel's highlight layer.
     handleDocHighlightMouseover: function(event) {
         for (let supplierUuid of event.supplierUuids) {
             const paneId = this.getPaneIdByUuid(supplierUuid);
@@ -940,6 +942,7 @@ var ContentManager = declare(null, {
         }
     },
 
+    // Handle the mouseout of a named highlight, in a doc panel's highlight layer.
     handleDocHighlightMouseout: function(event) {
         for (let supplierUuid of event.supplierUuids) {
             const paneId = this.getPaneIdByUuid(supplierUuid);
