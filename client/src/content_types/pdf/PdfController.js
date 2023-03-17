@@ -535,9 +535,15 @@ var PdfController = declare(null, {
             // ----------------------------------------------------------------
             // Load document
             pdfc.docLoadResolve = resolve;
+            // If the info specifies a docId, we can use this to identify the case where the desired
+            // doc is already loaded. This is better than checking against `this.currentDoc`, because
+            // that can take different forms for the same doc, if opened in different ways (like from
+            // file system vs via URL).
+            const sameDocId = (info.docId === pdfc.docId);
             if (info.lastOpenedFilelist) {
                 // Want a document from the user's computer.
-                if (info.lastOpenedFilelist === pdfc.currentDoc && pdfc.docIsLoaded) {
+                const requestingCurrentDoc = (info.lastOpenedFilelist === pdfc.currentDoc);
+                if (pdfc.docIsLoaded && (sameDocId || requestingCurrentDoc)) {
                     // The doc we want is already loaded.
                     resolve();
                 } else {
@@ -550,7 +556,8 @@ var PdfController = declare(null, {
                 }
             } else if (url !== null) {
                 // Want a doc from PDFLibrary or from the web.
-                if (url === pdfc.currentDoc && pdfc.docIsLoaded) {
+                const requestingCurrentDoc = (url === pdfc.currentDoc);
+                if (pdfc.docIsLoaded && (sameDocId || requestingCurrentDoc)) {
                     // The doc we want is already loaded.
                     resolve();
                 } else {
