@@ -502,7 +502,7 @@ var NotesManager = declare(AbstractContentManager, {
 
         // Do we really need this self-repairing step here? Theoretically, we're already
         // doing bookkeeping elsewhere, so should never have to purge lost targets here....
-        if (nonExisting) {
+        if (nonExisting.length > 0) {
             for (const missingUuid of nonExisting) {
                 await this.linkingMap.removeTriples({w: missingUuid})
             }
