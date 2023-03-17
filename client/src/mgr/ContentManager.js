@@ -263,6 +263,7 @@ var ContentManager = declare(null, {
     },
 
     // Select the most recently active uuid from an array.
+    // param U: array of uuids
     // return: uuid; else null if empty array was given, or no panel could be found, or no
     //   panel had an activity stamp
     mostRecentlyActive: async function(U) {

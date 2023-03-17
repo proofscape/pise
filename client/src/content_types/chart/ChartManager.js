@@ -155,6 +155,11 @@ var ChartManager = declare(AbstractContentManager, {
         );
     },
 
+    /* Establish default links for a deduction E in a chart panel C.
+     *
+     * param deducpath: the libpath of deduction E
+     * param uuid: the uuid of chart panel C
+     */
     makeDefaultLinks: async function(deducpath, uuid) {
         // TODO:
         //  Refactor to handle more cases? As a first approximation, we are only
