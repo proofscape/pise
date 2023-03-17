@@ -31,6 +31,7 @@ define([
     "dijit/Dialog",
     "ise/content_types/AbstractContentManager",
     "ise/content_types/pdf/PdfController",
+    "ise/util",
     "ise/errors"
 ], function(
     declare,
@@ -38,6 +39,7 @@ define([
     Dialog,
     AbstractContentManager,
     PdfController,
+    iseUtil,
     pfscErrors
 ) {
 
@@ -162,7 +164,9 @@ var PdfManager = declare(AbstractContentManager, {
         this.panesById[pane.id] = pane;
         const pdfc = new PdfController(this, pane, info);
         this.pdfcsByPaneId[pane.id] = pdfc;
-        return pdfc.initialize();
+        return pdfc.initialize().then(() => {
+            return this.makeDefaultLinks(pdfc.docId, pdfc.uuid);
+        });
     },
 
     /* Update the content of an existing pane of this manager's type.
@@ -698,6 +702,137 @@ var PdfManager = declare(AbstractContentManager, {
             {docPanelUuid, supplierPanelUuid, options},
             {excludeSelf: false},
         );
+    },
+
+    /* Establish default links for a document d in a doc panel D.
+     *
+     * param docId: the document ID of doc d
+     * param uuid: the uuid of doc panel D
+     */
+    makeDefaultLinks: async function(docId, uuid) {
+        const chart_triples = await this.hub.chartManager.getAllDocRefTriples();
+        const notes_quads = await this.hub.notesManager.getAllDocRefQuads();
+
+        const LD = this.linkingMap;
+        const LC = this.hub.chartManager.linkingMap;
+        const LN = this.hub.notesManager.linkingMap;
+
+        const cm = this.hub.contentManager;
+        const mra = cm.mostRecentlyActive.bind(cm);
+        const mrat = cm.moreRecentlyActiveThan.bind(cm);
+
+        // Form links C --> D, and build deducHosting map.
+        const deducHosting = new iseUtil.SetMapping();
+        const chart_panels_considered = new Set();
+        for (const [u, s, d] of chart_triples) {
+            if (d === docId && !chart_panels_considered.has(u)) {
+                chart_panels_considered.add(u);
+                deducHosting.add(s, u);
+                const LC_current = await LC.get(u, docId);
+                if (LC_current.length === 0) {
+                    await LC.add(u, docId, uuid);
+                }
+            }
+        }
+
+        // Form links N --> D, and build notesHosting map.
+        const notesHosting = new iseUtil.SetMapping();
+        for (const [u, s, g, d] of notes_quads) {
+            if (d === docId) {
+                notesHosting.add(s, u);
+                const LN_current = await LN.get(u, g);
+                if (LN_current.length === 0) {
+                    await LN.add(u, g, uuid);
+                }
+            }
+        }
+
+        // Form links D --> N, and load highlights.
+        const WD = await LD.range();
+        for (const [s, U] of notesHosting.mapping) {
+            let A = WD.filter(w => U.has(w));
+            if (A.length === 0) {
+                A = Array.from(U);
+            }
+            const a = await mra(A);
+            this.loadHighlightsGlobal(uuid, a, {
+                acceptFrom: [s],
+                linkTo: [s],
+            });
+        }
+
+        // Form links D --> C, and load highlights.
+        // For this we need a heuristic to solve the "set cover" problem (which is NP-complete).
+        // Each deduc in domain of `deducHosting` is present in some set of existing chart panels.
+        // We need to cover the entire domain, by choosing such panels.
+        //
+        // It's actually a constrained set cover problem:
+        // Let W = range(L_D) U range(L_N).
+        // Constraint (1): For each [s, U] in `deducHosting`, if U ^ W is nonempty, we must choose from
+        //                  among U ^ W. This enforces our rule that we always choose already-navigated
+        //                  panels when possible.
+        // Constraint (2): We want the total number of *distinct* panels chosen to be as small as possible.
+        // Constraint (3): Subject to the foregoing, we prefer a more recently active panel over a less
+        //                  recently active one.
+
+        // Update the deduc hosting mapping to enforce Constraint (1).
+        const WN = await LN.range();
+        const W = Array.from(new Set(WN.concat(WD)));
+        const toReplace = [];
+        for (const [s, U] of deducHosting.mapping) {
+            const A = W.filter(w => U.has(w));
+            if (A.length > 0) {
+                toReplace.push([s, A]);
+            }
+        }
+        for (const [s, A] of toReplace) {
+            deducHosting.mapping.set(s, A);
+        }
+
+        // Form the coverage map. This is an inverse for `deducHosting`, telling us which deducs
+        // are covered by each chart panel.
+        const coverage = new iseUtil.SetMapping();
+        for (const [s, U] of deducHosting.mapping) {
+            for (const u of U) {
+                coverage.add(u, s);
+            }
+        }
+
+        // Simple greedy heuristic:
+        // Let R be the set of remaining uncovered deducs. At each step, we choose a
+        // most-recently-active panel, among those whose intersection with R is of maximal size.
+        // This does a good-enough job of responding to constraints (2) and (3).
+        // In the future we may want to revise this algorithm, and/or make it user-configurable.
+        const nav = new Map();
+        let R = Array.from(deducHosting.mapping.keys());
+        while (R.length > 0) {
+            let bestPanel = null;
+            let bestCover = null;
+            let bestN = 0;
+            for (const [u, S] of coverage.mapping) {
+                const covered = R.filter(r => S.has(r));
+                const N = covered.length;
+                if (N > bestN || (N === bestN && await mrat(u, bestPanel))) {
+                    bestN = N;
+                    bestPanel = u;
+                    bestCover = covered;
+                }
+            }
+            // Record the decision that in bestPanel, this doc will navigate each of the
+            // deducs whose libpath is in the array bestCover.
+            nav.set(bestPanel, bestCover);
+            // Do not consider this panel again.
+            coverage.mapping.delete(bestPanel);
+            // Remove from R the libpaths that have just been covered.
+            R = R.filter(r => !bestCover.includes(r));
+        }
+        for (const [u, S] of nav) {
+            this.loadHighlightsGlobal(uuid, u, {
+                acceptFrom: S,
+                linkTo: S,
+            });
+        }
+
     },
 
     onNewlyActiveHighlightSupplierPanel: async function({uuid, docIds}) {
