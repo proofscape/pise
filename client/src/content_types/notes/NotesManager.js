@@ -274,7 +274,7 @@ var NotesManager = declare(AbstractContentManager, {
         if (sbProps.scale) {
             options.overviewScale = sbProps.scale;
         }
-        const viewer = new PageViewer(this, elt, pane, options);
+        const viewer = new PageViewer(this, elt, pane, info.uuid, options);
         viewer.addNavEnableHandler(this.publishNavEnable.bind(this));
         viewer.on('pageChange', this.notePageChange.bind(this));
         this.viewers[pane.id] = viewer;
@@ -340,11 +340,9 @@ var NotesManager = declare(AbstractContentManager, {
 
     /* This is our listener for the "pageChange" event of each and every one of
      * our PageViewer instances.
-     *
-     * We use this to maintain our records of which annopaths are open, and how
-     * many copies of each.
      */
-    notePageChange: function(event) {
+    notePageChange: async function(event) {
+        // Maintain records of which annopaths are open, and how many copies of each.
         // newLibpath is always defined
         const nlv = event.newLibpathv;
         let nlpCount = this.openAnnopathvCopyCount.get(nlv) || 0;
@@ -354,6 +352,8 @@ var NotesManager = declare(AbstractContentManager, {
         if (olv) {
             this.notePageClose(olv);
         }
+        const nlp = nlv.split("@")[0];
+        await this.makeDefaultLinks(nlp, event.uuid);
     },
 
     notePageClose: function(annopathv) {
@@ -385,6 +385,101 @@ var NotesManager = declare(AbstractContentManager, {
         }
         viewer.destroy();
         delete this.viewers[paneId];
+    },
+
+    /* Establish default links for notes page p in notes panel N.
+     *
+     * param pagepath: the libpath of notes page p
+     * param uuid: the uuid of notes panel N
+     */
+    makeDefaultLinks: async function(pagepath, uuid) {
+        const quads = await this.getAllDocRefQuads();
+        const mD = await this.hub.pdfManager.getHostingMapping();
+
+        // Map from docIds to sets of widget group ids, for notes panel N:
+        const Ndg = new iseUtil.SetMapping();
+        // Set of all widget group ids in notes panel N:
+        const G = new Set();
+        for (const [u, s, g, d] of quads) {
+            if (u === uuid) {
+                G.add(g);
+                if (d) {
+                    Ndg.add(d, g);
+                }
+            }
+        }
+
+        const LN = this.linkingMap;
+        const LD = this.hub.pdfManager.linkingMap;
+
+        const cm = this.hub.contentManager;
+        const mra = cm.mostRecentlyActive.bind(cm);
+        const mrat = cm.moreRecentlyActiveThan.bind(cm);
+
+        // Find most-recently-active navigated panel, if any, for each group in G.
+        const T = await LN.getTriples({});
+        const R = new Map();
+        for (const [u, x, w] of T) {
+            if (G.has(x) && await mrat(w, R.get(x))) {
+                R.set(x, w);
+            }
+        }
+
+        // For each group g in G, if it has a most-recently-active navigated panel, then
+        // make this panel N navigate that one too.
+        for (const g of G) {
+            const w = R.get(g);
+            if (w) {
+                // Note: in the case that w is a doc panel, there is no need to load highlights
+                // into it, since, by defn of R, it should already have them.
+                await LN.add(uuid, g, w);
+            }
+        }
+
+        // Note: Except for any link (uuid, g) |--> R(g) that may have been formed above, we
+        // deliberately do not form any default links N --> C. If a chart panel C was not already
+        // navigated by another, existing copy of our notes page, then there is no good reason for
+        // this new page to link to it by default. Either C is navigated by some *other* page, or
+        // the user is using it for manual exploration.
+
+        // For docs d referenced by doc widgets in N, if there's just a sole group referencing
+        // that doc in N, and if that doc is already on the board, and if that group hasn't received
+        // a mapping for panel N yet, then we assign it to an mra panel in which the doc is found.
+        for (const [d, Gd] of Ndg.mapping) {
+            if (Gd.size === 1 && mD.has(d)) {
+                const g = Array.from(Gd)[0];
+                const LN_current = await LN.get(uuid, g);
+                if (LN_current.length === 0) {
+                    const w = await mra(mD.get(d));
+                    await LN.add(uuid, g, w);
+                    // We do not load the highlights into doc panel w at this time.
+                    // Either doc panel w already navigates a copy of notes page p, or it does not.
+                    // If it does, then it already has the highlights, and we don't want to make it
+                    // navigate a second copy. If it does not, then the iteration below, over mD, will
+                    // take care of it, i.e. will link to panel N and load the highlights.
+                }
+            }
+        }
+
+        // Every panel hosting any doc d referenced by notes page p should navigate *some*
+        // panel hosting this page.
+        for (const [d, Ud] of mD) {
+            if (Ndg.mapping.has(d)) {
+                for (const u of Ud) {
+                    const LD_current = await LD.get(u, pagepath);
+                    if (LD_current.length === 0) {
+                        // Inductive hypothesis says that, in this case, the newly opened notes page
+                        // must be the *first* occurrence in any panel, in any window. (Otherwise,
+                        // some link would have already been established.) So, we're happy to make
+                        // it be the navigated copy.
+                        await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
+                            acceptFrom: [pagepath],
+                            linkTo: [pagepath],
+                        });
+                    }
+                }
+            }
+        }
     },
 
     setTheme: function(theme) {

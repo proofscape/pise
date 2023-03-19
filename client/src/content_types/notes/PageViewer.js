@@ -55,6 +55,8 @@ var PageViewer = declare(null, {
     contextMenu: null,
     // pane: the ContentPane where we live
     pane: null,
+    // uuid: the uuid of the pane where we live
+    uuid: null,
     // scrollNode: the element whose scrollTop property sets the scroll position
     scrollNode: null,
     // history: array of location objects.
@@ -87,14 +89,16 @@ var PageViewer = declare(null, {
      * param nm: The NotesManager.
      * param parent: The DOM element in which page content is to be set.
      * param pane: The ContentPane where elt lives.
+     * param uuid: The uuid of the pane where elt lives.
      * param options: {
      *   overviewScale: desired initial scale for overview panel
      * }
      */
-    constructor: function(nm, parent, pane, options) {
+    constructor: function(nm, parent, pane, uuid, options) {
         options = options || {};
         this.overviewScale = options.overviewScale || this.overviewScale;
         this.nm = nm;
+        this.uuid = uuid;
 
         this.elt = document.createElement('div');
         this.sidebar = document.createElement('div');
@@ -599,6 +603,7 @@ var PageViewer = declare(null, {
     announcePageChange: function(loc) {
         const event = {
             type: 'pageChange',
+            uuid: this.uuid,
             oldLibpathv: null,
             newLibpathv: `${loc.libpath}@${loc.version}`,
         }
