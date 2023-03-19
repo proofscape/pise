@@ -264,8 +264,8 @@ var ContentManager = declare(null, {
 
     // Select the most recently active uuid from an array.
     // param U: array of uuids
-    // return: uuid; else null if empty array was given, or no panel could be found, or no
-    //   panel had an activity stamp
+    // return: promise resolving with uuid, or with null if empty array was given, or no panel
+    //   could be found, or no panel had an activity stamp
     mostRecentlyActive: async function(U) {
         const panelInfos = [];
         for (const u of U) {
@@ -290,6 +290,10 @@ var ContentManager = declare(null, {
     // If we can't locate panel v, return true.
     // Else if we can't locate panel u, return false.
     // Else actually compare their timestamps.
+    //
+    // param u: uuid or falsey
+    // param v: uuid or falsey
+    // return: promise resolving with boolean
     moreRecentlyActiveThan: async function(u, v) {
         if (!v) {
             return true;
