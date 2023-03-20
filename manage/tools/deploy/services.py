@@ -137,7 +137,7 @@ def redis(host=conf.REDIS_HOST, port=conf.REDIS_PORT, tag=conf.REDIS_IMAGE_TAG):
 
 def redisgraph(tag=conf.REDISGRAPH_IMAGE_TAG):
     return {
-        'image': f'redislabs/redisgraph:{tag}',
+        'image': f'redis/redis-stack-server:{tag}',
         'platform': conf.DOCKER_PLATFORM,
         'volumes': [
             f'{get_proofscape_subdir_abs_fs_path_on_host("graphdb")}/{GdbCode.RE}:/data'

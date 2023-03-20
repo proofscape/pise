@@ -26,7 +26,7 @@ import click
 
 import conf
 from manage import cli, PFSC_ROOT, PFSC_MANAGE_ROOT
-from conf import DOCKER_CMD
+from conf import DOCKER_CMD, DOCKER_PLATFORM
 import tools.license
 from tools.util import get_version_numbers
 import topics.pfsc.write_license_files as write_license_files
@@ -133,7 +133,7 @@ def finalize(df, image_name, tag, dump, dry_run, tar_path=None):
         if tar_path:
             cmd = f'cd {context_dir}; tar -c{zip}h -f {os.path.expanduser(tar_path)} .'
         else:
-            cmd = f'cd {context_dir}; tar -c{zip}h . | {DOCKER_CMD} build -t {image_name}:{tag} -'
+            cmd = f'cd {context_dir}; tar -c{zip}h . | {DOCKER_CMD} build --platform={DOCKER_PLATFORM} -t {image_name}:{tag} -'
 
         print(cmd)
         if not dry_run:

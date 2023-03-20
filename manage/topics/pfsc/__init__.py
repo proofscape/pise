@@ -172,6 +172,7 @@ def write_single_service_dockerfile(tmp_dir_name, demos=False):
     template = jinja_env.get_template('Dockerfile.single_service')
     df = template.render(
         python_image_tag=conf.PYTHON_IMAGE_TAG,
+        platform=conf.DOCKER_PLATFORM,
         pfsc_install=pfsc_install,
         tmp_dir_name=tmp_dir_name,
     )
@@ -182,6 +183,7 @@ def write_frontend_dockerfile(tmp_dir_name):
     template = jinja_env.get_template('Dockerfile.frontend')
     df = template.render(
         nginx_tag=conf.NGINX_IMAGE_TAG,
+        platform=conf.DOCKER_PLATFORM,
         versions=get_version_numbers(),
         pyodide_files=list_pyodide_files(),
         wheels=list_wheel_filenames(),
@@ -212,6 +214,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
     df = template.render(
         python_image_tag=conf.PYTHON_IMAGE_TAG,
         redisgraph_image_tag=conf.REDISGRAPH_IMAGE_TAG,
+        platform=conf.DOCKER_PLATFORM,
         pfsc_install=pfsc_install,
         startup_system=startup_system,
         static_setup=static_setup,

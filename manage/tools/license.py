@@ -301,7 +301,7 @@ def gather_licensing_info(verbose=False):
 
     # These are the one-off cases:
     LICENSE_URLS = {
-        'RSAL': f'https://raw.githubusercontent.com/RedisGraph/RedisGraph/v{vers["redisgraph"]}/LICENSE',
+        'RSAL': f'https://github.com/RedisGraph/RedisGraph/blob/master/licenses/RSALv2.txt',
         'redis': f'https://raw.githubusercontent.com/redis/redis/{vers["redis-server"]}/COPYING',
         'supervisor': f'https://raw.githubusercontent.com/Supervisor/supervisor/{vers["supervisor"]}/LICENSES.txt',
         'gcc_runtime': 'https://raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING.RUNTIME',

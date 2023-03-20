@@ -14,7 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-FROM nginx:{{nginx_tag}}
+FROM --platform={{platform}} nginx:{{nginx_tag}}
 WORKDIR /usr/share/nginx
 
 COPY pfsc-ise/dist/ise ./ise

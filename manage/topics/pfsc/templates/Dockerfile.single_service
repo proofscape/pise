@@ -14,7 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-FROM python:{{python_image_tag}} AS basis
+FROM --platform={{platform}} python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
 # `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
 # hasn't been added yet) is given passwordless sudo.
