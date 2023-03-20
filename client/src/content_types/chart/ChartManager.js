@@ -155,6 +155,39 @@ var ChartManager = declare(AbstractContentManager, {
         );
     },
 
+    /* Handle the case of a single closed deduction E, in a chart panel C which
+     * is not itself closing, and which belongs to our window.
+     *
+     * When this method is invoked, the forest in the chart panel has finished
+     * removing the deduc from the board.
+     *
+     * param deducpath: the libpath of the deduction E that has been removed
+     * param uuid: the uuid of the chart panel C
+     */
+    updateLinkingForClosedDeduc: async function(deducpath, uuid) {
+        const LC = this.linkingMap;
+        const LD = this.hub.pdfManager.linkingMap;
+
+        // Clean up L_C.
+        // Find the set D0 of doc Ids that are still referenced by panel C:
+        const drt = this.getAllDocRefTriplesLocal({});
+        let D0 = drt.filter(([u, s, d]) => (u === uuid && d !== null)).map(t => t[2]);
+        D0 = new Set(D0);
+        // Find the set D1 of doc Ids that are no longer referenced by panel C:
+        const T = await LC.getTriples({u: uuid});
+        let D1 = T.filter(([u, x, w]) => !D0.has(x)).map(t => t[1]);
+        D1 = new Set(D1);
+        // Remove linking entries for panel C and doc Ids in D1:
+        for (const x of D1) {
+            await LC.removeTriples({u: uuid, x});
+        }
+
+        // Clean up L_D.
+        // If L_D is telling any doc panels to carry out navigations for this deduc
+        // in this panel, it must remove such links.
+        await LD.removeTriples({x: deducpath, w: uuid});
+    },
+
     /* Establish default links for a deduction E in a chart panel C.
      *
      * param deducpath: the libpath of deduction E
@@ -465,10 +498,12 @@ var ChartManager = declare(AbstractContentManager, {
 
         // Linking
         // TODO:
-        //  Decide how to handle (a) truly-closed and (b) reloaded cases.
-        //  For now, we start out with just the newly-opened case.
+        //  Decide how to handle reloaded deducs.
         for (const deducpath of newlyOpenedDeducpaths) {
             await this.makeDefaultLinks(deducpath, uuid);
+        }
+        for (const deducpath of trulyClosedDeducpaths) {
+            await this.updateLinkingForClosedDeduc(deducpath, uuid);
         }
     },
 
