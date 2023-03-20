@@ -29,7 +29,8 @@
  *      L: W x X --> 2^W
  *
  * we use to represent the linking of content panels. Here, W is the set of all panel
- * uuids in *all* windows, and X is some other set of IDs (of some kind).
+ * uuids in *all* windows, and X is some other set of IDs (of some kind, e.g. libpaths,
+ * doc Ids, etc.).
  *
  * Each window maintains a *component* of this map, which we can render as
  *
@@ -191,7 +192,7 @@ export class LinkingMapComponent {
     /* Remove existing definitions from this local component.
      *
      * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
-     * we delete from the global mapping any and all triples [u, x, w] where the corresponding
+     * we delete from this component any and all triples [u, x, w] where the corresponding
      * variables have the values you set.
      *
      * return: the total number of triples [u, x, w] that were removed from this component
@@ -212,7 +213,7 @@ export class LinkingMapComponent {
     /* Get existing definitions from this local component.
      *
      * You may define as many or as few of u, x, w as you wish. Whichever ones you define,
-     * we return from the global mapping any and all triples [u, x, w] where the corresponding
+     * we return from this component any and all triples [u, x, w] where the corresponding
      * variables have the values you set.
      *
      * return: array of triples [u, x, w] that were found in this component
