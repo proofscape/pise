@@ -289,19 +289,32 @@ export class GlobalLinkingMap {
     activate() {
         this.localComponent = new LinkingMapComponent(this.hub, this.name);
         this.hub.windowManager.addHandler(this.name, this.localComponent);
-        this.hub.contentManager.on('localPaneClose', async event => {
-            // Purge the target only if its uuid is absent from any other window. It will be present
-            // in another window if we are in the process of moving it to that window.
-            const existsElsewhere = await this.hub.contentManager.uuidExistsInAnyWindow(
-                event.uuid, {excludeSelf: true});
-            if (!existsElsewhere) {
-                await this.removeTriples({w: event.uuid});
-            }
-            this.localComponent.removeTriples({u: event.uuid});
-        });
+
+        // When a panel is in the process of being moved to another window,
+        // `ContentManager.movePaneToAnotherWindow()` will invoke this event handler
+        // *before* our window's copy of the panel has closed.
         this.hub.contentManager.on('paneMovedToAnotherWindow', async event => {
             await this.noteMovedPanel(event.uuid);
         }, {'await': true});
+
+        // When a panel is closing in our window (whether simply closing, or as the final step
+        // of moving that panel to another window), `ContentManager.handleClosingPaneId()` will
+        // invoke this handler, locally and synchronously.
+        this.hub.contentManager.on('localPaneClose', async event => {
+            const closingUuid = event.uuid;
+            // Purge the panel *globally and as a target* only if its uuid is absent from any
+            // other window. It will be present in another window if we are in the process of
+            // moving it to that window.
+            const excludeSelf = true;  // Critical to exclude self from this call!
+            const existsElsewhere = await this.hub.contentManager.uuidExistsInAnyWindow(
+                closingUuid, {excludeSelf: excludeSelf});
+            if (!existsElsewhere) {
+                await this.removeTriples({w: closingUuid});
+            }
+            // Always purge the panel *locally and as a source*. Only need to do this locally,
+            // due to our distributed design.
+            this.localComponent.removeTriples({u: closingUuid});
+        });
     }
 
     // Broadcast and sum the (int or bool) results.
