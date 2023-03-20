@@ -897,14 +897,102 @@ var PdfManager = declare(AbstractContentManager, {
         }
     },
 
+    /* Find any and all panel uuids, in any window, where a given supplier may currently
+     * be present, and, if present at all, determine whether it is a notes page or
+     * deduction.
+     *
+     * param libpath: the libpath of the supplier
+     * return: {
+     *   supplierPanels: array of uuids,
+     *   supplierType: "CHART" or "NOTES" if we found panels; null if we didn't,
+     * }
+     */
+    locateSupplierOfUnknownType: async function(libpath) {
+        let supplierPanels = [];
+        let supplierType = null;
+
+        const c_trips = await this.hub.chartManager.getAllDocRefTriples();
+        const c_panels = new Set();
+        for (const [u, s, d] of c_trips) {
+            if (s === libpath) {
+                c_panels.add(u);
+            }
+        }
+        if (c_panels.size > 0) {
+            supplierPanels = Array.from(c_panels);
+            supplierType = "CHART";
+        }
+
+        if (supplierType === null) {
+            const n_quads = await this.hub.notesManager.getAllDocRefQuads();
+            const n_panels = new Set();
+            for (const [u, s, g, d] of n_quads) {
+                if (s === libpath) {
+                    n_panels.add(u);
+                }
+            }
+            if (n_panels.size > 0) {
+                supplierPanels = Array.from(n_panels);
+                supplierType = "NOTES";
+            }
+        }
+
+        return {supplierPanels, supplierType};
+    },
+
+    // Handle the event that a linking map has become newly undefined at a pair (u, x).
     onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+        // Is it the L_D linking map?
         if (name === this.linkingMap.name) {
             const [u, x] = pair;
             const paneId = this.hub.contentManager.getPaneIdByUuid(u);
+            // Does the pane of uuid u exist in our window?
             if (paneId) {
                 const pdfc = this.pdfcsByPaneId[paneId];
                 if (pdfc) {
-                    await pdfc.dropHighlightsFromSupplier(x);
+                    // Can we form a "vacuum link"? This is a link formed in order to fill the vacuum
+                    // left behind by one that just went away. The question is whether supplier x
+                    // (could be a notes page or a deduc) is still present, in any window.
+                    const {supplierPanels, supplierType} = await this.locateSupplierOfUnknownType(x);
+                    if (supplierType !== null) {
+                        // We'll find a new panel v to navigate, by choosing the most-recently-active
+                        // from among some array V of panels.
+                        const LD = this.linkingMap;
+                        const LN = this.hub.notesManager.linkingMap;
+                        const cm = this.hub.contentManager;
+                        const mra = cm.mostRecentlyActive.bind(cm);
+                        let V;
+                        // First try: Get the set Wu of all panels navigated by doc panel u.
+                        // If any of these hosts the supplier, we choose from among this set.
+                        const Tu = await LD.getTriples({u});
+                        const Wu = new Set(Tu.map(t => t[2]));
+                        const Wu_s = supplierPanels.filter(w => Wu.has(w));
+                        if (Wu_s.length > 0) {
+                            V = Wu_s;
+                        } else {
+                            // Second try: Is any supplier panel navigated at all, by anyone?
+                            // If so, choose from among those.
+                            let W = await LD.range();
+                            if (supplierType === "CHART") {
+                                const WN = await LN.range();
+                                W = new Set(WN.concat(W));
+                            } else {
+                                W = new Set(W);
+                            }
+                            const W_s = supplierPanels.filter(w => W.has(w));
+                            if (W_s.length > 0) {
+                                V = W_s;
+                            } else {
+                                // No, no existing supplier panel is yet navigated at all.
+                                V = supplierPanels;
+                            }
+                        }
+                        const v = await mra(V);
+                        await LD.add(u, x, v);
+                    } else {
+                        // Can't form a vacuum link; time to drop highlights from this supplier.
+                        await pdfc.dropHighlightsFromSupplier(x);
+                    }
                 }
             }
         }
