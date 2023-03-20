@@ -383,6 +383,7 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goTo: function(loc) {
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return this.updatePage(loc).then(() => {
             const update = this.describeLocationUpdate(loc);
@@ -391,7 +392,7 @@ var PageViewer = declare(null, {
                     // Note: it is critical that these steps happen before
                     // the `recordNewHistory` step, since that changes the
                     // _current_ location, which these methods rely upon.
-                    this.announcePageChange(loc);
+                    this.announcePageChange(loc, oldPageData);
                     this.updateSubscription(loc);
                 }
                 this.recordNewHistory(loc);
@@ -415,6 +416,7 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goForward: function() {
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return new Promise((resolve, reject) => {
             if (this.ptr === null) reject();
@@ -424,7 +426,7 @@ var PageViewer = declare(null, {
                 this.updatePage(loc).then(() => {
                     const update = this.describeLocationUpdate(loc);
                     if (update.annotationChange) {
-                        this.announcePageChange(loc);
+                        this.announcePageChange(loc, oldPageData);
                         this.updateSubscription(loc);
                     }
                     this.incrPtr();
@@ -442,6 +444,7 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goBackward: function() {
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return new Promise((resolve, reject) => {
             if (this.ptr === null) reject();
@@ -450,7 +453,7 @@ var PageViewer = declare(null, {
                 this.updatePage(loc).then(() => {
                     const update = this.describeLocationUpdate(loc);
                     if (update.annotationChange) {
-                        this.announcePageChange(loc);
+                        this.announcePageChange(loc, oldPageData);
                         this.updateSubscription(loc);
                     }
                     this.decrPtr();
@@ -600,11 +603,12 @@ var PageViewer = declare(null, {
         return loc === null ? null : iseUtil.lv(loc.libpath, loc.version);
     },
 
-    announcePageChange: function(loc) {
+    announcePageChange: function(loc, oldPageData) {
         const event = {
             type: 'pageChange',
             uuid: this.uuid,
             oldLibpathv: null,
+            oldPageData: oldPageData,
             newLibpathv: `${loc.libpath}@${loc.version}`,
         }
         const cur = this.getCurrentLoc();

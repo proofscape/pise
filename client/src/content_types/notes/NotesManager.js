@@ -343,15 +343,21 @@ var NotesManager = declare(AbstractContentManager, {
      */
     notePageChange: async function(event) {
         // Maintain records of which annopaths are open, and how many copies of each.
+
         // newLibpath is always defined
         const nlv = event.newLibpathv;
         let nlpCount = this.openAnnopathvCopyCount.get(nlv) || 0;
         this.openAnnopathvCopyCount.set(nlv, ++nlpCount);
+
         // oldLibpath may be null
         const olv = event.oldLibpathv;
         if (olv) {
             this.notePageClose(olv);
+            const olp = olv.split("@")[0];
+            await this.updateLinkingForDepartedPage(olp, event.uuid, event.oldPageData);
         }
+
+        // Make default links for newly loaded page.
         const nlp = nlv.split("@")[0];
         await this.makeDefaultLinks(nlp, event.uuid);
     },
@@ -385,6 +391,41 @@ var NotesManager = declare(AbstractContentManager, {
         }
         viewer.destroy();
         delete this.viewers[paneId];
+    },
+
+    /* Handle the case of a notes panel N navigating away from page P to page Q,
+     * where panel N belongs to our window.
+     *
+     * When this method is invoked, the page viewer in the notes panel has finished
+     * navigating to the new page.
+     *
+     * param pagepath: the libpath of the page P from which we have navigated away
+     * param uuid: the uuid of the notes panel N
+     * param pageData: the full page data object for page P
+     */
+    updateLinkingForDepartedPage: async function(pagepath, uuid, pageData) {
+        const LN = this.linkingMap;
+        const LD = this.hub.pdfManager.linkingMap;
+
+        // Clean up L_N.
+        // Compute the set G of all widget group IDs in the old page.
+        const G = new Set();
+        for (const wData of Object.values(pageData?.widgets || {})) {
+            const g = wData.pane_group;
+            if (g) {
+                G.add(g);
+            }
+        }
+        // None of these group IDs belong to the panel anymore, so remove outgoing
+        // links for them from this panel.
+        for (const g of G) {
+            await LN.removeTriples({u: uuid, x: g});
+        }
+
+        // Clean up L_D.
+        // If L_D is telling any doc panels to carry out navigations for the old page
+        // in this panel, it must remove such links.
+        await LD.removeTriples({x: pagepath, w: uuid});
     },
 
     /* Establish default links for notes page p in notes panel N.
