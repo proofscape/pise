@@ -80,6 +80,8 @@ var ChartManager = declare(AbstractContentManager, {
     activate: function(ISE_state) {
         this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('forestColoring', this.handleGroupcastForestColoring.bind(this));
+        this.hub.windowManager.on('linkingMapNewlyUndefinedAt',
+            this.onLinkingMapNewlyUndefinedAt.bind(this));
         this.setAppUrlPrefix(ISE_state.appUrlPrefix || '');
         // Make Moose's XHRs go through the Hub, so we can add our CSRF token.
         moose.head.xhr = this.hub.xhr.bind(this.hub);
@@ -199,12 +201,12 @@ var ChartManager = declare(AbstractContentManager, {
         //  *consciously* handling the case of a newly-opened (not reloaded) deduction.
         //  Maybe this also works for reloaded? Maybe not? Haven't thought it through yet...
 
-        // Refer to the newly opened deduc as E.
-        const drt = await this.getAllDocRefTriples();
-        // Panel uuids where E is hosted:
+        // Panel uuids where deduc E is hosted:
         let UE = new Set();
         // Docs referenced by E:
         let DE = new Set();
+
+        const drt = await this.getAllDocRefTriples();
         for (const [u, s, d] of drt) {
             if (s === deducpath) {
                 UE.add(u);
@@ -217,7 +219,7 @@ var ChartManager = declare(AbstractContentManager, {
         DE = Array.from(DE);
 
         if (DE.length === 0) {
-            // The new deduc does not reference any docs. Nothing to do.
+            // Deduc E does not reference any docs. Nothing to do.
             return;
         }
 
@@ -237,13 +239,12 @@ var ChartManager = declare(AbstractContentManager, {
 
         for (const d of DE) {
             if (!mD.has(d)) {
-                // The new deduc references doc d, but doc d is not currently on the board.
+                // Deduc E references doc d, but doc d is not currently on the board.
                 continue;
             }
             const Ud = mD.get(d);
             const LC_current = await LC.get(uuid, d);
-            // If the panel where the deduc has been opened does not currently have a place
-            // to navigate doc d, then we choose one now.
+            // If panel C does not currently have a place to navigate doc d, then we choose one now.
             if (LC_current.length === 0) {
                 let v;
                 const T = await LC.getTriples({x: d});
@@ -277,14 +278,41 @@ var ChartManager = declare(AbstractContentManager, {
             for (const u of Ud) {
                 const LD_current = await LD.get(u, deducpath);
                 if (LD_current.length === 0) {
-                    // Inductive hypothesis says that, in this case, the newly opened copy of E
-                    // must be the *first* occurrence in any panel, in any window. (Otherwise,
+                    // Inductive hypothesis says that, in this case, the given copy of E
+                    // must be the only occurrence in any panel, in any window. (Otherwise,
                     // some link would have already been established.) So, we're happy to make
                     // it be the navigated copy.
                     await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
                         acceptFrom: [deducpath],
                         linkTo: [deducpath],
                     });
+                }
+            }
+        }
+    },
+
+    // Handle the event that a linking map has become newly undefined at a pair (u, x).
+    onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+        // Is it our linking map?
+        if (name === this.linkingMap.name) {
+            const [u0, d0] = pair;
+            const paneId = this.hub.contentManager.getPaneIdByUuid(u0);
+            // Does the pane of uuid u0 exist in our window?
+            if (paneId) {
+                // Since the chart panel is still present, but has lost a nav target, it
+                // may be possible to establish a new default link to fill this vacuum.
+                // We must determine whether this chart panel still contains any deduc that
+                // refers to docId d0. If so, we just need the libpath of one such deduc.
+                let deducpath = null;
+                const drt = await this.getAllDocRefTriples();
+                for (const [u, s, d] of drt) {
+                    if (u === u0 && d === d0) {
+                        deducpath = s;
+                        break;
+                    }
+                }
+                if (deducpath) {
+                    await this.makeDefaultLinks(deducpath, u0);
                 }
             }
         }
