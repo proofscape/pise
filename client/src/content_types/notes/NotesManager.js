@@ -115,7 +115,10 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     activate: function() {
-        this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
+        this.hub.socketManager.on('moduleBuilt',
+            this.handleModuleBuiltEvent.bind(this));
+        this.hub.windowManager.on('linkingMapNewlyUndefinedAt',
+            this.onLinkingMapNewlyUndefinedAt.bind(this));
         this.initLinking();
     },
 
@@ -466,21 +469,24 @@ var NotesManager = declare(AbstractContentManager, {
             }
         }
 
-        // For each group g in G, if it has a most-recently-active navigated panel, then
-        // make this panel N navigate that one too.
+        // For each group g in G, if it has a most-recently-active navigated panel, and L_N is
+        // not yet defined at this group for panel N, then make panel N navigate that one too.
         for (const g of G) {
             const w = R.get(g);
             if (w) {
-                // Note: in the case that w is a doc panel, there is no need to load highlights
-                // into it, since, by defn of R, it should already have them.
-                await LN.add(uuid, g, w);
+                const LN_current = await LN.get(uuid, g);
+                if (LN_current.length === 0) {
+                    await LN.add(uuid, g, w);
+                    // Note: in the case that w is a doc panel, there is no need to load highlights
+                    // into it, since, by defn of R, it should already have them.
+                }
             }
         }
 
         // Note: Except for any link (uuid, g) |--> R(g) that may have been formed above, we
         // deliberately do not form any default links N --> C. If a chart panel C was not already
         // navigated by another, existing copy of our notes page, then there is no good reason for
-        // this new page to link to it by default. Either C is navigated by some *other* page, or
+        // this copy to link to it by default. Either C is navigated by some *other* page, or
         // the user is using it for manual exploration.
 
         // For docs d referenced by doc widgets in N, if there's just a sole group referencing
@@ -509,8 +515,8 @@ var NotesManager = declare(AbstractContentManager, {
                 for (const u of Ud) {
                     const LD_current = await LD.get(u, pagepath);
                     if (LD_current.length === 0) {
-                        // Inductive hypothesis says that, in this case, the newly opened notes page
-                        // must be the *first* occurrence in any panel, in any window. (Otherwise,
+                        // Inductive hypothesis says that, in this case, the given copy of notes page
+                        // p must be the only occurrence in any panel, in any window. (Otherwise,
                         // some link would have already been established.) So, we're happy to make
                         // it be the navigated copy.
                         await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
@@ -518,6 +524,26 @@ var NotesManager = declare(AbstractContentManager, {
                             linkTo: [pagepath],
                         });
                     }
+                }
+            }
+        }
+    },
+
+    // Handle the event that a linking map has become newly undefined at a pair (u, x).
+    onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+        // Is it our linking map?
+        if (name === this.linkingMap.name) {
+            const [u, x] = pair;
+            const paneId = this.hub.contentManager.getPaneIdByUuid(u);
+            // Does the pane of uuid u exist in our window?
+            if (paneId) {
+                // Since the notes panel is still present, but has lost a nav target, it
+                // may be possible to establish a new default link to fill this vacuum.
+                const viewer = this.viewers[paneId];
+                const loc = viewer.describeCurrentLocation();
+                if (loc) {
+                    const pagepath = loc.libpath;
+                    await this.makeDefaultLinks(pagepath, u);
                 }
             }
         }
