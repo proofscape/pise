@@ -447,6 +447,8 @@ class SetMapping {
 
 util.SetMapping = SetMapping;
 
+/* A "libpath set-mapping" is a SetMapping whose keys are libpaths.
+ */
 class LibpathSetMapping extends SetMapping {
 
     constructor() {

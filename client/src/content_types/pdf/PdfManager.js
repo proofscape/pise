@@ -721,7 +721,9 @@ var PdfManager = declare(AbstractContentManager, {
         const mra = cm.mostRecentlyActive.bind(cm);
         const mrat = cm.moreRecentlyActiveThan.bind(cm);
 
-        // Form links C --> D, and build deducHosting map.
+        // Form links C --> D, and build deducHosting map, mapping libpaths of
+        // open deducs that reference doc d, to sets of panel uuids where they
+        // are hosted.
         const deducHosting = new iseUtil.SetMapping();
         const chart_panels_considered = new Set();
         for (const [u, s, d] of chart_triples) {
@@ -735,7 +737,9 @@ var PdfManager = declare(AbstractContentManager, {
             }
         }
 
-        // Form links N --> D, and build notesHosting map.
+        // Form links N --> D, and build notesHosting map, mapping libpaths of
+        // open notes pages that reference doc d, to sets of panel uuids where
+        // they are hosted.
         const notesHosting = new iseUtil.SetMapping();
         for (const [u, s, g, d] of notes_quads) {
             if (d === docId) {
