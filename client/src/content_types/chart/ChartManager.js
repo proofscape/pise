@@ -182,20 +182,21 @@ var ChartManager = declare(AbstractContentManager, {
         );
     },
 
-    /* Handle the case of a single closed deduction E, in a chart panel C which
-     * is not itself closing, and which belongs to our window.
+    /* Handle the case of a single deduction E, which has been either closed,
+     * or reloaded, in a chart panel C which is not itself closing, and which
+     * belongs to our window.
      *
      * When this method is invoked, the forest in the chart panel has finished
-     * removing the deduc from the board.
+     * removing or reloading the deduc.
      *
-     * param deducpath: the libpath of the deduction E that has been removed
+     * param deducpath: the libpath of the deduction E
      * param uuid: the uuid of the chart panel C
+     * param reloaded: boolean saying whether the deduc was reloaded
      */
-    updateLinkingForClosedDeduc: async function(deducpath, uuid) {
+    updateLinkingForClosedOrReloadedDeduc: async function(deducpath, uuid, reloaded) {
         const LC = this.linkingMap;
         const LD = this.hub.pdfManager.linkingMap;
 
-        // Clean up L_C.
         // Find the set D0 of doc Ids that are still referenced by panel C:
         const drt = this.getAllDocRefTriplesLocal({});
         let D0 = drt.filter(([u, s, d]) => (u === uuid && d !== null)).map(t => t[2]);
@@ -204,15 +205,32 @@ var ChartManager = declare(AbstractContentManager, {
         const T = await LC.getTriples({u: uuid});
         let D1 = T.filter(([u, x, w]) => !D0.has(x)).map(t => t[1]);
         D1 = new Set(D1);
+
         // Remove linking entries for panel C and doc Ids in D1:
         for (const x of D1) {
             await LC.removeTriples({u: uuid, x});
         }
 
-        // Clean up L_D.
-        // If L_D is telling any doc panels to carry out navigations for this deduc
-        // in this panel, it must remove such links.
-        await LD.removeTriples({x: deducpath, w: uuid});
+        if (reloaded) {
+            // NO deducs in chart panel C reference any doc named in D1
+            // Therefore, no doc panel hosting any doc named in D1 should have a
+            // link to this chart panel. Since a deduc in C has just been rebuilt,
+            // it's possible that such links exist. We clean them up now.
+            const mD = await this.hub.pdfManager.getHostingMapping();
+            for (const d of D1) {
+                if (mD.has(d)) {
+                    const Ud = mD.get(d);
+                    for (const u of Ud) {
+                        await LD.removeTriples({u, w: uuid});
+                    }
+                }
+            }
+        } else {
+            // Deduc E has been removed from panel C.
+            // If L_D is telling any doc panels to carry out navigations for deduc E
+            // in panel C, it must remove such links.
+            await LD.removeTriples({x: deducpath, w: uuid});
+        }
     },
 
     /* Establish default links for a deduction E in a chart panel C.
@@ -221,11 +239,6 @@ var ChartManager = declare(AbstractContentManager, {
      * param uuid: the uuid of chart panel C
      */
     makeDefaultLinks: async function(deducpath, uuid) {
-        // TODO:
-        //  Refactor to handle more cases? As a first approximation, we are only
-        //  *consciously* handling the case of a newly-opened (not reloaded) deduction.
-        //  Maybe this also works for reloaded? Maybe not? Haven't thought it through yet...
-
         // Panel uuids where deduc E is hosted:
         let UE = new Set();
         // Docs referenced by E:
@@ -304,7 +317,7 @@ var ChartManager = declare(AbstractContentManager, {
                 const LD_current = await LD.get(u, deducpath);
                 if (LD_current.length === 0) {
                     // Inductive hypothesis says that, in this case, the given copy of E
-                    // must be the only occurrence in any panel, in any window. (Otherwise,
+                    // must be the first occurrence in any panel, in any window. (Otherwise,
                     // some link would have already been established.) So, we're happy to make
                     // it be the navigated copy.
                     await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
@@ -550,14 +563,19 @@ var ChartManager = declare(AbstractContentManager, {
         }
 
         // Linking
-        // TODO:
-        //  Decide how to handle reloaded deducs.
+        for (const deducpath of trulyClosedDeducpaths) {
+            const reloaded = false;
+            await this.updateLinkingForClosedOrReloadedDeduc(deducpath, uuid, reloaded);
+        }
+        for (const deducpath of reloadedDeducpaths) {
+            const reloaded = true;
+            await this.updateLinkingForClosedOrReloadedDeduc(deducpath, uuid, reloaded);
+            await this.makeDefaultLinks(deducpath, uuid);
+        }
         for (const deducpath of newlyOpenedDeducpaths) {
             await this.makeDefaultLinks(deducpath, uuid);
         }
-        for (const deducpath of trulyClosedDeducpaths) {
-            await this.updateLinkingForClosedDeduc(deducpath, uuid);
-        }
+
     },
 
     // -----------------------------------------------------------------------

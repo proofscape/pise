@@ -952,9 +952,33 @@ var PdfManager = declare(AbstractContentManager, {
                 if (pdfc) {
                     // Can we form a "vacuum link"? This is a link formed in order to fill the vacuum
                     // left behind by one that just went away. The question is whether supplier x
-                    // (could be a notes page or a deduc) is still present, in any window.
+                    // (could be a notes page or a deduc) is still present, in any window, AND still
+                    // references this doc.
+                    let canRelink = false;
                     const {supplierPanels, supplierType} = await this.locateSupplierOfUnknownType(x);
-                    if (supplierType !== null) {
+                    if (supplierType) {
+                        // Supplier is still present.
+                        // Check if the supplier still references this doc. (Might not, if it was rebuilt.)
+                        const docId = pdfc.docId;
+                        if (supplierType === "CHART") {
+                            const chart_triples = await this.hub.chartManager.getAllDocRefTriples();
+                            for (const [u, s, d] of chart_triples) {
+                                if (d === docId && s === x && supplierPanels.includes(u)) {
+                                    canRelink = true;
+                                    break;
+                                }
+                            }
+                        } else if (supplierType === "NOTES") {
+                            const notes_quads = await this.hub.notesManager.getAllDocRefQuads();
+                            for (const [u, s, g, d] of notes_quads) {
+                                if (d === docId && s === x && supplierPanels.includes(u)) {
+                                    canRelink = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (canRelink) {
                         // We'll find a new panel v to navigate, by choosing the most-recently-active
                         // from among some array V of panels.
                         const LD = this.linkingMap;
