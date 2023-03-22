@@ -902,23 +902,26 @@ var PdfManager = declare(AbstractContentManager, {
     },
 
     /* Find any and all panel uuids, in any window, where a given supplier may currently
-     * be present, and, if present at all, determine whether it is a notes page or
-     * deduction.
+     * be present.
+     *
+     * The supplier must also reference a given docId, in order to truly be considered a
+     * supplier.
      *
      * param libpath: the libpath of the supplier
+     * param docId: the docId that the supplier must reference
      * return: {
-     *   supplierPanels: array of uuids,
+     *   supplierPanels: array of uuids where the supplier was found,
      *   supplierType: "CHART" or "NOTES" if we found panels; null if we didn't,
      * }
      */
-    locateSupplierOfUnknownType: async function(libpath) {
+    locateSupplierOfUnknownType: async function(libpath, docId) {
         let supplierPanels = [];
         let supplierType = null;
 
         const c_trips = await this.hub.chartManager.getAllDocRefTriples();
         const c_panels = new Set();
         for (const [u, s, d] of c_trips) {
-            if (s === libpath) {
+            if (s === libpath && d === docId) {
                 c_panels.add(u);
             }
         }
@@ -931,7 +934,7 @@ var PdfManager = declare(AbstractContentManager, {
             const n_quads = await this.hub.notesManager.getAllDocRefQuads();
             const n_panels = new Set();
             for (const [u, s, g, d] of n_quads) {
-                if (s === libpath) {
+                if (s === libpath && d === docId) {
                     n_panels.add(u);
                 }
             }
@@ -958,31 +961,8 @@ var PdfManager = declare(AbstractContentManager, {
                     // left behind by one that just went away. The question is whether supplier x
                     // (could be a notes page or a deduc) is still present, in any window, AND still
                     // references this doc.
-                    let canRelink = false;
-                    const {supplierPanels, supplierType} = await this.locateSupplierOfUnknownType(x);
-                    if (supplierType) {
-                        // Supplier is still present.
-                        // Check if the supplier still references this doc. (Might not, if it was rebuilt.)
-                        const docId = pdfc.docId;
-                        if (supplierType === "CHART") {
-                            const chart_triples = await this.hub.chartManager.getAllDocRefTriples();
-                            for (const [u, s, d] of chart_triples) {
-                                if (d === docId && s === x && supplierPanels.includes(u)) {
-                                    canRelink = true;
-                                    break;
-                                }
-                            }
-                        } else if (supplierType === "NOTES") {
-                            const notes_quads = await this.hub.notesManager.getAllDocRefQuads();
-                            for (const [u, s, g, d] of notes_quads) {
-                                if (d === docId && s === x && supplierPanels.includes(u)) {
-                                    canRelink = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (canRelink) {
+                    const {supplierPanels, supplierType} = await this.locateSupplierOfUnknownType(x, pdfc.docId);
+                    if (supplierType !== null) {
                         // We'll find a new panel v to navigate, by choosing the most-recently-active
                         // from among some array V of panels.
                         const LD = this.linkingMap;
