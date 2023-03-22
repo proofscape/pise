@@ -630,7 +630,7 @@ var PageViewer = declare(null, {
 
     unsubscribe: function() {
         if (this.subscribedLibpath !== null) {
-            this.nm.setSubscription(this.pane, this.subscribedLibpath, false);
+            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, false);
         }
     },
 
@@ -639,7 +639,7 @@ var PageViewer = declare(null, {
         if (libpath.startsWith('special.')) libpath = null;
         this.subscribedLibpath = libpath;
         if (libpath !== null) {
-            this.nm.setSubscription(this.pane, this.subscribedLibpath, true);
+            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, true);
         }
     },
 

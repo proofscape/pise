@@ -24,7 +24,8 @@ const moose = {
 
 import { MooseNodeLabelPlugin } from "../../plugins/MooseNodeLabelPlugin";
 import { NoGroupError } from "browser-peers/src/errors";
-import {GlobalLinkingMap} from "../linking";
+import { GlobalLinkingMap } from "../linking";
+import { SubscriptionManager } from "../SubscriptionManager";
 
 define([
     "dojo/_base/declare",
@@ -55,8 +56,7 @@ var ChartManager = declare(AbstractContentManager, {
 
     navEnableHandlers: null,
 
-    deducpathsToSubscribedForestIds: null,
-    modpathsToDeducpathsHavingSubscribers: null,
+    subscriptionManager: null,
 
     pdfInfoByFingerprint: null,
 
@@ -72,13 +72,10 @@ var ChartManager = declare(AbstractContentManager, {
         this.forestsByPaneId = {};
         this.paneIdByForestId = {};
         this.navEnableHandlers = [];
-        this.deducpathsToSubscribedForestIds = new iseUtil.LibpathSetMapping();
-        this.modpathsToDeducpathsHavingSubscribers = new iseUtil.LibpathSetMapping();
         this.pdfInfoByFingerprint = new Map();
     },
 
     activate: function(ISE_state) {
-        this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('forestColoring', this.handleGroupcastForestColoring.bind(this));
         this.hub.windowManager.on('linkingMapNewlyUndefinedAt',
             this.onLinkingMapNewlyUndefinedAt.bind(this));
@@ -86,12 +83,40 @@ var ChartManager = declare(AbstractContentManager, {
         // Make Moose's XHRs go through the Hub, so we can add our CSRF token.
         moose.head.xhr = this.hub.xhr.bind(this.hub);
         this.initLinking();
+        this.initSubscrips();
     },
 
     initLinking: function() {
         const name = 'linking_charts';
         this.linkingMap = new GlobalLinkingMap(this.hub, name);
         this.linkingMap.activate();
+    },
+
+    initSubscrips: function() {
+        const forestsByPaneId = this.forestsByPaneId;
+        this.subscriptionManager = new SubscriptionManager(this.hub, {
+            fetchName: 'loadDashgraph',
+            fetchArgBuilder: (libpath, timestamp) => {
+                return {
+                    query: { libpath: libpath, cache_code: `${timestamp}`, vers: "WIP" },
+                    handleAs: 'json',
+                };
+            },
+            missingObjErrCode: iseErrors.serverSideErrorCodes.MISSING_DASHGRAPH,
+            missingObjHandler: (libpath, paneIds, resp) => {
+                for (const paneId of paneIds) {
+                    const forest = forestsByPaneId[paneId];
+                    forest.requestState({off_board: libpath});
+                }
+            },
+            reloader: (libpath, paneIds, resp) => {
+                const dashgraph = resp.dashgraph;
+                for (const paneId of paneIds) {
+                    const forest = forestsByPaneId[paneId];
+                    forest.refreshDeduc(libpath, dashgraph);
+                }
+            },
+        });
     },
 
     paneCount: function() {
@@ -518,7 +543,7 @@ var ChartManager = declare(AbstractContentManager, {
             // For deducs that have been closed (and not reloaded), unsubscribe from refresh,
             // and delete the auto reload menu item from the menu plugin's mapping to free memory.
             for (let deducpath of trulyClosedDeducpaths) {
-                this.setAutoRefreshDeduc(forest, deducpath, false);
+                this.setAutoRefreshDeduc(forest.id, deducpath, false);
                 // Free memory:
                 menuPlugin.autoReloadByDeducpath.delete(deducpath);
             }
@@ -580,7 +605,7 @@ var ChartManager = declare(AbstractContentManager, {
      */
     noteClosingContent: function(closingPane) {
         const closingForest = this.forestsByPaneId[closingPane.id];
-        this.removeAllAutoRefreshForForest(closingForest);
+        this.removeAllAutoRefreshForForest(closingForest.id);
         if (closingForest === this.hub.menuManager.activeForest) {
             this.hub.menuManager.setActiveForest(null);
         }
@@ -749,79 +774,28 @@ var ChartManager = declare(AbstractContentManager, {
     /* Say whether a certain deduction in a certain forest should be auto-refreshed
      * or not, whenever a new dashgraph is published for that deduction.
      *
-     * param forest: the Forest in question
+     * param forestId: the Forest ID of the Forest in question
      * param deducpath: the libpath of the deduction in question
      * param doAutoRefresh: boolean, saying whether we do (true) or don't (false) want auto-refresh
      */
-    setAutoRefreshDeduc: function(forest, deducpath, doAutoRefresh) {
-        const modpath = iseUtil.getModpathFromTopLevelEntityPath(deducpath);
-        if (doAutoRefresh) {
-            this.deducpathsToSubscribedForestIds.add(deducpath, forest.id);
-            this.modpathsToDeducpathsHavingSubscribers.add(modpath, deducpath);
-        } else {
-            this.deducpathsToSubscribedForestIds.remove(deducpath, forest.id);
-            if (!this.deducpathsToSubscribedForestIds.mapping.has(deducpath)) {
-                this.modpathsToDeducpathsHavingSubscribers.remove(modpath, deducpath);
-            }
-        }
-    },
-
-    removeAllSubscriptionsForItem: function(deducpath) {
-        const modpath = iseUtil.getModpathFromTopLevelEntityPath(deducpath);
-        this.deducpathsToSubscribedForestIds.mapping.delete(deducpath);
-        this.modpathsToDeducpathsHavingSubscribers.remove(modpath, deducpath);
+    setAutoRefreshDeduc: function(forestId, deducpath, doAutoRefresh) {
+        const paneId = this.paneIdByForestId[forestId];
+        this.subscriptionManager.setSubscription(paneId, deducpath, doAutoRefresh);
     },
 
     /* Remove a given forest from all its auto-refresh subscriptions.
      */
-    removeAllAutoRefreshForForest: function(forest) {
-        const deducpathsFromWhichToRemove = [];
-        for (let deducpath of this.deducpathsToSubscribedForestIds.mapping.keys()) {
-            if (this.checkAutoRefreshDeduc(forest, deducpath)) {
-                deducpathsFromWhichToRemove.push(deducpath);
-            }
-        }
-        for (let deducpath of deducpathsFromWhichToRemove) {
-            this.setAutoRefreshDeduc(forest, deducpath, false);
-        }
+    removeAllAutoRefreshForForest: function(forestId) {
+        const paneId = this.paneIdByForestId[forestId];
+        this.subscriptionManager.removeAllSubscriptionsForPane(paneId);
     },
 
     /* Check whether a certain deduction in a certain forest is currently subscribed
      * for auto-refresh.
      */
-    checkAutoRefreshDeduc: function(forest, deducpath) {
-        return this.deducpathsToSubscribedForestIds.has(deducpath, forest.id);
-    },
-
-    /* Respond to iseEvent of type 'moduleBuilt' by requesting dashgraphs under that module and
-     * distributing them to any subscribed forests.
-     */
-    handleModuleBuiltEvent: function({ modpath, recursive, timestamp }) {
-        const deducpaths = recursive ?
-            this.modpathsToDeducpathsHavingSubscribers.getUnionOverLibpathPrefix(modpath) :
-            this.modpathsToDeducpathsHavingSubscribers.mapping.get(modpath) || [];
-        for (let deducpath of deducpaths) {
-            this.hub.xhrFor('loadDashgraph', {
-                query: { libpath: deducpath, cache_code: `${timestamp}`, vers: "WIP" },
-                handleAs: 'json',
-            }).then(resp => {
-                //console.log(resp);
-                const forestIds = this.deducpathsToSubscribedForestIds.mapping.get(deducpath) || [];
-                if (resp.err_lvl === iseErrors.serverSideErrorCodes.MISSING_DASHGRAPH) {
-                    this.removeAllSubscriptionsForItem(deducpath);
-                    for (let forestId of forestIds) {
-                        const forest = this.getForestById(forestId);
-                        forest.requestState({off_board: deducpath});
-                    }
-                } else {
-                    const dashgraph = resp.dashgraph;
-                    for (let forestId of forestIds) {
-                        const forest = this.getForestById(forestId);
-                        forest.refreshDeduc(deducpath, dashgraph);
-                    }
-                }
-            });
-        }
+    checkAutoRefreshDeduc: function(forestId, deducpath) {
+        const paneId = this.paneIdByForestId[forestId];
+        return this.subscriptionManager.checkSubscription(paneId, deducpath);
     },
 
 });

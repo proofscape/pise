@@ -16,6 +16,7 @@
 
 import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
+import { SubscriptionManager } from "../SubscriptionManager";
 
 define([
     "dojo/_base/declare",
@@ -93,8 +94,7 @@ var NotesManager = declare(AbstractContentManager, {
 
     navEnableHandlers: null,
 
-    annopathsToSubscribedPaneIds: null,
-    modpathsToAnnopathsHavingSubscribers: null,
+    subscriptionManager: null,
 
     wvuCallback: null,
 
@@ -109,23 +109,57 @@ var NotesManager = declare(AbstractContentManager, {
         this.openAnnopathvCopyCount = new Map();
         this.widgets = new Map();
         this.navEnableHandlers = [];
-        this.annopathsToSubscribedPaneIds = new iseUtil.LibpathSetMapping();
-        this.modpathsToAnnopathsHavingSubscribers = new iseUtil.LibpathSetMapping();
         this.wvuCallback = this.observeWidgetVisualUpdate.bind(this);
     },
 
     activate: function() {
-        this.hub.socketManager.on('moduleBuilt',
-            this.handleModuleBuiltEvent.bind(this));
         this.hub.windowManager.on('linkingMapNewlyUndefinedAt',
             this.onLinkingMapNewlyUndefinedAt.bind(this));
         this.initLinking();
+        this.initSubscrips();
     },
 
     initLinking: function() {
         const name = 'linking_notes';
         this.linkingMap = new GlobalLinkingMap(this.hub, name);
         this.linkingMap.activate();
+    },
+
+    initSubscrips: function() {
+        const viewers = this.viewers;
+        this.subscriptionManager = new SubscriptionManager(this.hub, {
+            fetchName: 'loadAnnotation',
+            fetchArgBuilder: (libpath, timestamp) => {
+                return {
+                    method: "POST",
+                    query: { libpath: libpath, cache_code: `${timestamp}`, vers: "WIP" },
+                    form: {},
+                    handleAs: 'json',
+                };
+            },
+            missingObjErrCode: iseErrors.serverSideErrorCodes.MISSING_ANNOTATION,
+            missingObjHandler: (libpath, paneIds, resp) => {
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    // FIXME: Maybe better than closing the whole pane would be to
+                    //  first ask the viewer to remove the current page from its history,
+                    //  and move to an adjacent history entry, if possible. Only if there
+                    //  was no other history entry would we close the pane.
+                    viewer.pane.onClose();
+                }
+            },
+            reloader: (libpath, paneIds, resp) => {
+                const data_json = resp.data_json;
+                const contents = {
+                    html: resp.html,
+                    data: JSON.parse(data_json)
+                };
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    viewer.receivePublication(contents);
+                }
+            },
+        });
     },
 
     getSuppliedDocHighlights: function(paneId) {
@@ -800,67 +834,6 @@ var NotesManager = declare(AbstractContentManager, {
     observeWidgetVisualUpdate: function(event) {
         const viewer = this.viewers[event.paneId];
         viewer.observeWidgetVisualUpdate(event);
-    },
-
-    // FIXME: Refactor. This method is a clone of ChartManager.setAutoRefreshDeduc.
-    //  Should be moved to a superclass.
-    setSubscription: function(pane, annopath, doSubscribe) {
-        const modpath = iseUtil.getModpathFromTopLevelEntityPath(annopath);
-        if (doSubscribe) {
-            this.annopathsToSubscribedPaneIds.add(annopath, pane.id);
-            this.modpathsToAnnopathsHavingSubscribers.add(modpath, annopath);
-        } else {
-            this.annopathsToSubscribedPaneIds.remove(annopath, pane.id);
-            if (!this.annopathsToSubscribedPaneIds.mapping.has(annopath)) {
-                this.modpathsToAnnopathsHavingSubscribers.remove(modpath, annopath);
-            }
-        }
-    },
-
-    removeAllSubscriptionsForItem: function(annopath) {
-        const modpath = iseUtil.getModpathFromTopLevelEntityPath(annopath);
-        this.annopathsToSubscribedPaneIds.mapping.delete(annopath);
-        this.modpathsToAnnopathsHavingSubscribers.remove(modpath, annopath);
-    },
-
-    // FIXME: Refactor. This method is a clone of ChartManager.handleModuleBuiltEvent.
-    //  Should be moved to a superclass.
-    handleModuleBuiltEvent: function({ modpath, recursive, timestamp }) {
-        const annopaths = recursive ?
-            this.modpathsToAnnopathsHavingSubscribers.getUnionOverLibpathPrefix(modpath) :
-            this.modpathsToAnnopathsHavingSubscribers.mapping.get(modpath) || [];
-        for (let annopath of annopaths) {
-            this.hub.xhrFor('loadAnnotation', {
-                method: "POST",
-                query: { libpath: annopath, cache_code: `${timestamp}`, vers: "WIP" },
-                form: {},
-                handleAs: 'json',
-            }).then(resp => {
-                //console.log(resp);
-                const paneIds = this.annopathsToSubscribedPaneIds.mapping.get(annopath) || [];
-                if (resp.err_lvl === iseErrors.serverSideErrorCodes.MISSING_ANNOTATION) {
-                    this.removeAllSubscriptionsForItem(annopath);
-                    for (let paneId of paneIds) {
-                        const viewer = this.viewers[paneId];
-                        // FIXME: Maybe better than closing the whole pane would be to
-                        //  first ask the viewer to remove the current page from its history,
-                        //  and move to an adjacent history entry, if possible. Only if there
-                        //  was no other history entry would we close the pane.
-                        viewer.pane.onClose();
-                    }
-                } else {
-                    const data_json = resp.data_json;
-                    const contents = {
-                        html: resp.html,
-                        data: JSON.parse(data_json)
-                    };
-                    for (let paneId of paneIds) {
-                        const viewer = this.viewers[paneId];
-                        viewer.receivePublication(contents);
-                    }
-                }
-            });
-        }
     },
 
 });
