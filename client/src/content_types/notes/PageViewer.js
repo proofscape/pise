@@ -650,13 +650,24 @@ var PageViewer = declare(null, {
      *
      * param contents: object with `html` and `data` (widget JSON) properties.
      */
-    receivePublication: function(contents) {
+    receivePublication: async function(contents) {
+        const oldPageData = this.currentPageData;
+
         // We can use a description of our current location to get the
         // scroll fraction. Then setting the contents directly in the location
         // object will get what we want from our updatePage method.
-        var loc = this.describeCurrentLocation();
+        const loc = this.describeCurrentLocation();
         loc.contents = contents;
-        this.updatePage(loc);
+        await this.updatePage(loc);
+
+        const event = {
+            type: 'pageReload',
+            uuid: this.uuid,
+            libpath: loc.libpath,
+            oldPageData: oldPageData,
+            newPageData: this.currentPageData,
+        }
+        this.dispatch(event);
     },
 
     /* Update the page, according to a location descriptor.

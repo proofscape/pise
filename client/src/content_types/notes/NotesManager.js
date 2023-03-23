@@ -324,6 +324,7 @@ var NotesManager = declare(AbstractContentManager, {
         const viewer = new PageViewer(this, elt, pane, info.uuid, options);
         viewer.addNavEnableHandler(this.publishNavEnable.bind(this));
         viewer.on('pageChange', this.notePageChange.bind(this));
+        viewer.on('pageReload', this.notePageReload.bind(this));
         this.viewers[pane.id] = viewer;
         const hasHistory = ('history' in info && 'ptr' in info);
         return viewer.goTo(info).then(function() {
@@ -385,8 +386,9 @@ var NotesManager = declare(AbstractContentManager, {
         }
     },
 
-    /* This is our listener for the "pageChange" event of each and every one of
-     * our PageViewer instances.
+    /* This is our listener for the "pageChange" event of each of
+     * our PageViewer instances. That event is fired iff the viewer has
+     * loaded a page of different libpath or version from what it was before.
      */
     notePageChange: async function(event) {
         // Maintain records of which annopaths are open, and how many copies of each.
@@ -407,6 +409,18 @@ var NotesManager = declare(AbstractContentManager, {
         // Make default links for newly loaded page.
         const nlp = nlv.split("@")[0];
         await this.makeDefaultLinks(nlp, event.uuid);
+    },
+
+    /* This is our listener for the "pageReload" event of each of
+     * our PageViewer instances. That event is fired after the viewer has
+     * finished reloading a page that was just rebuilt.
+     */
+    notePageReload: async function({uuid, libpath, oldPageData, newPageData}) {
+        // First step handles widget groups that went away or stayed, and
+        // doc references that went away or stayed:
+        await this.updateLinkingForRebuiltPage(libpath, uuid, oldPageData, newPageData);
+        // Second step handles new widget groups, and new doc references:
+        await this.makeDefaultLinks(libpath, uuid);
     },
 
     notePageClose: function(annopathv) {
@@ -467,6 +481,70 @@ var NotesManager = declare(AbstractContentManager, {
         // If L_D is telling any doc panels to carry out navigations for the old page
         // in this panel, it must remove such links.
         await LD.removeTriples({x: pagepath, w: uuid});
+    },
+
+    updateLinkingForRebuiltPage: async function(pagepath, uuid, oldPageData, newPageData) {
+        const LN = this.linkingMap;
+        const LD = this.hub.pdfManager.linkingMap;
+        const mD = await this.hub.pdfManager.getHostingMapping();
+
+        const gd1 = this.extractGroupsToDocsMapFromPageData(oldPageData);
+        const gd2 = this.extractGroupsToDocsMapFromPageData(newPageData);
+
+        // Groups present before:
+        const G1 = new Set(gd1.keys())
+        // Groups present now:
+        const G2 = new Set(gd2.keys())
+
+        // Groups that went away:
+        const Gminus = Array.from(G1).filter(g => !G2.has(g));
+
+        // Note: since the docId referenced by a doc widget is incorporated in
+        // the group id of that widget, it is impossible for any of the groups
+        // that stayed to now reference a different doc than they did before.
+
+        // If a group went away, there can no longer be any outgoing mappings for
+        // it in L_N, from any panel.
+        for (const g of Gminus) {
+            // TODO:
+            //  Should `removeTriples` accept a 'silent' option, telling it not
+            //  to dispatch any newly-undefined-at event? Could save some wasted effort here.
+            await LN.removeTriples({x: g});
+        }
+
+        // Docs referenced before:
+        const D1 = new Set(Array.from(gd1.values()).filter(d => d !== null));
+        // Docs referenced now:
+        const D2 = new Set(Array.from(gd2.values()).filter(d => d !== null));
+
+        // Docs that went away:
+        const Dminus = Array.from(D1).filter(d => !D2.has(d));
+        // Docs that stayed:
+        const D0 = Array.from(D1).filter(d => D2.has(d));
+
+        // For docs that went away, there should not be any linking from panels hosting
+        // those docs to this panel.
+        for (const d of Dminus) {
+            if (mD.has(d)) {
+                for (const u of mD.get(d)) {
+                    await LD.removeTriples({u, x: pagepath, w: uuid});
+                }
+            }
+        }
+
+        // For docs that stayed, the set of highlights could have changed, so they have
+        // to be reloaded.
+        for (const d of D0) {
+            if (mD.has(d)) {
+                for (const u of mD.get(d)) {
+                    await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
+                        acceptFrom: [pagepath],
+                        linkTo: [],
+                        reload: true,
+                    });
+                }
+            }
+        }
     },
 
     /* Establish default links for notes page p in notes panel N.
