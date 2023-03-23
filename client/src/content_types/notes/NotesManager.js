@@ -176,6 +176,24 @@ var NotesManager = declare(AbstractContentManager, {
         return hls;
     },
 
+    /* Given the full page data object for a notes page, return a Map
+     * whose keys are all the widget group Ids occurring within this page,
+     * and the value for each key is the docId referenced by that group if
+     * any, else null.
+     */
+    extractGroupsToDocsMapFromPageData: function(pageData) {
+        const W = pageData.widgets;
+        const groupsToDocs = new Map();
+        for (const w of Object.values(W)) {
+            const g = w.pane_group;
+            const d = w.docId || null;
+            if (g) {
+                groupsToDocs.set(g, d);
+            }
+        }
+        return groupsToDocs;
+    },
+
     /* Synchronously return array of all quadruples (u, s, g, d),
      * in just this window,
      * where:
@@ -189,17 +207,9 @@ var NotesManager = declare(AbstractContentManager, {
         const quads = [];
         for (const [paneId, viewer] of Object.entries(this.viewers)) {
             const u = this.hub.contentManager.getUuidByPaneId(paneId);
-            const notesData = viewer.currentPageData;
-            const s = notesData.libpath;
-            const W = notesData.widgets;
-            const groupsToDocs = new Map();
-            for (const w of Object.values(W)) {
-                const g = w.pane_group;
-                const d = w.docId || null;
-                if (g) {
-                    groupsToDocs.set(g, d);
-                }
-            }
+            const pageData = viewer.currentPageData;
+            const s = pageData.libpath;
+            const groupsToDocs = this.extractGroupsToDocsMapFromPageData(pageData);
             for (const [g, d] of groupsToDocs) {
                 quads.push([u, s, g, d]);
             }
@@ -446,16 +456,10 @@ var NotesManager = declare(AbstractContentManager, {
 
         // Clean up L_N.
         // Compute the set G of all widget group IDs in the old page.
-        const G = new Set();
-        for (const wData of Object.values(pageData?.widgets || {})) {
-            const g = wData.pane_group;
-            if (g) {
-                G.add(g);
-            }
-        }
+        const gd = this.extractGroupsToDocsMapFromPageData(pageData);
         // None of these group IDs belong to the panel anymore, so remove outgoing
         // links for them from this panel.
-        for (const g of G) {
+        for (const g of gd.keys()) {
             await LN.removeTriples({u: uuid, x: g});
         }
 
