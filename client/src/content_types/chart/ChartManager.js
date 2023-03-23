@@ -197,14 +197,27 @@ var ChartManager = declare(AbstractContentManager, {
         const LC = this.linkingMap;
         const LD = this.hub.pdfManager.linkingMap;
 
-        // Find the set D0 of doc Ids that are still referenced by panel C:
+        // Find the set D0 of doc Ids that are still referenced by panel C,
+        // and the set DE of doc Ids that are still referenced by deduc E
+        // (the latter being relevant only if `reloaded`).
+        const D0 = new Set();
+        const DE = new Set();
         const drt = this.getAllDocRefTriplesLocal({});
-        let D0 = drt.filter(([u, s, d]) => (u === uuid && d !== null)).map(t => t[2]);
-        D0 = new Set(D0);
-        // Find the set D1 of doc Ids that are no longer referenced by panel C:
+        for (const [u, s, d] of drt) {
+            if (d !== null) {
+                if (u === uuid) {
+                    D0.add(d);
+                }
+                if (s === deducpath) {
+                    DE.add(d);
+                }
+            }
+        }
+
+        // Find the set D1 of doc Ids that have a mapping in LC for panel C, but
+        // are no longer referenced by panel C:
         const T = await LC.getTriples({u: uuid});
-        let D1 = T.filter(([u, x, w]) => !D0.has(x)).map(t => t[1]);
-        D1 = new Set(D1);
+        const D1 = new Set(T.filter(([u, x, w]) => !D0.has(x)).map(t => t[1]));
 
         // Remove linking entries for panel C and doc Ids in D1:
         for (const x of D1) {
@@ -212,16 +225,29 @@ var ChartManager = declare(AbstractContentManager, {
         }
 
         if (reloaded) {
-            // NO deducs in chart panel C reference any doc named in D1
-            // Therefore, no doc panel hosting any doc named in D1 should have a
-            // link to this chart panel. Since a deduc in C has just been rebuilt,
-            // it's possible that such links exist. We clean them up now.
+            // Consider all docs currently open anywhere.
             const mD = await this.hub.pdfManager.getHostingMapping();
-            for (const d of D1) {
-                if (mD.has(d)) {
-                    const Ud = mD.get(d);
-                    for (const u of Ud) {
-                        await LD.removeTriples({u, w: uuid});
+            for (const [d, U] of mD) {
+                if (DE.has(d)) {
+                    // If the rebuilt deduc references this doc, we have to reload the highlights,
+                    // in case they have changed from before (or are brand new), in any panels
+                    // that have an existing link for this supplier.
+                    // (Those not yet having a link will be handled by `makeDefaultLinks()`.)
+                    for (const u of U) {
+                        const LD_current = await LD.get(u, deducpath);
+                        if (LD_current.length > 0) {
+                            await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
+                                acceptFrom: [deducpath],
+                                linkTo: [],
+                                reload: true,
+                            });
+                        }
+                    }
+                } else {
+                    // If the rebuilt deduc does not reference this doc, then we have to
+                    // remove any old mappings that may exist for it.
+                    for (const u of U) {
+                        await LD.removeTriples({u, x: deducpath});
                     }
                 }
             }
