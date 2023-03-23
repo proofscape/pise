@@ -61,6 +61,7 @@ export class Highlight {
     constructor(documentController, highlightDescriptor) {
         this.documentController = documentController;
         this.highlightDescriptor = highlightDescriptor;
+        this.highlightId = `${highlightDescriptor.slp}:${highlightDescriptor.siid}`;
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
         this.zoneDivsByPageNum = new Map();
@@ -141,6 +142,7 @@ export class Highlight {
                 zoneDiv.classList.remove(className);
             }
         }
+        this.documentController.noteSelectedHighlight(this);
     }
 
     scrollIntoView() {

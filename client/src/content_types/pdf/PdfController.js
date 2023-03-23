@@ -122,6 +122,8 @@ var PdfController = declare(null, {
     // the form `${slp}:${siid}` (supplier libpath : supplier internal id).
     highlightsBySlpSiid: null,
 
+    selectedHighlight: null,
+
     // This is for linking a doc panel to a tree item,
     // meaning that all the highlights at and under that item in a repo are loaded
     // "permanently" into this panel. "Permanent" means that they stay even when panels
@@ -746,6 +748,8 @@ var PdfController = declare(null, {
      *     NOTE: In all cases, the links established will be for a subset of the
      *     suppliers accepted by 'acceptFrom' (see above).
      *     NOTE: If 'panelUuid' (see above) is not defined, no links will be established.
+     *   reload: boolean, default false. If true, then, for each supplier from which
+     *     we are going to accept highlights, start by dropping any and all existing ones.
      * }
      */
     receiveHighlights: async function(hlDescriptors, options) {
@@ -753,9 +757,11 @@ var PdfController = declare(null, {
             panelUuid = null,
             acceptFrom = true,
             linkTo = true,
+            reload = false,
         } = (options || {});
 
         const newLinksEstablished = new Set();
+        const existingSuppliersCleared = new Set();
         let numberOfNewHighlights = 0;
 
         for (let hlDescriptor of hlDescriptors) {
@@ -765,6 +771,13 @@ var PdfController = declare(null, {
             // If we don't want to accept from this supplier, go to next.
             if (Array.isArray(acceptFrom) && !acceptFrom.includes(slp)) {
                 continue;
+            }
+
+            // If we're reloading, and we haven't cleared existing highlights
+            // for this supplier yet, then clear them now.
+            if (reload && !existingSuppliersCleared.has(slp)) {
+                this._basicDropHighlightsFromSupplier(slp);
+                existingSuppliersCleared.add(slp);
             }
 
             // Set up link if desired, and possible, and not done already.
@@ -785,8 +798,10 @@ var PdfController = declare(null, {
             }
         }
 
-        if (numberOfNewHighlights > 0) {
-            this.redoExistingHighlightLayers();
+        const clearedAnything = (existingSuppliersCleared.size > 0);
+        const addedAnything = (numberOfNewHighlights > 0);
+        if (clearedAnything || addedAnything) {
+            await this.redoExistingHighlightLayers();
         }
     },
 
@@ -799,7 +814,8 @@ var PdfController = declare(null, {
      *  where the desired highlight definition can be obtained, in case we don't
      *  have it already.
      *
-     * return: promise that resolves when the operation is complete.
+     * return: promise that resolves with boolean saying whether we found the
+     *  requested highlight
      */
     selectNamedHighlight: async function(slpSiid, doAutoScroll, supplierUuid) {
         // If we don't already have the highlight, try to obtain it.
@@ -813,8 +829,10 @@ var PdfController = declare(null, {
             }
         }
         // If we have the highlight, proceed.
+        let foundIt = false;
         const hl = this.highlightsBySlpSiid.get(slpSiid);
         if (hl) {
+            foundIt = true;
             this.clearNamedHighlight();
             // The pages where the highlight exists have to be rendered first.
             const pages = hl.listPageNums();
@@ -833,6 +851,13 @@ var PdfController = declare(null, {
                 })
             }
         }
+        return foundIt;
+    },
+
+    /* Invoked by a Highlight instance when it becomes selected.
+     */
+    noteSelectedHighlight: function(hl) {
+        this.selectedHighlight = hl;
     },
 
     /* Given the uuid of a panel (in any window), try to obtain the array of
@@ -843,6 +868,7 @@ var PdfController = declare(null, {
      * param options: {
      *   acceptFrom: as in the `receiveHighlights()` method.
      *   linkTo: as in the `receiveHighlights()` method.
+     *   reload: as in the `receiveHighlights()` method.
      * }
      *
      * return: promise resolving with boolean saying whether we managed to
@@ -904,6 +930,20 @@ var PdfController = declare(null, {
         if (this.libpathBelongsToLinkedTreeSet(slp)) {
             return;
         }
+        this._basicDropHighlightsFromSupplier(slp);
+        // Finally, since removing any highlights can completely change the Venn diagram
+        // for any given page, we have to redo existing highlight layers.
+        await this.redoExistingHighlightLayers();
+    },
+
+    /* Internal method, which carries out the basic operation of dropping highlights from
+     * a supplier "logically" (i.e. from our records), but not "graphically" (i.e. not from
+     * existing highlight layers).
+     *
+     * NOTE: *Goes ahead without checks.*
+     * NOTE: *Does not rebuild existing highlight layers*.
+     */
+    _basicDropHighlightsFromSupplier: function(slp) {
         const hls = Array.from(this.highlightsBySlpSiid.getValuesUnderFirstKey(slp));
         this.highlightsBySlpSiid.deleteFirstKey(slp);
 
@@ -912,10 +952,6 @@ var PdfController = declare(null, {
                 this.highlightsByPageNum.remove(p, hl);
             }
         }
-
-        // Finally, since removing any highlights can completely change the Venn diagram
-        // for any given page, we have to redo existing highlight layers.
-        this.redoExistingHighlightLayers();
     },
 
     dropAllExistingHighlights: async function() {
@@ -925,7 +961,7 @@ var PdfController = declare(null, {
         // maintenance system. Is this method responsible for cleaning up the linking map?
         // Or vice versa? Or does a third thing handle both?
         // await this.mgr.linkingMap.removeTriples({u: this.uuid});
-        this.redoExistingHighlightLayers();
+        await this.redoExistingHighlightLayers();
     },
 
     /* Respond to the PDF viewer app's `pagerendered` event.
@@ -1381,11 +1417,22 @@ var PdfController = declare(null, {
 
     // Find all existing highlight layers, and redo each one.
     // Useful when changing the set of highlights loaded into this doc.
-    redoExistingHighlightLayers: function() {
+    redoExistingHighlightLayers: async function() {
+        const previousSelection = this.selectedHighlight;
+
         const highlightLayers = Array.from(this.outerContainer.querySelectorAll('.highlightLayer'));
         for (const highlightLayer of highlightLayers) {
             const pageNumber = +highlightLayer.parentNode.getAttribute('data-page-number');
             this.redoHighlightLayer(highlightLayer, pageNumber);
+        }
+
+        // Try to restore previous selection, if any, and if it still exists.
+        if (previousSelection) {
+            const exists = await this.selectNamedHighlight(
+                previousSelection.highlightId, false, null);
+            if (!exists) {
+                this.clearNamedHighlight();
+            }
         }
     },
 
@@ -1413,6 +1460,7 @@ var PdfController = declare(null, {
         this.outerContainer.querySelectorAll('.hl-zone.selected').forEach(zone => {
             zone.classList.remove('selected');
         });
+        this.selectedHighlight = null;
         // Also make sure the box-select layer is clear:
         this.removeAllHighlightBoxes();
     },
