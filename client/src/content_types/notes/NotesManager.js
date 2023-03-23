@@ -571,17 +571,28 @@ var NotesManager = declare(AbstractContentManager, {
     onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
         // Is it our linking map?
         if (name === this.linkingMap.name) {
-            const [u, x] = pair;
-            const paneId = this.hub.contentManager.getPaneIdByUuid(u);
-            // Does the pane of uuid u exist in our window?
+            const [u0, g0] = pair;
+            const paneId = this.hub.contentManager.getPaneIdByUuid(u0);
+            // Does the pane of uuid u0 exist in our window?
             if (paneId) {
-                // Since the notes panel is still present, but has lost a nav target, it
-                // may be possible to establish a new default link to fill this vacuum.
-                const viewer = this.viewers[paneId];
-                const loc = viewer.describeCurrentLocation();
-                if (loc) {
-                    const pagepath = loc.libpath;
-                    await this.makeDefaultLinks(pagepath, u);
+                let canRelink = false;
+                // Does group g0 still exist within it?
+                const quads = this.getAllDocRefQuadsLocal({});
+                for (const [u, s, g, d] of quads) {
+                    if (u === u0 && g === g0) {
+                        canRelink = true;
+                        break;
+                    }
+                }
+                if (canRelink) {
+                    // Since the (panel, group) pair is still present, but has lost a nav target, it
+                    // may be possible to establish a new default link to fill this vacuum.
+                    const viewer = this.viewers[paneId];
+                    const loc = viewer.describeCurrentLocation();
+                    if (loc) {
+                        const pagepath = loc.libpath;
+                        await this.makeDefaultLinks(pagepath, u0);
+                    }
                 }
             }
         }
