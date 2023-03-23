@@ -342,7 +342,7 @@ var ChartManager = declare(AbstractContentManager, {
                 // We must determine whether this chart panel still contains any deduc that
                 // refers to docId d0. If so, we just need the libpath of one such deduc.
                 let deducpath = null;
-                const drt = await this.getAllDocRefTriples();
+                const drt = this.getAllDocRefTriplesLocal({});
                 for (const [u, s, d] of drt) {
                     if (u === u0 && d === d0) {
                         deducpath = s;
