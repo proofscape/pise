@@ -19,15 +19,15 @@ define([
     "dojo/_base/declare",
     "dojo/on",
     "dojo/dom-class",
-    "ise/widgets/PaneSpawnWidget"
+    "ise/widgets/NavWidget"
 ], function(
     declare,
     dojoOn,
     domClass,
-    PaneSpawnWidget
+    NavWidget
 ) {
 
-var ChartWidget = declare(PaneSpawnWidget, {
+const ChartWidget = declare(NavWidget, {
 
     // Properties
     forest: null,

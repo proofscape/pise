@@ -16,13 +16,13 @@
 
 define([
     "dojo/_base/declare",
-    "ise/widgets/PaneSpawnWidget"
+    "ise/widgets/NavWidget"
 ], function(
     declare,
-    PaneSpawnWidget
+    NavWidget
 ) {
 
-var PdfWidget = declare(PaneSpawnWidget, {
+const PdfWidget = declare(NavWidget, {
 
     // Properties
 

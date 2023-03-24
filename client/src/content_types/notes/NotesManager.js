@@ -739,33 +739,24 @@ var NotesManager = declare(AbstractContentManager, {
 
     // ----------------------------------------------------------------------------------
 
-    /* Handle a widget click.
+    /* Handle mouse events on NavWidgets.
      *
-     * param uid: The unique id of the widget that was clicked.
-     * param clickedElt: The DOM element that was clicked.
+     * param uid: the unique id of the widget
+     * param event: the browser-native mouse event object
      */
-    click: async function(uid, clickedElt, altKey) {
-        // Retrieve the widget and its info.
+    handleNavWidgetMouseEvent: async function(uid, event) {
+        const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
+        const clickedElt = event.target;
+
         const widget = this.widgets.get(uid);
-        // Not all widget types have pane groups (e.g. `qna` widgets).
-        // This method _should_ never be called on a widget that doesn't have a group,
-        // but we check just in case.
         const gid = widget.groupId;
-        if (!gid) {
-            console.error('Widget has no pane group.');
-            return;
-        }
-        const info = widget.getInfoCopy();
 
         const cm = this.hub.contentManager;
         const clickedPane = cm.getSurroundingPane(clickedElt);
-        const viewer = this.viewers[clickedPane.id];
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await this.linkingMap.get(clickedPanelUuid, gid);
 
-        viewer.markWidgetElementAsSelected(clickedElt);
         const {existing, nonExisting} = await cm.sortUuidsByExistenceInAnyWindow(targetUuids);
-
         // Do we really need this self-repairing step here? Theoretically, we're already
         // doing bookkeeping elsewhere, so should never have to purge lost targets here....
         if (nonExisting.length > 0) {
@@ -774,31 +765,43 @@ var NotesManager = declare(AbstractContentManager, {
             }
         }
 
-        if (info.type === "PDF") {
-            if (existing.length === 0) {
-                // The only reason not to auto-scroll to a selection is to avoid disrupting sth
-                // the user was already looking at; hence, with a newly spawned panel, we should
-                // always scroll.
-                info.gotosel = 'always';
-            } else {
-                // This is our hacky way of getting the "alt key semantics" passed all the
-                // way to the content update, without trying to pipe an event object all the
-                // way there.
-                // Currently just doing this for PDF widgets.
-                // Do we want sth similar for chart widgets? There we have long supported the
-                // author in saying whether navigation happens. It seems we're moving toward
-                // making this the user's choice instead, but, not ready to implement this today.
-                info.gotosel = altKey ? 'always' : 'never';
+        if (action === 'click') {
+            const viewer = this.viewers[clickedPane.id];
+            viewer.markWidgetElementAsSelected(clickedElt);
+            const info = widget.getInfoCopy();
+            if (info.type === "PDF") {
+                if (existing.length === 0) {
+                    // The only reason not to auto-scroll to a selection is to avoid disrupting sth
+                    // the user was already looking at; hence, with a newly spawned panel, we should
+                    // always scroll.
+                    info.gotosel = 'always';
+                } else {
+                    // This is our hacky way of getting the "alt key semantics" passed all the
+                    // way to the content update, without trying to pipe an event object all the
+                    // way there.
+                    // Currently just doing this for PDF widgets.
+                    // Do we want sth similar for chart widgets? There we have long supported the
+                    // author in saying whether navigation happens. It seems we're moving toward
+                    // making this the user's choice instead, but, not ready to implement this today.
+                    info.gotosel = event.altKey ? 'always' : 'never';
+                }
+                // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
+                // to obtain named highlights, if we requested one under `highlightId`.
+                info.requestingUuid = clickedPanelUuid;
             }
-            // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
-            // to obtain named highlights, if we requested one under `highlightId`.
-            info.requestingUuid = clickedPanelUuid;
-        }
-
-        const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
-
-        if (spawned) {
-            await this.linkingMap.add(clickedPanelUuid, gid, spawned);
+            const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
+            if (spawned) {
+                await this.linkingMap.add(clickedPanelUuid, gid, spawned);
+            }
+        } else {
+            this.hub.windowManager.groupcastEvent({
+                type: 'intentionToNavigate',
+                action: action,
+                source: clickedPanelUuid,
+                panels: existing,
+            }, {
+                includeSelf: true,
+            });
         }
     },
 
