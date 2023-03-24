@@ -780,8 +780,9 @@ var ContentManager = declare(null, {
      *
      * @param info: An object specifying the content to be opened.
      *   Must include at least a `type` field.
-     * @param elt: _Any_ DOM element inside an existing tab container.
-     *   The content will be opened in another tab container, beside this one.
+     * @param nbr: A specification of the "neighbor" tab container, beside which the
+     *   content is to be loaded. Either a string, which must be the uuid of a panel
+     *   living in the neighbor TC; or else any DOM element inside the neighbor TC.
      * @param dim: Optional string indicating the desired dimension for a split, if
      *   necessary. (Must equal 'v' or 'h'; defaults to 'v'.)
      * @return: object of the form {
@@ -789,8 +790,13 @@ var ContentManager = declare(null, {
      *     promise: Promise that resolves when the content has been loaded
      * }
      */
-    openContentBeside: function(info, elt, dim = 'v') {
-        const tc = this.getSurroundingTabContainer(elt);
+    openContentBeside: function(info, nbr, dim = 'v') {
+        if (typeof(nbr) === "string") {
+            const paneId = this.getPaneIdByUuid(nbr);
+            const pane = this.getPane(paneId);
+            nbr = pane.domNode;
+        }
+        const tc = this.getSurroundingTabContainer(nbr);
         let nextId = this.tct.getNextTcId(tc.id, true);
         if (nextId === null) {
             nextId = this.tct.splitTC(tc.id, dim);
@@ -859,15 +865,17 @@ var ContentManager = declare(null, {
         });
     },
 
-    /* Update a list of existing panels, or spawn a new one beside an existing one, and
-     * set its contents.
+    /* Update a list of existing panels (in any windows), or spawn a new one beside an
+     * existing one, and set its contents.
      *
      * param info: content descriptor object that can be used to update existing panels,
      *  or to initialize a new one
      * param uuids: array of uuids of panels to be updated. If this is empty, or it turns
      *  out none of these exists (in any window), then we spawn a new panel instead.
-     * param elt: some DOM element from inside the panel we want to spawn beside, if we
-     *  do spawn.
+     * param sourceLoc: A specification of the "source location", so that we can decide
+     *  what "beside" means, in case a new panel is to be spawned. Either a string, which
+     *  must be the uuid of an existing panel, or else any DOM element belonging to an
+     *  existing tab container.
      *
      * return: Object {
      *  existing: array of those given uuids that were confirmed to exist,
@@ -875,7 +883,7 @@ var ContentManager = declare(null, {
      *  spawned: uuid of newly spawned panel if that happened, else null
      * }
      */
-    updateOrSpawnBeside: async function(info, uuids, elt) {
+    updateOrSpawnBeside: async function(info, uuids, sourceLoc) {
         let spawned = null;
 
         const {existing, nonExisting} = await this.sortUuidsByExistenceInAnyWindow(uuids);
@@ -887,7 +895,7 @@ var ContentManager = declare(null, {
             }
         } else {
             // Spawn new panel.
-            const {pane, promise} = this.openContentBeside(info, elt);
+            const {pane, promise} = this.openContentBeside(info, sourceLoc);
             await promise;
             spawned = this.getUuidByPaneId(pane.id);
         }
