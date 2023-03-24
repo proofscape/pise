@@ -367,10 +367,13 @@ var PageViewer = declare(null, {
     /* Navigate to a location.
      *
      * param loc: An object describing the desired location.
-     *  required fields:
-     *      libpath: the libpath of the annotation to be viewed
-     *      version: the version of the annotation to be viewed
+     *  All fields are optional, except that if we do not yet have a current
+     *  location, then libpath and version are required (else it's a no-op).
      *  optional fields:
+     *      libpath: the libpath of the annotation to be viewed.
+     *          If undefined, use current.
+     *      version: the version of the annotation to be viewed.
+     *          If undefined, use current.
      *      scrollSel: a CSS selector. Will scroll to first element in
      *          the page that matches the selector, if any.
      *      scrollFrac: a float between 0 and 1 indicating what fraction of
@@ -383,6 +386,12 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goTo: function(loc) {
+        const cur = this.getCurrentLoc() || {};
+        loc.libpath = loc.libpath || cur.libpath;
+        loc.version = loc.version || cur.version;
+        if (!loc.libpath || !loc.version) {
+            return;
+        }
         const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return this.updatePage(loc).then(() => {
