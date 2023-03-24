@@ -234,29 +234,6 @@ var NotesManager = declare(AbstractContentManager, {
         );
     },
 
-    handleDocHighlightClick: function(paneId, {supplierUuids, siid, altKey}) {
-        const info = {};
-
-        const viewer = this.viewers[paneId];
-        const currentInfo = viewer.describeCurrentLocation();
-        if (currentInfo) {
-            info.libpath = currentInfo.libpath;
-            info.version = currentInfo.version;
-        }
-
-        // For highlights supplied by a notes page, the siid's are the widget uids
-        // of the widgets that supplied them.
-        const selector = `.${siid}`;
-
-        info.select = selector;
-
-        if (altKey) {
-            info.scrollSel = selector;
-        }
-
-        this.updateContent(info, paneId);
-    },
-
     /* Control visibility of the overview sidebar for a given notes pane.
      #
      * param paneId: the pane id of the notes pane in question.

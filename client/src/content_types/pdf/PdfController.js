@@ -720,15 +720,13 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
-    broadcastHighlightMouseEvent: async function(event, highlightDescriptor) {
-        this.mgr.hub.windowManager.groupcastEvent({
-            type: 'docHighlight_' + event.type,
-            supplierUuids: await this.mgr.linkingMap.get(this.uuid, highlightDescriptor.slp),
-            siid: highlightDescriptor.siid,
-            altKey: event.altKey,
-        }, {
-            includeSelf: true,
-        });
+    /* Handle a mouse event on a highlight we are hosting.
+     *
+     * param event: the browser-native mouse event object itself
+     * param highlightDescriptor: the HDO of the highlight on which the event occurred
+     */
+    handleHighlightMouseEvent: function(event, highlightDescriptor) {
+        return this.mgr.handleHighlightMouseEvent(this.uuid, event, highlightDescriptor);
     },
 
     /* Receive an array of highlight descriptors.

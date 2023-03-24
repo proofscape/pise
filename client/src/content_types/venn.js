@@ -159,13 +159,13 @@ export class Highlight {
         }
         div.addEventListener('mouseover', event => {
             this.setTempColor(true, 0);
-            this.documentController.broadcastHighlightMouseEvent(
+            this.documentController.handleHighlightMouseEvent(
                 event, this.highlightDescriptor
             );
         });
         div.addEventListener('mouseout', event => {
             this.setTempColor(false, 0);
-            this.documentController.broadcastHighlightMouseEvent(
+            this.documentController.handleHighlightMouseEvent(
                 event, this.highlightDescriptor
             );
         });
@@ -174,7 +174,7 @@ export class Highlight {
             this.clearAllTempColors();
             this.select(true);
             event.stopPropagation();
-            this.documentController.broadcastHighlightMouseEvent(
+            this.documentController.handleHighlightMouseEvent(
                 event, this.highlightDescriptor
             );
         });

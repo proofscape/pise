@@ -112,9 +112,7 @@ var ContentManager = declare(null, {
 
     activate: function() {
         this.hub.windowManager.on('contentUpdateByUuidBroadcast', this.handleContentUpdateByUuidBroadcast.bind(this));
-        this.hub.windowManager.on('docHighlight_click', this.handleDocHighlightClick.bind(this));
-        this.hub.windowManager.on('docHighlight_mouseover', this.handleDocHighlightMouseover.bind(this));
-        this.hub.windowManager.on('docHighlight_mouseout', this.handleDocHighlightMouseout.bind(this));
+        this.hub.windowManager.on('intentionToNavigate', this.handleIntentionToNavigate.bind(this));
     },
 
     // Locate a ContentPane by its id.
@@ -928,45 +926,32 @@ var ContentManager = declare(null, {
         }
     },
 
-    // Handle the click of a named highlight, in a doc panel's highlight layer.
-    handleDocHighlightClick: function(event) {
-        for (let supplierUuid of event.supplierUuids) {
-            const paneId = this.getPaneIdByUuid(supplierUuid);
-            if (paneId) {
-                // If we got a paneId, then the panel belongs to this window.
-                const pane = this.getPane(paneId);
-                this.tct.selectPane(pane);
-                const info = this.contentRegistry[paneId];
-                const mgr = this.getManager(info.type);
-                mgr.handleDocHighlightClick(paneId, event);
-            }
-        }
-    },
-
-    // Handle the mouseover of a named highlight, in a doc panel's highlight layer.
-    handleDocHighlightMouseover: function(event) {
-        for (let supplierUuid of event.supplierUuids) {
-            const paneId = this.getPaneIdByUuid(supplierUuid);
+    /* Handle groupcast event {
+     *     type: 'intentionToNavigate',
+     *     action: 'show' or 'hide',
+     *     source: uuid of panel having a nav intention
+     *     panels: optional array of panel uuids where nav might happen,
+     *     tree: optional libpath of item where nav might happen,
+     *     iid: optional "internal id" (describing intended object *within* panel/treeitem)
+     * }
+     */
+    handleIntentionToNavigate: function(event) {
+        // tree: not yet supported
+        // iid: not yet supported
+        const panels = event.panels || [];
+        for (const uuid of panels) {
+            const paneId = this.getPaneIdByUuid(uuid);
             if (paneId) {
                 // If we got a paneId, then the panel belongs to this window.
                 const pane = this.getPane(paneId);
                 const button = this.tct.getTabButtonForPane(pane);
                 const buttonNode = button.domNode;
-                buttonNode.classList.add('pisePreNavGlow');
-            }
-        }
-    },
-
-    // Handle the mouseout of a named highlight, in a doc panel's highlight layer.
-    handleDocHighlightMouseout: function(event) {
-        for (let supplierUuid of event.supplierUuids) {
-            const paneId = this.getPaneIdByUuid(supplierUuid);
-            if (paneId) {
-                // If we got a paneId, then the panel belongs to this window.
-                const pane = this.getPane(paneId);
-                const button = this.tct.getTabButtonForPane(pane);
-                const buttonNode = button.domNode;
-                buttonNode.classList.remove('pisePreNavGlow');
+                const glowClass = 'pisePreNavGlow';
+                if (event.action === 'show') {
+                    buttonNode.classList.add(glowClass);
+                } else if (event.action === 'hide') {
+                    buttonNode.classList.remove(glowClass);
+                }
             }
         }
     },

@@ -687,19 +687,6 @@ var ChartManager = declare(AbstractContentManager, {
         return Promise.resolve([hm.canGoBack(), hm.canGoForward()]);
     },
 
-    handleDocHighlightClick: function(paneId, {supplierUuids, siid, altKey}) {
-        const info = {};
-        // For highlights supplied by a chart, the siid's simply are the libpaths
-        // of the nodes that supplied them. So we either want to view or select
-        // that node, according to whether the alt key was held.
-        if (altKey) {
-            info.view = siid;
-        } else {
-            info.select = siid;
-        }
-        this.updateContent(info, paneId);
-    },
-
     /* Note that a node was clicked in a Forest.
      *
      * param forest: the Forest in which the click took place

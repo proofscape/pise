@@ -839,6 +839,60 @@ var PdfManager = declare(AbstractContentManager, {
 
     },
 
+    /* Handle a mouse event on a highlight, in our of our panels.
+     *
+     * param uuid: the uuid of the panel where the event happened
+     * param event: the browser-native mouse event object itself
+     * param highlightDescriptor: the HDO of the highlight on which the event occurred
+     */
+    handleHighlightMouseEvent: async function(uuid, event, highlightDescriptor) {
+        const {stype, slp, siid} = highlightDescriptor;
+        const supplierUuids = await this.linkingMap.get(uuid, slp);
+        const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
+
+        if (action === 'click') {
+            const cdo = {
+                type: stype,
+            };
+            if (stype === "CHART") {
+                // For highlights supplied by a chart, the siid's simply are the libpaths
+                // of the nodes that supplied them. So we either want to view or select
+                // that node, according to whether the alt key was held.
+                if (event.altKey) {
+                    cdo.view = siid;
+                } else {
+                    cdo.select = siid;
+                }
+            } else if (stype === "NOTES") {
+                // For highlights supplied by a notes page, the siid's are the widget uids
+                // of the widgets that supplied them.
+                const selector = `.${siid}`;
+                cdo.select = selector;
+                if (event.altKey) {
+                    cdo.scrollSel = selector;
+                }
+            }
+            const {spawned} = await this.hub.contentManager.updateOrSpawnBeside(
+                cdo, supplierUuids, uuid);
+            if (spawned) {
+                await this.linkingMap.add(uuid, slp, spawned);
+            }
+        } else {
+            const panels = supplierUuids.length > 0 ? supplierUuids : null;
+            const tree = panels === null ? slp : null;
+            this.hub.windowManager.groupcastEvent({
+                type: 'intentionToNavigate',
+                action: action,
+                source: uuid,
+                panels: panels,
+                tree: tree,
+                iid: siid,
+            }, {
+                includeSelf: true,
+            });
+        }
+    },
+
     onNewlyActiveHighlightSupplierPanel: async function({uuid, docIds}) {
         // Are we actually interested in dynamic linking?
         if (!this.doDynamicLinking) {
