@@ -622,6 +622,90 @@ var NotesManager = declare(AbstractContentManager, {
         }
     },
 
+    /* "Claim" linking: a pdf widget may be left without a default link, even when its doc
+     * is present; however, in such cases, a doc panel may sometimes be claimed for it at
+     * click time.
+     *
+     * Default links are turned down when there are two or more widget groups in a page that
+     * reference the same doc; it would be unfair to give either one the default link, so we
+     * give it to neither. However, such a doc panel can be "claimed" at the time that such
+     * a pdf widget is actually clicked, and we call this "claim linking". This method
+     * determines whether there is a panel that could be claimed, and chooses a best one.
+     *
+     * param d0: the docId for which we want to claim an existing panel (if any)
+     * param g0: the widget group id of the group that wants to claim a panel
+     * param u0: the uuid of the panel where group g0 lives
+     *
+     * return: uuid of panel to be claimed, or null if none can be claimed
+     */
+    findClaimableDocPanel: async function(d0, g0, u0) {
+        let claimed = null;
+        const mD = await this.hub.pdfManager.getHostingMapping();
+        if (mD.has(d0)) {
+            const quads = await this.getAllDocRefQuads();
+            // Find the set of group ids in panel u0 referencing doc d0, and
+            // different from g0. These are group g0's "competition"; g0 must
+            // not navigate a panel navigated by any of these groups. (This is
+            // the whole point of widget groups.)
+            const Gcontra = new Set();
+            for (const [u, s, g, d] of quads) {
+                if (u === u0 && d === d0 && g !== g0) {
+                    Gcontra.add(g);
+                }
+            }
+
+            // Doc panels already navigated by group g0 (therefore hosting d0):
+            const W0 = new Set();
+            // Doc panels navigated by groups in Gcontra (therefore hosting d0):
+            const Wcontra = new Set();
+            // Doc panels (hosting *any* doc) navigated by anything else:
+            let Wother = new Set();
+
+            const LN = this.linkingMap;
+            const LC = this.hub.chartManager.linkingMap;
+
+            const T = await LN.getTriples({});
+            for (const [u, x, w] of T) {
+                if (x === g0) {
+                    W0.add(w);
+                } else if (Gcontra.has(x)) {
+                    Wcontra.add(w);
+                } else {
+                    Wother.add(w);
+                }
+            }
+
+            const cm = this.hub.contentManager;
+            const mra = cm.mostRecentlyActive.bind(cm);
+
+            if (W0.size > 0) {
+                // If group g0 already has an assignment in any panel, we join it.
+                claimed = await mra(Array.from(W0));
+            } else {
+                // Enlarge Wother by panels navigated by charts.
+                const WC = await LC.range();
+                Wother = new Set(Array.from(Wother).concat(WC));
+                // If any panel in Wother hosts doc d0, we choose an mra panel from there.
+                // This reflects our preference for choosing an already-navigated panel
+                // when possible.
+                const Ud = mD.get(d0);
+                const Wother_and_Ud = Ud.filter(u => Wother.has(u));
+                if (Wother_and_Ud.length > 0) {
+                    claimed = await mra(Wother_and_Ud);
+                } else {
+                    // Otherwise, if there's a panel hosting d0 that's *not* in Wcontra, we
+                    // choose an mra element from there.
+                    const Ud_ok = Ud.filter(u => !Wcontra.has(u));
+                    if (Ud_ok.length > 0) {
+                        claimed = await mra(Ud_ok);
+                    }
+                }
+            }
+
+        }
+        return claimed;
+    },
+
     // Handle the event that a linking map has become newly undefined at a pair (u, x).
     onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
         // Is it our linking map?
@@ -747,6 +831,7 @@ var NotesManager = declare(AbstractContentManager, {
     handleNavWidgetMouseEvent: async function(uid, event) {
         const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
         const clickedElt = event.target;
+        const LN = this.linkingMap;
 
         const widget = this.widgets.get(uid);
         const gid = widget.groupId;
@@ -754,21 +839,32 @@ var NotesManager = declare(AbstractContentManager, {
         const cm = this.hub.contentManager;
         const clickedPane = cm.getSurroundingPane(clickedElt);
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
-        const targetUuids = await this.linkingMap.get(clickedPanelUuid, gid);
+        const targetUuids = await LN.get(clickedPanelUuid, gid);
 
         const {existing, nonExisting} = await cm.sortUuidsByExistenceInAnyWindow(targetUuids);
         // Do we really need this self-repairing step here? Theoretically, we're already
         // doing bookkeeping elsewhere, so should never have to purge lost targets here....
         if (nonExisting.length > 0) {
             for (const missingUuid of nonExisting) {
-                await this.linkingMap.removeTriples({w: missingUuid})
+                await LN.removeTriples({w: missingUuid})
+            }
+        }
+
+        // Before we can handle clicks or mouseover/mouseout, we have to check
+        // to see if there is a claim-link to be made.
+        let claimable = null;
+        const info = widget.getInfoCopy();
+        if (info.type === "PDF" && existing.length === 0) {
+            const d = info.docId;
+            claimable = await this.findClaimableDocPanel(d, gid, clickedPanelUuid);
+            if (claimable) {
+                existing.push(claimable);
             }
         }
 
         if (action === 'click') {
             const viewer = this.viewers[clickedPane.id];
             viewer.markWidgetElementAsSelected(clickedElt);
-            const info = widget.getInfoCopy();
             if (info.type === "PDF") {
                 if (existing.length === 0) {
                     // The only reason not to auto-scroll to a selection is to avoid disrupting sth
@@ -791,7 +887,9 @@ var NotesManager = declare(AbstractContentManager, {
             }
             const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
             if (spawned) {
-                await this.linkingMap.add(clickedPanelUuid, gid, spawned);
+                await LN.add(clickedPanelUuid, gid, spawned);
+            } else if (claimable) {
+                await LN.add(clickedPanelUuid, gid, claimable);
             }
         } else {
             this.hub.windowManager.groupcastEvent({
