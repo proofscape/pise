@@ -741,11 +741,21 @@ var PdfManager = declare(AbstractContentManager, {
         // open notes pages that reference doc d, to sets of panel uuids where
         // they are hosted.
         const notesHosting = new iseUtil.SetMapping();
+        const groupsByPanel = new iseUtil.SetMapping();
         for (const [u, s, g, d] of notes_quads) {
             if (d === docId) {
                 notesHosting.add(s, u);
+                groupsByPanel.add(u, g);
+            }
+        }
+        for (const [u, G] of groupsByPanel.mapping) {
+            // If panel u has *a unique* group referencing doc d...
+            if (G.size === 1) {
+                const g = Array.from(G)[0];
+                // ...and currently lacks a link for that group...
                 const LN_current = await LN.get(u, g);
                 if (LN_current.length === 0) {
+                    // ...then link to the newly opened doc panel.
                     await LN.add(u, g, uuid);
                 }
             }
