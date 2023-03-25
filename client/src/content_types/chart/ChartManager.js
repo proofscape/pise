@@ -470,6 +470,8 @@ var ChartManager = declare(AbstractContentManager, {
         // Register as listener.
         forest.addForestListener(this);
         forest.addNodeClickListener(this.noteNodeClick.bind(this));
+        forest.addNodeMouseoverListener(this.noteNodeMouseoverMouseout.bind(this));
+        forest.addNodeMouseoutListener(this.noteNodeMouseoverMouseout.bind(this));
         forest.getColorManager().on('setColor', this.handleSetColor.bind(this));
 
         // Forward navigation enable events.
@@ -725,6 +727,30 @@ var ChartManager = declare(AbstractContentManager, {
                     }
                 }
             }
+        }
+    },
+
+    /* Note a mouseover or mouseout event on a node in a Forest.
+     *
+     * param forest: the Forest in which the event took place
+     * param nodepath: the libpath of the node
+     * param e: the event
+     */
+    noteNodeMouseoverMouseout: async function(forest, nodepath, e) {
+        const action = {mouseover: 'show', mouseout: 'hide'}[e.type];
+        const node = forest.getNode(nodepath);
+        const docId = node.docId;
+        if (docId) {
+            const uuid = this.getPanelUuidOfForest(forest);
+            const W = await this.linkingMap.get(uuid, docId);
+            this.hub.windowManager.groupcastEvent({
+                type: 'intentionToNavigate',
+                action: action,
+                source: uuid,
+                panels: W,
+            }, {
+                includeSelf: true,
+            });
         }
     },
 
