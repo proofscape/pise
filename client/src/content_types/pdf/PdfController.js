@@ -759,8 +759,15 @@ var PdfController = declare(null, {
         } = (options || {});
 
         const newLinksEstablished = new Set();
-        const existingSuppliersCleared = new Set();
+        const suppliersCleared = new Set();
         let numberOfNewHighlights = 0;
+
+        if (reload && Array.isArray(acceptFrom)) {
+            for (const slp of acceptFrom) {
+                this._basicDropHighlightsFromSupplier(slp);
+                suppliersCleared.add(slp);
+            }
+        }
 
         for (let hlDescriptor of hlDescriptors) {
             const slp = hlDescriptor.slp;
@@ -769,13 +776,6 @@ var PdfController = declare(null, {
             // If we don't want to accept from this supplier, go to next.
             if (Array.isArray(acceptFrom) && !acceptFrom.includes(slp)) {
                 continue;
-            }
-
-            // If we're reloading, and we haven't cleared existing highlights
-            // for this supplier yet, then clear them now.
-            if (reload && !existingSuppliersCleared.has(slp)) {
-                this._basicDropHighlightsFromSupplier(slp);
-                existingSuppliersCleared.add(slp);
             }
 
             // Set up link if desired, and possible, and not done already.
@@ -796,7 +796,7 @@ var PdfController = declare(null, {
             }
         }
 
-        const clearedAnything = (existingSuppliersCleared.size > 0);
+        const clearedAnything = (suppliersCleared.size > 0);
         const addedAnything = (numberOfNewHighlights > 0);
         if (clearedAnything || addedAnything) {
             await this.redoExistingHighlightLayers();
@@ -874,7 +874,7 @@ var PdfController = declare(null, {
      */
     getAndLoadHighlightsFromSupplierPanel: async function(supplierUuid, options) {
         const hls = await this.getHighlightsFromSupplierPanel(supplierUuid);
-        if (hls?.length) {
+        if (hls !== null) {
             options.panelUuid = supplierUuid;
             await this.receiveHighlights(hls, options);
             return true;
@@ -885,8 +885,8 @@ var PdfController = declare(null, {
     /* Given the uuid of a panel (in any window), try to obtain the array of
      * all highlights defined in that panel, for our document.
      *
-     * return: promise resolving with array of highlights, or null if none
-     *   were found
+     * return: promise resolving with array of highlights (possibly emmpty),
+     *   or null iff the panel was not found in any window.
      */
     getHighlightsFromSupplierPanel: function(supplierUuid) {
         const requests = this.mgr.hub.windowManager.broadcastRequest(
@@ -900,14 +900,15 @@ var PdfController = declare(null, {
             }
         );
         return Promise.all(requests).then(async values => {
-            for (let value of values) {
-                if (value) {
-                    const hls = value[this.docId];
-                    if (hls?.length) {
-                        return hls;
-                    }
+            for (let hlsByDocId of values) {
+                if (hlsByDocId !== null) {
+                    // We found the panel. The content hosted there may or may not
+                    // define any highlights for our docId. In all cases, you get
+                    // an array, possibly empty.
+                    return hlsByDocId[this.docId] || [];
                 }
             }
+            // No window seems to host a panel of the given uuid.
             return null;
         });
     },
