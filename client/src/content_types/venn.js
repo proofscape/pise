@@ -84,6 +84,7 @@ export class Highlight {
         return Array.from(this.selectionBoxesByPageNum.keys()).sort();
     }
 
+    // Get the number of the first page on which this highlight has presence.
     firstPage() {
         const pageNums = this.listPageNums();
         return Math.min(...pageNums);
@@ -101,6 +102,7 @@ export class Highlight {
         ));
     }
 
+    // Dump all existing refined regions for a single given page.
     clearRefinedRegionsForPage(pageNum) {
         this.refinedRegionsByPageNum.set(pageNum, []);
     }
@@ -125,6 +127,7 @@ export class Highlight {
         }
     }
 
+    // Clear any temporary colors that may have been set on this highlight.
     clearAllTempColors() {
         for (let n = 0; n < 4; n++) {
             this.setTempColor(false, n);
@@ -145,12 +148,16 @@ export class Highlight {
         this.documentController.noteSelectedHighlight(this);
     }
 
+    // Cause the document controller to bring this highlight into view,
+    // favoring the first page on which this highlight appears.
     scrollIntoView() {
         const firstZone = this.zoneDivsByPageNum.get(this.firstPage());
         const firstRegion = firstZone.querySelector('.hl-region');
         this.documentController.scrollIntoView(firstRegion);
     }
 
+    // Build the div that will represent our zone on a given page graphically,
+    // and will receive mouse events.
     buildZoneDiv(pageNum) {
         const div = document.createElement('div');
         div.classList.add('hl-zone');
