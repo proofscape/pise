@@ -118,8 +118,10 @@ var PdfController = declare(null, {
     // This is a mapping from document page numbers to arrays of Highlight instances
     // that have been constructed for that page.
     highlightsByPageNum: null,
-    // This mapping provides a way to look up our current Highlights by id strings of
-    // the form `${slp}:${siid}` (supplier libpath : supplier internal id).
+    // This mapping provides a way to look up our current Highlights by their IDs.
+    // We store them *both* under their *own* ID, and under their *original* ID
+    // (for clone highlights these are different; for original highlights they are
+    // the same).
     highlightsBySlpSiid: null,
 
     selectedHighlight: null,
@@ -733,7 +735,8 @@ var PdfController = declare(null, {
      *
      * New highlights in this array (those having highlightId not already present here) are
      * immediately inserted on existing rendered pages, and set up to appear on new
-     * pages, as they render.
+     * pages, as they render. Clones of highlights already present here are added to the
+     * existing Highlight objects.
      *
      * param hlDescriptors: array of highlight descriptors
      * param options: {
@@ -785,11 +788,21 @@ var PdfController = declare(null, {
                 newLinksEstablished.add(slp);
             }
 
-            // If we don't already have this highlight, accept it.
-            if (!this.highlightsBySlpSiid.has(slp, siid)) {
+            const hlid = iseUtil.extractHlidFromHlDescriptor(hlDescriptor);
+            const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hlDescriptor);
+            const existingHighlight = this.highlightsBySlpSiid.get(ohlid);
+            if (existingHighlight) {
+                // If we already have a Highlight instance, add the new supplier
+                // to it, and record a mapping from its own ID.
+                existingHighlight.addSupplier(hlDescriptor);
+                this.highlightsBySlpSiid.set(hlid, existingHighlight);
+            } else {
+                // Otherwise, make a new highlight, and ensure that we have
+                // a mapping for it under both IDs (which may be the same).
                 numberOfNewHighlights++;
                 const hl = new Highlight(this, hlDescriptor);
-                this.highlightsBySlpSiid.set(slp, siid, hl);
+                this.highlightsBySlpSiid.set(ohlid, hl);
+                this.highlightsBySlpSiid.set(hlid, hl);
                 for (const p of hl.listPageNums()) {
                     this.highlightsByPageNum.add(p, hl);
                 }
@@ -943,12 +956,19 @@ var PdfController = declare(null, {
      * NOTE: *Does not rebuild existing highlight layers*.
      */
     _basicDropHighlightsFromSupplier: function(slp) {
-        const hls = Array.from(this.highlightsBySlpSiid.getValuesUnderFirstKey(slp));
-        this.highlightsBySlpSiid.deleteFirstKey(slp);
-
+        const hls = this.highlightsBySlpSiid.getValuesUnderFirstKey(slp);
         for (const hl of hls) {
-            for (const p of hl.listPageNums()) {
-                this.highlightsByPageNum.remove(p, hl);
+            const hdo = hl.popSupplier(slp);
+            const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
+            const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hdo);
+            if (hlid !== ohlid) {
+                this.highlightsBySlpSiid.delete(hlid);
+            }
+            if (hl.getSupplierCount() === 0) {
+                this.highlightsBySlpSiid.delete(ohlid);
+                for (const p of hl.listPageNums()) {
+                    this.highlightsByPageNum.remove(p, hl);
+                }
             }
         }
     },

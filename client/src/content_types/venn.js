@@ -14,14 +14,24 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+const dojo = {};
 const ise = {};
 
 define([
+    "dijit/Menu",
+    "dijit/MenuItem",
     "ise/content_types/pdf/pdf_util",
+    "ise/util"
 ], function(
+    Menu,
+    MenuItem,
     pdf_util,
+    iseUtil
 ) {
+    dojo.Menu = Menu;
+    dojo.MenuItem = MenuItem;
     ise.pdf_util = pdf_util;
+    ise.util = iseUtil;
 });
 
 /* This module solves the problem of multiple, intersecting highlights on a
@@ -60,11 +70,17 @@ export class Highlight {
     
     constructor(documentController, highlightDescriptor) {
         this.documentController = documentController;
-        this.highlightDescriptor = highlightDescriptor;
-        this.highlightId = `${highlightDescriptor.slp}:${highlightDescriptor.siid}`;
+        this.highlightDescriptorsBySlp = new Map();
+        this.highlightId = ise.util.extractOriginalHlidFromHlDescriptor(highlightDescriptor);
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
         this.zoneDivsByPageNum = new Map();
+        this.supplierMenu = new dojo.Menu({
+            leftClickToOpen: true,
+            disabled: true,
+        });
+
+        this.addSupplier(highlightDescriptor);
 
         // Turn the highlight's combiner code into a collection of
         // SelectionBoxes, sorted by page number.
@@ -77,6 +93,34 @@ export class Highlight {
             }
             this.selectionBoxesByPageNum.get(p).push(selBox);
         }
+    }
+
+    // Add a new supplier, by its highlight descriptor.
+    addSupplier(hdo) {
+        this.highlightDescriptorsBySlp.set(hdo.slp, hdo);
+        this.redoSupplierMenu();
+    }
+
+    // Remove and return a highlight supplier's descriptor.
+    popSupplier(slp) {
+        const hdo = this.highlightDescriptorsBySlp.get(slp);
+        this.highlightDescriptorsBySlp.delete(slp);
+        this.redoSupplierMenu();
+        return hdo;
+    }
+
+    // Check how many highlight suppliers this highlight has.
+    getSupplierCount() {
+        return this.highlightDescriptorsBySlp.size;
+    }
+
+    // If we have exactly one supplier, get its HDO; else null.
+    getSingletonSupplier() {
+        const hdos = Array.from(this.highlightDescriptorsBySlp.values());
+        if (hdos.length === 1) {
+            return hdos[0];
+        }
+        return null;
     }
 
     // List the page numbers on which this highlight has presence.
@@ -156,6 +200,44 @@ export class Highlight {
         this.documentController.scrollIntoView(firstRegion);
     }
 
+    // Redo the supplier menu, based on our latest set of suppliers.
+    redoSupplierMenu() {
+        const menu = this.supplierMenu;
+        const n = this.getSupplierCount();
+        menu.set('disabled', n < 2);
+        menu.destroyDescendants();
+        if (n >= 2) {
+            const hl = this;
+            for (const [slp, hdo] of this.highlightDescriptorsBySlp.values()) {
+                ((slp, hdo) => {
+                    const hlid = ise.util.extractHlidFromHlDescriptor(hdo);
+                    menu.addChild(new dojo.MenuItem({
+                        // TODO: improve label
+                        //  Should be human readable description
+                        label: hlid,
+                        onClick: function(event) {
+                            hl.registerClick(event);
+                            hl.handleMouseEvent(event, hdo);
+                        },
+                        onMouseOver: function(event) {
+                            hl.handleMouseEvent(event, hdo);
+                        },
+                        onMouseOut: function(event) {
+                            hl.handleMouseEvent(event, hdo);
+                        },
+                    }));
+                })(slp, hdo);
+            }
+            for (const zoneDiv of this.zoneDivsByPageNum.values()) {
+                zoneDiv.classList.add('hl-multi');
+            }
+        } else {
+            for (const zoneDiv of this.zoneDivsByPageNum.values()) {
+                zoneDiv.classList.remove('hl-multi');
+            }
+        }
+    }
+
     // Build the div that will represent our zone on a given page graphically,
     // and will receive mouse events.
     buildZoneDiv(pageNum) {
@@ -164,29 +246,46 @@ export class Highlight {
         for (const region of this.refinedRegionsByPageNum.get(pageNum) || []) {
             div.appendChild(region.buildDiv());
         }
+
         div.addEventListener('mouseover', event => {
             this.setTempColor(true, 0);
-            this.documentController.handleHighlightMouseEvent(
-                event, this.highlightDescriptor
-            );
+            const hdo = this.getSingletonSupplier();
+            if (hdo) {
+                this.handleMouseEvent(event, hdo);
+            }
         });
         div.addEventListener('mouseout', event => {
             this.setTempColor(false, 0);
-            this.documentController.handleHighlightMouseEvent(
-                event, this.highlightDescriptor
-            );
+            const hdo = this.getSingletonSupplier();
+            if (hdo) {
+                this.handleMouseEvent(event, hdo);
+            }
         });
         div.addEventListener('click', event => {
-            this.documentController.clearNamedHighlight();
-            this.clearAllTempColors();
-            this.select(true);
-            event.stopPropagation();
-            this.documentController.handleHighlightMouseEvent(
-                event, this.highlightDescriptor
-            );
+            const hdo = this.getSingletonSupplier();
+            if (hdo) {
+                this.registerClick(event);
+                this.handleMouseEvent(event, hdo);
+            }
         });
+
+        this.supplierMenu.bindDomNode(div);
+
         this.zoneDivsByPageNum.set(pageNum, div);
         return div;
+    }
+
+    registerClick(event) {
+        this.documentController.clearNamedHighlight();
+        this.clearAllTempColors();
+        this.select(true);
+        event.stopPropagation();
+    }
+
+    handleMouseEvent(event, hdo) {
+        this.documentController.handleHighlightMouseEvent(
+            event, hdo
+        );
     }
 
 }

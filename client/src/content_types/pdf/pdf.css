@@ -119,6 +119,10 @@
     opacity: 0.3;
 }
 
+.hl-zone .hl-multi {
+    cursor: context-menu;
+}
+
 .hl-region {
     position: absolute;
 }

@@ -536,13 +536,26 @@ class PairKeyMapping {
         this.map.get(a).set(b, v);
     }
 
+    delete(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        let didAnything = false;
+        if (this.map.has(a)) {
+            const m = this.map.get(a);
+            didAnything = m.delete(b);
+            if (m.size === 0) {
+                this.map.delete(a);
+            }
+        }
+        return didAnything;
+    }
+
     clear() {
         this.map.clear();
     }
 
     getValuesUnderFirstKey(a) {
         if (this.map.has(a)) {
-            return this.map.get(a).values();
+            return Array.from(this.map.get(a).values());
         } else {
             return [];
         }
@@ -565,6 +578,30 @@ util.setUnion = function(p, q) {
     return r
 };
 
+/* Extract the *highlight id* (HLID) from a highlight descriptor.
+ *
+ * For all highlights, this is equal to slp:siid.
+ *
+ * param hld: the highlight descriptor object
+ * return: the highlight id (string)
+ */
+util.extractHlidFromHlDescriptor = function(hld) {
+    return `${hld.slp}:${hld.siid}`
+};
+
+/* Extract the *original highlight id* (OHLID) from a highlight descriptor.
+ *
+ * For original highlights (non-clones), this is just slp:siid; for clones,
+ * it is oslp:osiid.
+ *
+ * param hld: the highlight descriptor object
+ * return: the original highlight id (string)
+ */
+util.extractOriginalHlidFromHlDescriptor = function(hld) {
+    const oslp = hld.oslp || hld.slp;
+    const osiid = hld.osiid || hld.siid;
+    return `${oslp}:${osiid}`
+};
 
 /*
 * Identify a right-click.
