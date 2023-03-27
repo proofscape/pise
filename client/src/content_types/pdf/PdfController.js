@@ -955,10 +955,6 @@ var PdfController = declare(null, {
     dropAllExistingHighlights: async function() {
         this.highlightsByPageNum.clear();
         this.highlightsBySlpSiid.clear();
-        // For now I'm commenting out the linking map clean up. We have to settle on the
-        // maintenance system. Is this method responsible for cleaning up the linking map?
-        // Or vice versa? Or does a third thing handle both?
-        // await this.mgr.linkingMap.removeTriples({u: this.uuid});
         await this.redoExistingHighlightLayers();
     },
 
