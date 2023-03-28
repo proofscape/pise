@@ -208,8 +208,8 @@ export class Highlight {
         menu.destroyDescendants();
         if (n >= 2) {
             const hl = this;
-            for (const [slp, hdo] of this.highlightDescriptorsBySlp.values()) {
-                ((slp, hdo) => {
+            for (const hdo of this.highlightDescriptorsBySlp.values()) {
+                (hdo => {
                     const hlid = ise.util.extractHlidFromHlDescriptor(hdo);
                     menu.addChild(new dojo.MenuItem({
                         // TODO: improve label
@@ -226,7 +226,7 @@ export class Highlight {
                             hl.handleMouseEvent(event, hdo);
                         },
                     }));
-                })(slp, hdo);
+                })(hdo);
             }
             for (const zoneDiv of this.zoneDivsByPageNum.values()) {
                 zoneDiv.classList.add('hl-multi');

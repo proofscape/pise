@@ -119,7 +119,7 @@
     opacity: 0.3;
 }
 
-.hl-zone .hl-multi {
+.hl-zone.hl-multi {
     cursor: context-menu;
 }
 
