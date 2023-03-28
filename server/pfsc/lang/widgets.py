@@ -562,7 +562,7 @@ class PdfWidget(Widget):
         doc_info_libpath = None
 
         doc_field_name = 'doc'
-        sel_field_name = 'selection'
+        sel_field_name = 'sel'
         hid_field_name = 'highlightId'
 
         doc_field_value = self.data.get(doc_field_name)
@@ -570,7 +570,7 @@ class PdfWidget(Widget):
 
         try:
             if code is None and doc_field_value is None:
-                msg = 'Failed to define doc info under `doc` or `selection`'
+                msg = 'Failed to define doc info under `doc` or `sel`'
                 raise PfscExcep(msg, PECode.MISSING_INPUT)
             if doc_field_value is not None:
                 if isinstance(doc_field_value, dict):

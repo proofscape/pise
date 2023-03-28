@@ -43,16 +43,16 @@ Let's talk about this stuff, and refer to <pdf:>[doc1 as a whole]{
     doc: doc1,
 }, and then say something about <pdf:>[a particular spot within doc1]{
     doc: doc1,
-    selection: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+    sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.
 
 Let's then imagine we refer twice more to points within doc1. The first time,
 <pdf:>[we'll pass the doc reference as a string]{
     doc: "doc1",
-    selection: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+    sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }, and the second time we'll omit the `doc` field altogether, and instead use
-<pdf:>[a two-part code in the `selection field`]{
-    selection: "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+<pdf:>[a two-part code in the `sel` field]{
+    sel: "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.
 All these different forms should work.
 @@@

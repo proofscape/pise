@@ -151,8 +151,8 @@ def test_doc_ref_formats_1(app):
         widgets = anno['widgets']
         wk = list(widgets.keys())
         assert len(wk) == 4
-        assert 'selection' not in widgets[wk[0]]
-        assert all('selection' in widgets[wk[i]] for i in [1, 2, 3])
+        assert 'sel' not in widgets[wk[0]]
+        assert all('sel' in widgets[wk[i]] for i in [1, 2, 3])
         assert all(widgets[wk[i]]['docId'] == 'pdffp:fedcba9876543210' for i in range(4))
         anno_doc_info = anno['docInfo']
         assert len(anno_doc_info['docs']) == 1
