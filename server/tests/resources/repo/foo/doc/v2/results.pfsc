@@ -55,4 +55,12 @@ Let's then imagine we refer twice more to points within doc1. The first time,
     sel: "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.
 All these different forms should work.
+
+Next let's make
+<pdf:>[a "cloned" doc reference]{
+    sel: Pf.R,
+}, which means that in the `sel` field we refer to a node by its
+libpath, and this is interpreted to mean that we want exactly the same
+selection made by the doc reference on that node. Because the node already
+specified the doc, we do not need a `doc` field here.
 @@@

@@ -150,18 +150,28 @@ def test_doc_ref_formats_1(app):
 
         widgets = anno['widgets']
         wk = list(widgets.keys())
-        assert len(wk) == 4
+        assert len(wk) == 5
         assert 'sel' not in widgets[wk[0]]
-        assert all('sel' in widgets[wk[i]] for i in [1, 2, 3])
-        assert all(widgets[wk[i]]['docId'] == 'pdffp:fedcba9876543210' for i in range(4))
+        assert all('sel' in widgets[wk[i]] for i in [1, 2, 3, 4])
+        assert all(widgets[wk[i]]['docId'] == 'pdffp:fedcba9876543210' for i in range(5))
         anno_doc_info = anno['docInfo']
         assert len(anno_doc_info['docs']) == 1
         assert len(anno_doc_info['refs']) == 1
-        assert len(anno_doc_info['refs']['pdffp:fedcba9876543210']) == 3
+
+        refs = anno_doc_info['refs']['pdffp:fedcba9876543210']
+
+        assert len(refs) == 4
         assert all(
             hld['ccode'] == 'v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)'
-            for hld in anno_doc_info['refs']['pdffp:fedcba9876543210']
+            for hld in refs
         )
 
         # Getting widget uids for siids for pdf widgets:
-        assert anno_doc_info['refs']['pdffp:fedcba9876543210'][0]["siid"] == "test-foo-doc-results-Discussion-w2_WIP"
+        assert refs[0]["siid"] == "test-foo-doc-results-Discussion-w2_WIP"
+
+        # Clone widget has its own siid and slp, but also has expected osiid and oslp:
+        assert refs[3]['siid'] == 'test-foo-doc-results-Discussion-w5_WIP'
+        assert refs[3]['slp'] == 'test.foo.doc.results.Discussion'
+        assert refs[3]['stype'] == 'NOTES'
+        assert refs[3]['osiid'] == 'test.foo.doc.results.Pf.R'
+        assert refs[3]['oslp'] == 'test.foo.doc.results.Pf'

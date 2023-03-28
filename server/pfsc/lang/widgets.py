@@ -23,7 +23,7 @@ from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
 )
-from pfsc.lang.freestrings import render_anno_markdown
+from pfsc.lang.freestrings import render_anno_markdown, Libpath
 from pfsc.build.lib.libpath import (
     expand_multipath,
     get_formal_moditempath,
@@ -558,6 +558,8 @@ class PdfWidget(Widget):
     def enrich_data(self):
         super().enrich_data()
 
+        code = None
+        origin_node = None
         doc_info_obj = None
         doc_info_libpath = None
 
@@ -566,10 +568,21 @@ class PdfWidget(Widget):
         hid_field_name = 'highlightId'
 
         doc_field_value = self.data.get(doc_field_name)
-        code = self.data.get(sel_field_name)
+        sel_field_value = self.data.get(sel_field_name)
+
+        # The sel field can be a libpath pointing to a node, when you want to
+        # clone the very same selection made by the doc ref of that node.
+        # For now, we require a `Libpath` object. In future, could expand
+        # support to libpaths given as strings. Then will have to perform a
+        # check that it is not a combiner code string.
+        if isinstance(sel_field_value, Libpath):
+            abspath = self.resolve_libpath(sel_field_value)
+            origin_node = self.objects_by_abspath[abspath]
+        else:
+            code = sel_field_value
 
         try:
-            if code is None and doc_field_value is None:
+            if sel_field_value is None and doc_field_value is None:
                 msg = 'Failed to define doc info under `doc` or `sel`'
                 raise PfscExcep(msg, PECode.MISSING_INPUT)
             if doc_field_value is not None:
@@ -581,7 +594,7 @@ class PdfWidget(Widget):
                     msg = '`doc` field should be dict (full info) or string (libpath)'
                     raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
             self.docReference = doc_ref_factory(
-                code=code, doc_info_obj=doc_info_obj,
+                code=code, origin_node=origin_node, doc_info_obj=doc_info_obj,
                 context=self.parent, doc_info_libpath=doc_info_libpath
             )
         except PfscExcep as e:

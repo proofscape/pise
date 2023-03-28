@@ -25,12 +25,16 @@ def malformedReferenceCodeError(code, extra_msg=''):
     return PfscExcep(msg, PECode.MALFORMED_DOC_REF_CODE)
 
 
-def doc_ref_factory(code=None, doc_info_obj=None, context=None, doc_info_libpath=None):
+def doc_ref_factory(code=None, origin_node=None,
+                    doc_info_obj=None, context=None, doc_info_libpath=None):
     """
     Supports various ways of constructing a DocReference instance.
 
     In all cases, a doc info object must somehow be obtained.
     A combiner code may or may not be supplied.
+
+    An origin node may be supplied, in order to clone its doc ref.
+    In this case, we copy all fields from this, and ignore all other args.
 
     The doc info object may be passed directly, under `doc_info_obj`.
     Otherwise, it will be resolved from a context. This means you pass some
@@ -56,6 +60,9 @@ def doc_ref_factory(code=None, doc_info_obj=None, context=None, doc_info_libpath
     Note that, in particular, this allows you to treat the `doc_info_obj` as a
     default, to be used only if a ref is not defined in the code.
     """
+    if origin_node is not None:
+        return DocReference(origin_node=origin_node)
+
     combiner_code = None
     if code is not None:
         if not isinstance(code, str):
@@ -127,12 +134,20 @@ def validate_doc_info(doc_info):
 
 class DocReference:
 
-    def __init__(self, doc_info, combiner_code=None):
+    def __init__(self, doc_info=None, combiner_code=None, origin_node=None):
         """
         :param doc_info: a dict giving the document descriptor for the referenced
             document
         :param combiner_code: (optional) a string of CombinerCode
+        :param origin_node: (optional) Node that defines a doc ref of which we
+            should be a clone. If given, overrides `doc_info` and `combiner_code`.
         """
+        self.origin_node = origin_node
+        if origin_node:
+            ref = origin_node.getDocRef()
+            doc_info = ref.doc_info
+            combiner_code = ref.combiner_code
+
         self.doc_info = doc_info
         self.combiner_code = combiner_code
 
@@ -165,10 +180,15 @@ class DocReference:
         """
         if self.combiner_code is None:
             return None
-        return write_highlight_descriptor(self.combiner_code, siid, slp, stype)
+        osiid, oslp = None, None
+        if self.origin_node:
+            osiid = self.origin_node.getDocRefInternalId()
+            oslp = self.origin_node.getParent().getLibpath()
+        return write_highlight_descriptor(
+            self.combiner_code, siid, slp, stype, osiid=osiid, oslp=oslp)
 
 
-def write_highlight_descriptor(ccode, siid, slp, stype):
+def write_highlight_descriptor(ccode, siid, slp, stype, osiid=None, oslp=None):
     """
     Assemble a dictionary that describes a doc reference as a "highlight".
 
@@ -178,6 +198,8 @@ def write_highlight_descriptor(ccode, siid, slp, stype):
         click on this highlight.
     param slp: supplier libpath: the libpath of the supplier
     param stype: supplier type: the content type of the supplier
+    param osiid: optional "original supplier internal id" for clone highlights
+    param oslp: optional "original supplier libpath" for clone highlights
 
     Examples
     ========
@@ -193,9 +215,14 @@ def write_highlight_descriptor(ccode, siid, slp, stype):
     navigate to show node ``u`` (after first being opened, if not already).
 
     """
-    return {
+    d = {
         'ccode': ccode,
         'siid': siid,
         'slp': slp,
         'stype': stype,
     }
+    if osiid:
+        d['osiid'] = osiid
+    if oslp:
+        d['oslp'] = oslp
+    return d
