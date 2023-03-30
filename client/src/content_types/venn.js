@@ -72,6 +72,7 @@ export class Highlight {
         this.documentController = documentController;
         this.highlightDescriptorsBySlp = new Map();
         this.highlightId = ise.util.extractOriginalHlidFromHlDescriptor(highlightDescriptor);
+        this.depth = 0;
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
         this.zoneDivsByPageNum = new Map();
@@ -85,6 +86,10 @@ export class Highlight {
         // Turn the highlight's combiner code into a collection of
         // SelectionBoxes, sorted by page number.
         const ccode = highlightDescriptor.ccode;
+
+        // TODO
+        //  Extract z-value from ccode, and set `this.depth` accordingly.
+
         const selectionBoxes = ise.pdf_util.makeAllBoxesFromCombinerCodes([ccode]);
         for (const selBox of selectionBoxes) {
             const p = selBox.pageNumber;
@@ -155,6 +160,58 @@ export class Highlight {
     // refined, this method can be used to tell this highlight about the refined regions.
     addRefinedRegionForPage(region, pageNum) {
         this.refinedRegionsByPageNum.get(pageNum).push(region);
+    }
+
+    // Say whether our zone on a given page is completely shared, i.e. every one of
+    // its refined regions is a shared region.
+    zoneIsCompletelyShared(pageNum) {
+        return this.refinedRegionsByPageNum.get(pageNum).every(r => r.isShared());
+    }
+
+    // Say how many regions are in the zone on a given page.
+    zoneRegionCount(pageNum) {
+        return this.refinedRegionsByPageNum.get(pageNum).length;
+    }
+
+    // Report the surface area of the zone on a given page.
+    zoneArea(pageNum) {
+        return this.refinedRegionsByPageNum.get(pageNum).reduce(
+            (acc, curr) => acc + curr.area(), 0
+        );
+    }
+
+    // Compute the "impact" measure of the zone on a given page.
+    zoneImpact(pageNum) {
+        return this.refinedRegionsByPageNum.get(pageNum).reduce(
+            (acc, curr) => acc + Math.log(curr.contestednessVersus(this, pageNum)), 0
+        );
+    }
+
+    // Try to take sole-ownership of a shared region in which our zone on a
+    // given page participates.
+    //
+    // We try to choose a region of minimal contestedness.
+    //
+    // If no regions are as yet unassigned, fail gracefully.
+    //
+    // return: the Region chosen, or null
+    claimASharedRegion(pageNum) {
+        let choice = null;
+        let bestScore = -1;
+        const regions = this.refinedRegionsByPageNum.get(pageNum);
+        for (const r of regions) {
+            if (!r.isClaimed()) {
+                const c = r.contestednessVersus(this, pageNum);
+                if (bestScore < 0 || c < bestScore) {
+                    choice = r;
+                    bestScore = c;
+                }
+            }
+        }
+        if (choice) {
+            choice.claim(this);
+        }
+        return choice;
     }
 
     // Set/unset a temp color on all zones.
@@ -306,6 +363,31 @@ class Region {
         this.y = y;
         this.Y = Y;
         this.highlights = highlights || new Set();
+        this.claimedBy = null;
+    }
+
+    area() {
+        return (this.X - this.x)*(this.Y - this.y);
+    }
+
+    /* Compute the "contestedness" score for this region, versus one zone z0 in
+     * which it participates.
+     *
+     * See `compareCompletelySharedZones()` function regarding the definition
+     * of "contestedness".
+     *
+     * param hl: the Highlight instance to which zone z0 belongs
+     * param pageNum: the page on which zone z0 lives
+     */
+    contestednessVersus(hl, pageNum) {
+        const A0 = this.area();
+        return Array.from(this.highlights).reduce((acc, curr) => {
+            if (curr === hl) {
+                return acc;
+            } else {
+                return acc + A0/curr.zoneArea(pageNum);
+            }
+        }, 0);
     }
 
     buildDiv() {
@@ -315,36 +397,58 @@ class Region {
         div.style.width = (this.X - this.x) + 'px';
         div.style.top = this.y + 'px';
         div.style.height = (this.Y - this.y) + 'px';
-        this.activateIfMulti(div);
+        this.activateIfShared(div);
         return div;
     }
 
-    // If this region "is multi" -- meaning it belongs to more than one
+    isShared() {
+        return this.highlights.size > 1;
+    }
+
+    isClaimed() {
+        return this.claimedBy !== null;
+    }
+
+    claim(hl) {
+        this.claimedBy = hl;
+    }
+
+    // If this region is shared -- meaning it belongs to more than one
     // highlight -- then it needs to define its own pointer event handlers.
-    // Call this method to check if multi, and define handlers iff so.
-    activateIfMulti(div) {
-        const hlArray = Array.from(this.highlights);
-        if (hlArray.length > 1) {
-            div.classList.add('hl-intersection-region')
-            div.addEventListener('click', event => {
-                // Only purpose here is to stop the click from reaching
-                // the enclosing hl-zone.
-                event.stopPropagation();
-            });
-            div.addEventListener('mouseover', event => {
-                for (let i = 0; i < hlArray.length; i++) {
-                    const hl = hlArray[i];
-                    hl.setTempColor(true, i % 4);
+    // Call this method to check if shared, and define handlers accordingly.
+    activateIfShared(div) {
+        if (this.isShared()) {
+            if (this.isClaimed()) {
+                const soleTarget = this.claimedBy;
+                for (const eventName in ['click', 'mouseover', 'mouseout']) {
+                    div.addEventListener(eventName, event => {
+                        soleTarget.dispatchEvent(event);
+                        event.stopPropagation();
+                    });
                 }
-                event.stopPropagation();
-            });
-            div.addEventListener('mouseout', event => {
-                for (let i = 0; i < hlArray.length; i++) {
-                    const hl = hlArray[i];
-                    hl.setTempColor(false, i % 4);
-                }
-                event.stopPropagation();
-            });
+            } else {
+                const hlArray = Array.from(this.highlights);
+                div.classList.add('hl-intersection-region')
+                div.addEventListener('click', event => {
+                    // Only purpose here is to stop the click from reaching
+                    // the enclosing hl-zone.
+                    event.stopPropagation();
+                });
+                div.addEventListener('mouseover', event => {
+                    for (let i = 0; i < hlArray.length; i++) {
+                        const hl = hlArray[i];
+                        hl.setTempColor(true, i % 4);
+                    }
+                    event.stopPropagation();
+                });
+                div.addEventListener('mouseout', event => {
+                    for (let i = 0; i < hlArray.length; i++) {
+                        const hl = hlArray[i];
+                        hl.setTempColor(false, i % 4);
+                    }
+                    event.stopPropagation();
+                });
+            }
         }
     }
     
@@ -453,8 +557,14 @@ export class PageOfHighlights {
         this.documentController = documentController;
         this.pageNum = pageNum;
         this.pageWidth = pageWidth;
-        this.highlights = [];
-        this.regions = [];
+
+        // We store highlights and their regions by depth (i.e. "z-index") because
+        // those belonging to different depths do not interact in any way. We compute
+        // a separate Venn diagram for each depth. Finally, highlight divs are flowed
+        // into the page's highlight layer in order of increasing depth, so that higher
+        // elements are stacked on top of lower ones.
+        this.highlightsByDepth = new Map();
+        this.regionsByDepth = new Map();
     }
 
     addHighlights(hls) {
@@ -464,18 +574,23 @@ export class PageOfHighlights {
     }
     
     addHighlight(hl) {
+        const depth = hl.depth;
         const newRegions = hl.buildInitialRegionsForRenderedPage(this.pageNum, this.pageWidth);
         if (newRegions.length) {
-            this.highlights.push(hl);
+            if (!this.highlightsByDepth.has(depth)) {
+                this.highlightsByDepth.set(depth, []);
+            }
+            this.highlightsByDepth.get(depth).push(hl);
+
             // Have to add the new regions one at a time, because we can't assume
             // the boxes making up a Highlight start out disjoint. (Usually they
             // won't, since boxes representing adjacent rows of text tend to
             // have a little overlap.)
-            let regions = this.regions;
+            let regions = this.regionsByDepth.get(depth) || [];
             for (let reg of newRegions) {
                 regions = refine(regions, [reg]);
             }
-            this.regions = regions;
+            this.regionsByDepth.set(depth, regions);
         }
     }
 
@@ -484,6 +599,7 @@ export class PageOfHighlights {
             this.documentController.clearNamedHighlight();
         });
         this.setRefinedRegionsIntoHighlights();
+        this.resolveCompletelySharedZones();
         this.buildZoneDivs(hlLayer);
     }
 
@@ -492,20 +608,58 @@ export class PageOfHighlights {
         // scrolling away and back again). But Highlight instances can persist
         // across such renderings. So we have to start by clearing any existing
         // regions each Highlight may have already recorded for this page.
-        for (const hl of this.highlights) {
-            hl.clearRefinedRegionsForPage(this.pageNum);
+        for (const hls of this.highlightsByDepth.values()) {
+            for (const hl of hls) {
+                hl.clearRefinedRegionsForPage(this.pageNum);
+            }
         }
-        for (const region of this.regions) {
-            for (const hl of region.highlights) {
-                hl.addRefinedRegionForPage(region, this.pageNum);
+        for (const regions of this.regionsByDepth.values()) {
+            for (const region of regions) {
+                for (const hl of region.highlights) {
+                    hl.addRefinedRegionForPage(region, this.pageNum);
+                }
+            }
+        }
+    }
+
+    /* Heuristic attempt to assign each "completely-shared" zone one region to be unshared,
+     * and to forward mouse events to it, and to thereby make that zone accessible.
+     *
+     * A common case in which this is important is when one highlight is nested completely
+     * inside another, e.g. a highlighted word or phrase within a whole highlighted paragraph.
+     *
+     * This is only a heuristic method, and there can be cases in which we are unable to
+     * assign every zone a region. In such cases, the module author should utilize the `z`
+     * command in the combiner code language to manually separate highlights into layers.
+     */
+    resolveCompletelySharedZones() {
+        const p = this.pageNum;
+        for (const hls of this.highlightsByDepth.values()) {
+            const csZones = hls.filter(hl => hl.zoneIsCompletelyShared(p));
+            // Future work:
+            //  For now, we're just doing one initial sort, making one pass through the
+            //  array, and hoping for the best.
+            //  It might be better if we put the zones into a heap, and use heap sort to keep it
+            //  sorted as we go. Would then "repair" the heap after each assignment, since making
+            //  an assignment can change the ordering (by changing "flexibility" and "impact"
+            //  ratings of each remaining zone).
+            const triples = csZones.map(hl => [hl, hl.zoneRegionCount(p), hl.zoneImpact(p)]);
+            triples.sort(compareCompletelySharedZones);
+            for (const [hl, _, __] of triples) {
+                // Try to assign a "least-contested" region that's still unassigned.
+                hl.claimASharedRegion(p);
             }
         }
     }
 
     buildZoneDivs(hlLayer) {
-        for (const hl of this.highlights) {
-            const zoneDiv = hl.buildZoneDiv(this.pageNum);
-            hlLayer.appendChild(zoneDiv);
+        const depths = Array.from(this.highlightsByDepth.keys()).sort();
+        for (const depth of depths) {
+            const hls = this.highlightsByDepth.get(depth);
+            for (const hl of hls) {
+                const zoneDiv = hl.buildZoneDiv(this.pageNum);
+                hlLayer.appendChild(zoneDiv);
+            }
         }
     }
     
@@ -541,4 +695,68 @@ function refine(existingRegions, newRegions) {
     newTiling.push(...newRegions);
     
     return newTiling;
+}
+
+
+/* Comparison function for use when resolving "completely-shared" highlight zones,
+ * i.e. trying to assign one shared region to each such zone.
+ *
+ * The idea is that we want to make assignments first for the zones that are
+ * what we call "least flexible" (primarily) and "least impactful" (secondarily).
+ * For each such zone, we want to choose a "least contested" region.
+ *
+ * contestedness of a region r, relative to a given zone z0 (could also be called the harmfulness
+ * of assigning region r to zone z0): area of region r times sum of reciprocals of areas of its
+ * zones *other than* z0.
+ *
+ *    Explanation: if zone z participates in region r, then area(r)/area(z) is a good
+ *    measure of how badly z wants to claim r. The sum of these, over all zones z participating
+ *    in the region r, other than the given zone z0, is a good measure of how much harm we'd
+ *    do to the others by assigning r to z0.
+ *
+ *    A "good" contestedness score for a region can be expected to lie between 0 and 1 in
+ *    common cases, such as when z0 has only one competitor z1, and z1 is large,
+ *    relative to their intersection. This is the case e.g. when z1 covers a
+ *    whole paragraph, while z0 is a small word or phrase contained therein.
+ *
+ * flexibility of a zone: its total number of regions.
+ *
+ *    Explanation: We want to handle the least flexible zones first, because assigning
+ *    them a region is the most urgent. In particular, when flex(z) == 1, then zone z
+ *    has only one possible assignment, so there's no choice to be made (except the order
+ *    in which we make these assignments, which is why we measure "impact" -- see below).
+ *
+ * impact of a zone z0: sum of logs of contestedness of its regions.
+ *
+ *    Explanation: We want to measure how likely assigning zone z0 a region is
+ *    to do harm to other zones. Therefore we want to reward zone z0 for having multiple
+ *    "good" regions to choose from, which, as we've argued above, can often be expected
+ *    to have contestedness scores between 0 and 1. Therefore taking the product of those scores
+ *    should roughly achieve what we want. However, we don't want to worry about insufficient
+ *    floating-point precision, so instead of multiplying, we sum logs.
+ *
+ * param a: triple [h, F, I], where h is a Highlight instance, F is the flexibility of
+ *   h for the page in question, and I its impact for that page.
+ * param b: triple [h, F, I] like a, to be compared to a
+ *
+ * return: negative, zero, or positive number, as required by a sorting comparison function
+ */
+function compareCompletelySharedZones(a, b) {
+    const [aHl, aFlex, aImp] = a;
+    const [bHl, bFlex, bImp] = b;
+    // Sort primarily by ascending flexibility.
+    const dF = aFlex - bFlex;
+    if (dF !== 0) {
+        return dF;
+    }
+    // Given same flexibility, sort by ascending impact.
+    const dI = aImp - bImp;
+    if (dI !== 0) {
+        return dI;
+    }
+    // If impact also the same, finally sort by lex order on
+    // highlightId, for determinism.
+    const aName = aHl.highlightId;
+    const bName = bHl.highlightId;
+    return aName < bName ? -1 : (bName < aName ? 1 : 0);
 }
