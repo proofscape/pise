@@ -157,9 +157,12 @@ export class Highlight {
         ));
     }
 
-    // Dump all existing refined regions for a single given page.
-    clearRefinedRegionsForPage(pageNum) {
+    // Dump all existing graphical elements for a single given page.
+    clearGraphicalElementsForPage(pageNum) {
         this.refinedRegionsByPageNum.set(pageNum, []);
+        const div = this.zoneDivsByPageNum.get(pageNum);
+        this.supplierMenu.unBindDomNode(div);
+        this.zoneDivsByPageNum.delete(pageNum);
     }
 
     // After all highlights for a page have been combined and their regions
@@ -604,21 +607,27 @@ export class PageOfHighlights {
         hlLayer.addEventListener('click', event => {
             this.documentController.clearNamedHighlight();
         });
+
+        // A page can be re-rendered (e.g. at a different zoom, or just after
+        // scrolling away and back again), but Highlight instances can persist
+        // across such renderings. So we have to start by clearing any existing
+        // regions each Highlight may have already recorded for this page.
+        this.clearExistingGraphicalElements();
+
         this.setRefinedRegionsIntoHighlights();
         this.resolveCompletelySharedZones();
         this.buildZoneDivs(hlLayer);
     }
 
-    setRefinedRegionsIntoHighlights() {
-        // A page can be re-rendered (e.g. at a different zoom, or just after
-        // scrolling away and back again). But Highlight instances can persist
-        // across such renderings. So we have to start by clearing any existing
-        // regions each Highlight may have already recorded for this page.
+    clearExistingGraphicalElements() {
         for (const hls of this.highlightsByDepth.values()) {
             for (const hl of hls) {
-                hl.clearRefinedRegionsForPage(this.pageNum);
+                hl.clearGraphicalElementsForPage(this.pageNum);
             }
         }
+    }
+
+    setRefinedRegionsIntoHighlights() {
         for (const regions of this.regionsByDepth.values()) {
             for (const region of regions) {
                 for (const hl of region.highlights) {
