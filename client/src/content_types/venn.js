@@ -72,7 +72,7 @@ export class Highlight {
         this.documentController = documentController;
         this.highlightDescriptorsBySlp = new Map();
         this.highlightId = ise.util.extractOriginalHlidFromHlDescriptor(highlightDescriptor);
-        this.depth = 0;
+        this.depthsByPageNum = new Map();
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
         this.zoneDivsByPageNum = new Map();
@@ -86,10 +86,6 @@ export class Highlight {
         // Turn the highlight's combiner code into a collection of
         // SelectionBoxes, sorted by page number.
         const ccode = highlightDescriptor.ccode;
-
-        // TODO
-        //  Extract z-value from ccode, and set `this.depth` accordingly.
-
         const selectionBoxes = ise.pdf_util.makeAllBoxesFromCombinerCodes([ccode]);
         for (const selBox of selectionBoxes) {
             const p = selBox.pageNumber;
@@ -98,6 +94,16 @@ export class Highlight {
             }
             this.selectionBoxesByPageNum.get(p).push(selBox);
         }
+
+        // Determine the depth for each page.
+        const pages = Array.from(this.selectionBoxesByPageNum.keys()).sort();
+        const p0 = pages[0];
+        const prog = ise.pdf_util.parseCombinerCode(ccode, null);
+        const depths = prog.depths;
+        for (const p of pages) {
+            this.depthsByPageNum.set(p, depths[p - p0] || 0);
+        }
+
     }
 
     // Add a new supplier, by its highlight descriptor.
@@ -574,7 +580,7 @@ export class PageOfHighlights {
     }
     
     addHighlight(hl) {
-        const depth = hl.depth;
+        const depth = hl.depthsByPageNum.get(this.pageNum);
         const newRegions = hl.buildInitialRegionsForRenderedPage(this.pageNum, this.pageWidth);
         if (newRegions.length) {
             if (!this.highlightsByDepth.has(depth)) {

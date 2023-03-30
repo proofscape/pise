@@ -90,7 +90,7 @@ Pf_docInfo = {
     "refs": {
         "pdffp:fedcba9876543210": [
             {
-                "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+                "ccode": "v2;s3;z1,0;(1:1758:2666:400:200:100:50);n;x+35;y+4;(2:1758:2666:400:250:110:49)",
                 "siid": "test.foo.doc.results.Pf.R",
                 "slp": "test.foo.doc.results.Pf",
                 "stype": "CHART"
@@ -98,7 +98,7 @@ Pf_docInfo = {
         ],
         "pdffp:0123456789abcdef": [
             {
-                "ccode": "v2;s3;(146:1758:2666:210:450:90:46);",
+                "ccode": "v2;s3;z-1;(146:1758:2666:210:450:90:46);",
                 "siid": "test.foo.doc.results.Pf.S",
                 "slp": "test.foo.doc.results.Pf",
                 "stype": "CHART"
