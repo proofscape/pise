@@ -868,7 +868,7 @@ var PdfManager = declare(AbstractContentManager, {
                 // For highlights supplied by a chart, the siid's simply are the libpaths
                 // of the nodes that supplied them. So we either want to view or select
                 // that node, according to whether the alt key was held.
-                if (event.altKey) {
+                if (!event.altKey) {
                     cdo.view = siid;
                 } else {
                     cdo.select = siid;
@@ -878,8 +878,9 @@ var PdfManager = declare(AbstractContentManager, {
                 // of the widgets that supplied them.
                 const selector = `.${siid}`;
                 cdo.select = selector;
-                if (event.altKey) {
+                if (!event.altKey) {
                     cdo.scrollSel = selector;
+                    cdo.scrollOpts = {pos: 'mid', policy: 'distant'};
                 }
             }
             const {spawned} = await this.hub.contentManager.updateOrSpawnBeside(
