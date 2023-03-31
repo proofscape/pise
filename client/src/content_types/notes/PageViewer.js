@@ -375,7 +375,9 @@ var PageViewer = declare(null, {
      *      version: the version of the annotation to be viewed.
      *          If undefined, use current.
      *      scrollSel: a CSS selector. Will scroll to first element in
-     *          the page that matches the selector, if any.
+     *          the page that matches the selector, if any. Type of scrolling
+     *          is controlled by scrollOpts.
+     *      scrollOpts: see `scrollToSelector()` method.
      *      scrollFrac: a float between 0 and 1 indicating what fraction of
      *          the page we should scroll to vertically. If scrollSel is
      *          also defined, scrollFrac overrides it.
@@ -689,8 +691,9 @@ var PageViewer = declare(null, {
      *
      * param loc: a location descriptor:
      *   MAY include libpath
-     *   MAY include scrollFrac
-     *   MAY include scrollSel
+     *   MAY include scrollFrac (see `scrollToFraction` method)
+     *   MAY include scrollSel  (see `scrollToSelector` method)
+     *   MAY include scrollOpts (see `scrollToSelector` method)
      *   MAY include contents = {html: ..., data: ...}
      *
      * return: a promise that resolves after the page has been updated.
@@ -801,7 +804,7 @@ var PageViewer = declare(null, {
         if (loc.scrollFrac) {
             this.scrollToFraction(loc.scrollFrac);
         } else if (loc.scrollSel || loc.scrollSel === null) {
-            this.scrollToSelector(loc.scrollSel);
+            this.scrollToSelector(loc.scrollSel, loc.scrollOpts);
         }
         return loc;
     },
@@ -831,17 +834,75 @@ var PageViewer = declare(null, {
 
     /* Scroll to the first element matching the given CSS selector.
      *
-     * param sel: the CSS selector. If null, we scroll to top.
+     * param sel: the CSS selector. If null, scroll to top.
+     * param options: {
+     *  padPx: pixels of padding at each of top and bottom of view area.
+     *      Default 0. Adds to pad from padPct.
+     *  padFrac: padding at each of top and bottom of view area, as fraction
+     *      of total height of panel. Should be a float between 0.0 and 1.0.
+     *      Default 0.0 Adds to pad from padPx.
+     *  pos: ['top', 'mid'], default 'top'. Scroll the object to
+     *      this position, vertically.
+     *  policy: ['pos', 'min', 'distant'], default 'pos'.
+     *      'pos': scroll object to pos, no matter what.
+     *      'min': scroll just enough to put object in padded view area.
+     *          (Under this setting, value of pos is irrelevant.)
+     *      'distant': scroll to pos if object "is distant", else min.
+     *          If the min scroll to bring object into padded view area
+     *          preserves at least one pad width of context, do that;
+     *          else scroll to pos.
+     * }
      * return: boolean: true iff we found an element to scroll to.
      */
-    scrollToSelector: function(sel) {
+    scrollToSelector: function(sel, options) {
+        const {
+            padPx = 0,
+            padFrac = 0,
+            pos = 'top',
+            policy = 'pos',
+        } = (options || {});
+        const display = this.scrollNode;
+
         if (sel === null) {
-            this.scrollNode.scrollTop = 0;
+            display.scrollTop = 0;
             return false;
         }
-        var elt = this.scrollNode.querySelector(sel);
-        if (elt === null) return false;
-        this.scrollNode.scrollTop = elt.offsetTop;
+
+        const elt = display.querySelector(sel);
+        if (!elt) {
+            return false;
+        }
+
+        const H0 = display.offsetHeight;
+        const T0 = display.scrollTop;
+        const pad = padPx + H0*padFrac;
+
+        // Height of padded view area:
+        const H1 = Math.max(10, H0 - 2*pad);
+
+        // Current range of y-coords inside the padded viewing area:
+        const [r0, r1] = [T0 + pad, T0 + pad + H1];
+
+        const h = elt.offsetHeight;
+        const t0 = elt.offsetTop;
+        const t1 = t0 + h;
+
+        // Minimum scroll displacement to bring the
+        // object fully into the padded viewing area:
+        const ds_min = t0 < r0 ? t0 - r0 : (t1 > r1 ? t1 - r1 : 0);
+
+        let T1 = T0;
+        if (policy === 'min' || (policy === 'distant' && Math.abs(ds_min) <= H0 - pad)) {
+            T1 = T0 + ds_min;
+        } else {
+            if (pos === 'top') {
+                T1 = t0 - pad;
+            } else if (pos === 'mid') {
+                T1 = t0 - H0/2;
+            }
+        }
+
+        display.scrollTop = T1;
         return true;
     },
 
