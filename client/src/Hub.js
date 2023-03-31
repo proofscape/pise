@@ -646,7 +646,6 @@ var Hub = declare(null, {
         const tcs = content.tcs;
         const tcids = this.tabContainerTree.getTcIds();
         const uuids = new Set();
-        const contentLoadingPromises = [];
         for (let i of Object.keys(tcs)) {
             const tcInfo = tcs[i];
             const tcId = tcids[i];
@@ -659,7 +658,10 @@ var Hub = declare(null, {
                     uuids.add(info.uuid);
                 }
                 const { pane, promise } = this.contentManager.openContentInTC(info, tcId);
-                contentLoadingPromises.push(promise);
+                // Do not start loading another panel until after this one has finished loading.
+                // This prevents issues with attempts to set up default links for one panel, while
+                // another, or others, are in the process of loading and thus only partially initialized.
+                await promise;
                 // Be sure to compare j and activeTabIndex _as integers_.
                 if (+j === +activeTabIndex) {
                     activePane = pane;
@@ -669,8 +671,6 @@ var Hub = declare(null, {
                 this.tabContainerTree.selectPane(activePane);
             }
         }
-        // For further steps, want to wait until content has finished loading.
-        await Promise.all(contentLoadingPromises);
         // Set active tab container.
         // (Need all content loaded first, so that NavManager can get a valid reading.)
         // Careful: use typeof test, since index could be zero!
