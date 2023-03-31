@@ -855,12 +855,6 @@ var PageViewer = declare(null, {
      * return: boolean: true iff we found an element to scroll to.
      */
     scrollToSelector: function(sel, options) {
-        const {
-            padPx = 0,
-            padFrac = 0,
-            pos = 'top',
-            policy = 'pos',
-        } = (options || {});
         const display = this.scrollNode;
 
         if (sel === null) {
@@ -873,36 +867,7 @@ var PageViewer = declare(null, {
             return false;
         }
 
-        const H0 = display.offsetHeight;
-        const T0 = display.scrollTop;
-        const pad = padPx + H0*padFrac;
-
-        // Height of padded view area:
-        const H1 = Math.max(10, H0 - 2*pad);
-
-        // Current range of y-coords inside the padded viewing area:
-        const [r0, r1] = [T0 + pad, T0 + pad + H1];
-
-        const h = elt.offsetHeight;
-        const t0 = elt.offsetTop;
-        const t1 = t0 + h;
-
-        // Minimum scroll displacement to bring the
-        // object fully into the padded viewing area:
-        const ds_min = t0 < r0 ? t0 - r0 : (t1 > r1 ? t1 - r1 : 0);
-
-        let T1 = T0;
-        if (policy === 'min' || (policy === 'distant' && Math.abs(ds_min) <= H0 - pad)) {
-            T1 = T0 + ds_min;
-        } else {
-            if (pos === 'top') {
-                T1 = t0 - pad;
-            } else if (pos === 'mid') {
-                T1 = t0 - H0/2;
-            }
-        }
-
-        display.scrollTop = T1;
+        iseUtil.scrollIntoView(elt, display, options);
         return true;
     },
 

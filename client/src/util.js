@@ -603,6 +603,78 @@ util.extractOriginalHlidFromHlDescriptor = function(hld) {
     return `${oslp}:${osiid}`
 };
 
+/* Scroll a given element into view.
+ *
+ * param element: the element to be scrolled into view
+ * param scroller: the containing element whose scrollTop is to be adjusted.
+ *  Need not be the immediate parent of element.
+ * param options: {
+ *  padPx: pixels of padding at each of top and bottom of view area.
+ *      Default 0. Adds to pad from padPct.
+ *  padFrac: padding at each of top and bottom of view area, as fraction
+ *      of total height of panel. Should be a float between 0.0 and 1.0.
+ *      Default 0.0 Adds to pad from padPx.
+ *  pos: ['top', 'mid'], default 'top'. Scroll the object to
+ *      this position, vertically.
+ *  policy: ['pos', 'min', 'distant'], default 'pos'.
+ *      'pos': scroll object to pos, no matter what.
+ *      'min': scroll just enough to put object in padded view area.
+ *          (Under this setting, value of pos is irrelevant.)
+ *      'distant': scroll to pos if object "is distant", else min.
+ *          If the min scroll to bring object into padded view area
+ *          preserves at least one pad width of context, do that;
+ *          else scroll to pos.
+ * }
+ */
+util.scrollIntoView = function(element, scroller, options) {
+    const {
+        padPx = 0,
+        padFrac = 0,
+        pos = 'top',
+        policy = 'pos',
+    } = (options || {});
+
+    const H0 = scroller.offsetHeight;
+    const T0 = scroller.scrollTop;
+    const pad = padPx + H0*padFrac;
+
+    // Height of padded view area:
+    const H1 = Math.max(10, H0 - 2*pad);
+
+    // Current range of y-coords inside the padded viewing area:
+    const [r0, r1] = [T0 + pad, T0 + pad + H1];
+
+    const h = element.offsetHeight;
+
+    let elt = element;
+    let t0 = 0;
+    // Check for elt being null just to avoid weird crash in case you pass an
+    // element that has no offsetParent. This can happen if the element has been
+    // removed from the document.
+    while (elt !== scroller && elt !== null) {
+        t0 += elt.offsetTop;
+        elt = elt.offsetParent;
+    }
+    const t1 = t0 + h;
+
+    // Minimum scroll displacement to bring the
+    // object fully into the padded viewing area:
+    const ds_min = t0 < r0 ? t0 - r0 : (t1 > r1 ? t1 - r1 : 0);
+
+    let T1 = T0;
+    if (policy === 'min' || (policy === 'distant' && Math.abs(ds_min) <= H0 - pad)) {
+        T1 = T0 + ds_min;
+    } else {
+        if (pos === 'top') {
+            T1 = t0 - pad;
+        } else if (pos === 'mid') {
+            T1 = t0 - H0/2;
+        }
+    }
+
+    scroller.scrollTop = T1;
+};
+
 /*
 * Identify a right-click.
 *
