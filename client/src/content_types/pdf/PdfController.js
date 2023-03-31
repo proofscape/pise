@@ -98,6 +98,7 @@ var PdfController = declare(null, {
     accessUrlAnchor: null,
 
     viewerDiv: null,
+    viewerContainerDiv: null,
     needPbeDiv: null,
     needPermissionDiv: null,
     openFileButton: null,
@@ -223,6 +224,7 @@ var PdfController = declare(null, {
                         pdfc.pdfUrlBox.disabled = true;
 
                         pdfc.viewerDiv = cw.document.getElementById("viewer");
+                        pdfc.viewerContainerDiv = cw.document.getElementById("viewerContainer");
 
                         pdfc.needPbeDiv = cw.document.getElementById("needPbe");
                         pdfc.openFileButton = cw.document.getElementById("openFile");
@@ -845,21 +847,45 @@ var PdfController = declare(null, {
         if (hl) {
             foundIt = true;
             this.clearNamedHighlight();
-            // The pages where the highlight exists have to be rendered first.
-            const pages = hl.listPageNums();
-            const firstPage = hl.firstPage();
-            pages.reverse();  // Work by descending page number.
-            for (const n of pages) {
-                await this.operateOnRenderedPage(n, doAutoScroll, pageView => {
-                    // When the last of the rendering jobs -- the page with the smallest
-                    // number -- has completed, then we can select the highlight.
-                    if (n === firstPage) {
-                        hl.select(true);
-                        if (doAutoScroll) {
-                            hl.scrollIntoView();
+            let scrollElt = hl.getScrollElement();
+            // Check that scrollElt still has an offsetParent. It will not if it has been removed from
+            // the document. This case arises when the page has been destroyed, but the Highlight instance
+            // still retains a reference to its element.
+            if (scrollElt && scrollElt.offsetParent) {
+                // If the scroll element already exists, this means the first page on which
+                // the highlight lives has already been rendered, so we can use the 'distant'
+                // scroll policy.
+                // Note that, if the highlight is just *below* the view area, the policy of
+                // scrolling it just into view is not great, since we're using only the first
+                // box of the highlight as he scroll target. To make up for this a little, we
+                // add a bit of padding to the view box.
+                hl.select(true);
+                if (doAutoScroll) {
+                    this.scrollIntoView(scrollElt, {pos: 'mid', policy: 'distant', padPx: 32});
+                }
+            } else {
+                // If we didn't get a scroll element, it's because the first page on which
+                // the highlight lives hasn't been rendered yet. We need to render the pages,
+                // and we'll use the 'pos' scroll policy.
+                const pages = hl.listPageNums();
+                const firstPage = hl.firstPage();
+                pages.reverse();  // Work by descending page number.
+                for (const n of pages) {
+                    await this.operateOnRenderedPage(n, doAutoScroll, pageView => {
+                        // When the last of the rendering jobs -- the page with the smallest
+                        // number -- has completed, then we can select the highlight.
+                        if (n === firstPage) {
+                            hl.select(true);
+                            if (doAutoScroll) {
+                                scrollElt = hl.getScrollElement();
+                                // scrollElt should now exist, but we check just to be sure.
+                                if (scrollElt && scrollElt.offsetParent) {
+                                    this.scrollIntoView(scrollElt, {pos: 'mid', policy: 'pos'});
+                                }
+                            }
                         }
-                    }
-                })
+                    })
+                }
             }
         }
         return foundIt;
@@ -1226,8 +1252,14 @@ var PdfController = declare(null, {
         });
     },
 
-    scrollIntoView: function(element) {
+    // Our old technique, relying on the scoll operation offered by pdf.js:
+    _native_scrollIntoView: function(element) {
         this.viewer._scrollIntoView({pageDiv: element});
+    },
+
+    // Note: so far tested only on elements belonging to a .highlightLayer div
+    scrollIntoView: function(element, options) {
+        iseUtil.scrollIntoView(element, this.viewerContainerDiv, options);
     },
 
     /* Suppose you have an operation to perform on a page, and that you may or

@@ -258,12 +258,25 @@ export class Highlight {
         this.documentController.noteSelectedHighlight(this);
     }
 
-    // Cause the document controller to bring this highlight into view,
-    // favoring the first page on which this highlight appears.
-    scrollIntoView() {
+    /* Return a document element to which the doc controller should scroll, in order
+     * to bring this highlight into view, or null.
+     *
+     * return: a doc element having a non-null offsetParent, or null if we do not
+     *   currently have such an element to offer.
+     */
+    getScrollElement() {
+        let elt = null;
         const firstZone = this.zoneDivsByPageNum.get(this.firstPage());
-        const firstRegion = firstZone.querySelector('.hl-region');
-        this.documentController.scrollIntoView(firstRegion);
+        if (firstZone) {
+            const firstRegion = firstZone.querySelector('.hl-region');
+            // Check that the element has an offsetParent. It will not if it has been removed from
+            // the document. This case arises when the page has been unloaded by the document
+            // controller, while we still retain our reference to the element.
+            if (firstRegion && firstRegion.offsetParent) {
+                elt = firstRegion;
+            }
+        }
+        return elt;
     }
 
     // Redo the supplier menu, based on our latest set of suppliers.
