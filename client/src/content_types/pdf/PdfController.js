@@ -484,7 +484,7 @@ var PdfController = declare(null, {
      *
      *     Keywords:
      *          always: do scroll to the selection;
-     *          altKey (default): scroll only if we received an event with event.altKey true;
+     *          altKey (default): scroll unless we received an event with event.altKey true;
      *          never: do not scroll.
      *
      *   selcolor: {string} default is defined in `defaultPdfHighlightColor`, above.
@@ -596,7 +596,7 @@ var PdfController = declare(null, {
                 let g = info.gotosel || 'altKey';
                 let doAutoScroll = (
                     ( g === 'always' ) ||
-                    ( g === 'altKey' && event && event.altKey )
+                    ( g === 'altKey' && !event?.altKey )
                 );
                 pdfc.origInfo.gotosel = g;
                 // If a "named highlight" is defined, this overrules any "ad hoc highlight".

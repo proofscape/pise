@@ -700,7 +700,7 @@ var ChartManager = declare(AbstractContentManager, {
         // If the clicked node is now the singleton selection,
         // and if it carries a doc reference, navigate to that highlight
         // in a linked doc panel, if any.
-        // If Alt key was pressed, then also auto scroll the selection into view.
+        // Auto scroll the selection into view unless Alt key was pressed.
         const selMgr = forest.getSelectionManager();
         const singleton = selMgr.getSingletonNode();
         if (singleton !== null && singleton.uid === nodepath) {
@@ -716,7 +716,7 @@ var ChartManager = declare(AbstractContentManager, {
                         const info = {
                             type: "PDF",
                             highlightId: highlightId,
-                            gotosel: e.altKey ? 'always' : 'never',
+                            gotosel: e.altKey ? 'never' : 'always',
                         }
                         const W = await this.linkingMap.get(uuid, docId);
                         for (const w of W) {

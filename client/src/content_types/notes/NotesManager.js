@@ -879,7 +879,7 @@ var NotesManager = declare(AbstractContentManager, {
                     // Do we want sth similar for chart widgets? There we have long supported the
                     // author in saying whether navigation happens. It seems we're moving toward
                     // making this the user's choice instead, but, not ready to implement this today.
-                    info.gotosel = event.altKey ? 'always' : 'never';
+                    info.gotosel = event.altKey ? 'never' : 'always';
                 }
                 // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
                 // to obtain named highlights, if we requested one under `highlightId`.
