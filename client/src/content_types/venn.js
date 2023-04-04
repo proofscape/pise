@@ -307,6 +307,15 @@ export class Highlight {
                     }));
                 })(hdo);
             }
+        }
+        // Since number of suppliers may have changed, need to reassess multi class.
+        this.setZoneDivMultiClass();
+    }
+
+    // Based on number of suppliers, set multi class on zone divs.
+    setZoneDivMultiClass() {
+        const n = this.getSupplierCount();
+        if (n >= 2) {
             for (const zoneDiv of this.zoneDivsByPageNum.values()) {
                 zoneDiv.classList.add('hl-multi');
             }
@@ -351,6 +360,9 @@ export class Highlight {
         this.supplierMenu.bindDomNode(div);
 
         this.zoneDivsByPageNum.set(pageNum, div);
+        // Since zone may have been constructed after last call to redoSupplierMenu,
+        // this is another place where we must reassess use of the multi class.
+        this.setZoneDivMultiClass();
         return div;
     }
 
