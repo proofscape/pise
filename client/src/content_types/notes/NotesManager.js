@@ -682,22 +682,19 @@ var NotesManager = declare(AbstractContentManager, {
                 // If group g0 already has an assignment in any panel, we join it.
                 claimed = await mra(Array.from(W0));
             } else {
-                // Enlarge Wother by panels navigated by charts.
-                const WC = await LC.range();
-                Wother = new Set(Array.from(Wother).concat(WC));
-                // If any panel in Wother hosts doc d0, we choose an mra panel from there.
-                // This reflects our preference for choosing an already-navigated panel
-                // when possible.
+                // Otherwise, we have to choose from among existing panels hosting doc d0,
+                // that are *not* in Wcontra.
                 const Ud = mD.get(d0);
-                const Wother_and_Ud = Ud.filter(u => Wother.has(u));
-                if (Wother_and_Ud.length > 0) {
-                    claimed = await mra(Wother_and_Ud);
-                } else {
-                    // Otherwise, if there's a panel hosting d0 that's *not* in Wcontra, we
-                    // choose an mra element from there.
-                    const Ud_ok = Ud.filter(u => !Wcontra.has(u));
-                    if (Ud_ok.length > 0) {
-                        claimed = await mra(Ud_ok);
+                const candidates = Ud.filter(u => !Wcontra.has(u));
+                if (candidates.length > 0) {
+                    // We prefer to choose a panel that is already navigated (by anything).
+                    const WC = await LC.range();
+                    const alreadyNaved = new Set(Array.from(Wother).concat(WC));
+                    const alreadyNavedCandidates = candidates.filter(w => alreadyNaved.has(w));
+                    if (alreadyNavedCandidates.length > 0) {
+                        claimed = await mra(alreadyNavedCandidates);
+                    } else {
+                        claimed = await mra(candidates);
                     }
                 }
             }
