@@ -59,6 +59,11 @@ var ContentManager = declare(null, {
         PDF: "PDF",
         THEORYMAP: "THEORYMAP"
     },
+    typeColors: {
+        PDF: "red",
+        CHART: "green",
+        NOTES: "blue",
+    },
     // Types that have a libpath:
     libpathTypes: null,
     // Types that are editable:
@@ -211,11 +216,13 @@ var ContentManager = declare(null, {
         const paneId = this.getPaneIdByUuid(uuid);
         if (paneId !== null) {
             const pane = this.getPane(paneId);
+            const cdo = this.contentRegistry[paneId];
             return {
                 windowNumber: myNumber,
                 paneId: paneId,
                 activityTimestamp: pane._pfsc_ise_selectionTimestamp,
                 uuid: uuid,
+                type: cdo.type,
             };
         }
         return null;
@@ -977,8 +984,8 @@ var ContentManager = declare(null, {
                     const button = this.tct.getTabButtonForPane(pane);
                     const buttonNode = button.domNode;
                     const overlay = document.createElement('div');
-                    overlay.classList.add('tmpTabOverlay');
-                    overlay.classList.add(`tmpTabOverlay-${settings.color}`);
+                    overlay.classList.add('tmpTabOverlay', 'areaFillOverlay', 'tmpTabStyle');
+                    overlay.classList.add(`tmpTabStyle-${settings.color}`);
                     const text = document.createTextNode(settings.label);
                     overlay.appendChild(text);
                     buttonNode.appendChild(overlay);
@@ -1073,26 +1080,176 @@ var ContentManager = declare(null, {
      * param targetId: (optional) the dijit pane id of a content pane to
      *      be proposed as a new target for linking.
      */
-    showLinkingDialog: function(sourceId, targetId) {
+    showLinkingDialog: async function(sourceId, targetId) {
         if (targetId === sourceId) {
+            // Can't link to self
+            return;
+        }
+        const info = this.contentRegistry[sourceId];
+        if (!info) {
+            return;
+        }
+        const sourceType = info.type;
+        const mgr = this.getManager(sourceType);
+        const linkingMap = mgr?.linkingMap;
+        if (!linkingMap) {
             return;
         }
 
-        console.log(sourceId, targetId);
-        // TODO
-
         const sUuid = this.getUuidByPaneId(sourceId);
-        const tUuid = this.getUuidByPaneId(targetId);
+        const tUuid = targetId ? this.getUuidByPaneId(targetId) : null;
 
+        let proposedTargetInfo;
+        if (tUuid) {
+            proposedTargetInfo = await this.getPaneInfoByUuidAllWindows(tUuid);
+        }
+
+        const existingLinks = await linkingMap.getTriples({u: sUuid});
+        const existingTargetInfos = new Map();
+        for (const [u, x, w] of existingLinks) {
+            if (w === tUuid) {
+                // Already linked
+                this.hub.alert({
+                    title: "Linking",
+                    content: "Already linked!",
+                });
+                return;
+            }
+            const info = await this.getPaneInfoByUuidAllWindows(w);
+            existingTargetInfos.set(w, info);
+        }
+        const n = existingLinks.length;
+
+        // The type of dialog we show depends on:
+        //  n: the number of existing links outgoing from sUuid, and
+        //  tUuid: i.e. whether or not a new target has been proposed
+
+        const sourceColor = this.typeColors[sourceType];
+        const sourceLabel = "A";
+
+        function buildLinkRow(targetColor, targetLabel, options) {
+            const {
+                includeCheckbox = false,
+            } = (options || {});
+            let cb = '';
+            if (includeCheckbox) {
+                cb = `<input type="checkbox" name="${targetLabel}" checked>`;
+            }
+            return `
+                <td>${cb}</td>
+                <td><span class="tmpTabStyle tmpTabStyle-${sourceColor}">${sourceLabel}</span></td>
+                <td>&#10230;</td>
+                <td><span class="tmpTabStyle tmpTabStyle-${targetColor}">${targetLabel}</span></td>
+                </tr>
+            `;
+        }
+
+        function buildLinkTable(linkRows) {
+            let tab = '<div class="navLinkTableDiv"><table class="navLinkTable">\n';
+            tab += '<tbody>\n';
+            for (const row of linkRows) {
+                tab += row;
+            }
+            tab += '</tbody>\n</table>\n</div>\n';
+            return tab;
+        }
+
+        let proposedLinkTab;
+        let targetColor;
+        let targetLabel;
+        if (tUuid) {
+            const targetType = proposedTargetInfo.type;
+            targetColor = this.typeColors[targetType];
+            targetLabel = "B";
+            proposedLinkTab = buildLinkTable(
+                [buildLinkRow(targetColor, targetLabel, {includeCheckbox: n > 0})]
+            );
+        }
+
+        let existingLinkTab;
+        if (n > 0) {
+            // Source tab always gets label "A". If target given, it gets "B", while
+            // existing targets start at "C"; else the latter start at "B".
+            let q = 0;
+            let r = tUuid ? 2 : 1;
+            const elRows = [];
+            for (const info of existingTargetInfos.values()) {
+                const label = `${String.fromCharCode(65 + r)}${q > 0 ? q : ''}`;
+                const color = this.typeColors[info.type];
+                info.label = label;
+                info.color = color;
+                elRows.push(buildLinkRow(color, label, {includeCheckbox: true}));
+                if (++r === 27) {
+                    q++;
+                    r = 0;
+                }
+            }
+            existingLinkTab = buildLinkTable(elRows);
+        }
+
+        // Paint colored labels on tabs, so user knows what we're talking about!
+        const tabsToLabel = {
+            [sUuid]: {color: sourceColor, label: sourceLabel},
+        };
+        if (tUuid) {
+            tabsToLabel[tUuid] = {color: targetColor, label: targetLabel};
+        }
+        for (const info of existingTargetInfos.values()) {
+            tabsToLabel[info.uuid] = {color: info.color, label: info.label};
+        }
         this.hub.windowManager.groupcastEvent({
             type: 'tempTabOverlays',
             action: 'set',
-            tabs: {
-                [sUuid]: {color: 'blue', label: "A"},
-                [tUuid]: {color: 'green', label: "B"},
-            },
+            tabs: tabsToLabel,
         }, {
             includeSelf: true,
+        });
+
+        const title = "Linking";
+        const okButtonText = existingLinkTab ? "Keep Selected" : "OK";
+        let dismissCode = null;
+        let content = '';
+        if (proposedLinkTab) {
+            content += `
+            <h2>New Link:</h2>
+            ${proposedLinkTab}
+            `;
+        }
+        if (existingLinkTab) {
+            content += `
+            <h2>Existing Links:</h2>
+            ${existingLinkTab}
+            `;
+        }
+        if (proposedLinkTab && !existingLinkTab) {
+            dismissCode = 'makeSoleLink';
+        }
+        if (!content) {
+            content = 'No existing links!';
+        }
+        content = `
+        <div class="iseDialogContentsStyle02 iseDialogContentsStyle03">
+        ${content}
+        </div>
+        `;
+
+        const result = await this.hub.choice({
+            title, content, okButtonText, dismissCode
+        });
+
+        this.hub.windowManager.groupcastEvent({
+            type: 'tempTabOverlays',
+            action: 'clear',
+        }, {
+            includeSelf: true,
+        });
+
+        // TODO... do something!
+        console.log(result);
+        result.dialog.domNode.querySelectorAll('input[type=checkbox]').forEach(cb => {
+            const name = cb.getAttribute('name');
+            const checked = cb.checked;
+            console.log(name, checked);
         });
 
     }

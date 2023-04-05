@@ -1155,6 +1155,7 @@ var Hub = declare(null, {
      *   shown: true if the dialog was shown (false if it was previously dismissed),
      *   accepted: if shown, then: true if "OK" was clicked, false if "Cancel" was clicked,
      *   dismissed: if shown, then: true if dismissal checkbox was shown and user checked it, false otherwise
+     *   dialog: the ConfirmDialog instance that was shown
      * }
      */
     choice : function({title, content, okButtonText, cancelButtonText, dismissCode, dismissMessage, mustShow}) {
@@ -1183,6 +1184,7 @@ var Hub = declare(null, {
                     shown: true,
                     accepted: accepted,
                     dismissed: dismissed,
+                    dialog: dlg,
                 });
             }
             const dlg = new ConfirmDialog({

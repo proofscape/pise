@@ -1515,26 +1515,38 @@ a.dangerButton.dangerButtonDisabled {
     opacity: 0.3;
 }
 
-.tmpTabOverlay {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
+.tmpTabStyle {
     opacity: 0.8;
     color: #222;
     font-weight: bold;
     font-size: 2em;
 }
 
-.tmpTabOverlay-red {
+.areaFillOverlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.tmpTabStyle-red {
     background: #c88;
 }
 
-.tmpTabOverlay-green {
+.tmpTabStyle-green {
     background: #8c8;
 }
 
-.tmpTabOverlay-blue {
+.tmpTabStyle-blue {
     background: #88c;
+}
+
+div.navLinkTableDiv {
+    text-align: center;
+}
+
+.navLinkTable td span.tmpTabStyle {
+    border-radius: 0.7em;
+    padding: 0.1em 0.3em;
 }
