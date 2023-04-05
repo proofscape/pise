@@ -886,54 +886,122 @@ tct.TabContainerTree = declare(null, {
         this.recomputeLeafOrder();
         // Rebuild the menu.
         initialLeaf.rebuildMenu();
-        // Set up drag-n-drop to rearrange tabs within a single tab container.
-        this.drake = dragula({
-            isContainer: function (el) {
-                return el.classList.contains('dijitTabContainerTop-tabs');
-            },
-            accepts: function (el, target, source, sibling) {
-                return target === source;
-            },
-        });
-        this.drake.on('drop', this.onTabDrop.bind(this));
+        // Set up drag-n-drop.
+        this.drake = this.setUpDragAndDrop();
     },
 
-    /* When tabs are re-ordered by drag-and-drop, we have to get the
-     * TabContainer to actually rearrange the tabs internally. (Otherwise,
-     * e.g., when storing the state, we'll store them in their original
-     * order, instead of the updated one.)
+    /* Set up drag-and-drop.
+     *
+     * Provides two functionalities:
+     *   1. reordering tabs within a tab container
+     *   2. initiating a linking dialog from one panel to another (by dragging
+     *      the tab of the proposed target onto the content area of the proposed source)
      */
-    onTabDrop : function(el, target, source, sibling) {
-        const button = registry.byNode(el);
-        const page = button.page;
-        const tc = page.getParent();
-        const selectedBeforeDrag = tc.selectedChildWidget;
-        const leaf = this.leavesByTCIds[tc.id];
+    setUpDragAndDrop : function() {
+        const drake = dragula({
+            isContainer: function (el) {
+                return (
+                    el.classList.contains('dijitTabContainerTop-tabs') ||
+                    el.classList.contains('panelDragTargetOverlay')
+                );
+            },
+            accepts: function (el, target, source, sibling) {
+                return (
+                    // Tabs can be rearranged within their container:
+                    target === source ||
+                    // Or a tab can be dragged onto the content area of a panel:
+                    target.classList.contains('panelDragTargetOverlay')
+                );
+            },
+            revertOnSpill: true,
+            // Require 5 pixels of movement before it's considered a drag.
+            // Otherwise, attempts to click the "X" to close the tab are often
+            // registered as "drags" instead of clicks, and the tab doesn't close.
+            slideFactorX: 5,
+            slideFactorY: 5,
+        });
 
-        // Determine the index at which the tab needs to be inserted.
-        // -1 means at the right-hand end.
-        let i = -1;
-        if (sibling) {
-            let child = sibling;
-            while ( (child = child.previousSibling) ) {
-                i++;
+        // When drag begins, throw an overlay on top of each panel content area, to serve
+        // as a drop target. When drag ends, remove these.
+        drake.on('drag', (el, source) => {
+            document.querySelectorAll('.cpSocket').forEach(p => {
+                const overlay = document.createElement('div');
+                overlay.classList.add('panelDragTargetOverlay');
+                // Because 'dragend' will be fired before 'drop', we have to stash the
+                // pane id as a data attribute now (it will be inaccessible later).
+                overlay.setAttribute('data-target-id', p.parentElement.id);
+                p.appendChild(overlay);
+            });
+        });
+        drake.on('dragend', el => {
+            document.querySelectorAll('.cpSocket').forEach(p => {
+                p.querySelectorAll('.panelDragTargetOverlay').forEach(e => e.remove());
+            });
+        });
+
+        // Need brute-force hover for the overlays, since the drake "mirror" element for the drag
+        // prevents the mouse pointer from being seen as hovering over the panel overlays. For the
+        // same reason, we can't use mouseover/out handlers on (any element of) the panels either,
+        // which is why we need the overlays in the first place.
+        drake.on('over', (el, container, source) => {
+            if (container.classList.contains('panelDragTargetOverlay')) {
+                container.classList.add('hovered');
             }
-        }
+        });
+        drake.on('out', (el, container, source) => {
+            if (container.classList.contains('panelDragTargetOverlay')) {
+                container.classList.remove('hovered');
+            }
+        });
 
-        // Be sure to push/pop scroll fractions before/after removing/adding.
-        leaf.pushScrollFractions();
-        tc.removeChild(page);
-        if (i < 0) {
-            tc.addChild(page);
-        } else {
-            tc.addChild(page, i);
-        }
-        leaf.popScrollFractions();
+        drake.on('drop', (el, target, source, sibling) => {
+            const button = registry.byNode(el);
+            const page = button.page;
+            if (target.classList.contains('panelDragTargetOverlay')) {
+                // We have to let the overlays accept, or else the drake's 'over' and 'out'
+                // events won't even be fired on them; however, we can still cancel on drop.
+                drake.cancel();
+                const s = target.getAttribute('data-target-id');
+                const t = page.id;
+                this.hub.contentManager.showLinkingDialog(s, t);
+            } else {
+                /* When tabs are re-ordered by drag-and-drop, we have to get the
+                 * TabContainer to actually rearrange the tabs internally. (Otherwise,
+                 * e.g., when storing the state, we'll store them in their original
+                 * order, instead of the updated one.)
+                 */
+                const tc = page.getParent();
+                const selectedBeforeDrag = tc.selectedChildWidget;
+                const leaf = this.leavesByTCIds[tc.id];
 
-        // Maintain the selection from before drag.
-        if (selectedBeforeDrag) {
-            this.selectPane(selectedBeforeDrag);
-        }
+                // Determine the index at which the tab needs to be inserted.
+                // -1 means at the right-hand end.
+                let i = -1;
+                if (sibling) {
+                    let child = sibling;
+                    while ( (child = child.previousSibling) ) {
+                        i++;
+                    }
+                }
+
+                // Be sure to push/pop scroll fractions before/after removing/adding.
+                leaf.pushScrollFractions();
+                tc.removeChild(page);
+                if (i < 0) {
+                    tc.addChild(page);
+                } else {
+                    tc.addChild(page, i);
+                }
+                leaf.popScrollFractions();
+
+                // Maintain the selection from before drag.
+                if (selectedBeforeDrag) {
+                    this.selectPane(selectedBeforeDrag);
+                }
+            }
+        });
+
+        return drake;
     },
 
     /* Get an array of the IDs of the TCs, in the natural tree traversal order.

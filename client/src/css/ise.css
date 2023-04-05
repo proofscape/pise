@@ -1500,3 +1500,17 @@ a.dangerButton.dangerButtonDisabled {
     text-align: center;
     margin-top: 1.5em;
 }
+
+.panelDragTargetOverlay {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    position: absolute;
+    background: #888;
+    opacity: 0;
+}
+
+.panelDragTargetOverlay.hovered {
+    opacity: 0.3;
+}

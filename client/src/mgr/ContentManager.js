@@ -1035,6 +1035,18 @@ var ContentManager = declare(null, {
         return stateDescriptor;
     },
 
+    /* Show the linking dialog for a content pane.
+     *
+     * param sourceId: the dijit pane id of the content pane that is the
+     *      source endpt of the links to be reviewed.
+     * param targetId: (optional) the dijit pane id of a content pane to
+     *      be proposed as a new target for linking.
+     */
+    showLinkingDialog: function(sourceId, targetId) {
+        console.log(sourceId, targetId);
+        // TODO
+    }
+
 });
 
 Object.assign(ContentManager.prototype, iseUtil.eventsMixin);
