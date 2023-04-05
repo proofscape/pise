@@ -1514,3 +1514,27 @@ a.dangerButton.dangerButtonDisabled {
 .panelDragTargetOverlay.hovered {
     opacity: 0.3;
 }
+
+.tmpTabOverlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    opacity: 0.8;
+    color: #222;
+    font-weight: bold;
+    font-size: 2em;
+}
+
+.tmpTabOverlay-red {
+    background: #c88;
+}
+
+.tmpTabOverlay-green {
+    background: #8c8;
+}
+
+.tmpTabOverlay-blue {
+    background: #88c;
+}

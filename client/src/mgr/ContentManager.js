@@ -113,6 +113,7 @@ var ContentManager = declare(null, {
     activate: function() {
         this.hub.windowManager.on('contentUpdateByUuidBroadcast', this.handleContentUpdateByUuidBroadcast.bind(this));
         this.hub.windowManager.on('intentionToNavigate', this.handleIntentionToNavigate.bind(this));
+        this.hub.windowManager.on('tempTabOverlays', this.handleTempTabOverlays.bind(this));
     },
 
     // Locate a ContentPane by its id.
@@ -956,6 +957,36 @@ var ContentManager = declare(null, {
         }
     },
 
+    /* Handle groupcast event {
+     *     type: 'tempTabOverlays',
+     *     action: 'set' or 'clear',
+     *     tabs: for action 'set', an object of the form {
+     *       uuid: {color: 'red', 'green', or 'blue', label: string}, ...
+     *     }
+     * }
+     */
+    handleTempTabOverlays: function(event) {
+        if (event.action === 'clear') {
+            document.querySelectorAll('.tmpTabOverlay').forEach(e => e.remove());
+        } else if (event.action === 'set') {
+            for (const [uuid, settings] of Object.entries(event.tabs)) {
+                const paneId = this.getPaneIdByUuid(uuid);
+                if (paneId) {
+                    // If we got a paneId, then the panel belongs to this window.
+                    const pane = this.getPane(paneId);
+                    const button = this.tct.getTabButtonForPane(pane);
+                    const buttonNode = button.domNode;
+                    const overlay = document.createElement('div');
+                    overlay.classList.add('tmpTabOverlay');
+                    overlay.classList.add(`tmpTabOverlay-${settings.color}`);
+                    const text = document.createTextNode(settings.label);
+                    overlay.appendChild(text);
+                    buttonNode.appendChild(overlay);
+                }
+            }
+        }
+    },
+
     /* When there's a new active pane, we check to see if its content
      * defines any doc highlights. If so, we groupcast an event containing
      * the list of docIds for which highlights are available, and the uuid
@@ -1043,8 +1074,27 @@ var ContentManager = declare(null, {
      *      be proposed as a new target for linking.
      */
     showLinkingDialog: function(sourceId, targetId) {
+        if (targetId === sourceId) {
+            return;
+        }
+
         console.log(sourceId, targetId);
         // TODO
+
+        const sUuid = this.getUuidByPaneId(sourceId);
+        const tUuid = this.getUuidByPaneId(targetId);
+
+        this.hub.windowManager.groupcastEvent({
+            type: 'tempTabOverlays',
+            action: 'set',
+            tabs: {
+                [sUuid]: {color: 'blue', label: "A"},
+                [tUuid]: {color: 'green', label: "B"},
+            },
+        }, {
+            includeSelf: true,
+        });
+
     }
 
 });
