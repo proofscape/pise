@@ -334,6 +334,30 @@ var ContentManager = declare(null, {
         };
     },
 
+    /* Given the pane id of a local pane, determine its content type.
+     */
+    getContentTypeOfLocalPane: function(paneId) {
+        const info = this.contentRegistry[paneId];
+        if (!info) {
+            return;
+        }
+        return info.type;
+    },
+
+    /* Given the pane id of a pane that lives in this window, synchronously get
+     * array of all triples [u, x, w] where u represents this pane.
+     */
+    getOutgoingLinkTriplesForLocalPane: function(paneId) {
+        const contentType = this.getContentTypeOfLocalPane(paneId);
+        const mgr = this.getManager(contentType);
+        const linkingMap = mgr?.linkingMap;
+        if (!linkingMap) {
+            return;
+        }
+        const uuid = this.getUuidByPaneId(paneId);
+        return linkingMap.localComponent.getTriples({u: uuid});
+    },
+
     /*
      * Make a title for a tab.
      *
@@ -548,6 +572,7 @@ var ContentManager = declare(null, {
             })
         })
         menu.addChild(tsPopup);
+
         // Option to open source code
         var mgr = this;
         var editSrcItem = new MenuItem({
@@ -557,6 +582,13 @@ var ContentManager = declare(null, {
             }
         });
         menu.addChild(editSrcItem);
+
+        // Option to edit links
+        const linksItem = new MenuItem({
+            label: 'Links...',
+        });
+        menu.addChild(linksItem);
+
         // Option to load a study page
         menu.addChild(new MenuSeparator());
         let studyPageItem = new MenuItem({
@@ -571,6 +603,7 @@ var ContentManager = declare(null, {
             }
         });
         menu.addChild(studyPageItem);
+
         // Final separator
         menu.addChild(new MenuSeparator());
         // Stash objects in the Menu instance.
@@ -580,6 +613,7 @@ var ContentManager = declare(null, {
         menu.pfsc_ise_tsHome = tsHome;
         menu.pfsc_ise_editSrcItem = editSrcItem;
         menu.pfsc_ise_studyPageItem = studyPageItem;
+        menu.pfsc_ise_linksItem = linksItem;
     },
 
     noteTabContainerMenuOpened: function(menu, clicked) {
@@ -607,11 +641,13 @@ var ContentManager = declare(null, {
             }
         }
         menu.pfsc_ise_tsPopup.set('disabled', !enableTailSelector);
-        // Enable "edit source" item
         menu.pfsc_ise_editSrcItem.set('disabled', !this.editableTypes.includes(info.type));
         menu.pfsc_ise_editSrcItem.set('label', `${isWIP ? "Edit" : "View"} Source`);
-        // Enable "Study Page" item
         menu.pfsc_ise_studyPageItem.set('disabled', !this.studyPageTypes.includes(info.type));
+        menu.pfsc_ise_linksItem.set('disabled', this.getOutgoingLinkTriplesForLocalPane(pane.id).length === 0);
+        menu.pfsc_ise_linksItem.set('onClick', event => {
+            this.showLinkingDialog(pane.id);
+        });
     },
 
     editSourceFromContextMenu: function() {
@@ -1085,19 +1121,11 @@ var ContentManager = declare(null, {
             // Can't link to self
             return;
         }
-        const info = this.contentRegistry[sourceId];
-        if (!info) {
-            return;
-        }
-        const sourceType = info.type;
-        const mgr = this.getManager(sourceType);
-        const linkingMap = mgr?.linkingMap;
-        if (!linkingMap) {
-            return;
-        }
 
         const sUuid = this.getUuidByPaneId(sourceId);
         const tUuid = targetId ? this.getUuidByPaneId(targetId) : null;
+
+        const sourceType = this.getContentTypeOfLocalPane(sourceId);
 
         let proposedTargetInfo;
         let targetType;
@@ -1115,7 +1143,7 @@ var ContentManager = declare(null, {
             }
         }
 
-        const existingLinks = await linkingMap.getTriples({u: sUuid});
+        const existingLinks = this.getOutgoingLinkTriplesForLocalPane(sourceId);
         const existingTargetInfos = new Map();
         for (const [u, x, w] of existingLinks) {
             if (w === tUuid) {
