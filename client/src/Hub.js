@@ -162,9 +162,12 @@ var Hub = declare(null, {
         this.restartMathWorker();
 
         this.appLayout = appLayout;
-        this.tabContainerTree = tabContainerTree;
+
         this.dismissalStorage = window.localStorage;
         this.agreementAcceptanceStorage = window.localStorage;
+
+        this.tabContainerTree = tabContainerTree;
+        tabContainerTree.hub = this;
 
         this.keyListener = keyListener;
         keyListener.hub = this;

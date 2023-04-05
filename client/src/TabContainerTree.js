@@ -855,6 +855,7 @@ tct.TabContainerTree = declare(null, {
      *      tabPosition: "top", "bottom", "left" or "right"
      */
     constructor : function(layoutContainer, args) {
+        this.hub = null;
         this.socket = layoutContainer
         declare.safeMixin(this, args);
         // Set our id.
