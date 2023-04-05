@@ -1104,9 +1104,12 @@ var ContentManager = declare(null, {
         if (tUuid) {
             proposedTargetInfo = await this.getPaneInfoByUuidAllWindows(tUuid);
             targetType = proposedTargetInfo.type;
-            // If types are unlinkable, just silently do nothing.
-            // For now at least, there's just one impossible link type, which is
-            // CHART --> NOTES.
+            // If the types are unlinkable, just silently do nothing.
+            // Can't link two panels of the same type.
+            if (sourceType === targetType) {
+                return;
+            }
+            // Can't link CHART --> NOTES.
             if (sourceType === this.crType.CHART && targetType === this.crType.NOTES) {
                 return;
             }
