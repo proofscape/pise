@@ -1100,8 +1100,16 @@ var ContentManager = declare(null, {
         const tUuid = targetId ? this.getUuidByPaneId(targetId) : null;
 
         let proposedTargetInfo;
+        let targetType;
         if (tUuid) {
             proposedTargetInfo = await this.getPaneInfoByUuidAllWindows(tUuid);
+            targetType = proposedTargetInfo.type;
+            // If types are unlinkable, just silently do nothing.
+            // For now at least, there's just one impossible link type, which is
+            // CHART --> NOTES.
+            if (sourceType === this.crType.CHART && targetType === this.crType.NOTES) {
+                return;
+            }
         }
 
         const existingLinks = await linkingMap.getTriples({u: sUuid});
@@ -1131,26 +1139,29 @@ var ContentManager = declare(null, {
             const {
                 includeCheckbox = false,
             } = (options || {});
+            const cbId = `linkingDialog-${targetLabel}`;
             let cb = '';
             if (includeCheckbox) {
-                cb = `<input type="checkbox" name="${targetLabel}" checked>`;
+                cb = `<input type="checkbox" id="${cbId}" name="${targetLabel}" checked>`;
             }
             return `
-                <td>${cb}</td>
-                <td><span class="tmpTabStyle tmpTabStyle-${sourceColor}">${sourceLabel}</span></td>
-                <td>&#10230;</td>
-                <td><span class="tmpTabStyle tmpTabStyle-${targetColor}">${targetLabel}</span></td>
-                </tr>
+                <div class="navLinkRow">
+                ${cb}
+                <label class="${includeCheckbox ? 'clickableLabel' : ''}" for="${cbId}">
+                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${sourceColor}">${sourceLabel}</span>
+                <span class="navLinkArrow">&#10230;</span>
+                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${targetColor}">${targetLabel}</span>
+                </label>
+                </div>
             `;
         }
 
         function buildLinkTable(linkRows) {
-            let tab = '<div class="navLinkTableDiv"><table class="navLinkTable">\n';
-            tab += '<tbody>\n';
+            let tab = '<div class="navLinkTable">\n';
             for (const row of linkRows) {
                 tab += row;
             }
-            tab += '</tbody>\n</table>\n</div>\n';
+            tab += '</div>\n';
             return tab;
         }
 
@@ -1158,7 +1169,6 @@ var ContentManager = declare(null, {
         let targetColor;
         let targetLabel;
         if (tUuid) {
-            const targetType = proposedTargetInfo.type;
             targetColor = this.typeColors[targetType];
             targetLabel = "B";
             proposedLinkTab = buildLinkTable(
@@ -1246,11 +1256,14 @@ var ContentManager = declare(null, {
 
         // TODO... do something!
         console.log(result);
+        const accepted = result.accepted;
         result.dialog.domNode.querySelectorAll('input[type=checkbox]').forEach(cb => {
             const name = cb.getAttribute('name');
             const checked = cb.checked;
             console.log(name, checked);
         });
+        // Important to destroy the dialog now, so we can reuse checkbox id's next time.
+        result.dialog.destroy();
 
     }
 

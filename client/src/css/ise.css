@@ -1542,11 +1542,28 @@ a.dangerButton.dangerButtonDisabled {
     background: #88c;
 }
 
-div.navLinkTableDiv {
+.navLinkTable {
     text-align: center;
 }
 
-.navLinkTable td span.tmpTabStyle {
+.navLinkTable span.navLinkLabel {
     border-radius: 0.7em;
     padding: 0.1em 0.3em;
+}
+
+.navLinkTable .navLinkArrow {
+    font-weight: bold;
+    font-size: 2em;
+}
+
+.navLinkTable label {
+    user-select: none;
+}
+
+.navLinkTable label.clickableLabel {
+    cursor: pointer;
+}
+
+.navLinkTable .navLinkRow {
+    margin-bottom: 2em;
 }
