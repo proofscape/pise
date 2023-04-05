@@ -1200,23 +1200,27 @@ var ContentManager = declare(null, {
             existingLinkTab = buildLinkTable(elRows);
         }
 
-        // Paint colored labels on tabs, so user knows what we're talking about!
-        const tabsToLabel = {
-            [sUuid]: {color: sourceColor, label: sourceLabel},
-        };
-        if (tUuid) {
-            tabsToLabel[tUuid] = {color: targetColor, label: targetLabel};
+        const thereAreLinks = proposedLinkTab || existingLinkTab;
+
+        if (thereAreLinks) {
+            // Paint colored labels on tabs, so user knows what we're talking about!
+            const tabsToLabel = {
+                [sUuid]: {color: sourceColor, label: sourceLabel},
+            };
+            if (tUuid) {
+                tabsToLabel[tUuid] = {color: targetColor, label: targetLabel};
+            }
+            for (const info of existingTargetInfos.values()) {
+                tabsToLabel[info.uuid] = {color: info.color, label: info.label};
+            }
+            this.hub.windowManager.groupcastEvent({
+                type: 'tempTabOverlays',
+                action: 'set',
+                tabs: tabsToLabel,
+            }, {
+                includeSelf: true,
+            });
         }
-        for (const info of existingTargetInfos.values()) {
-            tabsToLabel[info.uuid] = {color: info.color, label: info.label};
-        }
-        this.hub.windowManager.groupcastEvent({
-            type: 'tempTabOverlays',
-            action: 'set',
-            tabs: tabsToLabel,
-        }, {
-            includeSelf: true,
-        });
 
         const title = "Linking";
         const okButtonText = existingLinkTab ? "Keep Selected" : "OK";
