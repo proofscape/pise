@@ -1109,6 +1109,39 @@ var ContentManager = declare(null, {
         return stateDescriptor;
     },
 
+    /* Find references in a given local panel P to a given local doc panel D.
+     *
+     * NOTE: Both panels must be local, i.e. belong to this window.
+     *
+     * param uuid: the uuid of panel P
+     * param type: the content type of panel P
+     * param dUuid: the uuid of doc panel D
+     *
+     * return: Object of the form {
+     *   docId: the id of the doc in panel D,
+     *   refsFrom: array (possibly empty) of libpaths of entities in panel P that reference docId
+     * }
+     */
+    panelReferencesDocPanel: function(uuid, type, dUuid) {
+        const d0 = this.hub.pdfManager.getDocIdByUuid(dUuid);
+        const refsFrom = new Set();
+        let tuples = [];
+        if (type === this.crType.CHART) {
+            tuples = this.hub.chartManager.getAllDocRefTriplesLocal({});
+        } else if (type === this.crType.NOTES) {
+            tuples = this.hub.notesManager.getAllDocRefQuadsLocal({});
+        }
+        for (const t of tuples) {
+            if (t.at(-1) === d0 && t[0] === uuid) {
+                refsFrom.add(t[1]);
+            }
+        }
+        return {
+            docId: d0,
+            refsFrom: Array.from(refsFrom),
+        };
+    },
+
     /* Show the linking dialog for a content pane.
      *
      * param sourceId: the dijit pane id of the content pane that is the
@@ -1129,17 +1162,81 @@ var ContentManager = declare(null, {
 
         let proposedTargetInfo;
         let targetType;
+        let secondaryIds;
+        // If there's a proposed link, then we need to determine whether such a link
+        // can be made or not. If not, reject, possibly with a helpful message.
+        // If so, determine the array of secondary IDs for link(s) to be formed.
         if (tUuid) {
             proposedTargetInfo = await this.getPaneInfoByUuidAllWindows(tUuid);
             targetType = proposedTargetInfo.type;
             // If the types are unlinkable, just silently do nothing.
+
             // Can't link two panels of the same type.
             if (sourceType === targetType) {
                 return;
             }
-            // Can't link CHART --> NOTES.
-            if (sourceType === this.crType.CHART && targetType === this.crType.NOTES) {
-                return;
+
+            // Links C --> X
+            if (sourceType === this.crType.CHART) {
+                // Can't link CHART --> NOTES.
+                if (targetType === this.crType.NOTES) {
+                    return;
+                }
+
+                // CHART --> DOC: We require that the doc be currently referenced by the set
+                // of deducs open in the chart panel.
+                if (targetType === this.crType.PDF) {
+                    const {refsFrom, docId} = this.panelReferencesDocPanel(sUuid, sourceType, tUuid);
+                    if (refsFrom.length === 0) {
+                        this.hub.alert({
+                            title: "Linking",
+                            content: "Cannot link, since panel does not reference document.",
+                        });
+                        return;
+                    }
+                    secondaryIds = [docId];
+                }
+            }
+
+            // Links N --> X are tricky, if there are multiple widget groups.
+            // Theoretically we could require the user to drag and drop onto a specific widget,
+            // but for now we're going to put that off. For now, the rule will be that we'll form
+            // a new link iff there is *exactly one* widget group relevant to the target content.
+            if (sourceType === this.crType.NOTES) {
+                const nm = this.hub.notesManager;
+                const quads = nm.getAllDocRefQuadsLocal({});
+                let test = (g, d) => false;
+                if (targetType === this.crType.CHART) {
+                    test = (g, d) => nm.extractWidgetTypeFromGroupId(g) === this.crType.CHART;
+                } else if (targetType === this.crType.PDF) {
+                    const d0 = this.hub.pdfManager.getDocIdByUuid(tUuid);
+                    test = (g, d) => d === d0;
+                }
+                const G = new Set(quads.filter(([u, s, g, d]) => u === sUuid && test(g, d)).map(q => q[2]));
+                const n = G.size;
+                if (n === 1) {
+                    secondaryIds = Array.from(G);
+                } else {
+                    const issue = n > 1 ? "multiple related widget groups" : "no related widgets";
+                    this.hub.alert({
+                        title: "Linking",
+                        content: `Cannot link, since page contains ${issue}.`,
+                    });
+                    return;
+                }
+            }
+
+            // For links D --> X, we require that panel X make references to the document.
+            if (sourceType === this.crType.PDF) {
+                const {refsFrom, docId} = this.panelReferencesDocPanel(sUuid, sourceType, tUuid);
+                if (refsFrom.length === 0) {
+                    this.hub.alert({
+                        title: "Linking",
+                        content: "Cannot link, since panel does not reference document.",
+                    });
+                    return;
+                }
+                secondaryIds = refsFrom;
             }
         }
 

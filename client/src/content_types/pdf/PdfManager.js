@@ -335,6 +335,11 @@ var PdfManager = declare(AbstractContentManager, {
         return null;
     },
 
+    getDocIdByUuid: function(uuid) {
+        const pdfc = this.getPdfcByUuid(uuid);
+        return pdfc?.docId;
+    },
+
     /* Given an array of panes, return the PdfController for the most recently
      * active one. If the array is empty, return null.
      */

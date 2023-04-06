@@ -194,6 +194,12 @@ var NotesManager = declare(AbstractContentManager, {
         return groupsToDocs;
     },
 
+    /* Given the group id of a widget, extract the type of the widget.
+     */
+    extractWidgetTypeFromGroupId: function(groupId) {
+        return groupId.split(":")[1];
+    },
+
     /* Synchronously return array of all quadruples (u, s, g, d),
      * in just this window,
      * where:
