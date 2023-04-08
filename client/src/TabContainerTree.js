@@ -697,7 +697,7 @@ tct.LeafNode = declare(tct.Node, {
         // Add options to copy to a new split.
         var theLeaf = this;
         this.menu.addChild(new MenuItem({
-            label: "Split Vertically",
+            label: "Split Right",
             onClick: function(){
                 var button = registry.byNode(this.getParent().currentTarget);
                     pane = button.page;
@@ -705,7 +705,7 @@ tct.LeafNode = declare(tct.Node, {
             }
         }));
         this.menu.addChild(new MenuItem({
-            label: "Split Horizontally",
+            label: "Split Down",
             onClick: function(){
                 var button = registry.byNode(this.getParent().currentTarget);
                     pane = button.page;
