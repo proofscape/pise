@@ -344,13 +344,17 @@ var ContentManager = declare(null, {
         return info.type;
     },
 
+    getLinkingMapForContentType: function(contentType) {
+        const mgr = this.getManager(contentType);
+        return mgr?.linkingMap;
+    },
+
     /* Given the pane id of a pane that lives in this window, synchronously get
      * array of all triples [u, x, w] where u represents this pane.
      */
     getOutgoingLinkTriplesForLocalPane: function(paneId) {
         const contentType = this.getContentTypeOfLocalPane(paneId);
-        const mgr = this.getManager(contentType);
-        const linkingMap = mgr?.linkingMap;
+        const linkingMap = this.getLinkingMapForContentType(contentType);
         if (!linkingMap) {
             return;
         }
@@ -1326,6 +1330,7 @@ var ContentManager = declare(null, {
         }
 
         const thereAreLinks = proposedLinkTab || existingLinkTab;
+        const labelsToUuids = new Map();
 
         if (thereAreLinks) {
             // Paint colored labels on tabs, so user knows what we're talking about!
@@ -1334,9 +1339,11 @@ var ContentManager = declare(null, {
             };
             if (tUuid) {
                 tabsToLabel[tUuid] = {color: targetColor, label: targetLabel};
+                labelsToUuids.set(targetLabel, tUuid);
             }
             for (const info of existingTargetInfos.values()) {
                 tabsToLabel[info.uuid] = {color: info.color, label: info.label};
+                labelsToUuids.set(info.label, info.uuid);
             }
             this.hub.windowManager.groupcastEvent({
                 type: 'tempTabOverlays',
@@ -1386,17 +1393,35 @@ var ContentManager = declare(null, {
             includeSelf: true,
         });
 
-        // TODO... do something!
-        console.log(result);
         const accepted = result.accepted;
+        const decisionsByLabel = new Map();
         result.dialog.domNode.querySelectorAll('input[type=checkbox]').forEach(cb => {
             const name = cb.getAttribute('name');
             const checked = cb.checked;
-            console.log(name, checked);
+            decisionsByLabel.set(name, checked);
         });
         // Important to destroy the dialog now, so we can reuse checkbox id's next time.
         result.dialog.destroy();
 
+        if (thereAreLinks && accepted) {
+            const linkingMap = this.getLinkingMapForContentType(sourceType);
+            if (proposedLinkTab && (decisionsByLabel.get("B") || !existingLinkTab)) {
+                // Form a new link for each secondaryId determined above.
+                for (const x of secondaryIds) {
+                    await linkingMap.add(sUuid, x, tUuid);
+                }
+            }
+            if (existingLinkTab) {
+                // Any existing links to be removed?
+                for (const [label, checked] of decisionsByLabel.entries()) {
+                    if (!checked) {
+                        const w0 = labelsToUuids.get(label);
+                        // Remove links (sUuid x _) |--> w0
+                        await linkingMap.removeTriples({u: sUuid, w: w0}, {doNotRelink: true});
+                    }
+                }
+            }
+        }
     }
 
 });

@@ -77,12 +77,12 @@ export class LinkingMapComponent {
     // Broadcast the corresponding 'linkingMapNewlyUndefinedAt' event.
     // If this makes m(u) empty, then make m(u) undefined too.
     // Return boolean saying whether we deleted anything.
-    _delete(u, x) {
+    _delete(u, x, options) {
         let mu = this.map.get(u);
         if (mu !== undefined) {
             let deleted = mu.delete(x);
             if (deleted) {
-                this.notifyOfNewlyUndefined(u, x);
+                this.notifyOfNewlyUndefined(u, x, options);
             }
             if (mu.size === 0) {
                 this.map.delete(u);
@@ -94,7 +94,7 @@ export class LinkingMapComponent {
 
     // Remove the triple (u, x, w) from this mapping, if present.
     // Return boolean saying whether it was found and removed.
-    _remove_triple(u, x, w) {
+    _remove_triple(u, x, w, options) {
         const mux = this._get(u, x);
         if (mux === undefined) {
             return false;
@@ -105,7 +105,7 @@ export class LinkingMapComponent {
             } else {
                 mux.splice(i0, 1);
                 if (mux.length === 0) {
-                    this._delete(u, x);
+                    this._delete(u, x, options);
                 }
                 return true;
             }
@@ -143,11 +143,12 @@ export class LinkingMapComponent {
         return this.hub.contentManager.getPaneIdByUuid(u);
     }
 
-    notifyOfNewlyUndefined(u, x) {
+    notifyOfNewlyUndefined(u, x, options) {
         this.hub.windowManager.groupcastEvent({
             type: 'linkingMapNewlyUndefinedAt',
             name: this.name,
             pair: [u, x],
+            doNotRelink: options?.doNotRelink,
         }, {
             includeSelf: true,
         });
@@ -197,7 +198,7 @@ export class LinkingMapComponent {
      *
      * return: the total number of triples [u, x, w] that were removed from this component
      */
-    removeTriples({u, x, w}) {
+    removeTriples({u, x, w, options}) {
         // We have a choice about how to implement this method: we can make it efficient,
         // or we can make it simple, uniform, and easily understood. We're opting for the latter,
         // since, in real usage, I will be surprised if the map ever holds as many as twenty entries.
@@ -205,7 +206,7 @@ export class LinkingMapComponent {
         // of those do you think the user will ever have at once?
         const triplesToRemove = this.getTriples({u, x, w});
         for (const [u1, x1, w1] of triplesToRemove) {
-            this._remove_triple(u1, x1, w1);
+            this._remove_triple(u1, x1, w1, options);
         }
         return triplesToRemove.length;
     }
@@ -355,10 +356,16 @@ export class GlobalLinkingMap {
      * we delete from the global mapping any and all triples [u, x, w] where the corresponding
      * variables have the values you set.
      *
+     * param options: {
+     *   doNotRelink: bool, default false. Will be set into the 'linkingMapNewlyUndefinedAt'
+     *      event broadcast if the map becomes undefined at any pair (u, x). Prevents the default
+     *      linking mechanism from re-establishing any links for this pair.
+     * }
+     *
      * return: promise resolving with the total number of triples [u, x, w] that were removed
      */
-    removeTriples({u, x, w}) {
-        return this._broadcastAndSum('removeTriples', {u, x, w});
+    removeTriples({u, x, w}, options) {
+        return this._broadcastAndSum('removeTriples', {u, x, w, options});
     }
 
     /* Get existing definitions from the global map.

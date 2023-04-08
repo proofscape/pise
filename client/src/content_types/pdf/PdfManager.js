@@ -1018,7 +1018,7 @@ var PdfManager = declare(AbstractContentManager, {
     },
 
     // Handle the event that a linking map has become newly undefined at a pair (u, x).
-    onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+    onLinkingMapNewlyUndefinedAt: async function({name, pair, doNotRelink}) {
         // Is it the L_D linking map?
         if (name === this.linkingMap.name) {
             const [u, x] = pair;
@@ -1032,7 +1032,7 @@ var PdfManager = declare(AbstractContentManager, {
                     // (could be a notes page or a deduc) is still present, in any window, AND still
                     // references this doc.
                     const {supplierPanels, supplierType} = await this.locateSupplierOfUnknownType(x, pdfc.docId);
-                    if (supplierType !== null) {
+                    if (supplierType !== null && !doNotRelink) {
                         // We'll find a new panel v to navigate, by choosing the most-recently-active
                         // from among some array V of panels.
                         const LD = this.linkingMap;

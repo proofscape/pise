@@ -710,7 +710,10 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     // Handle the event that a linking map has become newly undefined at a pair (u, x).
-    onLinkingMapNewlyUndefinedAt: async function({name, pair}) {
+    onLinkingMapNewlyUndefinedAt: async function({name, pair, doNotRelink}) {
+        if (doNotRelink) {
+            return;
+        }
         // Is it our linking map?
         if (name === this.linkingMap.name) {
             const [u0, g0] = pair;
