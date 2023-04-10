@@ -467,7 +467,7 @@ var ContentManager = declare(null, {
     },
 
     setupPdfContentPane: function(title, cp) {
-        cp.set('content', '<div class="cpSocket fullheight tex2jax_ignore"></div>');
+        cp.set('content', '<div class="cpSocket pdfSocket fullheight tex2jax_ignore"></div>');
         cp.set('title', title);
         var sel = '#' + cp.id + ' .cpSocket';
         return sel;
@@ -1149,11 +1149,21 @@ var ContentManager = declare(null, {
     /* Show the linking dialog for a content pane.
      *
      * param sourceId: the dijit pane id of the content pane that is the
-     *      source endpt of the links to be reviewed.
-     * param targetId: (optional) the dijit pane id of a content pane to
-     *      be proposed as a new target for linking.
+     *      source endpoint of the links to be reviewed.
+     * param options: {
+     *  targetId: the dijit pane id of a content pane being proposed as a
+     *      new target for linking.
+     *  targetTreeItem: object of the form {libpath, version} indicating a
+     *      tree item to be linked. (Only valid when source panel is a doc panel.)
+     * }
+     * param
      */
-    showLinkingDialog: async function(sourceId, targetId) {
+    showLinkingDialog: async function(sourceId, options) {
+        const {
+            targetId = null,
+            targetTreeItem = null,
+        } = (options || {});
+
         if (targetId === sourceId) {
             // Can't link to self
             return;
@@ -1242,6 +1252,14 @@ var ContentManager = declare(null, {
                 }
                 secondaryIds = refsFrom;
             }
+        } else if (targetTreeItem) {
+            // User wants to link a tree item.
+            // This is only meaningful if the source panel is a doc panel.
+            if (sourceType !== this.crType.PDF) {
+                return;
+            }
+            console.log(`link ${targetTreeItem.libpath}@${targetTreeItem.version} to doc panel ${sUuid}`);
+            // TODO
         }
 
         const existingLinks = this.getOutgoingLinkTriplesForLocalPane(sourceId);
@@ -1306,6 +1324,8 @@ var ContentManager = declare(null, {
             proposedLinkTab = buildLinkTable(
                 [buildLinkRow(targetColor, targetLabel, {includeCheckbox: n > 0})]
             );
+        } else if (targetTreeItem) {
+            // TODO
         }
 
         let existingLinkTab;
@@ -1326,6 +1346,11 @@ var ContentManager = declare(null, {
                     r = 0;
                 }
             }
+
+            // TODO:
+            //  If source panel is a doc panel, which already is linked to a tree item,
+            //  we want to build a row for that.
+
             existingLinkTab = buildLinkTable(elRows);
         }
 
