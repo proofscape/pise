@@ -1063,6 +1063,14 @@ a {
     font-size: 1.2em;
 }
 
+.iseDialogContentsStyle03m {
+    min-width: 30em;
+    padding: 0em 1em;
+    line-height: 1.7em;
+    text-align: justify;
+    font-size: 1.2em;
+}
+
 .iseDialogContentsStyle04 {
     margin: 1em;
 }
@@ -1542,6 +1550,10 @@ a.dangerButton.dangerButtonDisabled {
     background: #88c;
 }
 
+.tmpTabStyle-cyan {
+    background: #8cc;
+}
+
 .navLinkTable {
     text-align: center;
 }
@@ -1566,4 +1578,8 @@ a.dangerButton.dangerButtonDisabled {
 
 .navLinkTable .navLinkRow {
     margin-bottom: 2em;
+}
+
+.navLinkTable .libpathLink {
+    font-size: 1.3em;
 }

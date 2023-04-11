@@ -133,6 +133,7 @@ var PdfController = declare(null, {
     // hosting their suppliers are closed, and that clicking them can spawn such a panel,
     // if none is yet present.
     linkedTreeItemLibpath: null,
+    linkedTreeItemVersion: null,
 
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
@@ -1810,6 +1811,18 @@ var PdfController = declare(null, {
         pane.domNode.appendChild(templateBox);
 
         return dlg;
+    },
+
+    removeLinkedTreeItem: function() {
+        const libpath = this.linkedTreeItemLibpath;
+        const version = this.linkedTreeItemVersion;
+        console.log('remove existing tree item', libpath, version);
+        // TODO
+    },
+
+    linkTreeItem: function({libpath, version}) {
+        console.log('establish tree item link', libpath, version);
+        // TODO
     },
 
 });

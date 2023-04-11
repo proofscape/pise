@@ -63,6 +63,7 @@ var ContentManager = declare(null, {
         PDF: "red",
         CHART: "green",
         NOTES: "blue",
+        TREE: "cyan",
     },
     // Types that have a libpath:
     libpathTypes: null,
@@ -1258,8 +1259,6 @@ var ContentManager = declare(null, {
             if (sourceType !== this.crType.PDF) {
                 return;
             }
-            console.log(`link ${targetTreeItem.libpath}@${targetTreeItem.version} to doc panel ${sUuid}`);
-            // TODO
         }
 
         const existingLinks = this.getOutgoingLinkTriplesForLocalPane(sourceId);
@@ -1278,6 +1277,18 @@ var ContentManager = declare(null, {
         }
         const n = existingLinks.length;
 
+        let existingTreeItem;
+        let sourcePdfc;
+        if (sourceType === this.crType.PDF) {
+            sourcePdfc = this.hub.pdfManager.getPdfcByUuid(sUuid);
+            if (sourcePdfc.linkedTreeItemLibpath) {
+                existingTreeItem = {
+                    libpath: sourcePdfc.linkedTreeItemLibpath,
+                    version: sourcePdfc.linkedTreeItemVersion,
+                };
+            }
+        }
+
         // The type of dialog we show depends on:
         //  n: the number of existing links outgoing from sUuid, and
         //  tUuid: i.e. whether or not a new target has been proposed
@@ -1294,13 +1305,14 @@ var ContentManager = declare(null, {
             if (includeCheckbox) {
                 cb = `<input type="checkbox" id="${cbId}" name="${targetLabel}" checked>`;
             }
+            const targetExtraClass = targetLabel.includes('.') ? 'libpathLink' : '';
             return `
                 <div class="navLinkRow">
                 ${cb}
                 <label class="${includeCheckbox ? 'clickableLabel' : ''}" for="${cbId}">
                 <span class="navLinkLabel tmpTabStyle tmpTabStyle-${sourceColor}">${sourceLabel}</span>
                 <span class="navLinkArrow">&#10230;</span>
-                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${targetColor}">${targetLabel}</span>
+                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${targetColor} ${targetExtraClass}">${targetLabel}</span>
                 </label>
                 </div>
             `;
@@ -1315,17 +1327,28 @@ var ContentManager = declare(null, {
             return tab;
         }
 
+        function writeTreeItemLabel({libpath, version}) {
+            let label = libpath;
+            if (version !== "WIP") {
+                label += "@" + version;
+            }
+            return label;
+        }
+
         let proposedLinkTab;
         let targetColor;
         let targetLabel;
         if (tUuid) {
             targetColor = this.typeColors[targetType];
             targetLabel = "B";
+        } else if (targetTreeItem) {
+            targetColor = this.typeColors.TREE;
+            targetLabel = writeTreeItemLabel(targetTreeItem);
+        }
+        if (targetLabel) {
             proposedLinkTab = buildLinkTable(
                 [buildLinkRow(targetColor, targetLabel, {includeCheckbox: n > 0})]
             );
-        } else if (targetTreeItem) {
-            // TODO
         }
 
         let existingLinkTab;
@@ -1335,6 +1358,13 @@ var ContentManager = declare(null, {
             let q = 0;
             let r = tUuid ? 2 : 1;
             const elRows = [];
+
+            if (existingTreeItem) {
+                const label = writeTreeItemLabel(existingTreeItem);
+                const color = this.typeColors.TREE;
+                elRows.push(buildLinkRow(color, label, {includeCheckbox: true}));
+            }
+
             for (const info of existingTargetInfos.values()) {
                 const label = `${String.fromCharCode(65 + r)}${q > 0 ? q : ''}`;
                 const color = this.typeColors[info.type];
@@ -1346,10 +1376,6 @@ var ContentManager = declare(null, {
                     r = 0;
                 }
             }
-
-            // TODO:
-            //  If source panel is a doc panel, which already is linked to a tree item,
-            //  we want to build a row for that.
 
             existingLinkTab = buildLinkTable(elRows);
         }
@@ -1402,7 +1428,7 @@ var ContentManager = declare(null, {
             content = 'No existing links!';
         }
         content = `
-        <div class="iseDialogContentsStyle02 iseDialogContentsStyle03">
+        <div class="iseDialogContentsStyle02 iseDialogContentsStyle03m">
         ${content}
         </div>
         `;
@@ -1430,19 +1456,34 @@ var ContentManager = declare(null, {
 
         if (thereAreLinks && accepted) {
             const linkingMap = this.getLinkingMapForContentType(sourceType);
-            if (proposedLinkTab && (decisionsByLabel.get("B") || !existingLinkTab)) {
-                // Form a new link for each secondaryId determined above.
-                for (const x of secondaryIds) {
-                    await linkingMap.add(sUuid, x, tUuid);
-                }
-            }
+
             if (existingLinkTab) {
                 // Any existing links to be removed?
                 for (const [label, checked] of decisionsByLabel.entries()) {
+                    if (label === targetLabel) {
+                        continue;
+                    }
                     if (!checked) {
                         const w0 = labelsToUuids.get(label);
-                        // Remove links (sUuid x _) |--> w0
-                        await linkingMap.removeTriples({u: sUuid, w: w0}, {doNotRelink: true});
+                        if (w0) {
+                            // Remove links (sUuid x _) |--> w0
+                            await linkingMap.removeTriples({u: sUuid, w: w0}, {doNotRelink: true});
+                        } else {
+                            // Remove existing tree item.
+                            sourcePdfc.removeLinkedTreeItem();
+                        }
+                    }
+                }
+            }
+
+            if (proposedLinkTab && (decisionsByLabel.get(targetLabel) || !existingLinkTab)) {
+                if (targetTreeItem) {
+                    // Establish a tree item link
+                    sourcePdfc.linkTreeItem(targetTreeItem);
+                } else {
+                    // Form a new link for each secondaryId determined above.
+                    for (const x of secondaryIds) {
+                        await linkingMap.add(sUuid, x, tUuid);
                     }
                 }
             }
