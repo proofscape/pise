@@ -66,9 +66,10 @@ export class BuildTreeManager extends TreeManager {
         return dragulaWithContentPanelOverlays({
             copy: true,
             isContainer: el => {
+                const isTreeContainer = el.classList.contains('dijitTreeContainer');
                 const isNodeContainer = el.classList.contains('dijitTreeNodeContainer');
                 const isMooseGraphArea = el.classList.contains('mooseGraphArea');
-                return isNodeContainer || isMooseGraphArea;
+                return isTreeContainer || isNodeContainer || isMooseGraphArea;
             },
             accepts: (el, target, source, sibling) => (
                 // The container is a Moose graph area...
