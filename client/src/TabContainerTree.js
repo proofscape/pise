@@ -272,8 +272,8 @@ tct.RootNode = declare(tct.Node, {
                 new MenuItem({
                     label: "Move To Opposite Group",
                     onClick: function(){
-                        var button = registry.byNode(this.getParent().currentTarget);
-                            pane = button.page;
+                        const button = registry.byNode(this.getParent().currentTarget);
+                        const pane = button.page;
                         theManager.movePane(pane, otherTcId);
                     }
                 })
@@ -283,8 +283,8 @@ tct.RootNode = declare(tct.Node, {
                     new MenuItem({
                         label: "Open In Opposite Group",
                         onClick: function(){
-                            var button = registry.byNode(this.getParent().currentTarget);
-                                pane = button.page;
+                            const button = registry.byNode(this.getParent().currentTarget);
+                            const pane = button.page;
                             theManager.openCopyOfPane(pane, otherTcId);
                         }
                     })
@@ -699,16 +699,16 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Split Right",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndCopyPane(pane, 'v');
             }
         }));
         this.menu.addChild(new MenuItem({
             label: "Split Down",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndCopyPane(pane, 'h');
             }
         }));
@@ -718,8 +718,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Split and Move Right",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndMovePane(pane, 'v');
             },
             disabled: numPanes < 2
@@ -727,8 +727,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Split and Move Down",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndMovePane(pane, 'h');
             },
             disabled: numPanes < 2
@@ -744,8 +744,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Close",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.closePane(pane);
             }
         }));
@@ -758,8 +758,8 @@ tct.LeafNode = declare(tct.Node, {
         moveSubMenu.addChild(new MenuItem({
             label: counter.toString(),
             onClick: function(){
-                var button = registry.byNode(forLeaf.getMenu().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(forLeaf.getMenu().currentTarget);
+                const pane = button.page;
                 theManager.movePane(pane, theNewTcId);
             },
             disabled: forLeaf === this
@@ -767,8 +767,8 @@ tct.LeafNode = declare(tct.Node, {
         openSubMenu.addChild(new MenuItem({
             label: counter.toString(),
             onClick: function(){
-                var button = registry.byNode(forLeaf.getMenu().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(forLeaf.getMenu().currentTarget);
+                const pane = button.page;
                 theManager.openCopyOfPane(pane, theNewTcId);
             },
             disabled: forLeaf === this
@@ -1074,8 +1074,8 @@ tct.TabContainerTree = declare(null, {
     },
 
     setActiveTcById : function(tcId) {
-        var leaf = this.leavesByTCIds[tcId]
-            tc = leaf.getTC();
+        const leaf = this.leavesByTCIds[tcId];
+        const tc = leaf.getTC();
         this.setActiveTc(tc);
     },
 
