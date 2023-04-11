@@ -72,7 +72,7 @@
  *
 */
 
-import { dragulaWithContentPanelOverlays } from "content_types/dnd.js";
+import { dragulaWithContentPanelOverlays } from "./content_types/dnd.js";
 
 define([
     "dojo/_base/declare",
