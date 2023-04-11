@@ -985,15 +985,17 @@ var PdfController = declare(null, {
         const hls = this.highlightsBySlpSiid.getValuesUnderFirstKey(slp);
         for (const hl of hls) {
             const hdo = hl.popSupplier(slp);
-            const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
-            const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hdo);
-            if (hlid !== ohlid) {
-                this.highlightsBySlpSiid.delete(hlid);
-            }
-            if (hl.getSupplierCount() === 0) {
-                this.highlightsBySlpSiid.delete(ohlid);
-                for (const p of hl.listPageNums()) {
-                    this.highlightsByPageNum.remove(p, hl);
+            if (hdo) {
+                const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
+                const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hdo);
+                if (hlid !== ohlid) {
+                    this.highlightsBySlpSiid.delete(hlid);
+                }
+                if (hl.getSupplierCount() === 0) {
+                    this.highlightsBySlpSiid.delete(ohlid);
+                    for (const p of hl.listPageNums()) {
+                        this.highlightsByPageNum.remove(p, hl);
+                    }
                 }
             }
         }

@@ -1242,7 +1242,7 @@ var ContentManager = declare(null, {
 
             // For links D --> X, we require that panel X make references to the document.
             if (sourceType === this.crType.PDF) {
-                const {refsFrom, docId} = this.panelReferencesDocPanel(sUuid, sourceType, tUuid);
+                const {refsFrom, docId} = this.panelReferencesDocPanel(tUuid, targetType, sUuid);
                 if (refsFrom.length === 0) {
                     this.hub.alert({
                         title: "Linking",

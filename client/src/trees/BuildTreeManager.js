@@ -74,7 +74,8 @@ export class BuildTreeManager extends TreeManager {
                 // The container is a Moose graph area...
                 target.classList.contains('mooseGraphArea')
                 // ...AND, the tree node is of DEDUC type:
-                && el.querySelector(`.${deducIconClass}`)
+                // (see https://developer.mozilla.org/en-US/docs/Web/CSS/:scope)
+                && el.querySelector(`:scope > .dijitTreeRow > .dijitTreeContent > .${deducIconClass}`)
             ),
             moves: (el, source, handle, sibling) => {
                 // The user has to click either on a tree icon, or on the text label beside it.

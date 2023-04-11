@@ -108,7 +108,7 @@ export function setupPanelDragTargetOverlays(drake, options) {
 
     drake.on('drop', (el, target, source, sibling) => {
         let paneId = null;
-        if (target.classList.contains('panelDragTargetOverlay')) {
+        if (target?.classList.contains('panelDragTargetOverlay')) {
             paneId = target.getAttribute('data-target-id');
         }
         onDrop(drake, el, target, source, sibling, paneId);

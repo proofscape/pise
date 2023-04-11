@@ -742,18 +742,22 @@ var ChartManager = declare(AbstractContentManager, {
     noteNodeMouseoverMouseout: async function(forest, nodepath, e) {
         const action = {mouseover: 'show', mouseout: 'hide'}[e.type];
         const node = forest.getNode(nodepath);
-        const docId = node.docId;
-        if (docId) {
-            const uuid = this.getPanelUuidOfForest(forest);
-            const W = await this.linkingMap.get(uuid, docId);
-            this.hub.windowManager.groupcastEvent({
-                type: 'intentionToNavigate',
-                action: action,
-                source: uuid,
-                panels: W,
-            }, {
-                includeSelf: true,
-            });
+        // Can fail to have the node anymore, in the case of a mouseout triggered
+        // by selecting the option to close a deduc, from that deduc's context menu.
+        if (node) {
+            const docId = node.docId;
+            if (docId) {
+                const uuid = this.getPanelUuidOfForest(forest);
+                const W = await this.linkingMap.get(uuid, docId);
+                this.hub.windowManager.groupcastEvent({
+                    type: 'intentionToNavigate',
+                    action: action,
+                    source: uuid,
+                    panels: W,
+                }, {
+                    includeSelf: true,
+                });
+            }
         }
     },
 
