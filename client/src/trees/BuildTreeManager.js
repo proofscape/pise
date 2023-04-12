@@ -374,4 +374,35 @@ export class BuildTreeManager extends TreeManager {
         }));
     }
 
+    /* Given the libpath and version of any item in a repo,
+     * retrieve the root item for that tree.
+     */
+    getRootItemForMemberLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        const store = this.stores.get(treeUid);
+        return store.query({id: repopath})[0];
+    }
+
+    /* Retrieve a tree item by its libpath and version.
+     */
+    getItemByLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        const store = this.stores.get(treeUid);
+        return store.query({id: libpath})[0];
+    }
+
+    /* Get all descendants of a given item in a given tree.
+     *
+     * @param libpath: the libpath of the item in question
+     * @param version: the version of the item in question
+     * @return: array of items
+     */
+    getAllDescendantsByLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        return this.getAllDescendants(treeUid, libpath);
+    }
+
 }

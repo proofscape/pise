@@ -1821,8 +1821,34 @@ var PdfController = declare(null, {
     },
 
     linkTreeItem: function({libpath, version}) {
-        console.log('establish tree item link', libpath, version);
-        // TODO
+        const btm = this.mgr.hub.repoManager.buildMgr;
+        const rootItem = btm.getRootItemForMemberLibpathAndVersion(libpath, version);
+        const selectedItem = btm.getItemByLibpathAndVersion(libpath, version);
+        const items = btm.getAllDescendantsByLibpathAndVersion(libpath, version);
+        items.unshift(selectedItem);
+
+        const allDocInfo = rootItem.docInfo;
+
+        const docs = new Map();
+        const refs = new Map();
+
+        for (const item of items) {
+            const docRefs = item.docRefs || {};
+            for (const [docId, newRefs] of Object.entries(docRefs)) {
+                if (!docs.has(docId)) {
+                    docs.set(docId, allDocInfo[docId]);
+                }
+                if (!refs.has(docId)) {
+                    refs.set(docId, []);
+                }
+                refs.get(docId).push(...newRefs);
+            }
+        }
+
+        console.log('docs', docs);
+        console.log('refs', refs);
+
+        // TODO...
     },
 
 });
