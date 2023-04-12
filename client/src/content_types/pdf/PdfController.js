@@ -1813,14 +1813,71 @@ var PdfController = declare(null, {
         return dlg;
     },
 
-    removeLinkedTreeItem: function() {
-        const libpath = this.linkedTreeItemLibpath;
-        const version = this.linkedTreeItemVersion;
-        console.log('remove existing tree item', libpath, version);
-        // TODO
+    /* Unlink this doc panel from the tree item to which it is currently linked.
+     */
+    removeLinkedTreeItem: async function() {
+        if (!this.linkedTreeItemLibpath) {
+            // No link to be removed.
+            return;
+        }
+
+        let suppliers = Array.from(
+            this.highlightsBySlpSiid.firstKeys()
+        ).filter(slp => this.libpathBelongsToLinkedTreeSet(slp));
+
+        // Drop highlights
+        for (const slp of suppliers) {
+            this._basicDropHighlightsFromSupplier(slp);
+        }
+        await this.redoExistingHighlightLayers();
+
+        // Break links
+        const LD = this.mgr.linkingMap;
+        const LC = this.mgr.hub.chartManager.linkingMap;
+        const LN = this.mgr.hub.notesManager.linkingMap;
+
+        for (const slp of suppliers) {
+            await LD.removeTriples({x: slp}, {doNotRelink: true});
+        }
+
+        // Any panel containing one of these suppliers must be unlinked, lest it
+        // attempt to navigate here without highlights loaded.
+        suppliers = new Set(suppliers);
+
+        const trips = await this.mgr.hub.chartManager.getAllDocRefTriples();
+        const Uc = new Set();
+        for (const [u, s, d] of trips) {
+            if (suppliers.has(s)) {
+                Uc.add(u);
+            }
+        }
+        for (const u of Uc) {
+            await LC.removeTriples({u, w: this.uuid}, {doNotRelink: true});
+        }
+
+        const quads = await this.mgr.hub.notesManager.getAllDocRefQuads();
+        const Un = new Set();
+        for (const [u, s, g, d] of quads) {
+            if (suppliers.has(s)) {
+                Un.add(u);
+            }
+        }
+        for (const u of Un) {
+            await LN.removeTriples({u, w: this.uuid}, {doNotRelink: true});
+        }
+
+        this.linkedTreeItemLibpath = null;
+        this.linkedTreeItemVersion = null;
     },
 
+    /* Link this doc panel to a tree item.
+     */
     linkTreeItem: async function({libpath, version}) {
+        if (this.linkedTreeItemLibpath) {
+            // Already linked to something.
+            return;
+        }
+
         const btm = this.mgr.hub.repoManager.buildMgr;
         const selectedItem = btm.getItemByLibpathAndVersion(libpath, version);
         const items = btm.getAllDescendantsByLibpathAndVersion(libpath, version);

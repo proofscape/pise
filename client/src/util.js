@@ -565,6 +565,10 @@ class PairKeyMapping {
         return this.map.delete(a);
     }
 
+    firstKeys() {
+        return this.map.keys();
+    }
+
 }
 
 util.PairKeyMapping = PairKeyMapping;

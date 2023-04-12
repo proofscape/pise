@@ -1470,7 +1470,7 @@ var ContentManager = declare(null, {
                             await linkingMap.removeTriples({u: sUuid, w: w0}, {doNotRelink: true});
                         } else {
                             // Remove existing tree item.
-                            sourcePdfc.removeLinkedTreeItem();
+                            await sourcePdfc.removeLinkedTreeItem();
                         }
                     }
                 }
