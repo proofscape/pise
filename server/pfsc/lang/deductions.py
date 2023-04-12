@@ -324,6 +324,11 @@ class Deduction(Enrichment, NodeLikeObj):
 
     def resolveDocRefs(self):
         default_doc_info = self.get('docInfo', lazy_load=False)
+        if default_doc_info is not None and not isinstance(default_doc_info, dict):
+            # It will be a common error to pass a string here, instead of a libpath,
+            # which would resolve to an actual doc info dictionary.
+            msg = f'docInfo in deduc "{self.libpath}" should be a dictionary'
+            raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
 
         def visit(item):
             if isinstance(item, Node):
