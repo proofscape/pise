@@ -1296,14 +1296,19 @@ var ContentManager = declare(null, {
         const sourceColor = this.typeColors[sourceType];
         const sourceLabel = "A";
 
+        function makeCheckboxId(targetLabel) {
+            return `linkingDialog--${targetLabel.replaceAll('.', '-')}`;
+        }
+
         function buildLinkRow(targetColor, targetLabel, options) {
             const {
                 includeCheckbox = false,
+                checked = true,
             } = (options || {});
-            const cbId = `linkingDialog-${targetLabel}`;
+            const cbId = makeCheckboxId(targetLabel);
             let cb = '';
             if (includeCheckbox) {
-                cb = `<input type="checkbox" id="${cbId}" name="${targetLabel}" checked>`;
+                cb = `<input type="checkbox" id="${cbId}" name="${targetLabel}"${checked ? " checked" : ""}>`;
             }
             const targetExtraClass = targetLabel.includes('.') ? 'libpathLink' : '';
             return `
@@ -1352,6 +1357,7 @@ var ContentManager = declare(null, {
         }
 
         let existingLinkTab;
+        let existingTreeItemLabel;
         if (n > 0) {
             // Source tab always gets label "A". If target given, it gets "B", while
             // existing targets start at "C"; else the latter start at "B".
@@ -1360,9 +1366,12 @@ var ContentManager = declare(null, {
             const elRows = [];
 
             if (existingTreeItem) {
-                const label = writeTreeItemLabel(existingTreeItem);
+                existingTreeItemLabel = writeTreeItemLabel(existingTreeItem);
                 const color = this.typeColors.TREE;
-                elRows.push(buildLinkRow(color, label, {includeCheckbox: true}));
+                elRows.push(buildLinkRow(color, existingTreeItemLabel, {
+                    includeCheckbox: true,
+                    checked: !targetTreeItem,
+                }));
             }
 
             for (const info of existingTargetInfos.values()) {
@@ -1408,6 +1417,7 @@ var ContentManager = declare(null, {
         const title = "Linking";
         const okButtonText = existingLinkTab ? "Keep Selected" : "OK";
         let dismissCode = null;
+        let onShow = null;
         let content = '';
         if (proposedLinkTab) {
             content += `
@@ -1433,8 +1443,28 @@ var ContentManager = declare(null, {
         </div>
         `;
 
+        // A doc is only allowed to be linked to at most one tree item at a time.
+        // In future could consider relaxing this rule, but for now it's in place and we
+        // must enforce it in the linking dialog, in order to manage user's expectations.
+        if (targetTreeItem && existingTreeItem) {
+            onShow = () => {
+                const targetCb = document.querySelector(`#${makeCheckboxId(targetLabel)}`);
+                const existingCb = document.querySelector(`#${makeCheckboxId(existingTreeItemLabel)}`);
+                targetCb.addEventListener('change', event => {
+                    if (targetCb.checked) {
+                        existingCb.checked = false;
+                    }
+                });
+                existingCb.addEventListener('change', event => {
+                    if (existingCb.checked) {
+                        targetCb.checked = false;
+                    }
+                });
+            };
+        }
+
         const result = await this.hub.choice({
-            title, content, okButtonText, dismissCode
+            title, content, okButtonText, dismissCode, onShow
         });
 
         this.hub.windowManager.groupcastEvent({

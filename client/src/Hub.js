@@ -1150,6 +1150,7 @@ var Hub = declare(null, {
      * dismissMessage: text to go beside the dismissal checkbox. Defaults to "Do not show this again."
      * mustShow: set true to ensure a dialog is shown, no matter what dismissal settings may have
      *   been made in local storage.
+     * onShow: optional callback to be called after the dialog is shown.
      *
      * return: Promise resolving with object of the form {
      *   shown: true if the dialog was shown (false if it was previously dismissed),
@@ -1158,10 +1159,11 @@ var Hub = declare(null, {
      *   dialog: the ConfirmDialog instance that was shown
      * }
      */
-    choice : function({title, content, okButtonText, cancelButtonText, dismissCode, dismissMessage, mustShow}) {
+    choice : function({title, content, okButtonText, cancelButtonText, dismissCode, dismissMessage, mustShow, onShow}) {
         okButtonText = okButtonText || "OK";
         cancelButtonText = cancelButtonText || "Cancel";
         dismissMessage = dismissMessage || "Do not show this again.";
+        onShow = onShow || (() => {});
         const dismissalPrefix = 'pfsc:dismiss:';
         if (!mustShow) {
             if (dismissCode && this.dismissalStorage.getItem(dismissalPrefix + dismissCode)) {
@@ -1201,7 +1203,8 @@ var Hub = declare(null, {
                 },
                 onCancel: function() {
                     handleChoice(this, false);
-                }
+                },
+                onShow: onShow,
             });
             dlg.set('buttonOk', okButtonText);
             dlg.set('buttonCancel', cancelButtonText);
