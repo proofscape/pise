@@ -699,11 +699,19 @@ class Builder:
             # Record the Annotation itself.
             annopath = anno.getLibpath()
             self.annotations[annopath] = anno
+            # Doc refs
+            # Note: It's not enough to call `anno.gather_doc_info()` here, since
+            # it's not until `enrich_data()` has been called on each widget that
+            # doc infos will be available. But `anno.get_anno_data()` is caching,
+            # so this is not wasted effort.
+            doc_info = anno.get_anno_data()['docInfo']
+            self.manifest.update_doc_info(doc_info['docs'])
             # Add a tree node.
             name = anno.getName()
             mtns_by_name[name] = ManifestTreeNode(
                 annopath, type="NOTES", name=name,
-                modpath=module_path, sourceRow=anno.getFirstRowNum()
+                modpath=module_path, sourceRow=anno.getFirstRowNum(),
+                docRefs=doc_info['refs']
             )
             self.monitor.note_module_item_processed()
 
@@ -736,11 +744,14 @@ class Builder:
             #  and is not None IFF it is already a key in the depth lookup.)
             depth = 1 + deduc_depth_within_module.get(tdlp, -1)
             deduc_depth_within_module[dlp] = depth
+            # Doc refs
+            doc_info = deduc.gather_doc_info()
+            self.manifest.update_doc_info(doc_info['docs'])
             # Add a tree node.
             name = deduc.getName()
             mtns_by_name[name] = ManifestTreeNode(
                 dlp, type="CHART", name=name, modpath=module_path,
-                sourceRow=deduc.getFirstRowNum(),
+                sourceRow=deduc.getFirstRowNum(), docRefs=doc_info['refs'],
                 # target deduc libpath
                 tdlp=tdlp,
                 # depth
