@@ -864,11 +864,18 @@ var PdfManager = declare(AbstractContentManager, {
         const {stype, slp, siid} = highlightDescriptor;
         const supplierUuids = await this.linkingMap.get(uuid, slp);
         const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
+        const panels = supplierUuids.length > 0 ? supplierUuids : null;
+        const tree = panels === null ? slp : null;
 
         if (action === 'click') {
             const cdo = {
                 type: stype,
             };
+            if (tree) {
+                const pdfc = this.getPdfcByUuid(uuid);
+                cdo.libpath = slp;
+                cdo.version = pdfc.linkedTreeItemVersion;
+            }
             if (stype === "CHART") {
                 // For highlights supplied by a chart, the siid's simply are the libpaths
                 // of the nodes that supplied them. So we either want to view or select
@@ -894,8 +901,6 @@ var PdfManager = declare(AbstractContentManager, {
                 await this.linkingMap.add(uuid, slp, spawned);
             }
         } else {
-            const panels = supplierUuids.length > 0 ? supplierUuids : null;
-            const tree = panels === null ? slp : null;
             this.hub.windowManager.groupcastEvent({
                 type: 'intentionToNavigate',
                 action: action,

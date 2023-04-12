@@ -1479,7 +1479,7 @@ var ContentManager = declare(null, {
             if (proposedLinkTab && (decisionsByLabel.get(targetLabel) || !existingLinkTab)) {
                 if (targetTreeItem) {
                     // Establish a tree item link
-                    sourcePdfc.linkTreeItem(targetTreeItem);
+                    await sourcePdfc.linkTreeItem(targetTreeItem);
                 } else {
                     // Form a new link for each secondaryId determined above.
                     for (const x of secondaryIds) {
