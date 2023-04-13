@@ -980,26 +980,37 @@ var ContentManager = declare(null, {
      *     action: 'show' or 'hide',
      *     source: uuid of panel having a nav intention
      *     panels: optional array of panel uuids where nav might happen,
-     *     tree: optional libpath of item where nav might happen,
+     *     tree: optional class string of tree icon representing item where nav might happen,
      *     iid: optional "internal id" (describing intended object *within* panel/treeitem)
      * }
      */
     handleIntentionToNavigate: function(event) {
-        // tree: not yet supported
-        // iid: not yet supported
-        const panels = event.panels || [];
-        for (const uuid of panels) {
-            const paneId = this.getPaneIdByUuid(uuid);
-            if (paneId) {
-                // If we got a paneId, then the panel belongs to this window.
-                const pane = this.getPane(paneId);
-                const button = this.tct.getTabButtonForPane(pane);
-                const buttonNode = button.domNode;
-                const glowClass = 'pisePreNavGlow';
-                if (event.action === 'show') {
-                    buttonNode.classList.add(glowClass);
-                } else if (event.action === 'hide') {
-                    buttonNode.classList.remove(glowClass);
+        function toggleGlowClass(elt, glowClass) {
+            if (event.action === 'show') {
+                elt.classList.add(glowClass);
+            } else if (event.action === 'hide') {
+                elt.classList.remove(glowClass);
+            }
+        }
+
+        if (event.tree) {
+            const iconElt = document.querySelector(`.dijitTreeIcon.${event.tree}`);
+            if (iconElt) {
+                const treeRow = query(iconElt).closest('.dijitTreeRow')[0];
+                const glowClass = 'dijitTreeRowHover';
+                toggleGlowClass(treeRow, glowClass);
+            }
+        } else if (event.panels) {
+            // iid: not yet supported
+            for (const uuid of event.panels) {
+                const paneId = this.getPaneIdByUuid(uuid);
+                if (paneId) {
+                    // If we got a paneId, then the panel belongs to this window.
+                    const pane = this.getPane(paneId);
+                    const button = this.tct.getTabButtonForPane(pane);
+                    const buttonNode = button.domNode;
+                    const glowClass = 'pisePreNavGlow';
+                    toggleGlowClass(buttonNode, glowClass);
                 }
             }
         }

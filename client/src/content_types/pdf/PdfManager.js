@@ -865,16 +865,18 @@ var PdfManager = declare(AbstractContentManager, {
         const supplierUuids = await this.linkingMap.get(uuid, slp);
         const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
         const panels = supplierUuids.length > 0 ? supplierUuids : null;
-        const tree = panels === null ? slp : null;
+        const btm = this.hub.repoManager.buildMgr;
+        const pdfc = this.getPdfcByUuid(uuid);
+        const version = pdfc.linkedTreeItemVersion;
+        const tree = panels === null ? btm.makeTreeIconLibpathClass(slp, version) : null;
 
         if (action === 'click') {
             const cdo = {
                 type: stype,
             };
             if (tree) {
-                const pdfc = this.getPdfcByUuid(uuid);
                 cdo.libpath = slp;
-                cdo.version = pdfc.linkedTreeItemVersion;
+                cdo.version = version;
             }
             if (stype === "CHART") {
                 // For highlights supplied by a chart, the siid's simply are the libpaths

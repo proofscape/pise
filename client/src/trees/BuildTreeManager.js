@@ -51,7 +51,7 @@ define([
 // We make use of these in managing drag-and-drop:
 const treeIconClass = 'dijitTreeIcon';
 const deducIconClass = 'deducIcon16';
-const libpathClassPrefix = 'libpath-';
+const libpathClassPrefix = 'pfscLibpathV';
 
 
 export class BuildTreeManager extends TreeManager {
@@ -97,14 +97,15 @@ export class BuildTreeManager extends TreeManager {
                 // Extract the libpath and version of the item that was dropped.
                 const iconElt = dojo.query(el).query('.'+treeIconClass)[0];
                 const iconClasses = iconElt.classList;
-                const n = libpathClassPrefix.length;
-                let libpathv;
+                let libpath;
+                let version;
                 for (const cl of iconClasses.values()) {
-                    if (cl.substring(0, n) === libpathClassPrefix) {
-                        libpathv = cl.substring(n);
+                    if (cl.startsWith(libpathClassPrefix)) {
+                        const p = cl.split('--');
+                        libpath = p[1].replaceAll('-', '.');
+                        version = p[2];
                     }
                 }
-                const [libpath, version] = libpathv.split("@");
 
                 if (paneId) {
                     // Any type of tree item was dropped onto a PDF panel.
@@ -130,6 +131,14 @@ export class BuildTreeManager extends TreeManager {
 
     repoIsOpen(repopathv) {
         return this.treeDivs.has(repopathv);
+    }
+
+    /* Produce the specially-formatted class string we add to a tree node's icon element,
+     * in order to indicate the libpath and version of the Proofscape entity represented
+     * by this tree node.
+     */
+    makeTreeIconLibpathClass(libpath, version) {
+        return `${libpathClassPrefix}--${libpath.replaceAll('.', '-')}--${version}`;
     }
 
     /* Given the data describing a repo tree model, load and display this repo tree.
@@ -158,9 +167,7 @@ export class BuildTreeManager extends TreeManager {
             getIconClass: function(/*dojo.store.Item*/ item, /*Boolean*/ opened){
                 const classes = [
                     'menuIcon',
-                    // We embed the libpath of the item in the form of a special class, so that
-                    // it can be extracted in drag-and-drop operations.
-                    `${libpathClassPrefix}${item.libpath}@${version}`,
+                    mgr.makeTreeIconLibpathClass(item.libpath, version),
                 ];
                 if (this.model.mayHaveChildren(item)) {
                     classes.push('ringIcon');
