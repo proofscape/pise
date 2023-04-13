@@ -1525,8 +1525,14 @@ var ContentManager = declare(null, {
                 if (targetTreeItem) {
                     // Establish a tree item link
                     await sourcePdfc.linkTreeItem(targetTreeItem);
+                } else if (sourcePdfc) {
+                    // Load highlights and link to all secondaryIds
+                    await sourcePdfc.getAndLoadHighlightsFromSupplierPanel(tUuid, {
+                        acceptFrom: secondaryIds,
+                        linkTo: secondaryIds,
+                    });
                 } else {
-                    // Form a new link for each secondaryId determined above.
+                    // Form a new link for each secondaryId
                     for (const x of secondaryIds) {
                         await linkingMap.add(sUuid, x, tUuid);
                     }
