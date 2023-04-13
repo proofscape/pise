@@ -325,14 +325,13 @@ var PdfController = declare(null, {
     /* The iframe has been reloaded -- probably due to being moved in the DOM tree.
      * We try to restore its state.
      */
-    reloadFrame: function() {
-        //console.log('reload frame in pane: ', this.pane.id);
-        //console.log('same content window: ', this.iframe.contentWindow === this.contentWindow);
-        var pdfc = this;
-        pdfc.docIsLoaded = false;
-        this.grabAppAndInitialize().then(function() {
-            return pdfc.requestState(pdfc.origInfo);
-        });
+    reloadFrame: async function() {
+        this.docIsLoaded = false;
+        await this.grabAppAndInitialize();
+        const info = JSON.parse(JSON.stringify(this.origInfo));
+        info.selection = true;
+        info.gotosel = 'always';
+        await this.requestState(info);
     },
 
     /* Open a file.
@@ -478,7 +477,10 @@ var PdfController = declare(null, {
      *     If both `highlightId` and `selection` are defined, then `highlightId` is followed,
      *     and `selection` ignored.
      *
-     *   selection: {string|array} Should be either a single selection code (string) or
+     *   selection: {string|array|true|null}
+     *     true: (default) keep the existing selection ("stay true")
+     *     null: clear the existing selection
+     *     Otherwise, should be either a single selection code (string) or
      *     an array of selection codes, defining the desired highlight boxes. A "selection code"
      *     is the same as a "combiner code string", i.e. a string describing a combination of
      *     boxes. (See docs on that subject elsewhere.)
@@ -602,33 +604,28 @@ var PdfController = declare(null, {
             } else {
                 return Promise.resolve();
             }
-
         }).then(() => {
             // ----------------------------------------------------------------
             // Selections
-            if (info.highlightId || info.selection) {
-                let g = info.gotosel || 'altKey';
-                let doAutoScroll = (
-                    ( g === 'always' ) ||
-                    ( g === 'altKey' && !event?.altKey )
-                );
-                pdfc.origInfo.gotosel = g;
-                // If a "named highlight" is defined, this overrules any "ad hoc highlight".
-                if (info.highlightId) {
-                    return pdfc.selectNamedHighlight(
-                        info.highlightId, doAutoScroll, info.requestingUuid);
-                } else {
-                    let codes = Array.isArray(info.selection) ? info.selection : [info.selection];
-                    pdfc.origInfo.selection = codes;
-                    let color = info.selcolor || defaultPdfHighlightColor;
-                    pdfc.origInfo.selcolor = color;
-                    return pdfc.highlightFromCodes(codes, doAutoScroll, color);
-                }
+            const g = info.gotosel || 'altKey';
+            const doAutoScroll = (
+                ( g === 'always' ) ||
+                ( g === 'altKey' && !event?.altKey )
+            );
+            pdfc.origInfo.gotosel = g;
+            if (info.highlightId) {
+                return pdfc.selectNamedHighlight(
+                    info.highlightId, doAutoScroll, info.requestingUuid);
+            } else if (info.selection === true || info.selection === undefined) {
+                return pdfc.restorePreviouslySelectedHighlight({doAutoScroll});
+            } else if (info.selection === null) {
+                this.clearAllHighlights();
             } else {
-                // If no selection specified, clear any existing highlights.
-                pdfc.clearNamedHighlight();
-                pdfc.clearAdHocHighlight();
-                return Promise.resolve();
+                const codes = Array.isArray(info.selection) ? info.selection : [info.selection];
+                const color = info.selcolor || defaultPdfHighlightColor;
+                pdfc.origInfo.selection = codes;
+                pdfc.origInfo.selcolor = color;
+                return pdfc.highlightFromCodes(codes, doAutoScroll, color);
             }
         }).then(() => {
             // ----------------------------------------------------------------
@@ -1488,22 +1485,29 @@ var PdfController = declare(null, {
     // Find all existing highlight layers, and redo each one.
     // Useful when changing the set of highlights loaded into this doc.
     redoExistingHighlightLayers: async function() {
-        const previousSelection = this.selectedHighlight;
-
         const highlightLayers = Array.from(this.outerContainer.querySelectorAll('.highlightLayer'));
         for (const highlightLayer of highlightLayers) {
             const pageNumber = +highlightLayer.parentNode.getAttribute('data-page-number');
             this.redoHighlightLayer(highlightLayer, pageNumber);
         }
+        await this.restorePreviouslySelectedHighlight({doAutoScroll: false});
+    },
 
-        // Try to restore previous selection, if any, and if it still exists.
+    // Try to restore previous selection, if any, and if it still exists.
+    restorePreviouslySelectedHighlight: async function({doAutoScroll}) {
+        const previousSelection = this.selectedHighlight;
         if (previousSelection) {
             const exists = await this.selectNamedHighlight(
-                previousSelection.highlightId, false, null);
+                previousSelection.highlightId, doAutoScroll, null);
             if (!exists) {
-                this.clearNamedHighlight();
+                this.clearAllHighlights();
             }
         }
+    },
+
+    clearAllHighlights: function() {
+        this.clearNamedHighlight();
+        this.clearAdHocHighlight();
     },
 
     // Clear out an existing highlight layer, and rebuild its contents.
