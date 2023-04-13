@@ -994,11 +994,15 @@ var ContentManager = declare(null, {
         }
 
         if (event.tree) {
-            const iconElt = document.querySelector(`.dijitTreeIcon.${event.tree}`);
-            if (iconElt) {
-                const treeRow = query(iconElt).closest('.dijitTreeRow')[0];
-                const glowClass = 'dijitTreeRowHover';
-                toggleGlowClass(treeRow, glowClass);
+            // Only want to show nav intention in same window where source panel lives.
+            const local = this.getPaneIdByUuid(event.source);
+            if (local) {
+                const iconElt = document.querySelector(`.dijitTreeIcon.${event.tree}`);
+                if (iconElt) {
+                    const treeRow = query(iconElt).closest('.dijitTreeRow')[0];
+                    const glowClass = 'dijitTreeRowHover';
+                    toggleGlowClass(treeRow, glowClass);
+                }
             }
         } else if (event.panels) {
             // iid: not yet supported
