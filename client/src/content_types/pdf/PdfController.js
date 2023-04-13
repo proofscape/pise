@@ -381,6 +381,9 @@ var PdfController = declare(null, {
             }
         });
 
+        info.linkedTreeItemLibpath = this.linkedTreeItemLibpath;
+        info.linkedTreeItemVersion = this.linkedTreeItemVersion;
+
         if (!serialOnly) {
             const nonserialProps = [
                 'lastOpenedFilelist',
@@ -495,6 +498,14 @@ var PdfController = declare(null, {
      *     are: `red`, `yellow`, `green`, `blue`, `clear`. By setting `clear` you make
      *     the selection invisible. This is useful if you only want to scroll to the position of
      *     the selection, but do not want to show it.
+     *
+     * linkedTreeItemLibpath
+     * linkedTreeItemVersion
+     *
+     *   If defined, these indicate that the doc panel should have a linked tree item
+     *   (meaning that all highlights defined at and under that item are loaded into
+     *   the doc panel). If the libpath is given, the version may be omitted and will
+     *   default to "WIP".
      *
      */
     transitionToState(info, event = null) {
@@ -618,6 +629,15 @@ var PdfController = declare(null, {
                 pdfc.clearNamedHighlight();
                 pdfc.clearAdHocHighlight();
                 return Promise.resolve();
+            }
+        }).then(() => {
+            // ----------------------------------------------------------------
+            // Tree link
+            if (info.linkedTreeItemLibpath) {
+                return pdfc.linkTreeItem({
+                    libpath: info.linkedTreeItemLibpath,
+                    version: info.linkedTreeItemVersion || "WIP",
+                });
             }
         });
     },
@@ -1880,17 +1900,20 @@ var PdfController = declare(null, {
 
         const btm = this.mgr.hub.repoManager.buildMgr;
         const selectedItem = btm.getItemByLibpathAndVersion(libpath, version);
-        const items = btm.getAllDescendantsByLibpathAndVersion(libpath, version);
-        items.unshift(selectedItem);
-        const allHdos = [];
-        for (const item of items) {
-            const docRefs = item.docRefs || {};
-            const newHdos = docRefs[this.docId] || [];
-            allHdos.push(...newHdos);
+        // selectedItem might not be available, if the repo it belongs to is not currently open.
+        if (selectedItem) {
+            const items = btm.getAllDescendantsByLibpathAndVersion(libpath, version);
+            items.unshift(selectedItem);
+            const allHdos = [];
+            for (const item of items) {
+                const docRefs = item.docRefs || {};
+                const newHdos = docRefs[this.docId] || [];
+                allHdos.push(...newHdos);
+            }
+            await this.receiveHighlights(allHdos);
+            this.linkedTreeItemLibpath = libpath;
+            this.linkedTreeItemVersion = version;
         }
-        await this.receiveHighlights(allHdos);
-        this.linkedTreeItemLibpath = libpath;
-        this.linkedTreeItemVersion = version;
     },
 
 });

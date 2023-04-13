@@ -392,12 +392,14 @@ export class BuildTreeManager extends TreeManager {
     }
 
     /* Retrieve a tree item by its libpath and version.
+     *
+     * return: the tree item, or undefined if could not be found
      */
     getItemByLibpathAndVersion(libpath, version) {
         const repopath = ise.util.getRepoPart(libpath);
         const treeUid = ise.util.lv(repopath, version);
         const store = this.stores.get(treeUid);
-        return store.query({id: libpath})[0];
+        return store?.query({id: libpath})[0];
     }
 
     /* Get all descendants of a given item in a given tree.
