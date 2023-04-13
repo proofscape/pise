@@ -489,12 +489,17 @@ var ChartManager = declare(AbstractContentManager, {
         return forest;
     },
 
+    /* Adapt old-style content descriptors (e.g. coming from tree items) to the format
+     * expected by `Forest.requestState()`.
+     */
     makeInitialForestRequestParams: function(info) {
         // By default, for loading initial content, we assume that we want no
         // transition, and we want to see an overview of all objects on the board.
-        var params = {
-            transition: false,
-            view: {
+        // However, we accept any `transition` and `view` settings from the incoming
+        // object, if set.
+        const params = {
+            transition: info.transition || false,
+            view: info.view || {
                 objects: 'all',
                 pan_policy: moose.head.autopanPolicy_CenterAlways
             }
