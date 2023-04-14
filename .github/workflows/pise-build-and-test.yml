@@ -130,7 +130,6 @@ jobs:
       PISE_OCA_CTX_TAR: ${{ format('{0}/contexts/pise-oca-context.tar.gz', github.workspace) }}
       PISE_OCA_CTX_DIR: ${{ format('{0}/contexts/pise-oca-context', github.workspace) }}
       TEST_DEPLOY_DIR: testing
-      chromedriver-url: https://chromedriver.storage.googleapis.com/109.0.5414.74/chromedriver_linux64.zip
       # Ensure static assets are served locally.
       ISE_SERVE_LOCALLY: 1
       ELKJS_SERVE_LOCALLY: 1
@@ -241,6 +240,12 @@ jobs:
         run: npm ci
       # -----------------------------------------
       # Install chromedriver, preferably from cache
+      - name: Check Chrome version
+        id: check-chrome-version
+        run: google-chrome --version | sed -e "s/Google Chrome /ChromeVersion=/" | sed -e "s/ //g" >> $GITHUB_OUTPUT
+      - name: Build chromedriver URL
+        id: chromedriver-url
+        run: echo "chromedriver-url=https://chromedriver.storage.googleapis.com/${{ steps.check-chrome-version.outputs.ChromeVersion }}/chromedriver_linux64.zip" >> $GITHUB_ENV
       - name: Cache chromedriver
         id: cache-chromedriver
         uses: actions/cache@v3
