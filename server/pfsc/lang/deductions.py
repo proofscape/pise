@@ -960,20 +960,18 @@ class Node(NodeLikeObj):
         return ''
 
     def writeLabelHTML(self, lang):
-        # Get basic text, based on language.
-        text = self.get(lang)
-        if not text:
+        # Look for a latex label, based on language.
+        latex_label = self.get(lang, '')
+        if not latex_label:
             # If text for the specified language was not defined,
             # then try the 'sy' or "symbolic" field.
-            text = self.get('sy')
-        if not text and lang != 'en':
+            latex_label = self.get('sy', '')
+        if not latex_label and lang != 'en':
             # Last ditch: try English, if haven't already.
-            text = self.get('en')
-        if not text:
-            text = ''
+            latex_label = self.get('en', '')
 
         # Handle multiline formatting.
-        text = ll(text)
+        text = ll(latex_label)
 
         # Add prefix, if any.
         prefix = self.writeLabelPrefix()
@@ -988,8 +986,8 @@ class Node(NodeLikeObj):
         renderer = NodeLabelRenderer(self)
         text = mistletoe.markdown(text, renderer)
 
-        # Add a PDF label if defined.
-        if 'pdf' in self.pdfReferences:
+        # Add a PDF label if defined, and if no latex label.
+        if 'pdf' in self.pdfReferences and not latex_label:
             ref = self.pdfReferences['pdf']
             text += ref.write_pdf_render_div()
 
