@@ -263,7 +263,7 @@ tct.RootNode = declare(tct.Node, {
         }
         // Next consider the case that there are exactly two leaves in the entire tree.
         else if (this.child.isTerminal()) {
-            // In this case we get two MenuItems, to move-to or open-in the "oppoiste group".
+            // In this case we get two MenuItems, to move-to or open-in the "opposite group".
             var otherGrandChild = this.child.getOtherChild(forLeaf),
                 otherTcId = otherGrandChild.getTC().id,
                 theManager = this.tct,
@@ -896,6 +896,45 @@ tct.TabContainerTree = declare(null, {
                 return target === source;
             },
         });
+        this.drake.on('drop', this.onTabDrop.bind(this));
+    },
+
+    /* When tabs are re-ordered by drag-and-drop, we have to get the
+     * TabContainer to actually rearrange the tabs internally. (Otherwise,
+     * e.g., when storing the state, we'll store them in their original
+     * order, instead of the updated one.)
+     */
+    onTabDrop : function(el, target, source, sibling) {
+        const button = registry.byNode(el);
+        const page = button.page;
+        const tc = page.getParent();
+        const selectedBeforeDrag = tc.selectedChildWidget;
+        const leaf = this.leavesByTCIds[tc.id];
+
+        // Determine the index at which the tab needs to be inserted.
+        // -1 means at the right-hand end.
+        let i = -1;
+        if (sibling) {
+            let child = sibling;
+            while ( (child = child.previousSibling) ) {
+                i++;
+            }
+        }
+
+        // Be sure to push/pop scroll fractions before/after removing/adding.
+        leaf.pushScrollFractions();
+        tc.removeChild(page);
+        if (i < 0) {
+            tc.addChild(page);
+        } else {
+            tc.addChild(page, i);
+        }
+        leaf.popScrollFractions();
+
+        // Maintain the selection from before drag.
+        if (selectedBeforeDrag) {
+            this.selectPane(selectedBeforeDrag);
+        }
     },
 
     /* Get an array of the IDs of the TCs, in the natural tree traversal order.
