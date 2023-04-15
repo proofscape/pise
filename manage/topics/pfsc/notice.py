@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-#   Copyright (c) 2011-2022 Proofscape contributors                           #
+#   Copyright (c) 2011-2023 Proofscape Contributors                           #
 #                                                                             #
 #   Licensed under the Apache License, Version 2.0 (the "License");           #
 #   you may not use this file except in compliance with the License.          #
@@ -16,12 +16,12 @@
 
 PISE_notice = """\
 Proofscape Integrated Study Environment (PISE)
-Copyright (c) 2011-2022 Proofscape contributors
+Copyright (c) 2011-2023 Proofscape Contributors
 """
 
 moose_notice = """\
 Proofscape Moose
-Copyright (c) 2011-2022 Proofscape contributors
+Copyright (c) 2011-2023 Proofscape Contributors
 """
 
 displaylang_notice = """\
