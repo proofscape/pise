@@ -291,15 +291,24 @@ export class WindowManager {
                     onClick: () => {
                         //console.log(`Move to window ${n}`, info);
                         peer.makeWindowRequest(n, 'contentManager.openContentInActiveTCReturnId', info)
-                            .then(newRelLoc => {
+                            .then(newPaneId => {
                                 const event = {
-                                    type: 'paneMove',
-                                    oldAbsLoc: `${myNumber}:${oldRelLoc}`,
-                                    newAbsLoc: `${n}:${newRelLoc}`,
+                                    type: 'movePaneToWindow',
+                                    uuid: info.uuid,
+                                    oldWindow: myNumber,
+                                    oldPaneId: oldRelLoc,
+                                    newWindow: n,
+                                    newPaneId: newPaneId,
                                 }
-                                // Must dispatch event to this window synchronously so it happens
-                                // before the pane closes. If the pane closes first, then there's no control
-                                // mapping left to update!
+                                // We used to dispatch this event in order to update our WGCM, but we no longer need
+                                // to do that, since we switched to using UUIDs to identify controlled panels.
+                                //
+                                // At this point, there are no consumers of the event. I'm keeping it
+                                // for now, because it seems potentially useful.
+                                //
+                                // It seems advisable to dispatch the event to this window synchronously, so it
+                                // happens before the pane closes. If the pane closes first, there's a good chance
+                                // this loss of information could be problematic (depending on the application).
                                 windowMgr.groupcastEvent(event, {
                                     includeSelf: true,
                                     selfSync: true,

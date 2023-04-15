@@ -17,6 +17,8 @@
 // Utilities for loading and managing the various content types that go
 // in the ContentPanes in the Proofscape ISE app.
 
+import { v4 as uuid4 } from 'uuid';
+
 define([
     "dojo/_base/declare",
     "dojo/query",
@@ -64,6 +66,8 @@ var ContentManager = declare(null, {
     // Types for which a study page can be loaded:
     studyPageTypes: null,
     // Content registry will map pane IDs to the info object on which that pane was initialized.
+    // Note: We do not maintain a lookup of Dijit panes themselves, because we have a `getPane()`
+    // method for that.
     contentRegistry: null,
     // This will be a mapping from content types to methods for setting up content panes
     // to hold content of that type.
@@ -99,6 +103,13 @@ var ContentManager = declare(null, {
         this.studyPageTypes = [
             this.crType.NOTES
         ];
+    },
+
+    activate: function() {
+        this.hub.windowManager.on(
+            'contentUpdateByUuidBroadcast',
+            this.handleContentUpdateByUuidBroadcast.bind(this)
+        );
     },
 
     // Locate a ContentPane by its id.
@@ -154,6 +165,83 @@ var ContentManager = declare(null, {
 
     getContentInfo: function(cpId) {
         return this.contentRegistry[cpId];
+    },
+
+    /* Search this window for a pane having a given uuid.
+     * Return the Dijit paneId if found, else null.
+     */
+    getPaneIdByUuid: function(uuid) {
+        for (let paneId of Object.keys(this.contentRegistry)) {
+            const info = this.contentRegistry[paneId];
+            if (info.uuid === uuid) {
+                return paneId;
+            }
+        }
+        return null;
+    },
+
+    /* Search for a pane having a given uuid, in this window alone.
+     * If found, return an object of the form {
+     *   windowNumber: int,
+     *   paneId: the Dijit pane id used in that window,
+     * }
+     * If not found, return null.
+     *
+     * Note: This method is synchronous, and searches only the present window.
+     * It is designed to be callable by other windows.
+     * If working purely locally, consider using `getPaneIdByUuid()` instead.
+     *
+     * See also:
+     *   ContentManager.getPaneIdByUuid()
+     *   ContentManager.getGlobalAddressByUuidAllWindows()
+     */
+    getGlobalAddressByUuidThisWindow: function({uuid}) {
+        const numbers = this.hub.windowManager.getNumbers();
+        const myNumber = numbers.myNumber;
+        const paneId = this.getPaneIdByUuid(uuid);
+        if (paneId !== null) {
+            return {
+                windowNumber: myNumber,
+                paneId: paneId,
+            };
+        }
+        return null;
+    },
+
+    /* Search for a pane having a given uuid, across all windows.
+     * If found, return an object of the form {
+     *   windowNumber: int,
+     *   paneId: the Dijit pane id used in that window,
+     * }
+     * If not found, return null.
+     *
+     * Note: This method is asynchronous, and searches all windows.
+     * See also:
+     *   ContentManager.getPaneIdByUuid()
+     *   ContentManager.getGlobalAddressByUuidThisWindow()
+     */
+    getGlobalAddressByUuidAllWindows: async function(uuid) {
+        const searches = this.hub.windowManager.broadcastRequest(
+            'contentManager.getGlobalAddressByUuidThisWindow',
+            {uuid},
+            {
+                excludeSelf: false,
+            }
+        );
+        return Promise.all(searches).then(values => {
+            for (let value of values) {
+                if (value !== null) {
+                    return value;
+                }
+            }
+            return null;
+        });
+    },
+
+    // Say whether a pane uuid exists, in this or any other window.
+    uuidExistsInAnyWindow: async function(uuid) {
+        const addr = await this.getGlobalAddressByUuidAllWindows(uuid);
+        return addr !== null;
     },
 
     /*
@@ -306,27 +394,39 @@ var ContentManager = declare(null, {
     },
 
     /* This method will be called before a ContentPane closes.
-     * We take this opportunity to give the appropriate manager a chance to do something
-     * before the pane closes.
      */
     noteClosingPane: function(closingPane) {
-        const info = this.contentRegistry[closingPane.id];
-        if (info) {
+        this.handleClosingPaneId(closingPane.id);
+    },
+
+    handleClosingPaneId: function(paneId) {
+        const closingPane = this.getPane(paneId);
+        const info = this.contentRegistry[paneId];
+        if (info && closingPane) {
             const mgr = this.getManager(info.type);
             if (mgr) {
                 mgr.noteClosingContent(closingPane);
             }
         }
+        const uuid = info?.uuid;
         const {myNumber} = this.hub.windowManager.getNumbers();
         this.hub.windowManager.groupcastEvent({
             type: 'paneClose',
-            paneId: closingPane.id,
+            uuid: uuid,
+            paneId: paneId,
             origin: myNumber,
         }, {
             includeSelf: true,
         });
         // Delete the entry from the content registry.
-        delete this.contentRegistry[closingPane.id];
+        delete this.contentRegistry[paneId];
+    },
+
+    handleClosingWindow: function() {
+        const paneIds = Object.keys(this.contentRegistry);
+        for (let paneId of paneIds) {
+            this.handleClosingPaneId(paneId);
+        }
     },
 
     buildTabContainerMenu: function(menu) {
@@ -453,6 +553,14 @@ var ContentManager = declare(null, {
      */
     openContentInPane: async function(info, pane) {
         await this.hub.contentLoadingOkay();
+        // Every content pane must have a uuid. This goes above and beyond Dijit's
+        // pane ids, because it's unique across windows, and across reloads.
+        // If you already supplied a uuid, we assume you have good reason,
+        // and we leave it alone. (For example, this happens when content is being
+        // *moved* from one window to another.) Otherwise we supply one.
+        if (info.uuid === undefined) {
+            info.uuid = uuid4();
+        }
         // Grab the specified info type.
         var type = info.type;
         // Get the pane setup method.
@@ -492,11 +600,13 @@ var ContentManager = declare(null, {
      * param serialOnly: boolean; set true if you want only serializable info
      */
     getCurrentStateInfo: function(existingPane, serialOnly) {
-        var info = this.contentRegistry[existingPane.id],
-            mgr  = this.getManager(info.type),
-            currentInfo = mgr.writeStateInfo(existingPane.id, serialOnly);
+        const origInfo = this.contentRegistry[existingPane.id];
+        const mgr  = this.getManager(origInfo.type);
+        const currentInfo = mgr.writeStateInfo(existingPane.id, serialOnly);
         // Copy the title.
         currentInfo.tab_title = existingPane.title;
+        // Ensure that the original uuid is reproduced.
+        currentInfo.uuid = origInfo.uuid;
         return currentInfo;
     },
 
@@ -530,8 +640,11 @@ var ContentManager = declare(null, {
      * return: the info object describing the content in the new pane
      */
     openCopy: function(oldCP, newCP) {
-        var newInfo = this.getCurrentStateInfo(oldCP),
-            mgr = this.getManager(newInfo.type);
+        const newInfo = this.getCurrentStateInfo(oldCP);
+        // The new content description is the same as the old in all respects,
+        // *except* that it gets its own, distinct uuid.
+        newInfo.uuid = uuid4();
+        const mgr = this.getManager(newInfo.type);
         this.openContentInPane(newInfo, newCP).then(() => {
             // Let the manager know that the new pane is a copy of the old one.
             mgr.noteCopy(oldCP.id, newCP.id);
@@ -619,46 +732,54 @@ var ContentManager = declare(null, {
     },
 
     /*
-     * Update the content in any pane.
+     * Update the content in any pane, in any window.
      *
      * param info: Object of the kind returned by a manager's `writeStateInfo` method.
      *             Must contain `type` field.
-     * param paneLoc: The location (absolute or relative) of the ContentPane whose content is to be updated.
+     * param uuid: The uuid of the ContentPane whose content is to be updated.
      * param options: {
      *   selectPane {bool}: set true if you want the updated pane to also become the
      *       selected pane in its tab container.
      * }
      * return: nothing
      */
-    updateContent: function(info, paneLoc, options) {
-        const d = this.hub.windowManager.digestLocation(paneLoc);
-        if (d.length === 1) {
-            const cpId = d[0];
-            const {
-                selectPane = false,
-            } = options || {};
-            if (selectPane) {
-                const pane = this.getPane(cpId);
-                this.tct.selectPane(pane);
-            }
-            const mgr = this.getManager(info.type);
-            mgr.updateContent(info, cpId);
-        } else {
-            const n = d[0];
-            const args = { info: info, paneLoc: d[1], options: options };
-            this.hub.windowManager.makeWindowRequest(n, 'contentManager.updateContent_m', args);
-        }
+    updateContentAnywhereByUuid: function(info, uuid, options) {
+        const event = {
+            type: 'contentUpdateByUuidBroadcast',
+            info: info,
+            uuid: uuid,
+            options: options,
+        };
+        this.hub.windowManager.groupcastEvent(event, {
+            includeSelf: true,
+        });
     },
 
-    /* "..._m" means a "message-based" version of another function or method.
-     * It is intended for use across systems that send serializable messages.
-     * It accepts a single argument, containing the args required by the main
-     * function, and it tries to return a serializable version of the return
-     * value of the main function.
+    /* Handle a 'contentUpdateByUuidBroadcast' event.
+     * The format of the event is: {
+     *   type: 'contentUpdateByUuidBroadcast',
+     *   info: as passed to ContentManager.updateContentAnywhereByUuid(),
+     *   uuid: as passed to ContentManager.updateContentAnywhereByUuid(),
+     *   options: as passed to ContentManager.updateContentAnywhereByUuid(),
+     * }
+     * If we have a pane with the given uuid, we ask it to update its
+     * content. If not, we simply do nothing.
      */
-    updateContent_m: function(m) {
-        this.updateContent(m.info, m.paneLoc, m.options);
-    }
+    handleContentUpdateByUuidBroadcast: function(event) {
+        const paneId = this.getPaneIdByUuid(event.uuid);
+        if (paneId !== null) {
+            const {
+                selectPane = false,
+            } = event.options || {};
+            if (selectPane) {
+                const pane = this.getPane(paneId);
+                this.tct.selectPane(pane);
+            }
+            const info = event.info;
+            const mgr = this.getManager(info.type);
+            mgr.updateContent(info, paneId);
+        }
+    },
 
 });
 
