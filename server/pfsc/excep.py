@@ -266,6 +266,7 @@ class PECode:
     MESON_EXCESS_MODAL = 310
     MESON_EMPTY = 311
     MESON_UNKNOWN_TOKEN = 312
+    MESON_BAD_GHOST_NODE = 313
     ARCLANG_ERROR = 350
 
     # writer stuff
