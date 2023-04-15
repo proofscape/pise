@@ -44,14 +44,13 @@
     filter: invert(0.8);
 }
 
-/* When we are in "box select" mode, turn off pointer events on annotation layers,
- * so they do not interfere.
- */
-.pfsc-ise-pdf.boxSelect .annotationLayer {
+.enrichmentsMode .annotationLayer,
+.boxSelectMode .annotationLayer {
     pointer-events: none;
 }
 
-.boxLayer {
+.boxLayer,
+.highlightLayer {
     pointer-events: none;
     position: absolute;
     top: 0px;
@@ -60,9 +59,14 @@
     right: 0px;
 }
 
-.pfsc-ise-pdf.boxSelect .boxLayer {
+.boxSelectMode .boxLayer {
     pointer-events: all;
     cursor: crosshair;
+}
+
+.enrichmentsMode .highlightLayer {
+    pointer-events: all;
+    cursor: default;
 }
 
 .highlightBox {
@@ -108,4 +112,61 @@
     cursor: move;
     background: #00f;
     outline: none;
+}
+
+.hl-zone {
+    cursor: alias;
+    opacity: 0.3;
+}
+
+.hl-zone.hl-multi {
+    cursor: context-menu;
+}
+
+.hl-region {
+    position: absolute;
+}
+
+.hl-intersection-region {
+    cursor: default;
+}
+
+.hl-zone.selected .hl-region {
+    background: #0ff;
+}
+
+.hl-zone.temp-color-0 .hl-region {
+    background: #0f0;
+}
+
+.hl-zone.temp-color-1 .hl-region {
+    background: #f00;
+}
+
+.hl-zone.temp-color-2 .hl-region {
+    background: #f0f;
+}
+
+.hl-zone.temp-color-3 .hl-region {
+    background: #ff0;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.selected .hl-region {
+    background: #f00;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-0 .hl-region {
+    background: #f0f;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-1 .hl-region {
+    background: #0ff;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-2 .hl-region {
+    background: #0f0;
+}
+
+.pfsc-ise-pdf.themeDark .hl-zone.temp-color-3 .hl-region {
+    background: #00f;
 }

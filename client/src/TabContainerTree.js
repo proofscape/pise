@@ -72,7 +72,7 @@
  *
 */
 
-const dragula = require("dragula");
+import { dragulaWithContentPanelOverlays } from "./content_types/dnd.js";
 
 define([
     "dojo/_base/declare",
@@ -272,8 +272,8 @@ tct.RootNode = declare(tct.Node, {
                 new MenuItem({
                     label: "Move To Opposite Group",
                     onClick: function(){
-                        var button = registry.byNode(this.getParent().currentTarget);
-                            pane = button.page;
+                        const button = registry.byNode(this.getParent().currentTarget);
+                        const pane = button.page;
                         theManager.movePane(pane, otherTcId);
                     }
                 })
@@ -283,8 +283,8 @@ tct.RootNode = declare(tct.Node, {
                     new MenuItem({
                         label: "Open In Opposite Group",
                         onClick: function(){
-                            var button = registry.byNode(this.getParent().currentTarget);
-                                pane = button.page;
+                            const button = registry.byNode(this.getParent().currentTarget);
+                            const pane = button.page;
                             theManager.openCopyOfPane(pane, otherTcId);
                         }
                     })
@@ -697,18 +697,18 @@ tct.LeafNode = declare(tct.Node, {
         // Add options to copy to a new split.
         var theLeaf = this;
         this.menu.addChild(new MenuItem({
-            label: "Split Vertically",
+            label: "Split Right",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndCopyPane(pane, 'v');
             }
         }));
         this.menu.addChild(new MenuItem({
-            label: "Split Horizontally",
+            label: "Split Down",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndCopyPane(pane, 'h');
             }
         }));
@@ -718,8 +718,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Split and Move Right",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndMovePane(pane, 'v');
             },
             disabled: numPanes < 2
@@ -727,8 +727,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Split and Move Down",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.splitAndMovePane(pane, 'h');
             },
             disabled: numPanes < 2
@@ -744,8 +744,8 @@ tct.LeafNode = declare(tct.Node, {
         this.menu.addChild(new MenuItem({
             label: "Close",
             onClick: function(){
-                var button = registry.byNode(this.getParent().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(this.getParent().currentTarget);
+                const pane = button.page;
                 theLeaf.closePane(pane);
             }
         }));
@@ -758,8 +758,8 @@ tct.LeafNode = declare(tct.Node, {
         moveSubMenu.addChild(new MenuItem({
             label: counter.toString(),
             onClick: function(){
-                var button = registry.byNode(forLeaf.getMenu().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(forLeaf.getMenu().currentTarget);
+                const pane = button.page;
                 theManager.movePane(pane, theNewTcId);
             },
             disabled: forLeaf === this
@@ -767,8 +767,8 @@ tct.LeafNode = declare(tct.Node, {
         openSubMenu.addChild(new MenuItem({
             label: counter.toString(),
             onClick: function(){
-                var button = registry.byNode(forLeaf.getMenu().currentTarget);
-                    pane = button.page;
+                const button = registry.byNode(forLeaf.getMenu().currentTarget);
+                const pane = button.page;
                 theManager.openCopyOfPane(pane, theNewTcId);
             },
             disabled: forLeaf === this
@@ -814,8 +814,6 @@ tct.TabContainerTree = declare(null, {
     tcIdCounter: 0,
     // Counter for Ids of ContentPanes:
     cpIdCounter: 0,
-    // Counter for selection sequence:
-    selectionCounter: 0,
     // Our Id
     id: null,
     // A place to store LeafNodes under the Id of the TabContainer they manage:
@@ -857,6 +855,7 @@ tct.TabContainerTree = declare(null, {
      *      tabPosition: "top", "bottom", "left" or "right"
      */
     constructor : function(layoutContainer, args) {
+        this.hub = null;
         this.socket = layoutContainer
         declare.safeMixin(this, args);
         // Set our id.
@@ -887,54 +886,78 @@ tct.TabContainerTree = declare(null, {
         this.recomputeLeafOrder();
         // Rebuild the menu.
         initialLeaf.rebuildMenu();
-        // Set up drag-n-drop to rearrange tabs within a single tab container.
-        this.drake = dragula({
-            isContainer: function (el) {
-                return el.classList.contains('dijitTabContainerTop-tabs');
-            },
-            accepts: function (el, target, source, sibling) {
-                return target === source;
-            },
-        });
-        this.drake.on('drop', this.onTabDrop.bind(this));
+        // Set up drag-n-drop.
+        this.drake = this.setUpDragAndDrop();
     },
 
-    /* When tabs are re-ordered by drag-and-drop, we have to get the
-     * TabContainer to actually rearrange the tabs internally. (Otherwise,
-     * e.g., when storing the state, we'll store them in their original
-     * order, instead of the updated one.)
+    /* Set up drag-and-drop.
+     *
+     * Provides two functionalities:
+     *   1. reordering tabs within a tab container
+     *   2. initiating a linking dialog from one panel to another (by dragging
+     *      the tab of the proposed target onto the content area of the proposed source)
      */
-    onTabDrop : function(el, target, source, sibling) {
-        const button = registry.byNode(el);
-        const page = button.page;
-        const tc = page.getParent();
-        const selectedBeforeDrag = tc.selectedChildWidget;
-        const leaf = this.leavesByTCIds[tc.id];
+    setUpDragAndDrop : function() {
+        return dragulaWithContentPanelOverlays({
+            isContainer: el => (
+                el.classList.contains('dijitTabContainerTop-tabs')
+            ),
+            accepts: (el, target, source, sibling) => (
+                // Tabs can be dropped within their own container.
+                target === source
+            ),
+            revertOnSpill: true,
+            // Require 5 pixels of movement before it's considered a drag.
+            // Otherwise, attempts to click the "X" to close the tab are often
+            // registered as "drags" instead of clicks, and the tab doesn't close.
+            slideFactorX: 5,
+            slideFactorY: 5,
+        }, {
+            onDrop: (drake, el, target, source, sibling, paneId) => {
+                const button = registry.byNode(el);
+                const page = button.page;
+                if (paneId) {
+                    drake.cancel();
+                    const s = paneId;
+                    const t = page.id;
+                    this.hub.contentManager.showLinkingDialog(s, {targetId: t});
+                } else {
+                    /* When tabs are re-ordered by drag-and-drop, we have to get the
+                     * TabContainer to actually rearrange the tabs internally. (Otherwise,
+                     * e.g., when storing the state, we'll store them in their original
+                     * order, instead of the updated one.)
+                     */
+                    const tc = page.getParent();
+                    const selectedBeforeDrag = tc.selectedChildWidget;
+                    const leaf = this.leavesByTCIds[tc.id];
 
-        // Determine the index at which the tab needs to be inserted.
-        // -1 means at the right-hand end.
-        let i = -1;
-        if (sibling) {
-            let child = sibling;
-            while ( (child = child.previousSibling) ) {
-                i++;
-            }
-        }
+                    // Determine the index at which the tab needs to be inserted.
+                    // -1 means at the right-hand end.
+                    let i = -1;
+                    if (sibling) {
+                        let child = sibling;
+                        while ( (child = child.previousSibling) ) {
+                            i++;
+                        }
+                    }
 
-        // Be sure to push/pop scroll fractions before/after removing/adding.
-        leaf.pushScrollFractions();
-        tc.removeChild(page);
-        if (i < 0) {
-            tc.addChild(page);
-        } else {
-            tc.addChild(page, i);
-        }
-        leaf.popScrollFractions();
+                    // Be sure to push/pop scroll fractions before/after removing/adding.
+                    leaf.pushScrollFractions();
+                    tc.removeChild(page);
+                    if (i < 0) {
+                        tc.addChild(page);
+                    } else {
+                        tc.addChild(page, i);
+                    }
+                    leaf.popScrollFractions();
 
-        // Maintain the selection from before drag.
-        if (selectedBeforeDrag) {
-            this.selectPane(selectedBeforeDrag);
-        }
+                    // Maintain the selection from before drag.
+                    if (selectedBeforeDrag) {
+                        this.selectPane(selectedBeforeDrag);
+                    }
+                }
+            },
+        });
     },
 
     /* Get an array of the IDs of the TCs, in the natural tree traversal order.
@@ -962,6 +985,13 @@ tct.TabContainerTree = declare(null, {
             const leaf = this.leavesByTCIds[id];
             leaf.popScrollFractions();
         }
+    },
+
+    getTabButtonForPane : function(pane) {
+        const tc = pane.getParent();
+        const leaf = this.leavesByTCIds[tc.id];
+        const controller = leaf.tabController;
+        return controller.pane2button(pane.id);
     },
 
     /* Compute an array of fractions indicating, for each binary node, what
@@ -1044,8 +1074,8 @@ tct.TabContainerTree = declare(null, {
     },
 
     setActiveTcById : function(tcId) {
-        var leaf = this.leavesByTCIds[tcId]
-            tc = leaf.getTC();
+        const leaf = this.leavesByTCIds[tcId];
+        const tc = leaf.getTC();
         this.setActiveTc(tc);
     },
 
@@ -1064,15 +1094,12 @@ tct.TabContainerTree = declare(null, {
         // Does this TC have a selected pane?
         var pane = tc.selectedChildWidget;
         if (pane) {
-            // Advance the selected pane's selection sequence number.
+            // Advance the selected pane's selection time stamp.
             // This is an integer we stash directly in the ContentPane,
-            // under the property, `_pfsc_ise_selectionSequenceNumber`.
+            // under the property, `_pfsc_ise_selectionTimestamp`.
             // It is useful in determining which pane has been most recently
             // selected.
-            var n = this.selectionCounter;
-            this.selectionCounter = n + 1;
-            pane._pfsc_ise_selectionSequenceNumber = n;
-            //console.log(pane.id, n);
+            pane._pfsc_ise_selectionTimestamp = (new Date()).getTime();
         }
 
         // Next check if this is actually different from the currently active TC.
@@ -1333,22 +1360,25 @@ tct.TabContainerTree = declare(null, {
 
     /* This is a "staticmethod"; i.e. it needn't be a member of the TCT class; it is
      * just defined here for convenience, and because it deals with TCT-related stuff
-     * (namely, the _pfsc_ise_selectionSequenceNumber attribute of ContentPanes).
+     * (namely, the _pfsc_ise_selectionTimestamp attribute of ContentPanes).
      *
      * :param panes: any object in which the _values_ are ContentPanes. So could be
      *   a lookup by pane id, or could just be an array of panes.
      * :return: the pane which has been most recently active, as judged by
-     *   its _pfsc_ise_selectionSequenceNumber attribute. (But if panes is empty,
+     *   its _pfsc_ise_selectionTimestamp attribute. (But if panes is empty,
      *   then return null.)
      */
     findMostRecentlyActivePane : function(panes) {
         var mostRecentPane = null,
-            maxSeqNum = -1;
+            latestTimeStamp = -1;
         for (var k in panes) {
             var pane = panes[k],
-                seqNum = pane._pfsc_ise_selectionSequenceNumber;
-            if (seqNum > maxSeqNum) {
-                maxSeqNum = seqNum;
+                timeStamp = pane._pfsc_ise_selectionTimestamp;
+            // Note: the following test is fine even for a pane that has never been active,
+            // and therefore has undefined `_pfsc_ise_selectionTimestamp` property.
+            // This is because `undefined > n` simply evaluates as `false` for all integers n.
+            if (timeStamp > latestTimeStamp) {
+                latestTimeStamp = timeStamp;
                 mostRecentPane = pane;
             }
         }

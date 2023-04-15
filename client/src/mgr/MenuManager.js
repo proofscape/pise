@@ -92,7 +92,6 @@ const MenuManager = declare(null, {
     pdfOpt_Open: null,
     pdfOpt_FromLib: null,
     pdfOpt_ClearMemCache: null,
-    pdfOpt_SetBoxSelect: null,
     pdfDialog_FromLib: null,
     pdfInput_FromLib: null,
 
@@ -1092,19 +1091,6 @@ const MenuManager = declare(null, {
             }
         });
         menu.addChild(this.pdfOpt_ClearMemCache);
-
-        // --------------------------------
-        menu.addChild(new MenuSeparator());
-
-        // Box Select Mode
-        this.pdfOpt_SetBoxSelect = new CheckedMenuItem({
-            label: 'Box Select Mode',
-            checked: false,
-            onChange: function(){
-                pdfmgr.setBoxSelectMode(this.checked);
-            }
-        });
-        menu.addChild(this.pdfOpt_SetBoxSelect);
 
     },
 

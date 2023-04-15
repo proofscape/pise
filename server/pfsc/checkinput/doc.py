@@ -77,15 +77,17 @@ def check_doc_id(key, raw, typedef):
 
 
 combiner_code_grammar = r"""
-    program: version scale content_command+
+    program: version scale depth? content_command+
     version: "v" (DECIMAL|INT) ("." INT)* ";"?
     scale: "s" (DECIMAL|INT) ";"?
+    depth: "z" opt_signed_int ("," opt_signed_int)* ";"?
     ?content_command: box | x_shift | y_shift | newline
     box: "(" INT ":" INT ":" INT ":" INT ":" INT ":" INT ":" INT ")" ";"?
     x_shift: "x" SIGNED_INT ";"?
     y_shift: "y" SIGNED_INT ";"?
     newline: "n" ";"?
     SIGNED_INT: ("+"|"-") INT
+    ?opt_signed_int: SIGNED_INT | INT
     
     %import common.INT
     %import common.DECIMAL

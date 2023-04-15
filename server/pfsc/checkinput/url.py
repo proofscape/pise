@@ -56,9 +56,7 @@ def check_url(key, raw, typedef):
     :return: controlled by `return` option
     """
     unescape_first = typedef.get('unescape_first', False)
-    if unescape_first:
-        if not isinstance(raw, Markup):
-            raise TypeError
+    if unescape_first and isinstance(raw, Markup):
         url_string = raw.unescape()
     else:
         url_string = raw

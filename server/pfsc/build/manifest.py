@@ -70,6 +70,7 @@ def build_manifest_from_dict(d):
     """
     manifest = build_manifest_tree_from_dict(d["tree_model"])
     manifest.set_build_info_dict(d["build"])
+    manifest.set_doc_infos_dict(d.get("doc_info", {}))
     return manifest
 
 
@@ -126,6 +127,7 @@ class Manifest:
         self.lookup = {}
         self.add_node(root_node)
         self.build_info = {}
+        self.doc_infos = {}
 
     def get_build_info(self):
         return self.build_info
@@ -133,6 +135,14 @@ class Manifest:
     def get_root_node(self):
         """Get the root node of the repo. """
         return self.root_node
+
+    def add_doc_info(self, doc_id, doc_info):
+        """Add a document descriptor. """
+        self.doc_infos[doc_id] = doc_info
+
+    def update_doc_info(self, doc_infos):
+        """Update our doc infos with another doc info dictionary. """
+        self.doc_infos.update(doc_infos)
 
     def is_single_build(self):
         """Say whether this manifest represents just a single build. """
@@ -163,13 +173,20 @@ class Manifest:
     def set_build_info_dict(self, d):
         self.build_info = d
 
+    def set_doc_infos_dict(self, d):
+        self.doc_infos = d
+
     def build_dict(self):
         """
         :return: A dictionary representation of this object, suitable for writing as JSON.
         """
         d = {}
+
         if self.build_info:
             d["build"] = self.build_info
+
+        d["doc_info"] = self.doc_infos
+
         t = self.root_node.build_dict()
         d["tree_model"] = t
         return d
@@ -209,6 +226,9 @@ class Manifest:
                 del sb[k1]
 
         sb[built_libpath] = build_info
+
+        # Merge doc infos
+        self.update_doc_info(other.doc_infos)
 
         # Merge trees
         # Start by finding the first ancestor of B (including B itself) for

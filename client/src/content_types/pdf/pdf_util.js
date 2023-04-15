@@ -198,6 +198,22 @@ pdf_util.CombinerCmdScale = declare(pdf_util.CombinerCmd, {
     },
 });
 
+/* Depth command format:
+ *  'z' followed by one or more integers, separated by commas.
+ *  Integers may have sign, or not.
+ *
+ *  If a single integer is given, this is taken as the depth for all
+ *  pages. Otherwise, you should list one integer for every page on which
+ *  boxes are found in this program.
+ */
+pdf_util.CombinerCmdDepth = declare(pdf_util.CombinerCmd, {
+    type: 'depth',
+    depths: null,
+    constructor: function(code) {
+        this.depths = code.slice(1).split(',').map(n => +n);
+    },
+});
+
 pdf_util.CombinerCmdBox = declare(pdf_util.CombinerCmd, {
     type: 'box',
     boxDescrip: null,
@@ -308,6 +324,9 @@ pdf_util.parseCombinerCode = function(code, selBoxesByDescrip) {
                 case 's':
                     cmd = new pdf_util.CombinerCmdScale(code);
                     break;
+                case 'z':
+                    cmd = new pdf_util.CombinerCmdDepth(code);
+                    break;
                 case "(":
                     cmd = new pdf_util.CombinerCmdBox(code, selBoxesByDescrip);
                     break;
@@ -330,16 +349,24 @@ pdf_util.parseCombinerCode = function(code, selBoxesByDescrip) {
 pdf_util.CombinerProgram = declare(null, {
     cmds: null,
     scale: 1,
+    depths: [0],
     // cmds: array of CombinerCmd instances
     constructor: function(cmds) {
         this.cmds = cmds;
         this.readScale();
+        this.readDepths();
     },
     // Set this program's scale based on the (last) scale command.
     readScale: function() {
         var prog = this;
         this.cmds.forEach(cmd => {
             if (cmd.type === 'scale') prog.scale = cmd.scale;
+        });
+    },
+    // Set this program's depth(s) based on the (last) depth command.
+    readDepths: function() {
+        this.cmds.forEach(cmd => {
+            if (cmd.type === 'depth') this.depths = cmd.depths;
         });
     },
     // Read the rendering zoom off the first box command. We presume that,

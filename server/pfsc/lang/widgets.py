@@ -23,7 +23,7 @@ from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
 )
-from pfsc.lang.freestrings import render_anno_markdown
+from pfsc.lang.freestrings import render_anno_markdown, Libpath
 from pfsc.build.lib.libpath import (
     expand_multipath,
     get_formal_moditempath,
@@ -32,6 +32,7 @@ from pfsc.build.lib.libpath import (
 from pfsc.build.repo import get_repo_part, make_repo_versioned_libpath
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj
+from pfsc.lang.doc import doc_ref_factory
 from pfsc.util import topological_sort
 from pfsc.excep import PfscExcep, PECode
 from pfsc_util.imports import from_import
@@ -205,13 +206,26 @@ class Widget(PfscObj):
     def get_type(self):
         return self.type_
 
-    def set_pane_group(self, default_group_name=''):
-        group_name = self.data.get('group', default_group_name)
-        pane_group = ":".join([
+    def set_pane_group(self, subtype=None, default_group_name=''):
+        # Pane group ID consists of ":"-separated parts.
+        # First two parts are always:
+        #  * repo-versioned libpath of the anno to which we belong
+        #  * our widget type
+        parts = [
             make_repo_versioned_libpath(self.parent.libpath, self.getVersion()),
             self.get_type(),
-            str(group_name)
-        ])
+        ]
+
+        # Sometimes we may want a "subtype", to be a third part:
+        if subtype is not None:
+            parts.append(subtype)
+
+        # Final part is always the group's name, which is either the default,
+        # or a name the author chose to supply.
+        group_name = self.data.get('group', default_group_name)
+        parts.append(str(group_name))
+
+        pane_group = ":".join(parts)
         self.data['pane_group'] = pane_group
 
     def check_required_fields(self, req):
@@ -530,7 +544,7 @@ class ChartWidget(Widget):
         }
         return chart_widget_template.render(context)
 
-pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" href="#">{{ label }}</a>""")
+pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" tabindex="-1" href="#">{{ label }}</a>""")
 
 class PdfWidget(Widget):
     """
@@ -539,10 +553,92 @@ class PdfWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.PDF, name, label, data, anno, lineno)
+        self.docReference = None
 
     def enrich_data(self):
         super().enrich_data()
-        self.set_pane_group()
+
+        code = None
+        origin_node = None
+        doc_info_obj = None
+        doc_info_libpath = None
+
+        doc_field_name = 'doc'
+        sel_field_name = 'sel'
+        hid_field_name = 'highlightId'
+
+        doc_field_value = self.data.get(doc_field_name)
+        sel_field_value = self.data.get(sel_field_name)
+
+        # The sel field can be a libpath pointing to a node, when you want to
+        # clone the very same selection made by the doc ref of that node.
+        # For now, we require a `Libpath` object. In future, could expand
+        # support to libpaths given as strings. Then will have to perform a
+        # check that it is not a combiner code string.
+        if isinstance(sel_field_value, Libpath):
+            abspath = self.resolve_libpath(sel_field_value)
+            origin_node = self.objects_by_abspath[abspath]
+        else:
+            code = sel_field_value
+
+        try:
+            if sel_field_value is None and doc_field_value is None:
+                msg = 'Failed to define doc info under `doc` or `sel`'
+                raise PfscExcep(msg, PECode.MISSING_INPUT)
+            if doc_field_value is not None:
+                if isinstance(doc_field_value, dict):
+                    doc_info_obj = doc_field_value
+                elif isinstance(doc_field_value, str):
+                    doc_info_libpath = doc_field_value
+                else:
+                    msg = '`doc` field should be dict (full info) or string (libpath)'
+                    raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
+            self.docReference = doc_ref_factory(
+                code=code, origin_node=origin_node, doc_info_obj=doc_info_obj,
+                context=self.parent, doc_info_libpath=doc_info_libpath
+            )
+        except PfscExcep as e:
+            e.extendMsg(f'in pdf widget {self.libpath}')
+            raise
+
+        # Clean up. Doc descriptors go at top level of anno.json; don't need
+        # to repeat them in each pdf widget.
+        if doc_field_name in self.data:
+            del self.data[doc_field_name]
+
+        doc_info = self.docReference.doc_info
+
+        # docId
+        # We extract this from the doc info.
+        # It is needed:
+        #  * in the final widget data
+        #  * as a subtype in our pane group
+        doc_id_field_name = 'docId'
+        doc_id = doc_info[doc_id_field_name]
+        self.data[doc_id_field_name] = doc_id
+        self.set_pane_group(subtype=doc_id)
+
+        # Do we define a doc highlight?
+        if (cc := self.docReference.combiner_code) is not None:
+            # Final selection code must be pure combiner code (no two-part ref code)
+            self.data[sel_field_name] = cc
+            # The combiner code can be used for "ad hoc highlights"; for
+            # "named highlights" we need a highlight ID:
+            self.data[hid_field_name] = f'{self.parent.getLibpath()}:{self.getDocRefInternalId()}'
+
+        # If a URL was provided, we want that in the widget data.
+        url_field_name = 'url'
+        if url_field_name in doc_info:
+            self.data[url_field_name] = doc_info[url_field_name]
+
+    def getDocRef(self):
+        return self.docReference
+
+    def getDocRefInternalId(self):
+        # For siid in our highlight descriptors, we want to use the widget uid.
+        # This is most useful on the client side for scrolling a notes page to
+        # the widget in question.
+        return self.writeUID()
 
     def writeHTML(self, label=None):
         if label is None: label = escape(self.label)

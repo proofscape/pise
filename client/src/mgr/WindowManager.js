@@ -61,6 +61,30 @@ export class WindowManager {
         return this.windowPeer.broadcastRequest(handlerDescrip, args, options);
     }
 
+    // Broadcast a request, and sum the (int or bool) results.
+    broadcastAndSum(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.reduce(
+            (a, c) => a + (+c),
+            0
+        ));
+    }
+
+    // Broadcast a request, and concatenate the (array) results.
+    broadcastAndConcat(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.reduce(
+            (a, c) => a.concat(c),
+            []
+        ));
+    }
+
+    // Broadcast a request, and do an "any" (logical disjunction) on the (!! boolified) results.
+    broadcastAndAny(handlerDescrip, args, options) {
+        const requests = this.broadcastRequest(handlerDescrip, args, options);
+        return Promise.all(requests).then(values => values.some(e => !!e));
+    }
+
     /* Groupcast an event to the window group.
      *
      * @param event: the event to be groupcast
@@ -89,6 +113,11 @@ export class WindowManager {
 
     off(eventType, callback) {
         return this.windowPeer.off(eventType, callback);
+    }
+
+    addHandler(name, handler) {
+        this.windowPeer.addHandler(name, handler);
+        return this;
     }
 
     getGroupId() {
@@ -227,8 +256,7 @@ export class WindowManager {
         this.initializePeer();
         this.setupPeer();
         this.windowPeer
-            .addHandler('contentManager', this.hub.contentManager)
-            .addHandler('editManager', this.hub.editManager)
+            .addHandler('hub', this.hub)
             .setReady();
         // Safari still does not support BroadcastChannels, so we check for their presence
         // and choose the transport accordingly.
@@ -276,9 +304,6 @@ export class WindowManager {
         const { myNumber, otherNumbers, allNumbers } = this.getNumbers();
         const button = dojo.registry.byNode(clicked.currentTarget);
         const pane = button.page;
-        const oldRelLoc = pane.id;
-        const info = this.hub.contentManager.getCurrentStateInfo(pane, true);
-        const peer = this.windowPeer;
         const windowMgr = this;
         const moveSubMenu = menu.pfsc_ise_windowManager_moveSubMenu;
         const moveOption = menu.pfsc_ise_windowManager_moveOption;
@@ -289,32 +314,7 @@ export class WindowManager {
                     label: `${n}`,
                     disabled: n === myNumber,
                     onClick: () => {
-                        //console.log(`Move to window ${n}`, info);
-                        peer.makeWindowRequest(n, 'contentManager.openContentInActiveTCReturnId', info)
-                            .then(newPaneId => {
-                                const event = {
-                                    type: 'movePaneToWindow',
-                                    uuid: info.uuid,
-                                    oldWindow: myNumber,
-                                    oldPaneId: oldRelLoc,
-                                    newWindow: n,
-                                    newPaneId: newPaneId,
-                                }
-                                // We used to dispatch this event in order to update our WGCM, but we no longer need
-                                // to do that, since we switched to using UUIDs to identify controlled panels.
-                                //
-                                // At this point, there are no consumers of the event. I'm keeping it
-                                // for now, because it seems potentially useful.
-                                //
-                                // It seems advisable to dispatch the event to this window synchronously, so it
-                                // happens before the pane closes. If the pane closes first, there's a good chance
-                                // this loss of information could be problematic (depending on the application).
-                                windowMgr.groupcastEvent(event, {
-                                    includeSelf: true,
-                                    selfSync: true,
-                                });
-                                pane.onClose();
-                            });
+                        windowMgr.hub.contentManager.movePaneToAnotherWindow(pane, n);
                     }
                 });
                 moveSubMenu.addChild(item);

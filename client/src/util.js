@@ -296,6 +296,8 @@ util.getParentPath = function(libpath) {
     return parts.join('.');
 };
 
+// Say whether one libpath is a prefix of another, including the case that they
+// are identical.
 util.libpathIsPrefix = function(potential_prefix, other_libpath) {
     const n = potential_prefix.length;
     const front = other_libpath.slice(0, n);
@@ -433,10 +435,20 @@ class SetMapping {
     has(key, value) {
         return this.mapping.has(key) && this.mapping.get(key).has(value);
     }
+
+    get(key) {
+        return this.mapping.get(key);
+    }
+
+    clear() {
+        this.mapping.clear();
+    }
 }
 
 util.SetMapping = SetMapping;
 
+/* A "libpath set-mapping" is a SetMapping whose keys are libpaths.
+ */
 class LibpathSetMapping extends SetMapping {
 
     constructor() {
@@ -461,6 +473,107 @@ class LibpathSetMapping extends SetMapping {
 
 util.LibpathSetMapping = LibpathSetMapping;
 
+
+/* Mapping in which the keys can be presented either as a
+ * pair of strings, or as a single string joined by a specified character.
+ */
+class PairKeyMapping {
+
+    constructor(joinChar) {
+        this.joinChar = joinChar || ":";
+        this.map = new Map();
+    }
+
+    // Parse the varargs passed to a method, which starts with a one- or two-arg
+    // specification of a key, followed by some number of other args.
+    //
+    // For internal use.
+    //
+    // args: the "rest parameter" array passed to one of our methods
+    // n: the number of args we expect to come after the specification of a key
+    //
+    // return: {
+    //   a: first part of key,
+    //   b: second part of key,
+    //   other: [...],
+    // }
+    _parseArgs(args, n) {
+        let a = null, b = null;
+        let other = null;
+        if (args.length === n + 1) {
+            [a, b] = args[0].split(this.joinChar);
+            other = args.slice(1);
+        } else {
+            [a, b] = args.slice(0, 2);
+            other = args.slice(2);
+        }
+        return {a, b, other};
+    }
+
+    has(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        if (this.map.has(a)) {
+            return this.map.get(a).has(b);
+        } else {
+            return false;
+        }
+    }
+
+    get(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        if (this.map.has(a)) {
+            return this.map.get(a).get(b);
+        }
+        return undefined;
+    }
+
+    set(...args) {
+        const {a, b, other} = this._parseArgs(args, 1);
+        const v = other[0];
+        if (!this.map.has(a)) {
+            this.map.set(a, new Map());
+        }
+        this.map.get(a).set(b, v);
+    }
+
+    delete(...args) {
+        const {a, b, other} = this._parseArgs(args, 0);
+        let didAnything = false;
+        if (this.map.has(a)) {
+            const m = this.map.get(a);
+            didAnything = m.delete(b);
+            if (m.size === 0) {
+                this.map.delete(a);
+            }
+        }
+        return didAnything;
+    }
+
+    clear() {
+        this.map.clear();
+    }
+
+    getValuesUnderFirstKey(a) {
+        if (this.map.has(a)) {
+            return Array.from(this.map.get(a).values());
+        } else {
+            return [];
+        }
+    }
+
+    deleteFirstKey(a) {
+        return this.map.delete(a);
+    }
+
+    firstKeys() {
+        return this.map.keys();
+    }
+
+}
+
+util.PairKeyMapping = PairKeyMapping;
+
+
 util.setUnion = function(p, q) {
     const r = new Set(p)
     for (let x of q) {
@@ -469,6 +582,102 @@ util.setUnion = function(p, q) {
     return r
 };
 
+/* Extract the *highlight id* (HLID) from a highlight descriptor.
+ *
+ * For all highlights, this is equal to slp:siid.
+ *
+ * param hld: the highlight descriptor object
+ * return: the highlight id (string)
+ */
+util.extractHlidFromHlDescriptor = function(hld) {
+    return `${hld.slp}:${hld.siid}`
+};
+
+/* Extract the *original highlight id* (OHLID) from a highlight descriptor.
+ *
+ * For original highlights (non-clones), this is just slp:siid; for clones,
+ * it is oslp:osiid.
+ *
+ * param hld: the highlight descriptor object
+ * return: the original highlight id (string)
+ */
+util.extractOriginalHlidFromHlDescriptor = function(hld) {
+    const oslp = hld.oslp || hld.slp;
+    const osiid = hld.osiid || hld.siid;
+    return `${oslp}:${osiid}`
+};
+
+/* Scroll a given element into view.
+ *
+ * param element: the element to be scrolled into view
+ * param scroller: the containing element whose scrollTop is to be adjusted.
+ *  Need not be the immediate parent of element.
+ * param options: {
+ *  padPx: pixels of padding at each of top and bottom of view area.
+ *      Default 0. Adds to pad from padPct.
+ *  padFrac: padding at each of top and bottom of view area, as fraction
+ *      of total height of panel. Should be a float between 0.0 and 1.0.
+ *      Default 0.0 Adds to pad from padPx.
+ *  pos: ['top', 'mid'], default 'top'. Scroll the object to
+ *      this position, vertically.
+ *  policy: ['pos', 'min', 'distant'], default 'pos'.
+ *      'pos': scroll object to pos, no matter what.
+ *      'min': scroll just enough to put object in padded view area.
+ *          (Under this setting, value of pos is irrelevant.)
+ *      'distant': scroll to pos if object "is distant", else min.
+ *          If the min scroll to bring object into padded view area
+ *          preserves at least one pad width of context, do that;
+ *          else scroll to pos.
+ * }
+ */
+util.scrollIntoView = function(element, scroller, options) {
+    const {
+        padPx = 0,
+        padFrac = 0,
+        pos = 'top',
+        policy = 'pos',
+    } = (options || {});
+
+    const H0 = scroller.offsetHeight;
+    const T0 = scroller.scrollTop;
+    const pad = padPx + H0*padFrac;
+
+    // Height of padded view area:
+    const H1 = Math.max(10, H0 - 2*pad);
+
+    // Current range of y-coords inside the padded viewing area:
+    const [r0, r1] = [T0 + pad, T0 + pad + H1];
+
+    const h = element.offsetHeight;
+
+    let elt = element;
+    let t0 = 0;
+    // Check for elt being null just to avoid weird crash in case you pass an
+    // element that has no offsetParent. This can happen if the element has been
+    // removed from the document.
+    while (elt !== scroller && elt !== null) {
+        t0 += elt.offsetTop;
+        elt = elt.offsetParent;
+    }
+    const t1 = t0 + h;
+
+    // Minimum scroll displacement to bring the
+    // object fully into the padded viewing area:
+    const ds_min = t0 < r0 ? t0 - r0 : (t1 > r1 ? t1 - r1 : 0);
+
+    let T1 = T0;
+    if (policy === 'min' || (policy === 'distant' && Math.abs(ds_min) <= H0 - pad)) {
+        T1 = T0 + ds_min;
+    } else {
+        if (pos === 'top') {
+            T1 = t0 - pad;
+        } else if (pos === 'mid') {
+            T1 = t0 - H0/2;
+        }
+    }
+
+    scroller.scrollTop = T1;
+};
 
 /*
 * Identify a right-click.
@@ -657,40 +866,96 @@ util.openPopupWindow = function(url, target, options) {
     return window.open(url, target, features);
 }
 
+/* This mix-in can be used to make a class "listenable."
+ *
+ * Given class `Foo`, you must
+ *   1. Ensure `Foo` has a `this.listeners = {}` property (i.e. it's initialized
+ *      to be an empty object), and
+ *   2. Do
+ *          Object.assign(Foo.prototype, util.eventsMixin);
+ *
+ * Then class `Foo` will be listenable:
+ *
+ *  Register an event listener:
+ *
+ *      function barHandler(event) {
+ *          //...
+ *      }
+ *      const f = Foo();
+ *      f.on('bar', barHandler);
+ *
+ *  Event dispatch happens inside some `Foo` method:
+ *
+ *      Foo.someProcess = function() {
+ *          //...
+ *          const event = {
+ *              type: 'bar',
+ *              otherInfo: 'stuff',
+ *              moreInfo: 'moreStuff',
+ *          }
+ *          this.dispatch(event);
+ *          //...
+ *      }
+ *
+ * Note that event handling is synchronous, in the sense that every registered
+ * event handler function will have been invoked and returned, before any code
+ * following `this.dispatch(event)` is executed.
+ *
+ * If an event handler involves asynchronous processing, and you want it to be
+ * awaited, you can say so by passing {await: true} in the options arg to the
+ * `on()` call when you register the handler.
+ */
 util.eventsMixin = {
 
+    /* eventType: string, naming the event you want to listen to
+     * callback: function that should be passed the event when it happens
+     * options: {
+     *  nodup: do not add this callback if it has already been added before,
+     *  await: set true if you want the callback to be awaited when it is invoked
+     *         (if you think we should just await everything, consider https://stackoverflow.com/a/55263084),
+     * }
+     */
     on(eventType, callback, options) {
         options = options || {};
-        const cbs = this.listeners[eventType] || [];
-        if (options.nodup && cbs.includes(callback)) {
+        const cbInfos = this.listeners[eventType] || [];
+        if (options.nodup && cbInfos.find(info => info.callback === callback)) {
             // FIXME: nodup should be the default.
             //  But we're adding this as afterthought, so must review all
             //  existing usages first.
             return;
         }
-        cbs.push(callback);
-        this.listeners[eventType] = cbs;
+        const newInfo = {
+            callback: callback,
+            await: options.await,
+        }
+        cbInfos.push(newInfo);
+        this.listeners[eventType] = cbInfos;
     },
 
     off(eventType, callback) {
-        const cbs = this.listeners[eventType] || [];
-        const i0 = cbs.indexOf(callback);
+        const cbInfos = this.listeners[eventType] || [];
+        const i0 = cbInfos.findIndex(info => info.callback === callback);
         if (i0 >= 0) {
-            cbs.splice(i0, 1);
-            this.listeners[eventType] = cbs;
+            cbInfos.splice(i0, 1);
+            this.listeners[eventType] = cbInfos;
         }
     },
 
-    dispatch(event) {
+    async dispatch(event) {
         /* Subtle point: In general, we are always careful not to modify an
          * iterable while we are in the process of iterating over it. Here, we don't
          * know whether a callback might `off` itself as a part of its process,
          * thereby modifying our array of listeners while we are iterating over it!
          * Therefore, to be safe, we have to iterate over a _copy_ of our array of
          * registered listeners. */
-        const cbs = (this.listeners[event.type] || []).slice();
-        for (let cb of cbs) {
-            cb(event);
+        const cbInfos = (this.listeners[event.type] || []).slice();
+        for (const info of cbInfos) {
+            const cb = info.callback;
+            if (info.await) {
+                await cb(event);
+            } else {
+                cb(event);
+            }
         }
     },
 };

@@ -18,6 +18,8 @@ from collections import defaultdict
 
 from pfsc.build.versions import get_major_version_part
 from pfsc.excep import PfscExcep, PECode
+from pfsc.lang.doc import DocReference
+
 
 class PfscObj:
     """
@@ -296,6 +298,9 @@ class PfscObj:
     def getDocRef(self):
         return {}
 
+    def getDocRefInternalId(self):
+        return self.getLibpath()
+
     def __getitem__(self, path):
         """
         As in the `get` method, you may access objects within objects by passing a path, and the
@@ -494,6 +499,7 @@ class Enrichment(PfscObj):
         PfscObj.__init__(self)
         self.targets = []
         self.targetDeduc = None
+        self.doc_info = None
 
     def getTargets(self):
         return self.targets
@@ -506,6 +512,60 @@ class Enrichment(PfscObj):
         if self.targets:
             lps = [t.getLibpath() for t in self.targets]
         return lps
+
+    def gather_doc_info(self, caching=True):
+        """
+        Do a recursive item visit to build up a doc_info object of the form,
+         {
+             'docs': {
+                 docId1: {
+                     ...docInfo1...
+                 },
+                 docId2: {
+                     ...docInfo2...
+                 },
+             },
+             'refs': {
+                 docId1: [
+                     {...ref1...},
+                     {...ref2...},
+                 ],
+                 docId2: [
+                     {...ref3...},
+                     {...ref4...},
+                 ],
+             },
+         }
+        """
+        doc_info = self.doc_info
+        if doc_info is None or not caching:
+            doc_info = {
+                'docs': {},
+                'refs': {},
+            }
+            stype = {
+                'deduction': 'CHART',
+                'annotation': 'NOTES',
+            }.get(self.typename)
+
+            def grabHighlights(obj):
+                ref = obj.getDocRef()
+                if isinstance(ref, DocReference):
+                    doc_id = ref.doc_id
+                    if doc_id not in doc_info['docs']:
+                        doc_info['docs'][doc_id] = ref.doc_info
+                    if doc_id not in doc_info['refs']:
+                        doc_info['refs'][doc_id] = []
+                    hld = ref.write_highlight_descriptor(
+                        obj.getDocRefInternalId(), self.libpath, stype)
+                    if hld:
+                        doc_info['refs'][doc_id].append(hld)
+
+            self.recursiveItemVisit(grabHighlights)
+            if caching:
+                self.doc_info = doc_info
+
+        return doc_info
 
     @staticmethod
     def find_targets(target_paths, module,

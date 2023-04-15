@@ -33,6 +33,7 @@ manifest_00 = {
             "recursive": False,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -57,6 +58,7 @@ manifest_01 = {
             "recursive": False,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -88,6 +90,7 @@ manifest_01_c1 = {
             "recursive": False,
         },
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -120,6 +123,7 @@ manifest_01r = {
             "recursive": True,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -142,6 +146,7 @@ manifest_02_c_CAT = {
             "recursive": False,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -172,6 +177,7 @@ manifest_02_c_MOD = {
             "recursive": False,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -202,6 +208,7 @@ manifest_03 = {
             "recursive": False,
         }
     },
+    "doc_info": {},
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -358,3 +365,35 @@ def test_is_terminal(repos_ready):
             # has no submodules.
             assert info['isTerminal'] is False
             assert info['hasSubmodules'] is False
+
+
+def test_doc_info(repos_ready):
+    """Check the `doc_info` field."""
+    manifest = load_manifest('test.hist.lit', version='v0.0.0')
+    d = manifest.build_dict()
+
+    doc_ids = [
+        "pdffp:73a76954e6a0db76a97e98bdac835811",
+        "pdffp:f55073bb58f8823ebfa19482ab6fdabe"
+    ]
+    assert list(d["doc_info"].keys()) == doc_ids
+
+    Thm9 = manifest.lookup["test.hist.lit.H.ilbert.ZB.Thm9.Pf"]
+    assert len(Thm9.build_dict()["docRefs"][doc_ids[1]]) == 4
+
+    Thm117 = manifest.lookup["test.hist.lit.H.ilbert.ZB.Thm117.Pf"]
+    assert len(Thm117.build_dict()["docRefs"][doc_ids[0]]) == 1
+
+    Thm118 = manifest.lookup["test.hist.lit.H.ilbert.ZB.Thm118.Pf1"]
+    assert len(Thm118.build_dict()["docRefs"][doc_ids[0]]) == 1
+
+    manifest = load_manifest('test.comment.notes', version='v0.1.0')
+    d = manifest.build_dict()
+
+    doc_ids = [
+        "pdffp:6318d851c27fc30fd97ac614cf747ac0"
+    ]
+    assert list(d["doc_info"].keys()) == doc_ids
+
+    wt = manifest.lookup["test.comment.notes.H.ilbert.ZB.Thm168.notes.Walkthrough"]
+    assert len(wt.build_dict()["docRefs"][doc_ids[0]]) == 1

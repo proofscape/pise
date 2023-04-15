@@ -35,7 +35,7 @@ from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn
 from pfsc import util
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
-from pfsc.lang.doc import DocReference
+from pfsc.lang.doc import doc_ref_factory
 from pfsc.lang.nodelabels import NodeLabelRenderer, ll, writeNodelinkHTML
 
 
@@ -323,9 +323,17 @@ class Deduction(Enrichment, NodeLikeObj):
         self.resolveComparisons()
 
     def resolveDocRefs(self):
+        default_doc_info = self.get('docInfo', lazy_load=False)
+        if default_doc_info is not None and not isinstance(default_doc_info, dict):
+            # It will be a common error to pass a string here, instead of a libpath,
+            # which would resolve to an actual doc info dictionary.
+            msg = f'docInfo in deduc "{self.libpath}" should be a dictionary'
+            raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
+
         def visit(item):
             if isinstance(item, Node):
-                item.resolveDocRefs()
+                item.resolveDocRefs(default_doc_info)
+
         self.recursiveItemVisit(visit)
 
     def find_rdefs(self):
@@ -722,48 +730,6 @@ class Deduction(Enrichment, NodeLikeObj):
             lp = item.getLibpath()
             dg['children'][lp] = idg
 
-        # Doc Info
-        # We build a dictionary of the form
-        # {
-        #     'docs': {
-        #         docId1: {
-        #             ...docInfo1...
-        #         },
-        #         docId2: {
-        #             ...docInfo2...
-        #         },
-        #     },
-        #     'refs': {
-        #         docId1: [
-        #             {...ref1...},
-        #             {...ref2...},
-        #         ],
-        #         docId2: [
-        #             {...ref3...},
-        #             {...ref4...},
-        #         ],
-        #     },
-        # }
-        docInfo = {
-            'docs': {},
-            'refs': {},
-        }
-
-        def grabHighlights(obj):
-            ref = obj.getDocRef()
-            if isinstance(ref, DocReference):
-                doc_id = ref.doc_id
-                if doc_id not in docInfo['docs']:
-                    docInfo['docs'][doc_id] = ref.doc_info
-                if doc_id not in docInfo['refs']:
-                    docInfo['refs'][doc_id] = []
-                hld = ref.write_highlight_descriptor(
-                    obj.getLibpath(), self.libpath, "CHART")
-                docInfo['refs'][doc_id].append(hld)
-
-        self.recursiveItemVisit(grabHighlights)
-
-
         # deducInfo -------------------
         if not self.isSubDeduc():
             di = {}
@@ -783,7 +749,7 @@ class Deduction(Enrichment, NodeLikeObj):
             di['target_deduc'] = self.getTargetDeductionLibpath()
             di['target_version'] = self.getTargetVersion()
             di['target_subdeduc'] = self.getTargetSubdeducLibpath()
-            di['docInfo'] = docInfo
+            di['docInfo'] = self.gather_doc_info()
             di['textRange'] = self.textRange
             # Finally:
             dg['deducInfo'] = di
@@ -874,12 +840,12 @@ class Node(NodeLikeObj):
         "Define the range in the module text over which this node was defined."
         self.textRange = (row0, col0, row1, col1)
 
-    def resolveDocRefs(self):
+    def resolveDocRefs(self, default_doc_info):
         ref_text = self.get('doc')
         if ref_text:
             mod = self.getModule()
-            ref = DocReference(ref_text, mod)
-            self.docReference = ref
+            self.docReference = doc_ref_factory(
+                code=ref_text, doc_info_obj=default_doc_info, context=mod)
 
     def getDocRef(self):
         return self.docReference or None

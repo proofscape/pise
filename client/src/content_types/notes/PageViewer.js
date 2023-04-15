@@ -55,6 +55,8 @@ var PageViewer = declare(null, {
     contextMenu: null,
     // pane: the ContentPane where we live
     pane: null,
+    // uuid: the uuid of the pane where we live
+    uuid: null,
     // scrollNode: the element whose scrollTop property sets the scroll position
     scrollNode: null,
     // history: array of location objects.
@@ -73,6 +75,9 @@ var PageViewer = declare(null, {
     ptr: null,
     // subscribedLibpath: the libpath to which we are currently subscribed
     subscribedLibpath: null,
+    // Each time we load a new page, we overwrite this with the data JSON for
+    // that page.
+    currentPageData: null,
 
     navEnableHandlers: null,
 
@@ -84,14 +89,16 @@ var PageViewer = declare(null, {
      * param nm: The NotesManager.
      * param parent: The DOM element in which page content is to be set.
      * param pane: The ContentPane where elt lives.
+     * param uuid: The uuid of the pane where elt lives.
      * param options: {
      *   overviewScale: desired initial scale for overview panel
      * }
      */
-    constructor: function(nm, parent, pane, options) {
+    constructor: function(nm, parent, pane, uuid, options) {
         options = options || {};
         this.overviewScale = options.overviewScale || this.overviewScale;
         this.nm = nm;
+        this.uuid = uuid;
 
         this.elt = document.createElement('div');
         this.sidebar = document.createElement('div');
@@ -104,6 +111,7 @@ var PageViewer = declare(null, {
         parent.appendChild(this.sidebar);
 
         main.addEventListener('scroll', this.observeMainAreaScroll.bind(this));
+        main.addEventListener('click', this.backgroundClick.bind(this));
         this.attachContextMenu(this.elt);
         this.attachSidebarContextMenu();
 
@@ -207,6 +215,25 @@ var PageViewer = declare(null, {
 
     observeMainAreaScroll: function(evt) {
         this.updateOverviewGlass();
+    },
+
+    backgroundClick: function(event) {
+        // Do not clear the selection if the click target itself is selected.
+        const selectedTargetClick = event.target.classList.contains('selected');
+        if (!selectedTargetClick) {
+            this.clearWidgetSelection();
+        }
+    },
+
+    markWidgetElementAsSelected: function(elt) {
+        this.clearWidgetSelection();
+        elt.classList.add('selected');
+    },
+
+    clearWidgetSelection: function() {
+        document.querySelectorAll('a.widget.selected').forEach(a => {
+            a.classList.remove('selected');
+        });
     },
 
     showOverviewSidebar: function(doShow) {
@@ -340,19 +367,34 @@ var PageViewer = declare(null, {
     /* Navigate to a location.
      *
      * param loc: An object describing the desired location.
-     *  required fields:
-     *      libpath: the libpath of the annotation to be viewed
-     *      version: the version of the annotation to be viewed
+     *  All fields are optional, except that if we do not yet have a current
+     *  location, then libpath and version are required (else it's a no-op).
      *  optional fields:
+     *      libpath: the libpath of the annotation to be viewed.
+     *          If undefined, use current.
+     *      version: the version of the annotation to be viewed.
+     *          If undefined, use current.
      *      scrollSel: a CSS selector. Will scroll to first element in
-     *          the page that matches the selector, if any.
+     *          the page that matches the selector, if any. Type of scrolling
+     *          is controlled by scrollOpts.
+     *      scrollOpts: see `scrollToSelector()` method.
      *      scrollFrac: a float between 0 and 1 indicating what fraction of
      *          the page we should scroll to vertically. If scrollSel is
      *          also defined, scrollFrac overrides it.
+     *      select: a CSS selector. Will mark this element as "selected" by
+     *          adding the 'selected' class to it, after removing that class
+     *          from all others.
      *
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goTo: function(loc) {
+        const cur = this.getCurrentLoc() || {};
+        loc.libpath = loc.libpath || cur.libpath;
+        loc.version = loc.version || cur.version;
+        if (!loc.libpath || !loc.version) {
+            return;
+        }
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return this.updatePage(loc).then(() => {
             const update = this.describeLocationUpdate(loc);
@@ -361,7 +403,7 @@ var PageViewer = declare(null, {
                     // Note: it is critical that these steps happen before
                     // the `recordNewHistory` step, since that changes the
                     // _current_ location, which these methods rely upon.
-                    this.announcePageChange(loc);
+                    this.announcePageChange(loc, oldPageData);
                     this.updateSubscription(loc);
                 }
                 this.recordNewHistory(loc);
@@ -385,6 +427,7 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goForward: function() {
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return new Promise((resolve, reject) => {
             if (this.ptr === null) reject();
@@ -394,7 +437,7 @@ var PageViewer = declare(null, {
                 this.updatePage(loc).then(() => {
                     const update = this.describeLocationUpdate(loc);
                     if (update.annotationChange) {
-                        this.announcePageChange(loc);
+                        this.announcePageChange(loc, oldPageData);
                         this.updateSubscription(loc);
                     }
                     this.incrPtr();
@@ -412,6 +455,7 @@ var PageViewer = declare(null, {
      * return: a Promise that resolves after we have finished loading and updating history
      */
     goBackward: function() {
+        const oldPageData = this.currentPageData;
         this.recordScrollFrac();
         return new Promise((resolve, reject) => {
             if (this.ptr === null) reject();
@@ -420,7 +464,7 @@ var PageViewer = declare(null, {
                 this.updatePage(loc).then(() => {
                     const update = this.describeLocationUpdate(loc);
                     if (update.annotationChange) {
-                        this.announcePageChange(loc);
+                        this.announcePageChange(loc, oldPageData);
                         this.updateSubscription(loc);
                     }
                     this.decrPtr();
@@ -570,10 +614,12 @@ var PageViewer = declare(null, {
         return loc === null ? null : iseUtil.lv(loc.libpath, loc.version);
     },
 
-    announcePageChange: function(loc) {
+    announcePageChange: function(loc, oldPageData) {
         const event = {
             type: 'pageChange',
+            uuid: this.uuid,
             oldLibpathv: null,
+            oldPageData: oldPageData,
             newLibpathv: `${loc.libpath}@${loc.version}`,
         }
         const cur = this.getCurrentLoc();
@@ -595,7 +641,7 @@ var PageViewer = declare(null, {
 
     unsubscribe: function() {
         if (this.subscribedLibpath !== null) {
-            this.nm.setSubscription(this.pane, this.subscribedLibpath, false);
+            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, false);
         }
     },
 
@@ -604,7 +650,7 @@ var PageViewer = declare(null, {
         if (libpath.startsWith('special.')) libpath = null;
         this.subscribedLibpath = libpath;
         if (libpath !== null) {
-            this.nm.setSubscription(this.pane, this.subscribedLibpath, true);
+            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, true);
         }
     },
 
@@ -615,13 +661,24 @@ var PageViewer = declare(null, {
      *
      * param contents: object with `html` and `data` (widget JSON) properties.
      */
-    receivePublication: function(contents) {
+    receivePublication: async function(contents) {
+        const oldPageData = this.currentPageData;
+
         // We can use a description of our current location to get the
         // scroll fraction. Then setting the contents directly in the location
         // object will get what we want from our updatePage method.
-        var loc = this.describeCurrentLocation();
+        const loc = this.describeCurrentLocation();
         loc.contents = contents;
-        this.updatePage(loc);
+        await this.updatePage(loc);
+
+        const event = {
+            type: 'pageReload',
+            uuid: this.uuid,
+            libpath: loc.libpath,
+            oldPageData: oldPageData,
+            newPageData: this.currentPageData,
+        }
+        this.dispatch(event);
     },
 
     /* Update the page, according to a location descriptor.
@@ -634,8 +691,9 @@ var PageViewer = declare(null, {
      *
      * param loc: a location descriptor:
      *   MAY include libpath
-     *   MAY include scrollFrac
-     *   MAY include scrollSel
+     *   MAY include scrollFrac (see `scrollToFraction` method)
+     *   MAY include scrollSel  (see `scrollToSelector` method)
+     *   MAY include scrollOpts (see `scrollToSelector` method)
      *   MAY include contents = {html: ..., data: ...}
      *
      * return: a promise that resolves after the page has been updated.
@@ -667,6 +725,7 @@ var PageViewer = declare(null, {
         return pageContentsStep
             .then(this.updateContextMenu.bind(this))
             .then(this.doScrolling.bind(this))
+            .then(this.doSelection.bind(this))
             .then(this.updateOverview.bind(this));
     },
 
@@ -727,11 +786,12 @@ var PageViewer = declare(null, {
      * requesting MathJax typesetting, and setting up the widgets.
      */
     setPageContents: function(html, data) {
-        // We can set the HTML into our document element ourselves.
         const elt = this.elt;
         query(elt).innerHTML(html);
         iseUtil.typeset([elt]);
-        // But we still rely on the NotesManager to set up the widgets.
+
+        this.currentPageData = data;
+
         this.nm.setupWidgets(data, this.elt, this.pane);
     },
 
@@ -744,8 +804,21 @@ var PageViewer = declare(null, {
         if (loc.scrollFrac) {
             this.scrollToFraction(loc.scrollFrac);
         } else if (loc.scrollSel || loc.scrollSel === null) {
-            this.scrollToSelector(loc.scrollSel);
+            this.scrollToSelector(loc.scrollSel, loc.scrollOpts);
         }
+        return loc;
+    },
+
+    /* Mark any selection requested by the location descriptor.
+     */
+    doSelection: function(loc) {
+        if (loc.select) {
+            const selectedElt = this.elt.querySelector(loc.select);
+            if (selectedElt) {
+                this.markWidgetElementAsSelected(selectedElt);
+            }
+        }
+        return loc;
     },
 
     /* Scroll a fraction of the way down the page.
@@ -761,17 +834,40 @@ var PageViewer = declare(null, {
 
     /* Scroll to the first element matching the given CSS selector.
      *
-     * param sel: the CSS selector. If null, we scroll to top.
+     * param sel: the CSS selector. If null, scroll to top.
+     * param options: {
+     *  padPx: pixels of padding at each of top and bottom of view area.
+     *      Default 0. Adds to pad from padPct.
+     *  padFrac: padding at each of top and bottom of view area, as fraction
+     *      of total height of panel. Should be a float between 0.0 and 1.0.
+     *      Default 0.0 Adds to pad from padPx.
+     *  pos: ['top', 'mid'], default 'top'. Scroll the object to
+     *      this position, vertically.
+     *  policy: ['pos', 'min', 'distant'], default 'pos'.
+     *      'pos': scroll object to pos, no matter what.
+     *      'min': scroll just enough to put object in padded view area.
+     *          (Under this setting, value of pos is irrelevant.)
+     *      'distant': scroll to pos if object "is distant", else min.
+     *          If the min scroll to bring object into padded view area
+     *          preserves at least one pad width of context, do that;
+     *          else scroll to pos.
+     * }
      * return: boolean: true iff we found an element to scroll to.
      */
-    scrollToSelector: function(sel) {
+    scrollToSelector: function(sel, options) {
+        const display = this.scrollNode;
+
         if (sel === null) {
-            this.scrollNode.scrollTop = 0;
+            display.scrollTop = 0;
             return false;
         }
-        var elt = this.scrollNode.querySelector(sel);
-        if (elt === null) return false;
-        this.scrollNode.scrollTop = elt.offsetTop;
+
+        const elt = display.querySelector(sel);
+        if (!elt) {
+            return false;
+        }
+
+        iseUtil.scrollIntoView(elt, display, options);
         return true;
     },
 

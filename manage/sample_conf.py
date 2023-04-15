@@ -194,12 +194,16 @@ SUPERVISOR_VERSION = '4.2.4'
 # the APP_URL_PREFIX as `None`.
 APP_URL_PREFIX = None
 
-# Docker Command
+# Docker
 #
-# In `DOCKER_CMD` we set the (basic) command name that is used for all Docker
+# In `DOCKER_CMD` set the (basic) command name that is used for all Docker
 # operations (such as `docker build`, `docker run`, etc.). Depending on your
 # environment, you may need to substitute 'sudo docker' here.
 DOCKER_CMD = 'docker'
+# In `DOCKER_PLATFORM` you can specify your system's platform, so that the
+# correct images are used. Depending on your architecture, you may need to
+# change this to another value, such as 'linux/arm64/v8'.
+DOCKER_PLATFORM = 'linux/amd64'
 
 ##############################################################################
 # Infrastructure-specific settings

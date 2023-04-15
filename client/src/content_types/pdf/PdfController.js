@@ -40,6 +40,7 @@
  */
 
 import { LackingHostPermissionError } from "browser-peers/src/errors";
+import { Highlight, PageOfHighlights } from "../venn";
 
 define([
     "dojo/_base/declare",
@@ -73,6 +74,7 @@ var PdfController = declare(null, {
 
     mgr: null,
     pane: null,
+    uuid: null,
     iframe: null,
 
     stateRequestPromise: null,
@@ -89,12 +91,14 @@ var PdfController = declare(null, {
     history: null,
     document: null,
     fingerprint: null,
+    docId: null,
 
     urlBar: null,
     pdfUrlBox: null,
     accessUrlAnchor: null,
 
     viewerDiv: null,
+    viewerContainerDiv: null,
     needPbeDiv: null,
     needPermissionDiv: null,
     openFileButton: null,
@@ -111,11 +115,30 @@ var PdfController = declare(null, {
     // functions that should be called after that page's text layer has rendered. These
     // functions are called only once. Then their records here are cleared.
     callbackOnTextLayerRenderLookup: null,
-    // ---------
+
+    // This is a mapping from document page numbers to arrays of Highlight instances
+    // that have been constructed for that page.
+    highlightsByPageNum: null,
+    // This mapping provides a way to look up our current Highlights by their IDs.
+    // We store them *both* under their *own* ID, and under their *original* ID
+    // (for clone highlights these are different; for original highlights they are
+    // the same).
+    highlightsBySlpSiid: null,
+
+    selectedHighlight: null,
+
+    // This is for linking a doc panel to a tree item,
+    // meaning that all the highlights at and under that item in a repo are loaded
+    // "permanently" into this panel. "Permanent" means that they stay even when panels
+    // hosting their suppliers are closed, and that clicking them can spawn such a panel,
+    // if none is yet present.
+    linkedTreeItemLibpath: null,
+    linkedTreeItemVersion: null,
 
     constructor: function(mgr, pane, info) {
         this.mgr = mgr;
         this.pane = pane;
+        this.uuid = info.uuid;
         this.origInfo = info;
         this.iframe = pane.domNode.children[0].children[0];
 
@@ -123,6 +146,9 @@ var PdfController = declare(null, {
         this.selboxCombineDialog = this.buildSelboxCombineDialog();
 
         this.stateRequestPromise = Promise.resolve();
+
+        this.highlightsByPageNum = new iseUtil.SetMapping();
+        this.highlightsBySlpSiid = new iseUtil.PairKeyMapping(":");
     },
 
     initialize: function(info) {
@@ -199,6 +225,7 @@ var PdfController = declare(null, {
                         pdfc.pdfUrlBox.disabled = true;
 
                         pdfc.viewerDiv = cw.document.getElementById("viewer");
+                        pdfc.viewerContainerDiv = cw.document.getElementById("viewerContainer");
 
                         pdfc.needPbeDiv = cw.document.getElementById("needPbe");
                         pdfc.openFileButton = cw.document.getElementById("openFile");
@@ -223,8 +250,6 @@ var PdfController = declare(null, {
                                 url: url,
                             });
                         });
-
-                        pdfc.setBoxSelectMode(pdfc.mgr.hub.menuManager.pdfOpt_SetBoxSelect.checked);
 
                         // Add custom CSS
                         var link = document.createElement("link");
@@ -300,14 +325,13 @@ var PdfController = declare(null, {
     /* The iframe has been reloaded -- probably due to being moved in the DOM tree.
      * We try to restore its state.
      */
-    reloadFrame: function() {
-        //console.log('reload frame in pane: ', this.pane.id);
-        //console.log('same content window: ', this.iframe.contentWindow === this.contentWindow);
-        var pdfc = this;
-        pdfc.docIsLoaded = false;
-        this.grabAppAndInitialize().then(function() {
-            return pdfc.requestState(pdfc.origInfo);
-        });
+    reloadFrame: async function() {
+        this.docIsLoaded = false;
+        await this.grabAppAndInitialize();
+        const info = JSON.parse(JSON.stringify(this.origInfo));
+        info.selection = true;
+        info.gotosel = 'always';
+        await this.requestState(info);
     },
 
     /* Open a file.
@@ -355,6 +379,9 @@ var PdfController = declare(null, {
                 info[p] = orig[p];
             }
         });
+
+        info.linkedTreeItemLibpath = this.linkedTreeItemLibpath;
+        info.linkedTreeItemVersion = this.linkedTreeItemVersion;
 
         if (!serialOnly) {
             const nonserialProps = [
@@ -437,13 +464,23 @@ var PdfController = declare(null, {
      * if the document has an Nth page. Math PDFs often have other built-in location names
      * like 'lemma.2' etc.
      *
+     * highlightId
      * selection
      * gotosel
      * selcolor
      *
      *   These keys define desired effects relating to selection highlights.
      *
-     *   selection: {string|array} Should be either a single selection code (string) or
+     *   highlightId: {string} A highlight ID (i.e. string of the form `{slp}:{siid}`)
+     *     indicating a "named highlight" that should be selected. This is as opposed to
+     *     an "ad hoc highlight" that can be defined by the `selection` field (see below).
+     *     If both `highlightId` and `selection` are defined, then `highlightId` is followed,
+     *     and `selection` ignored.
+     *
+     *   selection: {string|array|true|null}
+     *     true: (default) keep the existing selection ("stay true")
+     *     null: clear the existing selection
+     *     Otherwise, should be either a single selection code (string) or
      *     an array of selection codes, defining the desired highlight boxes. A "selection code"
      *     is the same as a "combiner code string", i.e. a string describing a combination of
      *     boxes. (See docs on that subject elsewhere.)
@@ -455,7 +492,7 @@ var PdfController = declare(null, {
      *
      *     Keywords:
      *          always: do scroll to the selection;
-     *          altKey (default): scroll only if we received an event with event.altKey true;
+     *          altKey (default): scroll unless we received an event with event.altKey true;
      *          never: do not scroll.
      *
      *   selcolor: {string} default is defined in `defaultPdfHighlightColor`, above.
@@ -463,6 +500,14 @@ var PdfController = declare(null, {
      *     are: `red`, `yellow`, `green`, `blue`, `clear`. By setting `clear` you make
      *     the selection invisible. This is useful if you only want to scroll to the position of
      *     the selection, but do not want to show it.
+     *
+     * linkedTreeItemLibpath
+     * linkedTreeItemVersion
+     *
+     *   If defined, these indicate that the doc panel should have a linked tree item
+     *   (meaning that all highlights defined at and under that item are loaded into
+     *   the doc panel). If the libpath is given, the version may be omitted and will
+     *   default to "WIP".
      *
      */
     transitionToState(info, event = null) {
@@ -510,9 +555,15 @@ var PdfController = declare(null, {
             // ----------------------------------------------------------------
             // Load document
             pdfc.docLoadResolve = resolve;
+            // If the info specifies a docId, we can use this to identify the case where the desired
+            // doc is already loaded. This is better than checking against `this.currentDoc`, because
+            // that can take different forms for the same doc, if opened in different ways (like from
+            // file system vs via URL).
+            const sameDocId = (info.docId === pdfc.docId);
             if (info.lastOpenedFilelist) {
                 // Want a document from the user's computer.
-                if (info.lastOpenedFilelist === pdfc.currentDoc && pdfc.docIsLoaded) {
+                const requestingCurrentDoc = (info.lastOpenedFilelist === pdfc.currentDoc);
+                if (pdfc.docIsLoaded && (sameDocId || requestingCurrentDoc)) {
                     // The doc we want is already loaded.
                     resolve();
                 } else {
@@ -525,7 +576,8 @@ var PdfController = declare(null, {
                 }
             } else if (url !== null) {
                 // Want a doc from PDFLibrary or from the web.
-                if (url === pdfc.currentDoc && pdfc.docIsLoaded) {
+                const requestingCurrentDoc = (url === pdfc.currentDoc);
+                if (pdfc.docIsLoaded && (sameDocId || requestingCurrentDoc)) {
                     // The doc we want is already loaded.
                     resolve();
                 } else {
@@ -552,26 +604,37 @@ var PdfController = declare(null, {
             } else {
                 return Promise.resolve();
             }
-
         }).then(() => {
             // ----------------------------------------------------------------
             // Selections
-            if (info.selection) {
-                let codes = Array.isArray(info.selection) ? info.selection : [info.selection];
-                let g = info.gotosel || 'altKey';
-                let doAutoScroll = (
-                    ( g === 'always' ) ||
-                    ( g === 'altKey' && event && event.altKey )
-                );
-                let color = info.selcolor || defaultPdfHighlightColor;
+            const g = info.gotosel || 'altKey';
+            const doAutoScroll = (
+                ( g === 'always' ) ||
+                ( g === 'altKey' && !event?.altKey )
+            );
+            pdfc.origInfo.gotosel = g;
+            if (info.highlightId) {
+                return pdfc.selectNamedHighlight(
+                    info.highlightId, doAutoScroll, info.requestingUuid);
+            } else if (info.selection === true || info.selection === undefined) {
+                return pdfc.restorePreviouslySelectedHighlight({doAutoScroll});
+            } else if (info.selection === null) {
+                this.clearAllHighlights();
+            } else {
+                const codes = Array.isArray(info.selection) ? info.selection : [info.selection];
+                const color = info.selcolor || defaultPdfHighlightColor;
                 pdfc.origInfo.selection = codes;
-                pdfc.origInfo.gotosel = g;
                 pdfc.origInfo.selcolor = color;
                 return pdfc.highlightFromCodes(codes, doAutoScroll, color);
-            } else {
-                // If no selection specified, clear any existing highlights.
-                pdfc.clearHighlight();
-                return Promise.resolve();
+            }
+        }).then(() => {
+            // ----------------------------------------------------------------
+            // Tree link
+            if (info.linkedTreeItemLibpath) {
+                return pdfc.linkTreeItem({
+                    libpath: info.linkedTreeItemLibpath,
+                    version: info.linkedTreeItemVersion || "WIP",
+                });
             }
         });
     },
@@ -655,6 +718,7 @@ var PdfController = declare(null, {
         this.showLoadingGif(false);
         this.document = this.viewer.pdfDocument;
         this.fingerprint = this.document.fingerprint;
+        this.docId = `pdffp:${this.fingerprint}`;
 
         const wm = this.mgr.hub.windowManager;
         const {myNumber} = wm.getNumbers();
@@ -678,6 +742,289 @@ var PdfController = declare(null, {
         this.pausedOnDownload = false;
     },
 
+    /* Handle a mouse event on a highlight we are hosting.
+     *
+     * param event: the browser-native mouse event object itself
+     * param highlightDescriptor: the HDO of the highlight on which the event occurred
+     */
+    handleHighlightMouseEvent: function(event, highlightDescriptor) {
+        return this.mgr.handleHighlightMouseEvent(this.uuid, event, highlightDescriptor);
+    },
+
+    /* Receive an array of highlight descriptors.
+     *
+     * New highlights in this array (those having highlightId not already present here) are
+     * immediately inserted on existing rendered pages, and set up to appear on new
+     * pages, as they render. Clones of highlights already present here are added to the
+     * existing Highlight objects.
+     *
+     * param hlDescriptors: array of highlight descriptors
+     * param options: {
+     *   panelUuid: the uuid of the panel that supplied these highlights. Must be
+     *     given if want to establish navigation links. See 'linkTo' option below.
+     *   acceptFrom: optional array of libpaths. If defined, accept highlights only
+     *     from suppliers of these libpaths. If undefined, accept from all.
+     *   linkTo: optional array of libpaths. If defined, set up navigation links to
+     *     the panel, for these suppliers. If undefined, set up links for all.
+     *     NOTE: In all cases, the links established will be for a subset of the
+     *     suppliers accepted by 'acceptFrom' (see above).
+     *     NOTE: If 'panelUuid' (see above) is not defined, no links will be established.
+     *   reload: boolean, default false. If true, then, for each supplier from which
+     *     we are going to accept highlights, start by dropping any and all existing ones.
+     * }
+     */
+    receiveHighlights: async function(hlDescriptors, options) {
+        const {
+            panelUuid = null,
+            acceptFrom = true,
+            linkTo = true,
+            reload = false,
+        } = (options || {});
+
+        const newLinksEstablished = new Set();
+        const suppliersCleared = new Set();
+        let numberOfNewHighlights = 0;
+
+        if (reload && Array.isArray(acceptFrom)) {
+            for (const slp of acceptFrom) {
+                this._basicDropHighlightsFromSupplier(slp);
+                suppliersCleared.add(slp);
+            }
+        }
+
+        for (let hlDescriptor of hlDescriptors) {
+            const slp = hlDescriptor.slp;
+            const siid = hlDescriptor.siid;
+
+            // If we don't want to accept from this supplier, go to next.
+            if (Array.isArray(acceptFrom) && !acceptFrom.includes(slp)) {
+                continue;
+            }
+
+            // Set up link if desired, and possible, and not done already.
+            const wantLink = (linkTo === true) || (linkTo.includes(slp));
+            if (panelUuid && wantLink && !newLinksEstablished.has(slp)) {
+                await this.mgr.linkingMap.add(this.uuid, slp, panelUuid);
+                newLinksEstablished.add(slp);
+            }
+
+            const hlid = iseUtil.extractHlidFromHlDescriptor(hlDescriptor);
+            const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hlDescriptor);
+            const existingHighlight = this.highlightsBySlpSiid.get(ohlid);
+            if (existingHighlight) {
+                // If we already have a Highlight instance, add the new supplier
+                // to it, and record a mapping from its own ID.
+                existingHighlight.addSupplier(hlDescriptor);
+                this.highlightsBySlpSiid.set(hlid, existingHighlight);
+            } else {
+                // Otherwise, make a new highlight, and ensure that we have
+                // a mapping for it under both IDs (which may be the same).
+                numberOfNewHighlights++;
+                const hl = new Highlight(this, hlDescriptor);
+                this.highlightsBySlpSiid.set(ohlid, hl);
+                this.highlightsBySlpSiid.set(hlid, hl);
+                for (const p of hl.listPageNums()) {
+                    this.highlightsByPageNum.add(p, hl);
+                }
+            }
+        }
+
+        const clearedAnything = (suppliersCleared.size > 0);
+        const addedAnything = (numberOfNewHighlights > 0);
+        if (clearedAnything || addedAnything) {
+            await this.redoExistingHighlightLayers();
+        }
+    },
+
+    /* Select a named (as opposed to ad hoc) highlight.
+     *
+     * param slpSiid: the id of the form `{slp}:{siid}` that uniquely
+     *  identifies the named highlight.
+     * param doAutoScroll: boolean saying whether to scroll to the highlight.
+     * param supplierUuid: optional argument giving the uuid of a panel
+     *  where the desired highlight definition can be obtained, in case we don't
+     *  have it already.
+     *
+     * return: promise that resolves with boolean saying whether we found the
+     *  requested highlight
+     */
+    selectNamedHighlight: async function(slpSiid, doAutoScroll, supplierUuid) {
+        // If we don't already have the highlight, try to obtain it.
+        if (!this.highlightsBySlpSiid.has(slpSiid)) {
+            if (supplierUuid) {
+                const [slp, siid] = slpSiid.split(":");
+                await this.getAndLoadHighlightsFromSupplierPanel(supplierUuid, {
+                    acceptFrom: [slp],
+                    linkTo: [slp],
+                });
+            }
+        }
+        // If we have the highlight, proceed.
+        let foundIt = false;
+        const hl = this.highlightsBySlpSiid.get(slpSiid);
+        if (hl) {
+            foundIt = true;
+            this.clearNamedHighlight();
+            let scrollElt = hl.getScrollElement();
+            // Check that scrollElt still has an offsetParent. It will not if it has been removed from
+            // the document. This case arises when the page has been destroyed, but the Highlight instance
+            // still retains a reference to its element.
+            if (scrollElt && scrollElt.offsetParent) {
+                // If the scroll element already exists, this means the first page on which
+                // the highlight lives has already been rendered, so we can use the 'distant'
+                // scroll policy.
+                // Note that, if the highlight is just *below* the view area, the policy of
+                // scrolling it just into view is not great, since we're using only the first
+                // box of the highlight as he scroll target. To make up for this a little, we
+                // add a bit of padding to the view box.
+                hl.select(true);
+                if (doAutoScroll) {
+                    this.scrollIntoView(scrollElt, {pos: 'mid', policy: 'distant', padPx: 32});
+                }
+            } else {
+                // If we didn't get a scroll element, it's because the first page on which
+                // the highlight lives hasn't been rendered yet. We need to render the pages,
+                // and we'll use the 'pos' scroll policy.
+                const pages = hl.listPageNums();
+                const firstPage = hl.firstPage();
+                pages.reverse();  // Work by descending page number.
+                for (const n of pages) {
+                    await this.operateOnRenderedPage(n, doAutoScroll, pageView => {
+                        // When the last of the rendering jobs -- the page with the smallest
+                        // number -- has completed, then we can select the highlight.
+                        if (n === firstPage) {
+                            hl.select(true);
+                            if (doAutoScroll) {
+                                scrollElt = hl.getScrollElement();
+                                // scrollElt should now exist, but we check just to be sure.
+                                if (scrollElt && scrollElt.offsetParent) {
+                                    this.scrollIntoView(scrollElt, {pos: 'mid', policy: 'pos'});
+                                }
+                            }
+                        }
+                    })
+                }
+            }
+        }
+        return foundIt;
+    },
+
+    /* Invoked by a Highlight instance when it becomes selected.
+     */
+    noteSelectedHighlight: function(hl) {
+        this.selectedHighlight = hl;
+    },
+
+    /* Given the uuid of a panel (in any window), try to obtain the array of
+     * all highlights defined in that panel, for our document. If obtained,
+     * load them.
+     *
+     * param supplierUuid: the uuid of the supplier panel
+     * param options: {
+     *   acceptFrom: as in the `receiveHighlights()` method.
+     *   linkTo: as in the `receiveHighlights()` method.
+     *   reload: as in the `receiveHighlights()` method.
+     * }
+     *
+     * return: promise resolving with boolean saying whether we managed to
+     *   get and load the highlights.
+     */
+    getAndLoadHighlightsFromSupplierPanel: async function(supplierUuid, options) {
+        const hls = await this.getHighlightsFromSupplierPanel(supplierUuid);
+        if (hls !== null) {
+            options.panelUuid = supplierUuid;
+            await this.receiveHighlights(hls, options);
+            return true;
+        }
+        return false;
+    },
+
+    /* Given the uuid of a panel (in any window), try to obtain the array of
+     * all highlights defined in that panel, for our document.
+     *
+     * return: promise resolving with array of highlights (possibly emmpty),
+     *   or null iff the panel was not found in any window.
+     */
+    getHighlightsFromSupplierPanel: function(supplierUuid) {
+        const requests = this.mgr.hub.windowManager.broadcastRequest(
+            'hub.contentManager.getHighlightsFromSupplier',
+            {
+                supplierUuid: supplierUuid,
+                docIds: [this.docId],
+            },
+            {
+                excludeSelf: false,
+            }
+        );
+        return Promise.all(requests).then(async values => {
+            for (let hlsByDocId of values) {
+                if (hlsByDocId !== null) {
+                    // We found the panel. The content hosted there may or may not
+                    // define any highlights for our docId. In all cases, you get
+                    // an array, possibly empty.
+                    return hlsByDocId[this.docId] || [];
+                }
+            }
+            // No window seems to host a panel of the given uuid.
+            return null;
+        });
+    },
+
+    libpathBelongsToLinkedTreeSet: function(lp) {
+        return (this.linkedTreeItemLibpath &&
+            iseUtil.libpathIsPrefix(this.linkedTreeItemLibpath, lp));
+    },
+
+    /* Drop any existing highlights we are holding from a particular supplier.
+     *
+     * Note: We ignore the request if we are holding *permanent* highlights from
+     * that supplier.
+     *
+     * param slp: the libpath of the supplier
+     */
+    dropHighlightsFromSupplier: async function(slp) {
+        if (this.libpathBelongsToLinkedTreeSet(slp)) {
+            return;
+        }
+        this._basicDropHighlightsFromSupplier(slp);
+        // Finally, since removing any highlights can completely change the Venn diagram
+        // for any given page, we have to redo existing highlight layers.
+        await this.redoExistingHighlightLayers();
+    },
+
+    /* Internal method, which carries out the basic operation of dropping highlights from
+     * a supplier "logically" (i.e. from our records), but not "graphically" (i.e. not from
+     * existing highlight layers).
+     *
+     * NOTE: *Goes ahead without checks.*
+     * NOTE: *Does not rebuild existing highlight layers*.
+     */
+    _basicDropHighlightsFromSupplier: function(slp) {
+        const hls = this.highlightsBySlpSiid.getValuesUnderFirstKey(slp);
+        for (const hl of hls) {
+            const hdo = hl.popSupplier(slp);
+            if (hdo) {
+                const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
+                const ohlid = iseUtil.extractOriginalHlidFromHlDescriptor(hdo);
+                if (hlid !== ohlid) {
+                    this.highlightsBySlpSiid.delete(hlid);
+                }
+                if (hl.getSupplierCount() === 0) {
+                    this.highlightsBySlpSiid.delete(ohlid);
+                    for (const p of hl.listPageNums()) {
+                        this.highlightsByPageNum.remove(p, hl);
+                    }
+                }
+            }
+        }
+    },
+
+    dropAllExistingHighlights: async function() {
+        this.highlightsByPageNum.clear();
+        this.highlightsBySlpSiid.clear();
+        await this.redoExistingHighlightLayers();
+    },
+
     /* Respond to the PDF viewer app's `pagerendered` event.
      * This is dispatched after the canvas layer of a pdf page has finished rendering.
      */
@@ -688,7 +1035,7 @@ var PdfController = declare(null, {
      * This is dispatched after the text layer of a pdf page has finished rendering.
      */
     onTextLayerRendered: function({source, pageNumber, numTextDivs}) {
-        this.addBoxLayer(pageNumber);
+        this.addPageLayers(pageNumber);
         this.callbackOnTextLayerRender(pageNumber);
     },
 
@@ -775,7 +1122,7 @@ var PdfController = declare(null, {
      */
     // <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#Object_destructuring>
     highlightSelection_OLD: function({pageIdx, beginDivIdx, beginOffset, endDivIdx, endOffset, autoScroll}) {
-        this.clearHighlight();
+        this.clearHighlight_OLD();
         if (!this.app) return;
         var viewer = this.app.pdfViewer;
         if (!viewer) return;
@@ -859,9 +1206,10 @@ var PdfController = declare(null, {
 
     // -----------------------------------------------------------------------
 
-    /* Remove all highlight boxes.
-     */
-    clearHighlight: function() {
+    // Ad hoc highlights are those that do not come from a highlight supplier, but
+    // are just specified by passing an array of combiner codes to the `highlightFromCodes()` method.
+    // See also: `clearNamedHighlight()`
+    clearAdHocHighlight: function() {
         this.outerContainer.querySelectorAll('.highlightBox').forEach(box => box.remove());
     },
 
@@ -913,19 +1261,29 @@ var PdfController = declare(null, {
                         if (doAutoScroll) {
                             // Scroll not just to the first page, but to the first highlight box on that page.
                             var rect = ctrl.outerContainer.querySelector('.highlightBox');
-                            ctrl.viewer._scrollIntoView({pageDiv: rect});
+                            ctrl.scrollIntoView(rect);
                         }
                         resolve();
                     }
                 });
             }
-            ctrl.clearHighlight();
+            ctrl.clearAdHocHighlight();
             startNextJob(0);
         });
     },
 
+    // Our old technique, relying on the scoll operation offered by pdf.js:
+    _native_scrollIntoView: function(element) {
+        this.viewer._scrollIntoView({pageDiv: element});
+    },
+
+    // Note: so far tested only on elements belonging to a .highlightLayer div
+    scrollIntoView: function(element, options) {
+        iseUtil.scrollIntoView(element, this.viewerContainerDiv, options);
+    },
+
     /* Suppose you have an operation to perform on a page, and that you may or
-     * may not want to autoscroll to that page. There are several possibilites:
+     * may not want to autoscroll to that page. There are several possibilities:
      *
      * If the page is not currently rendered, then...
      *   ...if you also don't want to autoscroll to it, you might as well do nothing.
@@ -1107,22 +1465,81 @@ var PdfController = declare(null, {
     */
     // // // // //
 
-    setBoxSelectMode: function(b) {
-        if (b) {
-            this.outerContainer.classList.add('boxSelect');
-        } else {
-            this.outerContainer.classList.remove('boxSelect');
-            this.getSelectionBoxes().forEach(box => box.remove());
+    addPageLayers: function(pageNumber) {
+        const canvas = this.outerContainer.querySelector('.page'+pageNumber);
+        const page = canvas.parentNode.parentNode;
+        this.addBoxLayer(page, pageNumber);
+        this.addHighlightLayer(page, pageNumber);
+    },
+
+    // Add a brand new highlight layer to a page.
+    addHighlightLayer: function(page, pageNumber) {
+        const hlLayer = document.createElement("div");
+        hlLayer.style.width = page.style.width;
+        hlLayer.style.height = page.style.height;
+        hlLayer.classList.add('highlightLayer');
+        this.buildHighlightsForHighlightLayer(hlLayer, pageNumber, page.clientWidth);
+        page.appendChild(hlLayer);
+    },
+
+    // Find all existing highlight layers, and redo each one.
+    // Useful when changing the set of highlights loaded into this doc.
+    redoExistingHighlightLayers: async function() {
+        const highlightLayers = Array.from(this.outerContainer.querySelectorAll('.highlightLayer'));
+        for (const highlightLayer of highlightLayers) {
+            const pageNumber = +highlightLayer.parentNode.getAttribute('data-page-number');
+            this.redoHighlightLayer(highlightLayer, pageNumber);
+        }
+        await this.restorePreviouslySelectedHighlight({doAutoScroll: false});
+    },
+
+    // Try to restore previous selection, if any, and if it still exists.
+    restorePreviouslySelectedHighlight: async function({doAutoScroll}) {
+        const previousSelection = this.selectedHighlight;
+        if (previousSelection) {
+            const exists = await this.selectNamedHighlight(
+                previousSelection.highlightId, doAutoScroll, null);
+            if (!exists) {
+                this.clearAllHighlights();
+            }
         }
     },
 
-    isInBoxSelectMode: function() {
-        return this.outerContainer.classList.contains('boxSelect');
+    clearAllHighlights: function() {
+        this.clearNamedHighlight();
+        this.clearAdHocHighlight();
     },
 
-    addBoxLayer: function(pageNumber) {
-        var canvas = this.outerContainer.querySelector('.page'+pageNumber);
-        var page = canvas.parentNode.parentNode;
+    // Clear out an existing highlight layer, and rebuild its contents.
+    redoHighlightLayer: function(highlightLayer, pageNumber) {
+        iseUtil.removeAllChildNodes(highlightLayer);
+        this.buildHighlightsForHighlightLayer(highlightLayer, pageNumber, highlightLayer.clientWidth);
+    },
+
+    // Build the contents of a highlight layer.
+    buildHighlightsForHighlightLayer: function(highlightLayer, pageNumber, pageWidth) {
+        const hls = Array.from(this.highlightsByPageNum.get(pageNumber) || []);
+        if (!hls.length) {
+            return;
+        }
+        const hlPage = new PageOfHighlights(this, pageNumber, pageWidth);
+        hlPage.addHighlights(hls);
+        hlPage.populateHighlightLayer(highlightLayer);
+    },
+
+    // Named highlights are those that appear in the highlightLayer of a page, and come from
+    // a highlight descriptor from a highlight supplier.
+    // See also: `clearAdHocHighlight()`
+    clearNamedHighlight: function() {
+        this.outerContainer.querySelectorAll('.hl-zone.selected').forEach(zone => {
+            zone.classList.remove('selected');
+        });
+        this.selectedHighlight = null;
+        // Also make sure the box-select layer is clear:
+        this.removeAllHighlightBoxes();
+    },
+
+    addBoxLayer: function(page, pageNumber) {
         var boxLayer = document.createElement("div");
         boxLayer.style.width = page.style.width;
         boxLayer.style.height = page.style.height;
@@ -1418,6 +1835,89 @@ var PdfController = declare(null, {
         pane.domNode.appendChild(templateBox);
 
         return dlg;
+    },
+
+    /* Unlink this doc panel from the tree item to which it is currently linked.
+     */
+    removeLinkedTreeItem: async function() {
+        if (!this.linkedTreeItemLibpath) {
+            // No link to be removed.
+            return;
+        }
+
+        let suppliers = Array.from(
+            this.highlightsBySlpSiid.firstKeys()
+        ).filter(slp => this.libpathBelongsToLinkedTreeSet(slp));
+
+        // Drop highlights
+        for (const slp of suppliers) {
+            this._basicDropHighlightsFromSupplier(slp);
+        }
+        await this.redoExistingHighlightLayers();
+
+        // Break links
+        const LD = this.mgr.linkingMap;
+        const LC = this.mgr.hub.chartManager.linkingMap;
+        const LN = this.mgr.hub.notesManager.linkingMap;
+
+        for (const slp of suppliers) {
+            await LD.removeTriples({x: slp}, {doNotRelink: true});
+        }
+
+        // Any panel containing one of these suppliers must be unlinked, lest it
+        // attempt to navigate here without highlights loaded.
+        suppliers = new Set(suppliers);
+
+        const trips = await this.mgr.hub.chartManager.getAllDocRefTriples();
+        const Uc = new Set();
+        for (const [u, s, d] of trips) {
+            if (suppliers.has(s)) {
+                Uc.add(u);
+            }
+        }
+        for (const u of Uc) {
+            await LC.removeTriples({u, w: this.uuid}, {doNotRelink: true});
+        }
+
+        const quads = await this.mgr.hub.notesManager.getAllDocRefQuads();
+        const Un = new Set();
+        for (const [u, s, g, d] of quads) {
+            if (suppliers.has(s)) {
+                Un.add(u);
+            }
+        }
+        for (const u of Un) {
+            await LN.removeTriples({u, w: this.uuid}, {doNotRelink: true});
+        }
+
+        this.linkedTreeItemLibpath = null;
+        this.linkedTreeItemVersion = null;
+    },
+
+    /* Link this doc panel to a tree item.
+     */
+    linkTreeItem: async function({libpath, version}) {
+        if (this.linkedTreeItemLibpath) {
+            // Already linked to something.
+            return;
+        }
+
+        const btm = this.mgr.hub.repoManager.buildMgr;
+        const selectedItem = btm.getItemByLibpathAndVersion(libpath, version);
+        // selectedItem might not be available, if the repo it belongs to is not currently open.
+        if (selectedItem) {
+            const items = btm.getAllDescendantsByLibpathAndVersion(libpath, version);
+            items.unshift(selectedItem);
+            const allHdos = [];
+            for (const item of items) {
+                const docRefs = item.docRefs || {};
+                const newHdos = docRefs[this.docId] || [];
+                allHdos.push(...newHdos);
+            }
+            await this.receiveHighlights(allHdos);
+            this.linkedTreeItemLibpath = libpath;
+            this.linkedTreeItemVersion = version;
+        }
     },
 
 });

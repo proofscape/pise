@@ -162,9 +162,12 @@ var Hub = declare(null, {
         this.restartMathWorker();
 
         this.appLayout = appLayout;
-        this.tabContainerTree = tabContainerTree;
+
         this.dismissalStorage = window.localStorage;
         this.agreementAcceptanceStorage = window.localStorage;
+
+        this.tabContainerTree = tabContainerTree;
+        tabContainerTree.hub = this;
 
         this.keyListener = keyListener;
         keyListener.hub = this;
@@ -469,8 +472,10 @@ var Hub = declare(null, {
      *                 activeTab: <int>
      *             }
      *         ],
-     *         widgetPanes: {
-     *             ...
+     *         linking: {
+     *             C: [[u, x, w], [u, x, w], ...],
+     *             D: [[u, x, w], [u, x, w], ...],
+     *             N: [[u, x, w], [u, x, w], ...]
      *         }
      *     }
      * }
@@ -558,10 +563,13 @@ var Hub = declare(null, {
 
         content.activeTcIndex = activeTcIndex;
 
-        // Widget Panes
-        // If any panes are linked with widget groups, we want to record that
-        // info, so those links can be restored.
-        content.widgetPanes = this.notesManager.getWidgetGroupControlMapping({asMap: false});
+        // Note: we want only local triples, because we only want to describe the state of *this* window,
+        // not any other. This is a synchronous method, so no need to await.
+        content.linking = {
+            C: this.chartManager.linkingMap.localComponent.getTriples({}),
+            D: this.pdfManager.linkingMap.localComponent.getTriples({}),
+            N: this.notesManager.linkingMap.localComponent.getTriples({}),
+        };
 
         state.content = content;
 
@@ -628,7 +636,7 @@ var Hub = declare(null, {
         });
     },
 
-    loadContentByDescription: function(content) {
+    loadContentByDescription: async function(content) {
         // We need a clean slate. So close all tabs, and remove all splits.
         this.tabContainerTree.closeAllPanes();
         // Set the desired split structure...
@@ -641,7 +649,6 @@ var Hub = declare(null, {
         const tcs = content.tcs;
         const tcids = this.tabContainerTree.getTcIds();
         const uuids = new Set();
-        const contentLoadingPromises = [];
         for (let i of Object.keys(tcs)) {
             const tcInfo = tcs[i];
             const tcId = tcids[i];
@@ -654,7 +661,10 @@ var Hub = declare(null, {
                     uuids.add(info.uuid);
                 }
                 const { pane, promise } = this.contentManager.openContentInTC(info, tcId);
-                contentLoadingPromises.push(promise);
+                // Do not start loading another panel until after this one has finished loading.
+                // This prevents issues with attempts to set up default links for one panel, while
+                // another, or others, are in the process of loading and thus only partially initialized.
+                await promise;
                 // Be sure to compare j and activeTabIndex _as integers_.
                 if (+j === +activeTabIndex) {
                     activePane = pane;
@@ -665,19 +675,23 @@ var Hub = declare(null, {
             }
         }
         // Set active tab container.
+        // (Need all content loaded first, so that NavManager can get a valid reading.)
+        // Careful: use typeof test, since index could be zero!
         if (typeof(content.activeTcIndex) !== 'undefined') {
             const tcId = tcids[content.activeTcIndex];
-            // Wait until after all content has loaded, so that NavManager can get a valid reading.
-            Promise.all(contentLoadingPromises).then(values => {
-                this.tabContainerTree.setActiveTcById(tcId);
-            })
+            this.tabContainerTree.setActiveTcById(tcId);
         }
-        // Associate widget groups with panes.
-        if (typeof(content.widgetPanes) !== 'undefined') {
-            for (let widgetGroupId of Object.keys(content.widgetPanes)) {
-                const uuid = content.widgetPanes[widgetGroupId];
-                if (uuids.has(uuid)) {
-                    this.notesManager.setUuidForWidgetGroup(uuid, widgetGroupId);
+        // Re-establish links
+        if (content.linking) {
+            for (const [key, mgr] of [
+                ["C", this.chartManager], ["D", this.pdfManager], ["N", this.notesManager],
+            ]) {
+                for (const [u, x, w] of (content.linking[key] || [])) {
+                    if (await this.contentManager.uuidExistsInAnyWindow(w)) {
+                        // No need to check for existence of `u`, since it will automatically
+                        // only be added in that window (if any) where u exists.
+                        await mgr.linkingMap.add(u, x, w);
+                    }
                 }
             }
         }
@@ -1068,13 +1082,16 @@ var Hub = declare(null, {
      * If we are the first, or the only Proofscape window, we record our state.
      */
     noteAppUnload: function() {
-        this.recordStateIfPrimary();
+        // Important to record the state first, since when the ContentManager handles
+        // the closing window below, it will take away things like linked panels, which
+        // we want to record as a part of the state.
+        this.recordStateIfSoleWindow();
         this.contentManager.handleClosingWindow();
     },
 
-    recordStateIfPrimary: function() {
-        const { myNumber, allNumbers } = this.windowManager.getNumbers();
-        if (myNumber < 2 || allNumbers.length < 2) {
+    recordStateIfSoleWindow: function() {
+        const { allNumbers } = this.windowManager.getNumbers();
+        if (allNumbers.length < 2) {
             this.recordState();
         }
     },
@@ -1133,17 +1150,20 @@ var Hub = declare(null, {
      * dismissMessage: text to go beside the dismissal checkbox. Defaults to "Do not show this again."
      * mustShow: set true to ensure a dialog is shown, no matter what dismissal settings may have
      *   been made in local storage.
+     * onShow: optional callback to be called after the dialog is shown.
      *
      * return: Promise resolving with object of the form {
      *   shown: true if the dialog was shown (false if it was previously dismissed),
      *   accepted: if shown, then: true if "OK" was clicked, false if "Cancel" was clicked,
      *   dismissed: if shown, then: true if dismissal checkbox was shown and user checked it, false otherwise
+     *   dialog: the ConfirmDialog instance that was shown
      * }
      */
-    choice : function({title, content, okButtonText, cancelButtonText, dismissCode, dismissMessage, mustShow}) {
+    choice : function({title, content, okButtonText, cancelButtonText, dismissCode, dismissMessage, mustShow, onShow}) {
         okButtonText = okButtonText || "OK";
         cancelButtonText = cancelButtonText || "Cancel";
         dismissMessage = dismissMessage || "Do not show this again.";
+        onShow = onShow || (() => {});
         const dismissalPrefix = 'pfsc:dismiss:';
         if (!mustShow) {
             if (dismissCode && this.dismissalStorage.getItem(dismissalPrefix + dismissCode)) {
@@ -1166,6 +1186,7 @@ var Hub = declare(null, {
                     shown: true,
                     accepted: accepted,
                     dismissed: dismissed,
+                    dialog: dlg,
                 });
             }
             const dlg = new ConfirmDialog({
@@ -1182,7 +1203,8 @@ var Hub = declare(null, {
                 },
                 onCancel: function() {
                     handleChoice(this, false);
-                }
+                },
+                onShow: onShow,
             });
             dlg.set('buttonOk', okButtonText);
             dlg.set('buttonCancel', cancelButtonText);

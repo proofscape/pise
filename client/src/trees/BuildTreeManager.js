@@ -14,9 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
-const dragula = require("dragula");
-
 import { TreeManager } from "./TreeManager";
+import { dragulaWithContentPanelOverlays } from "../content_types/dnd";
 
 const ise = {};
 const dojo = {};
@@ -50,8 +49,9 @@ define([
 });
 
 // We make use of these in managing drag-and-drop:
+const treeIconClass = 'dijitTreeIcon';
 const deducIconClass = 'deducIcon16';
-const deducpathClassPrefix = 'deducpath-';
+const libpathClassPrefix = 'pfscLibpathV';
 
 
 export class BuildTreeManager extends TreeManager {
@@ -63,71 +63,82 @@ export class BuildTreeManager extends TreeManager {
     }
 
     setUpDragAndDrop() {
-        const drake = dragula({
+        return dragulaWithContentPanelOverlays({
             copy: true,
-            isContainer: this.isDragContainer.bind(this),
-            moves: this.isDraggable.bind(this),
-            accepts: this.acceptsDrag.bind(this)
+            isContainer: el => {
+                const isTreeContainer = el.classList.contains('dijitTreeContainer');
+                const isNodeContainer = el.classList.contains('dijitTreeNodeContainer');
+                const isMooseGraphArea = el.classList.contains('mooseGraphArea');
+                return isTreeContainer || isNodeContainer || isMooseGraphArea;
+            },
+            accepts: (el, target, source, sibling) => (
+                // The container is a Moose graph area...
+                target.classList.contains('mooseGraphArea')
+                // ...AND, the tree node is of DEDUC type:
+                // (see https://developer.mozilla.org/en-US/docs/Web/CSS/:scope)
+                && el.querySelector(`:scope > .dijitTreeRow > .dijitTreeContent > .${deducIconClass}`)
+            ),
+            moves: (el, source, handle, sibling) => {
+                // The user has to click either on a tree icon, or on the text label beside it.
+                const handleIsTreeIcon = handle.classList.contains(treeIconClass);
+                let handleIsTreeLabel = null;
+                // Only if a tree icon was not clicked do we bother checking whether a label was clicked.
+                if (!handleIsTreeIcon) {
+                    handleIsTreeLabel = dojo.query(handle).siblings('.'+treeIconClass).length;
+                }
+                return handleIsTreeIcon || handleIsTreeLabel;
+            }
+        }, {
+            socketSelector: '.cpSocket.pdfSocket', // We only want panel overlays on PDF panels.
+            onDrop: (drake, el, target, source, sibling, paneId) => {
+                // We get `target === null` if you drop a tree node over the tree, where you picked it up.
+                if (target === null) return;
+
+                // Extract the libpath and version of the item that was dropped.
+                const iconElt = dojo.query(el).query('.'+treeIconClass)[0];
+                const iconClasses = iconElt.classList;
+                let libpath;
+                let version;
+                for (const cl of iconClasses.values()) {
+                    if (cl.startsWith(libpathClassPrefix)) {
+                        const p = cl.split('--');
+                        libpath = p[1].replaceAll('-', '.');
+                        version = p[2];
+                    }
+                }
+
+                if (paneId) {
+                    // Any type of tree item was dropped onto a PDF panel.
+                    // Show a linking dialog.
+                    this.hub.contentManager.showLinkingDialog(paneId, {
+                        targetTreeItem: {libpath, version},
+                    });
+                } else {
+                    // A deduc tree item was dropped on a Moose graph area.
+                    // Get the ContentPane in which the moose graph area lives, and open the deduc there.
+                    const pane = dojo.query(target).parent()[0];
+                    this.hub.chartManager.openDeducInExistingPane(libpath, version, pane);
+                }
+
+                // Destroy the copy.
+                dojo.domConstruct.destroy(el);
+            },
         });
-        drake.on('drop', this.onDeducDrop.bind(this));
-        return drake;
     }
 
     activate() {
     }
 
-    // -----------------------------------------------------------------------------
-    // DnD Handling
-
-    isDragContainer(el) {
-        const isNodeContainer = el.classList.contains('dijitTreeNodeContainer');
-        const isMooseGraphArea = el.classList.contains('mooseGraphArea');
-        return isNodeContainer || isMooseGraphArea;
-    }
-
-    isDraggable(el, source, handle, sibling) {
-        // The user has to click either on a deduc icon, or on a deduc label.
-        const handleIsDeducIcon = handle.classList.contains(deducIconClass);
-        let handleIsDeducLabel = null;
-        // Only if a deduc icon was not clicked do we bother checking whether a deduc label was clicked.
-        if (!handleIsDeducIcon) {
-            handleIsDeducLabel = dojo.query(handle).siblings('.'+deducIconClass).length;
-        }
-        return handleIsDeducIcon || handleIsDeducLabel;
-    }
-
-    acceptsDrag(el, target, source, sibling) {
-        return target.classList.contains('mooseGraphArea');
-    }
-
-    onDeducDrop(el, target, source, sibling) {
-        // We're getting `target === null` if you drop a deduc over the tree, where
-        // you picked it up. Odd. I would think that the `false` returned by our `acceptsDrag`
-        // method would be enough to stop us from ever getting this far in such a case.
-        // And yet we do. So we start by checking for null `target`.
-        if (target === null) return;
-        // Find the libpath of the deduction.
-        const iconElt = dojo.query(el).query('.'+deducIconClass)[0],
-            iconClasses = iconElt.classList,
-            n = deducpathClassPrefix.length;
-        let deducpathv;
-        for (let cl of iconClasses.values()) {
-            if (cl.substring(0, n) === deducpathClassPrefix) {
-                deducpathv = cl.substring(n);
-            }
-        }
-        // Get the ContentPane in which the moose graph area lives.
-        const pane = dojo.query(target).parent()[0];
-        const [deducpath, version] = deducpathv.split("@");
-        this.hub.chartManager.openDeducInExistingPane(deducpath, version, pane);
-        // Destroy the copy of the tree row that was added to the moose graph area.
-        dojo.domConstruct.destroy(el);
-    }
-
-    // -----------------------------------------------------------------------------
-
     repoIsOpen(repopathv) {
         return this.treeDivs.has(repopathv);
+    }
+
+    /* Produce the specially-formatted class string we add to a tree node's icon element,
+     * in order to indicate the libpath and version of the Proofscape entity represented
+     * by this tree node.
+     */
+    makeTreeIconLibpathClass(libpath, version) {
+        return `${libpathClassPrefix}--${libpath.replaceAll('.', '-')}--${version}`;
     }
 
     /* Given the data describing a repo tree model, load and display this repo tree.
@@ -154,22 +165,23 @@ export class BuildTreeManager extends TreeManager {
                 return item.type === "MODULE";
             },
             getIconClass: function(/*dojo.store.Item*/ item, /*Boolean*/ opened){
-                if (!item || this.model.mayHaveChildren(item)) {
-                    //return opened ? "dijitFolderOpened" : "dijitFolderClosed";
-                    return "menuIcon ringIcon";
+                const classes = [
+                    'menuIcon',
+                    mgr.makeTreeIconLibpathClass(item.libpath, version),
+                ];
+                if (this.model.mayHaveChildren(item)) {
+                    classes.push('ringIcon');
+                } else {
+                    classes.push('contentIcon');
+                    if (item.type === hub.contentManager.crType.NOTES) {
+                        classes.push('notesIcon16');
+                    }
+                    else if (item.type === hub.contentManager.crType.CHART) {
+                        classes.push(`iconDepth${item.depth}`);
+                        classes.push('deducIcon16');
+                    }
                 }
-                else if (item.type === hub.contentManager.crType.NOTES) {
-                    return "menuIcon contentIcon notesIcon16";
-                }
-                else if (item.type === hub.contentManager.crType.CHART) {
-                    let cl = "menuIcon iconDepth" + item.depth + " contentIcon deducIcon16";
-                    // Embed the libpath of the deduction so we can extract it in drag-and-drop.
-                    cl += " " + deducpathClassPrefix + item.libpath + "@" + version;
-                    return cl;
-                }
-                else {
-                    return "dijitLeaf";
-                }
+                return classes.join(' ');
             },
             activateTreeItem: (item, event) => {mgr.activateTreeItem(item, version, event)},
             homeId: "repotree_" + repopathv.replaceAll('.', '-').replaceAll("@", "_"),
@@ -367,6 +379,39 @@ export class BuildTreeManager extends TreeManager {
                 });
             }
         }));
+    }
+
+    /* Given the libpath and version of any item in a repo,
+     * retrieve the root item for that tree.
+     */
+    getRootItemForMemberLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        const store = this.stores.get(treeUid);
+        return store.query({id: repopath})[0];
+    }
+
+    /* Retrieve a tree item by its libpath and version.
+     *
+     * return: the tree item, or undefined if could not be found
+     */
+    getItemByLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        const store = this.stores.get(treeUid);
+        return store?.query({id: libpath})[0];
+    }
+
+    /* Get all descendants of a given item in a given tree.
+     *
+     * @param libpath: the libpath of the item in question
+     * @param version: the version of the item in question
+     * @return: array of items
+     */
+    getAllDescendantsByLibpathAndVersion(libpath, version) {
+        const repopath = ise.util.getRepoPart(libpath);
+        const treeUid = ise.util.lv(repopath, version);
+        return this.getAllDescendants(treeUid, libpath);
     }
 
 }

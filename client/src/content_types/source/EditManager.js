@@ -32,6 +32,7 @@ define([
     "dijit/PopupMenuItem",
     "dijit/MenuSeparator",
     "dijit/ConfirmDialog",
+    "ise/content_types/AbstractContentManager",
     "ise/util",
     "dojo/NodeList-dom",
     "dojo/NodeList-manipulate",
@@ -44,11 +45,12 @@ define([
     PopupMenuItem,
     MenuSeparator,
     ConfirmDialog,
+    AbstractContentManager,
     iseUtil
 ) {
 
 // EditManager class
-var EditManager = declare(null, {
+var EditManager = declare(AbstractContentManager, {
 
     // Properties
     hub: null,
@@ -691,7 +693,7 @@ var EditManager = declare(null, {
         this.freezeAllEditors(true);
         const theEditManager = this;
         // Cannot procede until all windows say it is okay to read these modules.
-        const readyPromises = this.hub.windowManager.broadcastRequest('editManager.checkReadOkay', readpaths);
+        const readyPromises = this.hub.windowManager.broadcastRequest('hub.editManager.checkReadOkay', readpaths);
         Promise.all(readyPromises).then(() => {
             // Load the source code for every open document.
             return this.hub.xhrFor('loadSource', {
@@ -848,7 +850,7 @@ var EditManager = declare(null, {
         const allpaths = writepaths.concat(buildpaths);
         //console.log('Preparing to emitWriteAndBuild for:', allpaths);
         const readyPromises = this.hub.windowManager.broadcastRequest(
-            'editManager.checkWriteOkay', allpaths, { excludeSelf: true }
+            'hub.editManager.checkWriteOkay', allpaths, { excludeSelf: true }
         );
         return Promise.all(readyPromises).then(() => {
             for (let wp of (args.writepaths || [])) {

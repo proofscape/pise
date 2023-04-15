@@ -370,10 +370,10 @@ var MooseContextMenuPlugin = declare(null, {
             if (isWIP && !theUID.startsWith('special.')) {
                 let autoReloadItem = new CheckedMenuItem({
                     label: 'Auto-Reload',
-                    checked: chartManager.checkAutoRefreshDeduc(forest, theUID),
+                    checked: chartManager.checkAutoRefreshDeduc(forest.id, theUID),
                     onChange: function () {
                         var doAutoReload = this.checked;
-                        chartManager.setAutoRefreshDeduc(forest, theUID, doAutoReload);
+                        chartManager.setAutoRefreshDeduc(forest.id, theUID, doAutoReload);
                     }
                 });
                 menu.addChild(autoReloadItem);

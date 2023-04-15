@@ -695,6 +695,14 @@ h6.labelWidget:hover .labellink {
     background-repeat: unset;
 }
 
+.themeDark .pfsc-ise .dijitTab.pisePreNavGlow {
+    background-color: #686868;
+}
+
+.pfsc-ise .dijitTab.pisePreNavGlow {
+    background-color: #aaa;
+}
+
 .themeDark .pfsc-ise .dijitTabChecked {
     color: #adadad;
     background-color: #515658;
@@ -769,6 +777,12 @@ a.widget {
 
 .themeDark a.widget {
     color: rgb(113, 184, 239);
+}
+
+.themeDark a.widget.selected,
+a.widget.selected {
+    background: #dd0;
+    color: blue;
 }
 
 a.external {
@@ -1043,6 +1057,14 @@ a {
 
 .iseDialogContentsStyle03 {
     width: 30em;
+    padding: 0em 1em;
+    line-height: 1.7em;
+    text-align: justify;
+    font-size: 1.2em;
+}
+
+.iseDialogContentsStyle03m {
+    min-width: 30em;
     padding: 0em 1em;
     line-height: 1.7em;
     text-align: justify;
@@ -1485,4 +1507,79 @@ a.dangerButton.dangerButtonDisabled {
 .irreversibleActionConfirmDialog div.button {
     text-align: center;
     margin-top: 1.5em;
+}
+
+.panelDragTargetOverlay {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    position: absolute;
+    background: #888;
+    opacity: 0;
+}
+
+.panelDragTargetOverlay.hovered {
+    opacity: 0.3;
+}
+
+.tmpTabStyle {
+    opacity: 0.8;
+    color: #222;
+    font-weight: bold;
+    font-size: 2em;
+}
+
+.areaFillOverlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.tmpTabStyle-red {
+    background: #c88;
+}
+
+.tmpTabStyle-green {
+    background: #8c8;
+}
+
+.tmpTabStyle-blue {
+    background: #88c;
+}
+
+.tmpTabStyle-cyan {
+    background: #8cc;
+}
+
+.navLinkTable {
+    text-align: center;
+}
+
+.navLinkTable span.navLinkLabel {
+    border-radius: 0.7em;
+    padding: 0.1em 0.3em;
+}
+
+.navLinkTable .navLinkArrow {
+    font-weight: bold;
+    font-size: 2em;
+}
+
+.navLinkTable label {
+    user-select: none;
+}
+
+.navLinkTable label.clickableLabel {
+    cursor: pointer;
+}
+
+.navLinkTable .navLinkRow {
+    margin-bottom: 2em;
+}
+
+.navLinkTable .libpathLink {
+    font-size: 1.3em;
 }

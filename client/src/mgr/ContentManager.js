@@ -59,6 +59,12 @@ var ContentManager = declare(null, {
         PDF: "PDF",
         THEORYMAP: "THEORYMAP"
     },
+    typeColors: {
+        PDF: "red",
+        CHART: "green",
+        NOTES: "blue",
+        TREE: "cyan",
+    },
     // Types that have a libpath:
     libpathTypes: null,
     // Types that are editable:
@@ -77,9 +83,12 @@ var ContentManager = declare(null, {
     // Place to store info for pane whose tab's context menu has been opened:
     currentContextMenuInfo: null,
 
+    // We use iseUtil.eventsMixin to make this class listenable.
+    listeners: null,
+
     // Methods
 
-    constructor: function(tct) {
+    constructor: function() {
 
         this.contentRegistry = {};
 
@@ -103,13 +112,14 @@ var ContentManager = declare(null, {
         this.studyPageTypes = [
             this.crType.NOTES
         ];
+
+        this.listeners = {};
     },
 
     activate: function() {
-        this.hub.windowManager.on(
-            'contentUpdateByUuidBroadcast',
-            this.handleContentUpdateByUuidBroadcast.bind(this)
-        );
+        this.hub.windowManager.on('contentUpdateByUuidBroadcast', this.handleContentUpdateByUuidBroadcast.bind(this));
+        this.hub.windowManager.on('intentionToNavigate', this.handleIntentionToNavigate.bind(this));
+        this.hub.windowManager.on('tempTabOverlays', this.handleTempTabOverlays.bind(this));
     },
 
     // Locate a ContentPane by its id.
@@ -149,14 +159,11 @@ var ContentManager = declare(null, {
     },
 
     setTabContainerTree: function(tct) {
-        // Record a reference to the TabContainerTree.
         this.tct = tct;
-        // Register ourselves as a closing pane listener.
-        // This gives us a chance to do something before any pane closes.
         tct.registerClosingPaneListener(this);
-        // Also register as menu builder, and menu open listener.
         tct.registerMenuBuilder(this);
         tct.registerMenuOpenListener(this);
+        tct.registerActivePaneListener(this);
     },
 
     getTabContainerTree: function() {
@@ -180,52 +187,70 @@ var ContentManager = declare(null, {
         return null;
     },
 
+    /* Search this window for a pane having a given Dijit paneId.
+     * Return the pane's uuid if found, else null.
+     */
+    getUuidByPaneId: function(paneId) {
+        const info = this.contentRegistry[paneId];
+        if (info) {
+            return info.uuid;
+        }
+        return null;
+    },
+
     /* Search for a pane having a given uuid, in this window alone.
      * If found, return an object of the form {
      *   windowNumber: int,
      *   paneId: the Dijit pane id used in that window,
+     *   activityTimestamp: int giving the time at which this panel was last active,
+     *   uuid: just echoing the given uuid,
      * }
      * If not found, return null.
      *
      * Note: This method is synchronous, and searches only the present window.
      * It is designed to be callable by other windows.
      * If working purely locally, consider using `getPaneIdByUuid()` instead.
-     *
-     * See also:
-     *   ContentManager.getPaneIdByUuid()
-     *   ContentManager.getGlobalAddressByUuidAllWindows()
      */
-    getGlobalAddressByUuidThisWindow: function({uuid}) {
+    getPaneInfoByUuidThisWindow: function({uuid}) {
         const numbers = this.hub.windowManager.getNumbers();
         const myNumber = numbers.myNumber;
         const paneId = this.getPaneIdByUuid(uuid);
         if (paneId !== null) {
+            const pane = this.getPane(paneId);
+            const cdo = this.contentRegistry[paneId];
             return {
                 windowNumber: myNumber,
                 paneId: paneId,
+                activityTimestamp: pane._pfsc_ise_selectionTimestamp,
+                uuid: uuid,
+                type: cdo.type,
             };
         }
         return null;
     },
 
     /* Search for a pane having a given uuid, across all windows.
-     * If found, return an object of the form {
-     *   windowNumber: int,
-     *   paneId: the Dijit pane id used in that window,
+     *
+     * param uuid: The uuid to search for.
+     * param options: {
+     *   excludeSelf: if false (the default), include our own window in the search;
+     *     if true, exclude this window from the search.
      * }
-     * If not found, return null.
+     *
+     * return: null or a "pane info" object of the same kind returned by
+     *   the `getPaneInfoByUuidThisWindow()` method.
      *
      * Note: This method is asynchronous, and searches all windows.
-     * See also:
-     *   ContentManager.getPaneIdByUuid()
-     *   ContentManager.getGlobalAddressByUuidThisWindow()
      */
-    getGlobalAddressByUuidAllWindows: async function(uuid) {
+    getPaneInfoByUuidAllWindows: async function(uuid, options) {
+        const {
+            excludeSelf = false,
+        } = (options || {});
         const searches = this.hub.windowManager.broadcastRequest(
-            'contentManager.getGlobalAddressByUuidThisWindow',
+            'hub.contentManager.getPaneInfoByUuidThisWindow',
             {uuid},
             {
-                excludeSelf: false,
+                excludeSelf: excludeSelf,
             }
         );
         return Promise.all(searches).then(values => {
@@ -239,9 +264,103 @@ var ContentManager = declare(null, {
     },
 
     // Say whether a pane uuid exists, in this or any other window.
-    uuidExistsInAnyWindow: async function(uuid) {
-        const addr = await this.getGlobalAddressByUuidAllWindows(uuid);
-        return addr !== null;
+    uuidExistsInAnyWindow: async function(uuid, options) {
+        const info = await this.getPaneInfoByUuidAllWindows(uuid, options);
+        return info !== null;
+    },
+
+    // Select the most recently active uuid from an array.
+    // param U: array of uuids
+    // return: promise resolving with uuid, or with null if empty array was given, or no panel
+    //   could be found, or no panel had an activity stamp
+    mostRecentlyActive: async function(U) {
+        const panelInfos = [];
+        for (const u of U) {
+            const info = await this.getPaneInfoByUuidAllWindows(u);
+            panelInfos.push(info || {uuid: u, activityTimestamp: -1});
+        }
+        let timeToBeat = -1;
+        let mra = null;
+        for (const info of panelInfos) {
+            const ats = info.activityTimestamp;
+            if (ats > timeToBeat) {
+                timeToBeat = ats;
+                mra = info.uuid;
+            }
+        }
+        return mra;
+    },
+
+    // Say whether panel of uuid u was more recently active than panel of uuid v.
+    // The panels can belong to any window.
+    // If v undefined or null, return true.
+    // If we can't locate panel v, return true.
+    // Else if we can't locate panel u, return false.
+    // Else actually compare their timestamps.
+    //
+    // param u: uuid or falsey
+    // param v: uuid or falsey
+    // return: promise resolving with boolean
+    moreRecentlyActiveThan: async function(u, v) {
+        if (!v) {
+            return true;
+        }
+        const vInfo = await this.getPaneInfoByUuidAllWindows(v)
+        if (!vInfo) {
+            return true;
+        }
+        const uInfo = await this.getPaneInfoByUuidAllWindows(u)
+        if (!uInfo) {
+            return false;
+        }
+        return uInfo.activityTimestamp > vInfo.activityTimestamp;
+    },
+
+    /* Given an array of uuids, determine which ones still exist in any window,
+     * and which ones do not.
+     */
+    sortUuidsByExistenceInAnyWindow: async function(uuids) {
+        const ex = [];
+        const ne = [];
+        for (const uuid of uuids) {
+            if (await this.uuidExistsInAnyWindow(uuid)) {
+                ex.push(uuid);
+            } else {
+                ne.push(uuid);
+            }
+        }
+        return {
+            existing: ex,
+            nonExisting: ne,
+        };
+    },
+
+    /* Given the pane id of a local pane, determine its content type.
+     */
+    getContentTypeOfLocalPane: function(paneId) {
+        const info = this.contentRegistry[paneId];
+        if (!info) {
+            return;
+        }
+        return info.type;
+    },
+
+    getLinkingMapForContentType: function(contentType) {
+        const mgr = this.getManager(contentType);
+        return mgr?.linkingMap;
+    },
+
+    /* Given the pane id of a pane that lives in this window, synchronously get
+     * array of all triples [u, x, w] where u represents this pane.
+     */
+    getOutgoingLinkTriplesForLocalPane: function(paneId) {
+        const contentType = this.getContentTypeOfLocalPane(paneId);
+        const linkingMap = this.getLinkingMapForContentType(contentType);
+        if (!linkingMap) {
+            return;
+        }
+        const uuid = this.getUuidByPaneId(paneId);
+        return linkingMap.localComponent.getTriples({u: uuid});
     },
 
     /*
@@ -349,7 +468,7 @@ var ContentManager = declare(null, {
     },
 
     setupPdfContentPane: function(title, cp) {
-        cp.set('content', '<div class="cpSocket fullheight tex2jax_ignore"></div>');
+        cp.set('content', '<div class="cpSocket pdfSocket fullheight tex2jax_ignore"></div>');
         cp.set('title', title);
         var sel = '#' + cp.id + ' .cpSocket';
         return sel;
@@ -410,6 +529,22 @@ var ContentManager = declare(null, {
         }
         const uuid = info?.uuid;
         const {myNumber} = this.hub.windowManager.getNumbers();
+
+        // We have a mixed (local/synchronous) / (global/asynchronous) event design.
+        // Sometimes you want to respond to an event only when it happened in your own
+        // window; we call such events "local", and we dispatch them synchronously.
+        // Other times, you want to respond to an event no matter in which window
+        // it happened; we call such events "global," and they are handled
+        // asynchronously (over BroadcastChannel).
+
+        // Local/synchronous event:
+        this.dispatch({
+            type: 'localPaneClose',
+            uuid: uuid,
+            paneId: paneId,
+        });
+
+        // Global/asynchronous event:
         this.hub.windowManager.groupcastEvent({
             type: 'paneClose',
             uuid: uuid,
@@ -418,6 +553,7 @@ var ContentManager = declare(null, {
         }, {
             includeSelf: true,
         });
+
         // Delete the entry from the content registry.
         delete this.contentRegistry[paneId];
     },
@@ -441,6 +577,7 @@ var ContentManager = declare(null, {
             })
         })
         menu.addChild(tsPopup);
+
         // Option to open source code
         var mgr = this;
         var editSrcItem = new MenuItem({
@@ -450,6 +587,13 @@ var ContentManager = declare(null, {
             }
         });
         menu.addChild(editSrcItem);
+
+        // Option to edit links
+        const linksItem = new MenuItem({
+            label: 'Links...',
+        });
+        menu.addChild(linksItem);
+
         // Option to load a study page
         menu.addChild(new MenuSeparator());
         let studyPageItem = new MenuItem({
@@ -464,6 +608,7 @@ var ContentManager = declare(null, {
             }
         });
         menu.addChild(studyPageItem);
+
         // Final separator
         menu.addChild(new MenuSeparator());
         // Stash objects in the Menu instance.
@@ -473,6 +618,7 @@ var ContentManager = declare(null, {
         menu.pfsc_ise_tsHome = tsHome;
         menu.pfsc_ise_editSrcItem = editSrcItem;
         menu.pfsc_ise_studyPageItem = studyPageItem;
+        menu.pfsc_ise_linksItem = linksItem;
     },
 
     noteTabContainerMenuOpened: function(menu, clicked) {
@@ -500,11 +646,13 @@ var ContentManager = declare(null, {
             }
         }
         menu.pfsc_ise_tsPopup.set('disabled', !enableTailSelector);
-        // Enable "edit source" item
         menu.pfsc_ise_editSrcItem.set('disabled', !this.editableTypes.includes(info.type));
         menu.pfsc_ise_editSrcItem.set('label', `${isWIP ? "Edit" : "View"} Source`);
-        // Enable "Study Page" item
         menu.pfsc_ise_studyPageItem.set('disabled', !this.studyPageTypes.includes(info.type));
+        menu.pfsc_ise_linksItem.set('disabled', this.getOutgoingLinkTriplesForLocalPane(pane.id).length === 0);
+        menu.pfsc_ise_linksItem.set('onClick', event => {
+            this.showLinkingDialog(pane.id);
+        });
     },
 
     editSourceFromContextMenu: function() {
@@ -582,8 +730,10 @@ var ContentManager = declare(null, {
         const p = mgr.initContent(info, elt, pane);
         // Record the info object in our content registry.
         this.contentRegistry[pane.id] = info;
-        // Announce the active pane.
-        this.tct.announceActivePane(pane);
+        // Announce the active pane after the content has finished loading.
+        p.then(() => {
+            this.tct.announceActivePane();
+        });
         // Need to resize the tab container in order to recover the
         // line at the top that separates the tabs from the content.
         // Possibly related issue: https://bugs.dojotoolkit.org/ticket/9849
@@ -677,8 +827,9 @@ var ContentManager = declare(null, {
      *
      * @param info: An object specifying the content to be opened.
      *   Must include at least a `type` field.
-     * @param elt: _Any_ DOM element inside an existing tab container.
-     *   The content will be opened in another tab container, beside this one.
+     * @param nbr: A specification of the "neighbor" tab container, beside which the
+     *   content is to be loaded. Either a string, which must be the uuid of a panel
+     *   living in the neighbor TC; or else any DOM element inside the neighbor TC.
      * @param dim: Optional string indicating the desired dimension for a split, if
      *   necessary. (Must equal 'v' or 'h'; defaults to 'v'.)
      * @return: object of the form {
@@ -686,8 +837,13 @@ var ContentManager = declare(null, {
      *     promise: Promise that resolves when the content has been loaded
      * }
      */
-    openContentBeside: function(info, elt, dim = 'v') {
-        const tc = this.getSurroundingTabContainer(elt);
+    openContentBeside: function(info, nbr, dim = 'v') {
+        if (typeof(nbr) === "string") {
+            const paneId = this.getPaneIdByUuid(nbr);
+            const pane = this.getPane(paneId);
+            nbr = pane.domNode;
+        }
+        const tc = this.getSurroundingTabContainer(nbr);
         let nextId = this.tct.getNextTcId(tc.id, true);
         if (nextId === null) {
             nextId = this.tct.splitTC(tc.id, dim);
@@ -707,11 +863,12 @@ var ContentManager = declare(null, {
      * param info: An object specifying the content to be opened.
      *             Must include at least a `type` field.
      *
-     * return: the new content pane
+     * return: the id of the content pane where the content was loaded
      */
-    openContentInActiveTC: function(info) {
+    openContentInActiveTC: async function(info) {
+        let paneId = null;
         // If requested to use existing pane, and if there is a (most recent)
-        // existing pane, then use (and return) that.
+        // existing pane, then use that.
         const mgr = this.getManager(info.type);
         if (info.useExisting && mgr.getExistingPaneIds) {
             const pane = this.findMostRecentlyActivePaneHostingContent(info);
@@ -719,16 +876,16 @@ var ContentManager = declare(null, {
                 const makeActive = true;
                 this.hub.tabContainerTree.selectPane(pane, makeActive);
                 mgr.updateContent(info, pane.id);
-                return pane;
+                paneId = pane.id;
             }
         }
-        var newCP = this.tct.addContentPaneToActiveTC();
-        this.openContentInPane(info, newCP);
-        return newCP;
-    },
-
-    openContentInActiveTCReturnId: function(info) {
-        return this.openContentInActiveTC(info).id;
+        // If didn't already find a pane, make a new one.
+        if (!paneId) {
+            const newCP = this.tct.addContentPaneToActiveTC();
+            await this.openContentInPane(info, newCP);
+            paneId = newCP.id;
+        }
+        return paneId;
     },
 
     /*
@@ -753,6 +910,43 @@ var ContentManager = declare(null, {
         this.hub.windowManager.groupcastEvent(event, {
             includeSelf: true,
         });
+    },
+
+    /* Update a list of existing panels (in any windows), or spawn a new one beside an
+     * existing one, and set its contents.
+     *
+     * param info: content descriptor object that can be used to update existing panels,
+     *  or to initialize a new one
+     * param uuids: array of uuids of panels to be updated. If this is empty, or it turns
+     *  out none of these exists (in any window), then we spawn a new panel instead.
+     * param sourceLoc: A specification of the "source location", so that we can decide
+     *  what "beside" means, in case a new panel is to be spawned. Either a string, which
+     *  must be the uuid of an existing panel, or else any DOM element belonging to an
+     *  existing tab container.
+     *
+     * return: Object {
+     *  existing: array of those given uuids that were confirmed to exist,
+     *  nonExisting: array of those given uuids that turned out not to exist,
+     *  spawned: uuid of newly spawned panel if that happened, else null
+     * }
+     */
+    updateOrSpawnBeside: async function(info, uuids, sourceLoc) {
+        let spawned = null;
+
+        const {existing, nonExisting} = await this.sortUuidsByExistenceInAnyWindow(uuids);
+
+        if (existing.length > 0) {
+            // Update existing panels.
+            for (const uuid of existing) {
+                this.updateContentAnywhereByUuid(info, uuid, {selectPane: true});
+            }
+        } else {
+            // Spawn new panel.
+            const {pane, promise} = this.openContentBeside(info, sourceLoc);
+            await promise;
+            spawned = this.getUuidByPaneId(pane.id);
+        }
+        return {existing, nonExisting, spawned};
     },
 
     /* Handle a 'contentUpdateByUuidBroadcast' event.
@@ -781,7 +975,575 @@ var ContentManager = declare(null, {
         }
     },
 
+    /* Handle groupcast event {
+     *     type: 'intentionToNavigate',
+     *     action: 'show' or 'hide',
+     *     source: uuid of panel having a nav intention
+     *     panels: optional array of panel uuids where nav might happen,
+     *     tree: optional class string of tree icon representing item where nav might happen,
+     *     iid: optional "internal id" (describing intended object *within* panel/treeitem)
+     * }
+     */
+    handleIntentionToNavigate: function(event) {
+        function toggleGlowClass(elt, glowClass) {
+            if (event.action === 'show') {
+                elt.classList.add(glowClass);
+            } else if (event.action === 'hide') {
+                elt.classList.remove(glowClass);
+            }
+        }
+
+        if (event.tree) {
+            // Only want to show nav intention in same window where source panel lives.
+            const local = this.getPaneIdByUuid(event.source);
+            if (local) {
+                const iconElt = document.querySelector(`.dijitTreeIcon.${event.tree}`);
+                if (iconElt) {
+                    const treeRow = query(iconElt).closest('.dijitTreeRow')[0];
+                    const glowClass = 'dijitTreeRowHover';
+                    toggleGlowClass(treeRow, glowClass);
+                }
+            }
+        } else if (event.panels) {
+            // iid: not yet supported
+            for (const uuid of event.panels) {
+                const paneId = this.getPaneIdByUuid(uuid);
+                if (paneId) {
+                    // If we got a paneId, then the panel belongs to this window.
+                    const pane = this.getPane(paneId);
+                    const button = this.tct.getTabButtonForPane(pane);
+                    const buttonNode = button.domNode;
+                    const glowClass = 'pisePreNavGlow';
+                    toggleGlowClass(buttonNode, glowClass);
+                }
+            }
+        }
+    },
+
+    /* Handle groupcast event {
+     *     type: 'tempTabOverlays',
+     *     action: 'set' or 'clear',
+     *     tabs: for action 'set', an object of the form {
+     *       uuid: {color: 'red', 'green', or 'blue', label: string}, ...
+     *     }
+     * }
+     */
+    handleTempTabOverlays: function(event) {
+        if (event.action === 'clear') {
+            document.querySelectorAll('.tmpTabOverlay').forEach(e => e.remove());
+        } else if (event.action === 'set') {
+            for (const [uuid, settings] of Object.entries(event.tabs)) {
+                const paneId = this.getPaneIdByUuid(uuid);
+                if (paneId) {
+                    // If we got a paneId, then the panel belongs to this window.
+                    const pane = this.getPane(paneId);
+                    const button = this.tct.getTabButtonForPane(pane);
+                    const buttonNode = button.domNode;
+                    const overlay = document.createElement('div');
+                    overlay.classList.add('tmpTabOverlay', 'areaFillOverlay', 'tmpTabStyle');
+                    overlay.classList.add(`tmpTabStyle-${settings.color}`);
+                    const text = document.createTextNode(settings.label);
+                    overlay.appendChild(text);
+                    buttonNode.appendChild(overlay);
+                }
+            }
+        }
+    },
+
+    /* When there's a new active pane, we check to see if its content
+     * defines any doc highlights. If so, we groupcast an event containing
+     * the list of docIds for which highlights are available, and the uuid
+     * of the newly active panel. This allows documents open in any
+     * window to (potentially) follow up and request full highlight info.
+     */
+    noteActivePane: function(pane) {
+        const info = this.contentRegistry[pane.id];
+        // Our event structure is not perfect; it seems the active pane event
+        // will sometimes be triggered twice: once on a new pane's `show`
+        // event, and then again when we invoke `this.tct.announceActivePane()`
+        // in our `openContentInPane()` method, after actually loading the content.
+        // We have to wait until that second event, for the info to actually be
+        // available in our contentRegistry. Could some day try to perfect all this,
+        // but for now we just check to see if we got an info.
+        if (info) {
+            const mgr = this.getManager(info.type);
+            const docInfo = mgr.getSuppliedDocHighlights(pane.id);
+            // Make sure we grab only those docIds for which there actually are (one or more) highlights.
+            const docIds = Array.from(docInfo.refs.keys()).filter(
+                docId => docInfo.refs.get(docId).length > 0
+            );
+            if (docIds.length) {
+                this.hub.windowManager.groupcastEvent({
+                    type: 'newlyActiveHighlightSupplierPanel',
+                    uuid: info.uuid,
+                    docIds: docIds,
+                }, {
+                    includeSelf: true,
+                });
+            }
+        }
+    },
+
+    /* Search for a pane of a given `uuid`. If found in this window,
+     * then return the array of doc highlights defined by the content in
+     * that pane, for the documents of those ids named in the `docIds`
+     * array. Otherwise return `null`.
+     */
+    getHighlightsFromSupplier: function({supplierUuid, docIds}) {
+        const paneId = this.getPaneIdByUuid(supplierUuid);
+        if (paneId !== null) {
+            const info = this.contentRegistry[paneId];
+            const mgr = this.getManager(info.type);
+            const docInfo = mgr.getSuppliedDocHighlights(paneId);
+            const hls = {};
+            for (const [key, value] of docInfo.refs) {
+                if (docIds.includes(key)) {
+                    hls[key] = value;
+                }
+            }
+            return hls;
+        }
+        return null;
+    },
+
+    /* Move a content pane to another window.
+     *
+     * return: Promise that resolves when the entire operation is complete, including all
+     *   necessary update of relevant data structures. The resolved value is the state
+     *   descriptor object that was used to open the new copy in the other window.
+     */
+    movePaneToAnotherWindow: async function(pane, newWindowNumber) {
+        const stateDescriptor = this.getCurrentStateInfo(pane, true);
+        await this.hub.windowManager.makeWindowRequest(
+            newWindowNumber, 'hub.contentManager.openContentInActiveTC', stateDescriptor
+        );
+
+        await this.dispatch({
+            type: 'paneMovedToAnotherWindow',
+            uuid: stateDescriptor.uuid,
+            newWindow: newWindowNumber,
+        });
+
+        pane.onClose();
+
+        return stateDescriptor;
+    },
+
+    /* Find references in a given local panel P to a given local doc panel D.
+     *
+     * NOTE: Both panels must be local, i.e. belong to this window.
+     *
+     * param uuid: the uuid of panel P
+     * param type: the content type of panel P
+     * param dUuid: the uuid of doc panel D
+     *
+     * return: Object of the form {
+     *   docId: the id of the doc in panel D,
+     *   refsFrom: array (possibly empty) of libpaths of entities in panel P that reference docId
+     * }
+     */
+    panelReferencesDocPanel: function(uuid, type, dUuid) {
+        const d0 = this.hub.pdfManager.getDocIdByUuid(dUuid);
+        const refsFrom = new Set();
+        let tuples = [];
+        if (type === this.crType.CHART) {
+            tuples = this.hub.chartManager.getAllDocRefTriplesLocal({});
+        } else if (type === this.crType.NOTES) {
+            tuples = this.hub.notesManager.getAllDocRefQuadsLocal({});
+        }
+        for (const t of tuples) {
+            if (t.at(-1) === d0 && t[0] === uuid) {
+                refsFrom.add(t[1]);
+            }
+        }
+        return {
+            docId: d0,
+            refsFrom: Array.from(refsFrom),
+        };
+    },
+
+    /* Show the linking dialog for a content pane.
+     *
+     * param sourceId: the dijit pane id of the content pane that is the
+     *      source endpoint of the links to be reviewed.
+     * param options: {
+     *  targetId: the dijit pane id of a content pane being proposed as a
+     *      new target for linking.
+     *  targetTreeItem: object of the form {libpath, version} indicating a
+     *      tree item to be linked. (Only valid when source panel is a doc panel.)
+     * }
+     * param
+     */
+    showLinkingDialog: async function(sourceId, options) {
+        const {
+            targetId = null,
+            targetTreeItem = null,
+        } = (options || {});
+
+        if (targetId === sourceId) {
+            // Can't link to self
+            return;
+        }
+
+        const sUuid = this.getUuidByPaneId(sourceId);
+        const tUuid = targetId ? this.getUuidByPaneId(targetId) : null;
+
+        const sourceType = this.getContentTypeOfLocalPane(sourceId);
+
+        let proposedTargetInfo;
+        let targetType;
+        let secondaryIds;
+        // If there's a proposed link, then we need to determine whether such a link
+        // can be made or not. If not, reject, possibly with a helpful message.
+        // If so, determine the array of secondary IDs for link(s) to be formed.
+        if (tUuid) {
+            proposedTargetInfo = await this.getPaneInfoByUuidAllWindows(tUuid);
+            targetType = proposedTargetInfo.type;
+            // If the types are unlinkable, just silently do nothing.
+
+            // Can't link two panels of the same type.
+            if (sourceType === targetType) {
+                return;
+            }
+
+            // Links C --> X
+            if (sourceType === this.crType.CHART) {
+                // Can't link CHART --> NOTES.
+                if (targetType === this.crType.NOTES) {
+                    return;
+                }
+
+                // CHART --> DOC: We require that the doc be currently referenced by the set
+                // of deducs open in the chart panel.
+                if (targetType === this.crType.PDF) {
+                    const {refsFrom, docId} = this.panelReferencesDocPanel(sUuid, sourceType, tUuid);
+                    if (refsFrom.length === 0) {
+                        this.hub.alert({
+                            title: "Linking",
+                            content: "Cannot link, since panel does not reference document.",
+                        });
+                        return;
+                    }
+                    secondaryIds = [docId];
+                }
+            }
+
+            // Links N --> X are tricky, if there are multiple widget groups.
+            // Theoretically we could require the user to drag and drop onto a specific widget,
+            // but for now we're going to put that off. For now, the rule will be that we'll form
+            // a new link iff there is *exactly one* widget group relevant to the target content.
+            if (sourceType === this.crType.NOTES) {
+                const nm = this.hub.notesManager;
+                const quads = nm.getAllDocRefQuadsLocal({});
+                let test = (g, d) => false;
+                if (targetType === this.crType.CHART) {
+                    test = (g, d) => nm.extractWidgetTypeFromGroupId(g) === this.crType.CHART;
+                } else if (targetType === this.crType.PDF) {
+                    const d0 = this.hub.pdfManager.getDocIdByUuid(tUuid);
+                    test = (g, d) => d === d0;
+                }
+                const G = new Set(quads.filter(([u, s, g, d]) => u === sUuid && test(g, d)).map(q => q[2]));
+                const n = G.size;
+                if (n === 1) {
+                    secondaryIds = Array.from(G);
+                } else {
+                    const issue = n > 1 ? "multiple related widget groups" : "no related widgets";
+                    this.hub.alert({
+                        title: "Linking",
+                        content: `Cannot link, since page contains ${issue}.`,
+                    });
+                    return;
+                }
+            }
+
+            // For links D --> X, we require that panel X make references to the document.
+            if (sourceType === this.crType.PDF) {
+                const {refsFrom, docId} = this.panelReferencesDocPanel(tUuid, targetType, sUuid);
+                if (refsFrom.length === 0) {
+                    this.hub.alert({
+                        title: "Linking",
+                        content: "Cannot link, since panel does not reference document.",
+                    });
+                    return;
+                }
+                secondaryIds = refsFrom;
+            }
+        } else if (targetTreeItem) {
+            // User wants to link a tree item.
+            // This is only meaningful if the source panel is a doc panel.
+            if (sourceType !== this.crType.PDF) {
+                return;
+            }
+        }
+
+        const existingLinks = this.getOutgoingLinkTriplesForLocalPane(sourceId);
+        const existingTargetInfos = new Map();
+        for (const [u, x, w] of existingLinks) {
+            if (w === tUuid) {
+                // Already linked
+                this.hub.alert({
+                    title: "Linking",
+                    content: "Already linked!",
+                });
+                return;
+            }
+            const info = await this.getPaneInfoByUuidAllWindows(w);
+            existingTargetInfos.set(w, info);
+        }
+        const n = existingLinks.length;
+
+        let existingTreeItem;
+        let sourcePdfc;
+        if (sourceType === this.crType.PDF) {
+            sourcePdfc = this.hub.pdfManager.getPdfcByUuid(sUuid);
+            if (sourcePdfc.linkedTreeItemLibpath) {
+                existingTreeItem = {
+                    libpath: sourcePdfc.linkedTreeItemLibpath,
+                    version: sourcePdfc.linkedTreeItemVersion,
+                };
+            }
+        }
+
+        // The type of dialog we show depends on:
+        //  n: the number of existing links outgoing from sUuid, and
+        //  tUuid: i.e. whether or not a new target has been proposed
+
+        const sourceColor = this.typeColors[sourceType];
+        const sourceLabel = "A";
+
+        function makeCheckboxId(targetLabel) {
+            return `linkingDialog--${targetLabel.replaceAll('.', '-')}`;
+        }
+
+        function buildLinkRow(targetColor, targetLabel, options) {
+            const {
+                includeCheckbox = false,
+                checked = true,
+            } = (options || {});
+            const cbId = makeCheckboxId(targetLabel);
+            let cb = '';
+            if (includeCheckbox) {
+                cb = `<input type="checkbox" id="${cbId}" name="${targetLabel}"${checked ? " checked" : ""}>`;
+            }
+            const targetExtraClass = targetLabel.includes('.') ? 'libpathLink' : '';
+            return `
+                <div class="navLinkRow">
+                ${cb}
+                <label class="${includeCheckbox ? 'clickableLabel' : ''}" for="${cbId}">
+                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${sourceColor}">${sourceLabel}</span>
+                <span class="navLinkArrow">&#10230;</span>
+                <span class="navLinkLabel tmpTabStyle tmpTabStyle-${targetColor} ${targetExtraClass}">${targetLabel}</span>
+                </label>
+                </div>
+            `;
+        }
+
+        function buildLinkTable(linkRows) {
+            let tab = '<div class="navLinkTable">\n';
+            for (const row of linkRows) {
+                tab += row;
+            }
+            tab += '</div>\n';
+            return tab;
+        }
+
+        function writeTreeItemLabel({libpath, version}) {
+            let label = libpath;
+            if (version !== "WIP") {
+                label += "@" + version;
+            }
+            return label;
+        }
+
+        let proposedLinkTab;
+        let targetColor;
+        let targetLabel;
+        if (tUuid) {
+            targetColor = this.typeColors[targetType];
+            targetLabel = "B";
+        } else if (targetTreeItem) {
+            targetColor = this.typeColors.TREE;
+            targetLabel = writeTreeItemLabel(targetTreeItem);
+        }
+        if (targetLabel) {
+            proposedLinkTab = buildLinkTable(
+                [buildLinkRow(targetColor, targetLabel, {includeCheckbox: n > 0})]
+            );
+        }
+
+        let existingLinkTab;
+        let existingTreeItemLabel;
+        if (n > 0) {
+            // Source tab always gets label "A". If target given, it gets "B", while
+            // existing targets start at "C"; else the latter start at "B".
+            let q = 0;
+            let r = tUuid ? 2 : 1;
+            const elRows = [];
+
+            if (existingTreeItem) {
+                existingTreeItemLabel = writeTreeItemLabel(existingTreeItem);
+                const color = this.typeColors.TREE;
+                elRows.push(buildLinkRow(color, existingTreeItemLabel, {
+                    includeCheckbox: true,
+                    checked: !targetTreeItem,
+                }));
+            }
+
+            for (const info of existingTargetInfos.values()) {
+                const label = `${String.fromCharCode(65 + r)}${q > 0 ? q : ''}`;
+                const color = this.typeColors[info.type];
+                info.label = label;
+                info.color = color;
+                elRows.push(buildLinkRow(color, label, {includeCheckbox: true}));
+                if (++r === 27) {
+                    q++;
+                    r = 0;
+                }
+            }
+
+            existingLinkTab = buildLinkTable(elRows);
+        }
+
+        const thereAreLinks = proposedLinkTab || existingLinkTab;
+        const labelsToUuids = new Map();
+
+        if (thereAreLinks) {
+            // Paint colored labels on tabs, so user knows what we're talking about!
+            const tabsToLabel = {
+                [sUuid]: {color: sourceColor, label: sourceLabel},
+            };
+            if (tUuid) {
+                tabsToLabel[tUuid] = {color: targetColor, label: targetLabel};
+                labelsToUuids.set(targetLabel, tUuid);
+            }
+            for (const info of existingTargetInfos.values()) {
+                tabsToLabel[info.uuid] = {color: info.color, label: info.label};
+                labelsToUuids.set(info.label, info.uuid);
+            }
+            this.hub.windowManager.groupcastEvent({
+                type: 'tempTabOverlays',
+                action: 'set',
+                tabs: tabsToLabel,
+            }, {
+                includeSelf: true,
+            });
+        }
+
+        const title = "Linking";
+        const okButtonText = existingLinkTab ? "Keep Selected" : "OK";
+        let dismissCode = null;
+        let onShow = null;
+        let content = '';
+        if (proposedLinkTab) {
+            content += `
+            <h2>New Link:</h2>
+            ${proposedLinkTab}
+            `;
+        }
+        if (existingLinkTab) {
+            content += `
+            <h2>Existing Links:</h2>
+            ${existingLinkTab}
+            `;
+        }
+        if (proposedLinkTab && !existingLinkTab) {
+            dismissCode = 'makeSoleLink';
+        }
+        if (!content) {
+            content = 'No existing links!';
+        }
+        content = `
+        <div class="iseDialogContentsStyle02 iseDialogContentsStyle03m">
+        ${content}
+        </div>
+        `;
+
+        // A doc is only allowed to be linked to at most one tree item at a time.
+        // In future could consider relaxing this rule, but for now it's in place and we
+        // must enforce it in the linking dialog, in order to manage user's expectations.
+        if (targetTreeItem && existingTreeItem) {
+            onShow = () => {
+                const targetCb = document.querySelector(`#${makeCheckboxId(targetLabel)}`);
+                const existingCb = document.querySelector(`#${makeCheckboxId(existingTreeItemLabel)}`);
+                targetCb.addEventListener('change', event => {
+                    if (targetCb.checked) {
+                        existingCb.checked = false;
+                    }
+                });
+                existingCb.addEventListener('change', event => {
+                    if (existingCb.checked) {
+                        targetCb.checked = false;
+                    }
+                });
+            };
+        }
+
+        const result = await this.hub.choice({
+            title, content, okButtonText, dismissCode, onShow
+        });
+
+        this.hub.windowManager.groupcastEvent({
+            type: 'tempTabOverlays',
+            action: 'clear',
+        }, {
+            includeSelf: true,
+        });
+
+        const accepted = result.accepted;
+        const decisionsByLabel = new Map();
+        result.dialog.domNode.querySelectorAll('input[type=checkbox]').forEach(cb => {
+            const name = cb.getAttribute('name');
+            const checked = cb.checked;
+            decisionsByLabel.set(name, checked);
+        });
+        // Important to destroy the dialog now, so we can reuse checkbox id's next time.
+        result.dialog.destroy();
+
+        if (thereAreLinks && accepted) {
+            const linkingMap = this.getLinkingMapForContentType(sourceType);
+
+            if (existingLinkTab) {
+                // Any existing links to be removed?
+                for (const [label, checked] of decisionsByLabel.entries()) {
+                    if (label === targetLabel) {
+                        continue;
+                    }
+                    if (!checked) {
+                        const w0 = labelsToUuids.get(label);
+                        if (w0) {
+                            // Remove links (sUuid x _) |--> w0
+                            await linkingMap.removeTriples({u: sUuid, w: w0}, {doNotRelink: true});
+                        } else {
+                            // Remove existing tree item.
+                            await sourcePdfc.removeLinkedTreeItem();
+                        }
+                    }
+                }
+            }
+
+            if (proposedLinkTab && (decisionsByLabel.get(targetLabel) || !existingLinkTab)) {
+                if (targetTreeItem) {
+                    // Establish a tree item link
+                    await sourcePdfc.linkTreeItem(targetTreeItem);
+                } else if (sourcePdfc) {
+                    // Load highlights and link to all secondaryIds
+                    await sourcePdfc.getAndLoadHighlightsFromSupplierPanel(tUuid, {
+                        acceptFrom: secondaryIds,
+                        linkTo: secondaryIds,
+                    });
+                } else {
+                    // Form a new link for each secondaryId
+                    for (const x of secondaryIds) {
+                        await linkingMap.add(sUuid, x, tUuid);
+                    }
+                }
+            }
+        }
+    }
+
 });
+
+Object.assign(ContentManager.prototype, iseUtil.eventsMixin);
 
 return ContentManager;
 });

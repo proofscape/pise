@@ -23,22 +23,28 @@ define([
 ) {
 
 /* This is an abstract Widget class representing all those widgets
- * whose "activation" type is: click me to spawn a new pane, with
- * certain content in it. Chart, Notes, and Examp widgets are all
- * of this type.
+ * whose job is to navigate various content types, either spawning
+ * a new pane to host them, or navigating an existing pane.
  */
-var PaneSpawnWidget = declare(Widget, {
+const NavWidget = declare(Widget, {
 
     activate: function(wdq, uid, nm, pane) {
-        wdq.on('click', function(){
-            // In the context of this click handler, `this` will
-            // point to the DOM element that was clicked.
-            nm.click(uid, this);
+        wdq.on('click', event => {
+            nm.handleNavWidgetMouseEvent(uid, event);
+            // Alt-click on an <a> tag seems to trigger a request to download
+            // (observed in Chrome on macOS), so we need to prevent the default.
+            event.preventDefault();
+        });
+        wdq.on('mouseover', event => {
+            nm.handleNavWidgetMouseEvent(uid, event);
+        });
+        wdq.on('mouseout', event => {
+            nm.handleNavWidgetMouseEvent(uid, event);
         });
     },
 
 });
 
-return PaneSpawnWidget;
+return NavWidget;
 
 });
