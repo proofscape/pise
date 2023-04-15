@@ -1,0 +1,21 @@
+
+# Missing docId
+doc0 = {
+}
+
+# Malformed docId
+doc1 = {
+  docId: "pdffp:abcdef'0123456789"
+}
+
+# Bad URL
+doc2 = {
+  url: "javascript:alert('foo');",
+  docId: "pdffp:abcdef0123456789"
+}
+
+# Well-formed
+doc3 = {
+  url: "https://example.org/pdf/foo.pdf",
+  docId: "pdffp:abcdef0123456789"
+}

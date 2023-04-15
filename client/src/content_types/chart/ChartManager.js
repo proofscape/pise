@@ -156,7 +156,7 @@ var ChartManager = declare(null, {
             // The study manager will be in charge of goal boxes. If one is provided in the given info
             // (such as a ChartWidget) that will be used; else we use the app-wide one.
             studyManager: info.studyManager || this.hub.studyManager,
-            // Provide a way to render label content based on pdf references.
+            // Provide a way to render label content based on doc references.
             nodeLabelPlugin: mnlp,
             // Since we have global nav keys Alt-[/], we deactivate those in the Forest to avoid redundancy.
             activateNavKeys: false,
@@ -236,12 +236,13 @@ var ChartManager = declare(null, {
         for (let [deducpath, deduc] of openedDeducs) {
             const deducInfo = deduc.getDeducInfo();
             //console.log(deducInfo);
-            const pdfInfo = deducInfo.pdf;
-            if (pdfInfo) {
-                for (let name of Object.keys(pdfInfo)) {
-                    const info = pdfInfo[name];
-                    if (info.fingerprint) {
-                        this.pdfInfoByFingerprint.set(info.fingerprint, info);
+            const docInfo = deducInfo.docInfo;
+            if (docInfo) {
+                for (let docId of Object.keys(docInfo.docs)) {
+                    if (docId.startsWith("pdffp:")) {
+                        const info = docInfo.docs[docId];
+                        const fingerprint = docId.slice(6);
+                        this.pdfInfoByFingerprint.set(fingerprint, info);
                     }
                 }
             }
@@ -368,23 +369,26 @@ var ChartManager = declare(null, {
 
         // For now we just implement one thing:
         // If the clicked node is now the singleton selection,
-        // and if it carries a pdf reference, attempt to highlight
-        // the referenced selection in an open PDF.
+        // and if it carries a doc reference, attempt to highlight
+        // the referenced selection in an open doc.
         // If Alt key was pressed, then also auto scroll the selection into view.
 
         //console.log(nodepath, e);
         var selMgr = forest.getSelectionManager(),
             singleton = selMgr.getSingletonNode();
         if (singleton !== null && singleton.uid === nodepath) {
-            var pdfRef = singleton.pdfRef,
-                pdfFingerprint = singleton.pdfFingerprint;
-            if (pdfFingerprint) {
-                var pdfc = this.hub.pdfManager.getMostRecentPdfcForFingerprint(pdfFingerprint);
-                if (pdfc) {
-                    if (pdfRef) {
-                        pdfc.highlightFromCodes([pdfRef], e.altKey);
-                    } else {
-                        pdfc.clearHighlight();
+            const docRef = singleton.docRef;
+            const docId = singleton.docId;
+            if (docId) {
+                if (docId.startsWith('pdffp:')) {
+                    const pdfFingerprint = docId.slice(6);
+                    const pdfc = this.hub.pdfManager.getMostRecentPdfcForFingerprint(pdfFingerprint);
+                    if (pdfc) {
+                        if (docRef) {
+                            pdfc.highlightFromCodes([docRef], e.altKey);
+                        } else {
+                            pdfc.clearHighlight();
+                        }
                     }
                 }
             }

@@ -51,7 +51,7 @@ export class MooseNodeLabelPlugin {
             if (extlinks.length) this.setupExternalLinks(extlinks);
 
             // Gather PDF labels.
-            const pdfDivNodeList = labeldiv.querySelectorAll('div.pdf-render');
+            const pdfDivNodeList = labeldiv.querySelectorAll('div.doc-render');
             allPdfDivs = allPdfDivs.concat(Array.from(pdfDivNodeList));
         }
         // Process all PDF labels at once.

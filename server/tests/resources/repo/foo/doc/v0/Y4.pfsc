@@ -1,12 +1,12 @@
-from .. import pdf3
+from .. import doc3
 from ..results import Pf
 
-# Here we try well-formed pdf info, but malformed combiner codes.
+# Here we try well-formed doc info, but malformed combiner codes.
 
 # Attempt to break out of HTML attribute context.
 deduc Y4 of Pf.S {
     asrt A1 {
-        pdf = 'pdf3#v2;s1;"><script>alert("foo")</script>'
+        doc = 'doc3#v2;s1;"><script>alert("foo")</script>'
     }
     meson="Pf.S by A1 and Pf.R."
 }
