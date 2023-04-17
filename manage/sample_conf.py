@@ -174,7 +174,7 @@ REDISGRAPH_IMAGE_TAG = '6.2.6-v6'
 NEO4J_IMAGE_TAG = '4.0.6'
 GREMLIN_SERVER_IMAGE_TAG = '3.6.0'
 JANUSGRAPH_IMAGE_TAG = '0.6.0'
-NGINX_IMAGE_TAG = '1.22.0'
+NGINX_IMAGE_TAG = '1.24.0'
 # If you want RedisInsight to be dispatched as part of the MCA when RedisGraph
 # is being used, set a version tag here. Otherwise leave as None.
 # REDISINSIGHT_IMAGE_TAG = '1.11.0'
