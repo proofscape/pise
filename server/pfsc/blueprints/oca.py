@@ -75,11 +75,26 @@ def latest_version():
     # In the old-style numbers, the client numbers (CM.Cm) never got past 25.2,
     # so we can make all lists comparable by prepending [26, 0] to the new ones.
     string_parts = [(re.split(r'[.-]', n), n) for n in names]
+
     int_parts_padded = []
     for parts, name in string_parts:
         if len(parts) > 4:
             int_parts_padded.append(([int(n) for n in parts], name))
         else:
+            # Is there a label (i.e. fourth part)?
+            # New-style numbers may use a fourth part with an 'a' or 'b' for alpha
+            # and beta releases. We turn such labels into two integers.
+            if len(parts) == 4:
+                n = parts[-1]
+                if n[0] == 'a':
+                    x, y = 1, n[1:]
+                elif n[0] == 'b':
+                    x, y = 2, n[1:]
+                else:
+                    x, y = 0, n
+                parts[-1] = x
+                parts.append(y)
+
             int_parts_padded.append(([26, 0] + [int(n) for n in parts], name))
 
     _, latest_name = list(sorted(int_parts_padded, key=lambda p: p[0]))[-1]
