@@ -27,7 +27,7 @@ jobs:
       # a hyphen; "latest" if not.
       - name: Determine secondary docker image tag
         run: |
-          echo "${{env.PISE_VERS}}" | sed -e "s/.*-.*/secondTag=edge/" | sed -e "s/[0-9].*/secondTag=latest/" >> $GITHUB_ENV
+          echo "${{env.PISE_VERS}}" | sed -e "s/.*-.*/SECOND_TAG=edge/" | sed -e "s/[0-9].*/SECOND_TAG=latest/" >> $GITHUB_ENV
       # -----------------------------------------
       # Checkout pise
       #   Need contents of pise/client dir, for npm publish
@@ -118,8 +118,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            $DH_NAMESPACE/pise-server:$PISE_VERS
-            $DH_NAMESPACE/pise-server:$secondTag
+            ${{env.DH_NAMESPACE}}/pise-server:${{env.PISE_VERS}}
+            ${{env.DH_NAMESPACE}}/pise-server:${{env.SECOND_TAG}}
       - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
         name: Publish pise-frontend to Docker Hub
         uses: docker/build-push-action@v4
@@ -128,8 +128,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            $DH_NAMESPACE/pise-frontend:$PISE_VERS
-            $DH_NAMESPACE/pise-frontend:$secondTag
+            ${{env.DH_NAMESPACE}}/pise-frontend:${{env.PISE_VERS}}
+            ${{env.DH_NAMESPACE}}/pise-frontend:${{env.SECOND_TAG}}
       - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
         name: Publish pise OCA to Docker Hub
         uses: docker/build-push-action@v4
@@ -138,5 +138,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            $DH_NAMESPACE/pise:$PISE_VERS
-            $DH_NAMESPACE/pise:$secondTag
+            ${{env.DH_NAMESPACE}}/pise:${{env.PISE_VERS}}
+            ${{env.DH_NAMESPACE}}/pise:${{env.SECOND_TAG}}
