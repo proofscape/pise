@@ -40,7 +40,7 @@ def version(l, projects):
     Result is printed without leading or trailing whitespace.
     If multiple projects are named, versions are comma-separated.
     """
-    nums = get_version_numbers(include_tags=True)
+    nums = get_version_numbers(include_tags=True, include_other=True)
     if l:
         print('Projects:')
         for k in sorted(nums.keys()):

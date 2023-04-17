@@ -182,6 +182,7 @@ REDISINSIGHT_IMAGE_TAG = None
 
 # Other versions
 SUPERVISOR_VERSION = '4.2.4'
+PFSC_DEMO_REPOS = '0.1.0'
 
 # App URL Prefix
 #
