@@ -67,7 +67,7 @@ jobs:
       - name: Switch publishing on or off
         id: switch
         run: |
-          echo "pub-npm=yes" >> $GITHUB_OUTPUT
+          echo "pub-npm=no" >> $GITHUB_OUTPUT
           echo "pub-dh=yes" >> $GITHUB_OUTPUT
       # -----------------------------------------
       # npm
