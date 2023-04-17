@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-22.04
     services:
       redisgraph:
-        image: "redislabs/redisgraph:2.4.13"
+        image: "redis/redis-stack-server:6.2.6-v6"
         ports:
           - "6381:6379"
       tinkergraph:
@@ -283,6 +283,7 @@ jobs:
           echo "PYODIDE_VERS=`pfsc check version pyodide`" >> $GITHUB_OUTPUT
           echo "REDISGRAPH_VERS=`pfsc check version redisgraph-tag`" >> $GITHUB_OUTPUT
           echo "NGINX_VERS=`pfsc check version nginx-tag`" >> $GITHUB_OUTPUT
+          echo "DEMO_REPO_VERS=`pfsc check version demo-repos`" >> $GITHUB_OUTPUT
       # -----------------------------------------
       # Obtain RedisGraph image, preferably from cache
       - name: Cache redisgraph
@@ -297,8 +298,8 @@ jobs:
       - if: ${{ steps.cache-redisgraph.outputs.cache-hit != 'true' }}
         name: Pull redisgraph
         run: |
-          docker pull redislabs/redisgraph:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
-          docker save --output=images/redisgraph.tar redislabs/redisgraph:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
+          docker pull redis/redis-stack-server:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
+          docker save --output=images/redisgraph.tar redis/redis-stack-server:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
       # -----------------------------------------
       # Obtain Nginx image, preferably from cache
       - name: Cache nginx
@@ -339,20 +340,19 @@ jobs:
           ls -l web
       # -----------------------------------------
       # Install pfsc-demo-repos, preferably from cache
-      # Note: pfsc-demo-repos doesn't have version numbers yet! So we are
-      # for now just using it at the main branch.
       - name: Cache pfsc-demo-repos
         id: cache-pfsc-demo-repos
         uses: actions/cache@v3
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
-          key: cache-pfsc-demo-repos
+          key: cache-pfsc-demo-repos-${{ steps.vers-nums.outputs.DEMO_REPO_VERS }}
       - if: ${{ steps.cache-pfsc-demo-repos.outputs.cache-hit != 'true' }}
         name: Install pfsc-demo-repos
         uses: actions/checkout@v3
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
           repository: proofscape/pfsc-demo-repos
+          ref: v${{steps.vers-nums.outputs.DEMO_REPO_VERS}}
       # Check
       - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
         name: Check pfsc-demo-repos installation
@@ -518,7 +518,7 @@ jobs:
       # If building, build
       - if: ${{ env.BUILDING }}
         name: Build and export pise-server image to Docker
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ${{ env.PISE_SERVER_CTX_DIR }}
           load: true
@@ -566,7 +566,8 @@ jobs:
           docker volume create ${{env.BUILD_VOLUME}}
           docker volume create ${{env.GDB_VOLUME}}
       # -----------------------------------------
-      # If pub-prep, we need to build a pise-frontend image
+      # If pub-prep, we need to build a pise-frontend image, since it will be
+      # used by the MCA deployment (according to USE_BASE_NGINX_FRONTEND=0 set above).
       - if: ${{ inputs.pub-prep }}
         name: Make pise-frontend build context
         working-directory: pise/manage
@@ -577,7 +578,7 @@ jobs:
           tar -x -f ${{env.PISE_FRONTEND_CTX_TAR}} -C ${{env.PISE_FRONTEND_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
         name: Build and export pise-frontend image to Docker
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ${{env.PISE_FRONTEND_CTX_DIR}}
           load: true
@@ -670,7 +671,7 @@ jobs:
           tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
         name: Build and export pise OCA image to Docker
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ${{env.PISE_OCA_CTX_DIR}}
           load: true
@@ -761,14 +762,10 @@ jobs:
       # -----------------------------------------
       # Upload artifacts for publication job
       - if: ${{ inputs.pub-prep }}
-        name: Make directory for pise docker images
-        run: mkdir pise_images
-      - if: ${{ inputs.pub-prep }}
-        name: Save pise docker images for upload
+        name: Make directory for pise docker context tar.gz files
         run: |
-          docker save --output=pise_images/pise-server.tar pise-server:${{env.PISE_VERS}}
-          docker save --output=pise_images/pise-frontend.tar pise-frontend:${{env.PISE_VERS}}
-          docker save --output=pise_images/pise.tar pise:${{env.PISE_VERS}}
+          mkdir pise_contexts
+          cp contexts/*.tar.gz pise_contexts
       - if: ${{ inputs.pub-prep }}
         name: Upload client/dist/ise
         uses: actions/upload-artifact@v3
@@ -776,8 +773,8 @@ jobs:
           name: client-dist-ise-${{env.PISE_VERS}}
           path: pise/client/dist/ise
       - if: ${{ inputs.pub-prep }}
-        name: Upload pise docker images
+        name: Upload pise docker context files
         uses: actions/upload-artifact@v3
         with:
-          name: pise-images-${{env.PISE_VERS}}
-          path: pise_images
+          name: pise-contexts-${{env.PISE_VERS}}
+          path: pise_contexts

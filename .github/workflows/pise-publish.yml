@@ -23,6 +23,11 @@ jobs:
       # Set version var from ref name
       - name: Set version var from ref name
         run: echo "${{github.ref_name}}" | sed 's/v/PISE_VERS=/' >> $GITHUB_ENV
+      # Determine secondary docker image tag: "edge" if version num contains
+      # a hyphen; "latest" if not.
+      - name: Determine secondary docker image tag
+        run: |
+          echo "${{env.PISE_VERS}}" | sed -e "s/.*-.*/secondTag=edge/" | sed -e "s/[0-9].*/secondTag=latest/" >> $GITHUB_ENV
       # -----------------------------------------
       # Checkout pise
       #   Need contents of pise/client dir, for npm publish
@@ -41,36 +46,19 @@ jobs:
         with:
           name: client-dist-ise-${{env.PISE_VERS}}
           path: pise/client/dist/ise
-      - name: Download pise docker images
+      - name: Download pise docker context files
         uses: actions/download-artifact@v3
         with:
-          name: pise-images-${{env.PISE_VERS}}
-          path: images
+          name: pise-contexts-${{env.PISE_VERS}}
+          path: contexts
       # -----------------------------------------
       # Basic checks for visual inspection
       # client/dist/ise
       - name: Check client/dist/ise contents
         working-directory: pise/client
         run: ls -l dist/ise
-      - name: Check images
-        run: ls -l images
-      # -----------------------------------------
-      - name: Load docker images
-        run: |
-          docker load --input=images/pise-server.tar
-          docker load --input=images/pise-frontend.tar
-          docker load --input=images/pise.tar
-      # -----------------------------------------
-      # More checks for visual inspection
-      # pise-server
-      - name: Check pise-server working directory contents
-        run: docker run --rm --entrypoint=bash pise-server:$PISE_VERS -c "ls -l"
-      # pise-frontend
-      - name: Check pise-frontend content directory
-        run: docker run --rm --entrypoint=bash pise-frontend:$PISE_VERS -c "ls -l /usr/share/nginx"
-      # pise-server
-      - name: Check pise OCA working directory contents
-        run: docker run --rm --entrypoint=bash pise:$PISE_VERS -c "ls -l"
+      - name: Check contexts
+        run: ls -l contexts
       # -----------------------------------------
       # PUBLISHING
       # -----------------------------------------
@@ -81,7 +69,6 @@ jobs:
         run: |
           echo "pub-npm=yes" >> $GITHUB_OUTPUT
           echo "pub-dh=yes" >> $GITHUB_OUTPUT
-          echo "pub-dh-as-latest=yes" >> $GITHUB_OUTPUT
       # -----------------------------------------
       # npm
       # Check that certain files will be included
@@ -107,48 +94,49 @@ jobs:
         run: npm publish
       # -------------------------------------
       # Docker Hub
+      - name: Extract Docker contexts
+        working-directory: contexts
+        run: |
+          mkdir pise-server-context
+          mkdir pise-frontend-context
+          mkdir pise-oca-context
+          tar -x -f pise-server-context.tar.gz -C pise-server-context
+          tar -x -f pise-frontend-context.tar.gz -C pise-frontend-context
+          tar -x -f pise-oca-context.tar.gz -C pise-oca-context
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # -------------------------------------
-      # Publish with version numbers
-      # -------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
         name: Publish pise-server to Docker Hub
-        run: |
-          docker image tag pise-server:$PISE_VERS $DH_NAMESPACE/pise-server:$PISE_VERS
-          docker push $DH_NAMESPACE/pise-server:$PISE_VERS
-      # -------------------------------------
+        uses: docker/build-push-action@v4
+        with:
+          context: contexts/pise-server-context
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            $DH_NAMESPACE/pise-server:$PISE_VERS
+            $DH_NAMESPACE/pise-server:$secondTag
       - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
         name: Publish pise-frontend to Docker Hub
-        run: |
-          docker image tag pise-frontend:$PISE_VERS $DH_NAMESPACE/pise-frontend:$PISE_VERS
-          docker push $DH_NAMESPACE/pise-frontend:$PISE_VERS
-      # -------------------------------------
+        uses: docker/build-push-action@v4
+        with:
+          context: contexts/pise-frontend-context
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            $DH_NAMESPACE/pise-frontend:$PISE_VERS
+            $DH_NAMESPACE/pise-frontend:$secondTag
       - if: ${{ steps.switch.outputs.pub-dh == 'yes' }}
         name: Publish pise OCA to Docker Hub
-        run: |
-          docker image tag pise:$PISE_VERS $DH_NAMESPACE/pise:$PISE_VERS
-          docker push $DH_NAMESPACE/pise:$PISE_VERS
-      # -------------------------------------
-      # Publish as latest
-      # -------------------------------------
-      #- if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
-      #  name: Publish pise-server to Docker Hub as latest
-      #  run: |
-      #    docker image tag pise-server:$PISE_VERS $DH_NAMESPACE/pise-server:latest
-      #    docker push $DH_NAMESPACE/pise-server:latest
-      # -------------------------------------
-      #- if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
-      #  name: Publish pise-frontend to Docker Hub as latest
-      #  run: |
-      #    docker image tag pise-frontend:$PISE_VERS $DH_NAMESPACE/pise-frontend:latest
-      #    docker push $DH_NAMESPACE/pise-frontend:latest
-      # -------------------------------------
-      - if: ${{ steps.switch.outputs.pub-dh-as-latest == 'yes' }}
-        name: Publish pise OCA to Docker Hub as latest
-        run: |
-          docker image tag pise:$PISE_VERS $DH_NAMESPACE/pise:latest
-          docker push $DH_NAMESPACE/pise:latest
+        uses: docker/build-push-action@v4
+        with:
+          context: contexts/pise-oca-context
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            $DH_NAMESPACE/pise:$PISE_VERS
+            $DH_NAMESPACE/pise:$secondTag
