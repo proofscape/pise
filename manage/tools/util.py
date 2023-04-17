@@ -161,6 +161,11 @@ def get_version_numbers(include_tags=False, include_other=False):
     if include_other:
         nums['demo-repos'] = pfsc_conf.PFSC_DEMO_REPOS
 
+        server_path = pathlib.Path(PISE_ROOT) / 'server'
+        with open(server_path / 'req/test-requirements.hashless') as f:
+            trh = f.read()
+        nums['pfsc-test-modules'] = re.search(r'pfsc-test-modules\.git@v(.+)$', trh).group(1)
+
     return nums
 
 

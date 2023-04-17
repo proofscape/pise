@@ -1120,7 +1120,7 @@ def get_ignored_packages():
 
 
 def get_manual_py_pkg_info_lookup():
-    vers = get_version_numbers()
+    vers = get_version_numbers(include_other=True)
     return {
         r'github\.com/proofscape/sympy': PyPackage(
             name='sympy',
@@ -1143,6 +1143,13 @@ def get_manual_py_pkg_info_lookup():
             gh_url='https://github.com/proofscape/pfsc-util',
             license_name='Apache 2.0',
             license_url='https://www.apache.org/licenses/LICENSE-2.0.txt',
+        ),
+        'pfsc-test-modules': PyPackage(
+            name='pfsc-test-modules',
+            version=vers['pfsc-test-modules'],
+            gh_url='https://github.com/proofscape/pfsc-test-modules',
+            license_name='MPL-2.0',
+            license_url='https://github.com/proofscape/pfsc-test-modules/blob/main/LICENSE',
         ),
         'aenum': {
             'license_url': 'https://github.com/ethanfurman/aenum/blob/master/aenum/LICENSE',
@@ -1225,10 +1232,6 @@ def get_manual_py_pkg_info_lookup():
         },
         'pep517': {
             'license_name': 'MIT',
-        },
-        'pfsc-test-modules': {
-            'license_name': 'MPL-2.0',
-            'license_url': 'https://github.com/proofscape/pfsc-test-modules/blob/main/LICENSE',
         },
         r'\bpy\b': {
             'gh_url': 'https://github.com/pytest-dev/py',
