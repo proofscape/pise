@@ -26,6 +26,7 @@ WORKDIR {{final_workdir}}
 # commit them to disk. Combined with use of `pfsc.gdb.cypher.rg.redis_bg_save()`
 # in pfsc-server, this should achieve pretty robust persistence.
 RUN echo "loadmodule /usr/lib/redis/modules/redisgraph.so" >> redis.conf \
+ && echo "loadmodule /usr/lib/redis/modules/redisearch.so" >> redis.conf \
  && echo "dir /proofscape/graphdb/re" >> redis.conf \
  && echo "save 1 1" >> redis.conf
 
