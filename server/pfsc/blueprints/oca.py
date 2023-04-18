@@ -68,6 +68,14 @@ def latest_version():
     if not names:
         return sorry
 
+    # NOTE: As long as images with old-style numbers exist on Docker Hub (i.e.
+    # unless we at some point delete them from there), we have to have the code
+    # here that makes old- and new-style numbers comparable.
+    #
+    # However, the final number we return, if new-style, will *not* have the
+    # '26.0' padding at the front. This is because we're keeping the client-side
+    # comparison code simple, and not bothering there with old-style numbers.
+
     # Old-style numbers were of the form
     #   CM.Cm-SM.Sm.Sp(-n)
     # while new-style numbers are of the form

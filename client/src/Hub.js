@@ -839,8 +839,7 @@ var Hub = declare(null, {
                 this.errAlert('Unable to check for software updates.');
                 return false;
             } else {
-                // Prepend [26, 0] for comparisons with old-style numbers
-                const ours = ['26', '0'].concat(this.OCA_version.split(/\.|-/));
+                const ours = this.OCA_version.split(/\.|-/);
                 const latest = vers.split(/\.|-/);
                 console.debug(ours, latest);
                 if (ours < latest) {
