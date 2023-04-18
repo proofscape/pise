@@ -224,9 +224,14 @@ def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True,
                 raise click.UsageError(f'Could not find {min_path}. Did you build pfsc-ise for production yet?')
 
     if pdf:
-        pdf_path = os.path.join(SRC_ROOT, 'pfsc-pdf/build/generic')
-        if not os.path.exists(pdf_path):
-            raise click.UsageError(f'Could not find {pdf_path}. Have you built pfsc-pdf yet?')
+        pdf_project_path = os.path.join(SRC_ROOT, 'pfsc-pdf')
+        pdf_build_generic_path = os.path.join(pdf_project_path, 'build', 'generic')
+        if not os.path.exists(pdf_build_generic_path):
+            advice = (
+                'Have you built pfsc-pdf yet?'
+                f' (Or made symlink {pdf_project_path}?)'
+            )
+            raise click.UsageError(f'Could not find {pdf_build_generic_path}. {advice}')
 
     #demo_path = os.path.join(SRC_ROOT, 'pfsc-demo-repos')
     #if not os.path.exists(demo_path):
@@ -238,8 +243,12 @@ def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True,
         pyodide_version = versions["pyodide"]
         pyodide_path = os.path.join(SRC_ROOT, 'pyodide', f'v{pyodide_version}')
         if not os.path.exists(pyodide_path):
-            raise click.UsageError(f'Could not find pyodide at expected version {pyodide_version}')
-
+            advice = 'pfsc get pyodide'
+            msg = (
+                f'Could not find pyodide at expected version {pyodide_version}.'
+                f' Did you run `{advice}`?'
+            )
+            raise click.UsageError(msg)
     if whl:
         whl_path = os.path.join(SRC_ROOT, 'whl')
         if release:
