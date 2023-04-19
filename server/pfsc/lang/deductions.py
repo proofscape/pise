@@ -814,6 +814,42 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.docReference = None
+        self.cloneOf = None
+
+    def makeClone(self, name=None):
+        """
+        Make a clone of this node. You can pass a name if you want to specify
+        that; otherwise, it gets the same name as this node.
+        """
+        if self.nodeType in [NodeType.GHOST, NodeType.QSTN, NodeType.UCON]:
+            # At the moment, I don't know what it would mean to clone ghost or
+            # special nodes. It sounds like sth we shouldn't be doing, but I
+            # haven't thought about it a lot either.
+            msg = (
+                f'Nodes of type `{self.nodeType}` cannot be cloned.'
+                f' (Trying to clone `{self.libpath}`.)'
+            )
+            raise PfscExcep(msg, PECode.CANNOT_CLONE_NODE)
+
+        clone = node_factory(self.nodeType, name or self.name)
+        self.populateClone(clone)
+        return clone
+
+    def populateClone(self, clone):
+        clone.cloneOf = self
+        # This list of cloned properties can grow in future versions, as we
+        # learn what it is that we want...
+        cloned_props = [
+            'en', 'sy', 'de', 'fr', 'ru',
+            'doc',
+        ]
+        for prop_name in cloned_props:
+            if (value := self.get(prop_name)) is not None:
+                clone[prop_name] = value
+        # Recurse on subnodes
+        for subnode in self.subnodeSeq:
+            sc = subnode.makeClone()
+            clone.addNode(sc)
 
     def getChildren(self):
         return self.subnodeSeq
@@ -901,6 +937,7 @@ class Node(NodeLikeObj):
         dg['isAssertoric'] = self.isAssertoric()
         dg['intraDeducPath'] = self.getIntradeducPath()
         dg['textRange'] = self.textRange
+        dg['cloneOf'] = self.cloneOf.libpath if self.cloneOf else None
 
         if self.docReference:
             dg['docRef'] = self.docReference.combiner_code
@@ -1083,6 +1120,10 @@ class Flse(Node):
         # list of contradicted `Supp` instances themselves:
         self.contra_supps = []
 
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.contra_lps = self.contra_lps[:]
+
     def set_contra(self, contra_lps):
         """
         Set the list of libpaths of supposition nodes that are contradicted.
@@ -1124,6 +1165,10 @@ class WologNode(Node):
         # boolean to mark whether this step is "wolog":
         self.wolog = False
 
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.wolog = self.wolog
+
     def set_wolog(self, b):
         """
         Say whether this step is to be regarded as taken
@@ -1155,6 +1200,10 @@ class Supp(WologNode):
         self.alternate_lps = []
         # set of actual alternates (i.e. instances of `Supp` class):
         self.alternates = set()
+
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.alternate_lps = self.alternate_lps[:]
 
     def set_alternate_lps(self, alts):
         """
@@ -1214,6 +1263,9 @@ class QuantifierNode(CompoundNode):
     def __init__(self, nodetype, name):
         Node.__init__(self, nodetype, name)
         self.defaultText = ''
+
+    def populateClone(self, clone):
+        clone.defaultText = self.defaultText
 
     def writeLabelHTML(self, lang):
         return ''

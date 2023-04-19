@@ -23,7 +23,7 @@ import datetime, re
 import inspect
 import pathlib
 
-from lark import Lark
+from lark import Lark, v_args
 from lark.exceptions import VisitError, LarkError
 
 from pfsc.lang.annotations import Annotation
@@ -385,7 +385,7 @@ pfsc_grammar = r'''
     deducpreamble : "deduc" IDENTIFIER (OF targets)? (WITH targets)?
     targets : libpath ("," libpath)*
 
-    deduccontents : (subdeduc|node|assignment)*
+    deduccontents : (subdeduc|node|clone|assignment)*
 
     subdeduc : "subdeduc" IDENTIFIER "{" deduccontents "}"
 
@@ -403,6 +403,8 @@ pfsc_grammar = r'''
     flsenode : "flse" IDENTIFIER ("contra" targets)? "{" nodecontents "}"
 
     nodecontents : (node|assignment)*
+
+    clone : "clone" libpath ("as" IDENTIFIER)?
 
     anno: "anno" IDENTIFIER ("on" targets)?
 
@@ -431,7 +433,11 @@ pfsc_grammar = r'''
 pfsc_grammar_imports = '''
 '''
 
-pfsc_parser = Lark(pfsc_grammar + json_grammar + pfsc_grammar_imports + json_grammar_imports, start='module')
+pfsc_parser = Lark(
+    pfsc_grammar + json_grammar + pfsc_grammar_imports + json_grammar_imports,
+    start='module',
+    propagate_positions=True
+)
 
 BLOCK_RE = re.compile(r'(anno +([a-zA-Z]\w*)[^@]*?)@@@(\w{,8})(\s.*?)@@@\3', flags=re.S)
 
@@ -627,6 +633,27 @@ def parse_module_text(text):
         parse_msg = re.sub(r'at line (\d+)', lambda m: ('at line %s' % bc.map_line_num_to_orig(int(m.group(1)))), str(e))
         raise PfscExcep(parse_msg, PECode.PARSING_ERROR)
     return tree, bc
+
+
+class PreClone(PfscObj):
+    """
+    Represents an intention to make a node clone.
+    """
+
+    def __init__(self, orig_libpath, local_name):
+        PfscObj.__init__(self)
+        self.orig_libpath = orig_libpath
+        self.local_name = local_name
+
+    def make_clone(self, owner):
+        orig_node, home_lp = owner.getFromAncestor(
+            self.orig_libpath,
+            missing_obj_descrip=f'cloned in {owner.name}'
+        )
+        clone = orig_node.makeClone(name=self.local_name)
+        clone.textRange = self.textRange
+        return clone
+
 
 class PfscAssignment(PfscObj):
 
@@ -890,6 +917,9 @@ class ModuleLoader(PfscJsonTransformer):
         """
         if names is None: names = set()
         for item in contents:
+            # Resolve clones
+            if isinstance(item, PreClone):
+                item = item.make_clone(owner)
             # Must test if SubDeduc _before_ testing if Deduction, since the former is a subclass of the latter.
             if isinstance(item, SubDeduc):
                 self.ban_duplicates(names, item.name)
@@ -1023,6 +1053,14 @@ class ModuleLoader(PfscJsonTransformer):
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)
         return node
+
+    @v_args(meta=True)
+    def clone(self, items, meta):
+        libpath = items[0]
+        local_name = items[1] if len(items) == 2 else None
+        pc = PreClone(libpath, local_name)
+        self.set_first_line(pc, meta.line)
+        return pc
 
     def deducpreamble(self, items):
         name = items[0]
