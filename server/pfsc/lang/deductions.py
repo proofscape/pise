@@ -110,7 +110,6 @@ class Deduction(Enrichment, NodeLikeObj):
         self.subdeducSeq = []
         self.ghostNodes = []
         self.specialNodes = []
-        self.textRange = None
         self._trusted = None
 
         self.rdef_paths = rdef_paths
@@ -151,12 +150,6 @@ class Deduction(Enrichment, NodeLikeObj):
 
     def getGraph(self):
         return self.graph
-
-    def setTextRange(self, row0, col0, row1, col1):
-        """
-        Define the range in the module text over which this entity was defined.
-        """
-        self.textRange = (row0, col0, row1, col1)
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
@@ -820,7 +813,6 @@ class Node(NodeLikeObj):
         self.nodeType = nodeType
         self.name = name
         self.subnodeSeq = []
-        self.textRange = None
         self.docReference = None
 
     def getChildren(self):
@@ -835,10 +827,6 @@ class Node(NodeLikeObj):
     def resolve_targets(self):
         "Should be overridden by any special node types that may have targets to be resolved."
         pass
-
-    def setTextRange(self, row0, col0, row1, col1):
-        "Define the range in the module text over which this node was defined."
-        self.textRange = (row0, col0, row1, col1)
 
     def resolveDocRefs(self, default_doc_info):
         ref_text = self.get('doc')
