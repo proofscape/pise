@@ -1197,7 +1197,7 @@ class Supp(WologNode):
                 msg = 'Node %s named as alternate for node %s is of wrong type.' % (alt_lp, self.getLibpath())
                 msg += ' Only `supp` nodes may be named.'
                 raise PfscExcep(msg, PECode.TARGET_OF_WRONG_TYPE)
-            # We also check that the alternative it is not identical with this one.
+            # We also check that the alternative is not identical with this one.
             # Supp nodes should not be named as alternates of themselves.
             if alt is self:
                 msg = 'Supp node %s should not name self as alternate.' % self.getLibpath()
