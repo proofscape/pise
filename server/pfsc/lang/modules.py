@@ -28,7 +28,9 @@ from lark.exceptions import VisitError, LarkError
 
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.freestrings import PfscJsonTransformer, json_grammar, json_grammar_imports
-from pfsc.lang.deductions import PfscObj, Deduction, SubDeduc, Node, Supp, Flse, SPECIAL_NODE_CLASS_LOOKUP
+from pfsc.lang.deductions import (
+    PfscObj, Deduction, SubDeduc, Node, Supp, Flse, node_factory,
+)
 from pfsc.lang.objects import PfscDefn
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
@@ -989,12 +991,7 @@ class ModuleLoader(PfscJsonTransformer):
 
     def basicnode(self, items):
         type_, name, contents = items
-        # Construct the node instance
-        cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
-        if cls is None:
-            node = Node(type_, name)
-        else:
-            node = cls(name)
+        node = node_factory(type_, name)
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)
         return node
@@ -1011,8 +1008,7 @@ class ModuleLoader(PfscJsonTransformer):
 
     def wolognode(self, items):
         type_, name, contents = items
-        cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
-        node = cls(name)
+        node = node_factory(type_, name)
         node.set_wolog(True)
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)

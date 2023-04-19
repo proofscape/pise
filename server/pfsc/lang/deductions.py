@@ -1358,3 +1358,21 @@ SPECIAL_NODE_CLASS_LOOKUP = {
     NodeType.UNIV: Univ,
     NodeType.WITH: With
 }
+
+
+def node_factory(type_, name):
+    """
+    Given the desired type for a new node, and its desired name, construct
+    an instance of the right class.
+
+    param type_: element of the NodeType enum class
+    param name: string
+
+    return: instance of some subclass of Node
+    """
+    cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
+    if cls is None:
+        node = Node(type_, name)
+    else:
+        node = cls(name)
+    return node
