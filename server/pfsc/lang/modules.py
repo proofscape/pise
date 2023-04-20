@@ -637,7 +637,7 @@ def parse_module_text(text):
 
 class PreClone(PfscObj):
     """
-    Represents an intention to make a node clone.
+    Represents an intention to make a clone of a node or subdeduc.
     """
 
     def __init__(self, orig_libpath, local_name):
@@ -646,11 +646,11 @@ class PreClone(PfscObj):
         self.local_name = local_name
 
     def make_clone(self, owner):
-        orig_node, home_lp = owner.getFromAncestor(
+        orig_obj, _ = owner.getFromAncestor(
             self.orig_libpath,
             missing_obj_descrip=f'cloned in {owner.name}'
         )
-        clone = orig_node.makeClone(name=self.local_name)
+        clone = orig_obj.makeClone(name=self.local_name)
         clone.textRange = self.textRange
         return clone
 

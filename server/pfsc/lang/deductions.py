@@ -111,6 +111,7 @@ class Deduction(Enrichment, NodeLikeObj):
         self.ghostNodes = []
         self.specialNodes = []
         self._trusted = None
+        self.cloneOf = None
 
         self.rdef_paths = rdef_paths
         self.runningDefs = []
@@ -712,6 +713,7 @@ class Deduction(Enrichment, NodeLikeObj):
         dg['labelHTML'] = ''
         dg['isAssertoric'] = False
         dg['nodeOrder'] = [u.actualNode.getLibpath() for u in nodesInOrder]
+        dg['cloneOf'] = self.cloneOf.libpath if self.cloneOf else None
 
         self.add_comparisons_to_dashgraph(dg)
 
@@ -754,6 +756,33 @@ class SubDeduc(Deduction):
 
     def __init__(self, name):
         Deduction.__init__(self, name, [], [])
+
+    def makeClone(self, name=None):
+        """
+        Make a clone of this subdeduc. You can pass a name if you want to specify
+        that; otherwise, it gets the same name as this subdeduc.
+        """
+        clone = SubDeduc(name or self.name)
+        self.populateClone(clone)
+        return clone
+
+    def populateClone(self, clone):
+        clone.cloneOf = self
+        # This list of cloned properties can grow in future versions, as we
+        # learn what it is that we want...
+        cloned_props = [
+            'meson',
+        ]
+        for prop_name in cloned_props:
+            if (value := self.get(prop_name)) is not None:
+                clone[prop_name] = value
+        # Recurse on nodes and subdeducs
+        for node in self.nodeSeq:
+            c = node.makeClone()
+            clone.addNode(c)
+        for subdeduc in self.subdeducSeq:
+            c = subdeduc.makeClone()
+            clone.addSubDeduc(c)
 
     def isDeduc(self):
         return False

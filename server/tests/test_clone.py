@@ -192,3 +192,49 @@ def test_clone_02b(app):
         assert ch[no[2]]["contra"] == [
             "test.local.foo.Foo.S"
         ]
+
+
+@pytest.mark.psm
+def test_clone_03(app):
+    """
+    Show that:
+     - We can clone a subdeduc, as long as we provide targets for any
+       outgoing links it may define (via `contra`, `versus`, etc.)
+     - We can clone a single node out of a subdeduc.
+    """
+    print()
+    modtext = """
+    from test.hist.lit.K.ummer.Cr040_08 import Pf
+
+    deduc Foo {
+
+        clone Pf.S40
+        clone Pf.Cs1
+        clone Pf.Cs2.S as S10
+
+        asrt A20 {
+            sy = "A20"
+        }
+
+        meson = "Suppose S10. Then A20."
+    }
+    """
+    with app.app_context():
+        modpath = f'test.local.foo'
+        module = build_module_from_text(modtext, modpath, dependencies={
+            'test.hist.lit': "WIP",
+        })
+        name = 'Foo'
+        deduc = module[name]
+        dg = deduc.buildDashgraph()
+        print(json.dumps(dg, indent=4))
+
+        ch = dg["children"]
+        assert ch["test.local.foo.Foo.S10"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs2.S"
+        assert ch["test.local.foo.Foo.S10"]["alternates"] == [
+            "test.local.foo.Foo.Cs1.S"
+        ]
+        assert ch["test.local.foo.Foo.Cs1"]["children"]["test.local.foo.Foo.Cs1.S"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs1.S"
+        assert ch["test.local.foo.Foo.Cs1"]["children"]["test.local.foo.Foo.Cs1.S"]["alternates"] == [
+            "test.local.foo.Foo.S10"
+        ]
