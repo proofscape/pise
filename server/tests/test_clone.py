@@ -238,3 +238,52 @@ def test_clone_03(app):
         assert ch["test.local.foo.Foo.Cs1"]["children"]["test.local.foo.Foo.Cs1.S"]["alternates"] == [
             "test.local.foo.Foo.S10"
         ]
+
+
+@pytest.mark.psm
+def test_clone_04(app):
+    """
+    Show that we can clone a node whose label includes a nodelink, as long as
+    we provide a local name to which the link target can resolve.
+    """
+    print()
+    modtext = """
+    from test.wid.get.notes import Pf1
+
+    deduc x1 {
+    
+        exis E10 {
+            intr I {
+                sy = "I"
+            }
+            asrt A {
+                sy = "A"
+            }
+        }
+    
+        meson = "E10"
+    }
+
+    deduc Foo {
+
+        # This node makes a nodelink to `x1.E10`.
+        clone Pf1.A10
+
+        asrt A20 {
+            sy = "A20"
+        }
+
+        meson = "Have A10. So A20."
+    }
+    """
+    with app.app_context():
+        modpath = f'test.local.foo'
+        module = build_module_from_text(modtext, modpath, dependencies={
+            'test.wid.get': "v0.1.0",
+        })
+        name = 'Foo'
+        deduc = module[name]
+        dg = deduc.buildDashgraph()
+        print(json.dumps(dg, indent=4))
+        ch = dg["children"]
+        assert "%3Cspan%20class%3D%22nodelink%22%3E" in ch["test.local.foo.Foo.A10"]["labelHTML"]
