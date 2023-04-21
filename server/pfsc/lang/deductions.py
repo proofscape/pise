@@ -55,8 +55,8 @@ class NodeLikeObj(PfscObj):
 
     def __init__(self):
         # Some subclasses (like `Deduction`) have multiple inheritance; others
-        # (like `Node`) do not. So we do our superclass init only if it hasn't
-        # been done already.
+        # (like `Node`) do not. So we take care to do our superclass init only
+        # if it hasn't been done already.
         if not hasattr(self, 'items'):
             PfscObj.__init__(self)
         self.comparisons = []

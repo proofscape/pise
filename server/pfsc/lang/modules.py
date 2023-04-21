@@ -433,6 +433,8 @@ pfsc_grammar = r'''
 pfsc_grammar_imports = '''
 '''
 
+# Pass `propagate_positions=True` so that non-terminal handlers in the `ModuleLoader`
+# can use `@v_args` to get a `meta` arg containing line and column numbers.
 pfsc_parser = Lark(
     pfsc_grammar + json_grammar + pfsc_grammar_imports + json_grammar_imports,
     start='module',
@@ -1054,6 +1056,9 @@ class ModuleLoader(PfscJsonTransformer):
         self.set_first_line(node, name.line)
         return node
 
+    # This is the first non-terminal where we've wanted to know the line num on
+    # which it was defined, but don't have any `Token` instances to consult for
+    # that. So we need Lark's `meta` arg to be passed.
     @v_args(meta=True)
     def clone(self, items, meta):
         libpath = items[0]
