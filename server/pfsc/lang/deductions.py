@@ -1294,6 +1294,7 @@ class QuantifierNode(CompoundNode):
         self.defaultText = ''
 
     def populateClone(self, clone):
+        super().populateClone(clone)
         clone.defaultText = self.defaultText
 
     def writeLabelHTML(self, lang):
