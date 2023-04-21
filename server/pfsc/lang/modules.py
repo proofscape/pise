@@ -652,6 +652,11 @@ class PreClone(PfscObj):
             self.orig_libpath,
             missing_obj_descrip=f'cloned in {owner.name}'
         )
+        if isinstance(orig_obj, Node):
+            # Asking the node to write its label causes it to resolve any
+            # nodelinks therein, populating its `self.relpathResolutions`
+            # accordingly, which will then be copied into the clone.
+            orig_obj.buildDashgraph()
         clone = orig_obj.makeClone(name=self.local_name)
         clone.textRange = self.textRange
         return clone

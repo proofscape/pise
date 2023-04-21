@@ -60,6 +60,16 @@ class NodeLikeObj(PfscObj):
         if not hasattr(self, 'items'):
             PfscObj.__init__(self)
         self.comparisons = []
+        self.relpathResolutions = {}
+        self._cloneOf = None
+
+    @property
+    def cloneOf(self):
+        return self._cloneOf
+
+    def populateClone(self, clone):
+        clone._cloneOf = self
+        clone.relpathResolutions = self.relpathResolutions.copy()
 
     def getComparisons(self):
         return self.comparisons
@@ -88,6 +98,46 @@ class NodeLikeObj(PfscObj):
                 'version': cf.target_version,
             } for cf in self.comparisons]
 
+    def resolveRelpathToRealOrClone(self, relpath, missing_obj_descrip=None):
+        """
+        There are a number of occasions on which we have a relative libpath,
+        which one NodeLikeObj has used to refer to another, and we want to
+        resolve this, i.e. obtain the NodeLikeObj it points to.
+
+        For this there is the old `PfscObj.getFromAncestor()` method, but on
+        these particular occasions we also want additional processing:
+
+        * We want to first consult our `self.relpathResolutions` to see if it
+            already holds a resolution for the given relpath; if so, we want
+            to use that; if not, we want to record the object here after we do
+            locate it.
+
+        * If the initial resolution takes us to a ghost node, we want the
+            corresponding real node.
+
+        * We want to check our surrounding `Deduction` for any clone
+            substitution, for the object we find, and apply that.
+
+        Existing sources of relpaths for which this type of resolution is
+        desired include:
+            * `contra` clauses on `Flse` nodes
+            * `versus` clauses on `Supp` nodes
+            * nodelinks `[text](relpath)` in node labels
+
+        """
+        if relpath in self.relpathResolutions:
+            obj = self.relpathResolutions[relpath]
+        else:
+            obj, _ = self.getFromAncestor(relpath, missing_obj_descrip=missing_obj_descrip)
+            if obj:
+                # In case the object is a ghost node:
+                obj = obj.realObj()
+                self.relpathResolutions[relpath] = obj
+        if obj:
+            deduc = self.getDeduction()
+            obj = deduc.getCloneSubstitution(obj.getLibpath()) or obj
+        return obj
+
 
 class Deduction(Enrichment, NodeLikeObj):
 
@@ -111,7 +161,7 @@ class Deduction(Enrichment, NodeLikeObj):
         self.ghostNodes = []
         self.specialNodes = []
         self._trusted = None
-        self.cloneOf = None
+        self.cloneSubstitutions = {}
 
         self.rdef_paths = rdef_paths
         self.runningDefs = []
@@ -136,6 +186,9 @@ class Deduction(Enrichment, NodeLikeObj):
             assert (libpath := self.getLibpath()) is not None
             self._trusted = libpath_is_trusted(libpath)
         return self._trusted
+
+    def getCloneSubstitution(self, libpath):
+        return self.cloneSubstitutions.get(libpath, None)
 
     def getGhostNodes(self):
         return self.ghostNodes
@@ -409,13 +462,21 @@ class Deduction(Enrichment, NodeLikeObj):
         # Compute the connected components, with each node represented by its libpath.
         lp_comps = util.connected_components(g)
         # Convert into components with actual Supp node instances.
-        node_comps = [set([s[lp] for lp in comp]) for comp in lp_comps]
-        # Inform each Supp node of its component.
+        node_comps = [set([s[lp] for lp in comp if lp in s]) for comp in lp_comps]
+
+        # What we want to do now is augment the list `self.alternate_lps` in
+        # each supp node, "completing" it, as if the module author had been
+        # needlessly thorough, and given each alternative supp node a `versus`
+        # clause listing all of its alternatives. We then also ask the supp
+        # node to resolve each such new target. The reason for doing it this
+        # way is so that if this supp node should be cloned, the clone too will
+        # be capable of resolving all the alternatives.
         for comp in node_comps:
-            for supp in comp:
-                # Here we deliberately _suppress_ the reflexive property of the equivalence,
-                # removing the supp node itself from the component that it records.
-                supp.set_alternates(comp - {supp})
+            for supp0 in comp:
+                for supp1 in comp - {supp0} - supp0.get_alternates():
+                    rp = supp0.get_fwd_rel_libpath(supp1)
+                    supp0.alternate_lps.append(rp)
+                    supp0.resolve_target(rp)
 
     def get_all_supp_nodes_rec(self, lookup):
         """
@@ -463,17 +524,20 @@ class Deduction(Enrichment, NodeLikeObj):
     def getHname(self):
         return self.hname
 
+    def addNodelike(self, obj):
+        name = obj.getName()
+        self[name] = obj
+        obj.setParent(self)
+        if original := obj.cloneOf:
+            self.cloneSubstitutions[original.getLibpath()] = obj
+
     def addNode(self, node):
         self.nodeSeq.append(node)
-        name = node.getName()
-        self[name] = node
-        node.setParent(self)
+        self.addNodelike(node)
 
     def addSubDeduc(self, subdeduc):
         self.subdeducSeq.append(subdeduc)
-        name = subdeduc.getName()
-        self[name] = subdeduc
-        subdeduc.setParent(self)
+        self.addNodelike(subdeduc)
 
     def writeXpanSeq(self):
         seq = []
@@ -767,7 +831,7 @@ class SubDeduc(Deduction):
         return clone
 
     def populateClone(self, clone):
-        clone.cloneOf = self
+        super().populateClone(clone)
         # This list of cloned properties can grow in future versions, as we
         # learn what it is that we want...
         cloned_props = [
@@ -843,7 +907,6 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.docReference = None
-        self.cloneOf = None
 
     def makeClone(self, name=None):
         """
@@ -865,7 +928,7 @@ class Node(NodeLikeObj):
         return clone
 
     def populateClone(self, clone):
-        clone.cloneOf = self
+        super().populateClone(clone)
         # This list of cloned properties can grow in future versions, as we
         # learn what it is that we want...
         cloned_props = [
@@ -1179,7 +1242,7 @@ class Flse(Node):
     def resolve_targets(self):
         desc = 'named as contra for node %s' % self.getLibpath()
         for lp in self.contra_lps:
-            node = self.parent.getFromAncestor(lp, missing_obj_descrip=desc)[0]
+            node = self.resolveRelpathToRealOrClone(lp, missing_obj_descrip=desc)
             if not isinstance(node, Supp):
                 msg = 'Node %s named as contra for node %s is of wrong type.' % (lp, self.getLibpath())
                 msg += ' Only `supp` nodes may be named.'
@@ -1266,21 +1329,28 @@ class Supp(WologNode):
         self.alternates = alts
 
     def resolve_targets(self):
+        for alt_lp in self.alternate_lps:
+            self.resolve_target(alt_lp)
+
+    def resolve_target(self, alt_lp):
+        """
+        param alt_lp: relative libpath resolvable from here, and referencing
+            and alternative supp to this one.
+        """
         # It is already enforced syntactically that a supp node can never be
         # declared wolog and also name alternates. So we do not need to check that here.
         desc = 'named as alternate to node %s' % self.getLibpath()
-        for alt_lp in self.alternate_lps:
-            alt = self.parent.getFromAncestor(alt_lp, missing_obj_descrip=desc)[0]
-            if not isinstance(alt, Supp):
-                msg = 'Node %s named as alternate for node %s is of wrong type.' % (alt_lp, self.getLibpath())
-                msg += ' Only `supp` nodes may be named.'
-                raise PfscExcep(msg, PECode.TARGET_OF_WRONG_TYPE)
-            # We also check that the alternative is not identical with this one.
-            # Supp nodes should not be named as alternates of themselves.
-            if alt is self:
-                msg = 'Supp node %s should not name self as alternate.' % self.getLibpath()
-                raise PfscExcep(msg, PECode.SUPP_NODE_NAMES_SELF_AS_ALTERNATE)
-            self.alternates.add(alt)
+        alt = self.resolveRelpathToRealOrClone(alt_lp, missing_obj_descrip=desc)
+        if not isinstance(alt, Supp):
+            msg = 'Node %s named as alternate for node %s is of wrong type.' % (alt_lp, self.getLibpath())
+            msg += ' Only `supp` nodes may be named.'
+            raise PfscExcep(msg, PECode.TARGET_OF_WRONG_TYPE)
+        # We also check that the alternative is not identical with this one.
+        # Supp nodes should not be named as alternates of themselves.
+        if alt is self:
+            msg = 'Supp node %s should not name self as alternate.' % self.getLibpath()
+            raise PfscExcep(msg, PECode.SUPP_NODE_NAMES_SELF_AS_ALTERNATE)
+        self.alternates.add(alt)
 
 
 class CompoundNode(Node):

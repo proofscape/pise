@@ -98,11 +98,8 @@ def processAsLibpaths(url, label, node):
     abspaths = []
     versions = {}
     for rlp in rel_lps:
-        obj, abspath = node.getFromAncestor(rlp)
+        obj = node.resolveRelpathToRealOrClone(rlp)
         if isinstance(obj, Deduction) or isinstance(obj, Node):
-            # The object might be a ghost node, so before grabbing its
-            # libpath we pass through the realObj.
-            obj = obj.realObj()
             abspath = obj.getLibpath()
             version = obj.getVersion()
             abspaths.append(abspath)
