@@ -38,7 +38,7 @@ var PythonHighlightRules = require("./python_highlight_rules").PythonHighlightRu
 var ProofscapeHighlightRules = function() {
 
     var keywords = (
-        "anno|asrt|as|cite|contra|deduc|defn|exis|flse|from|import|intr|" +
+        "anno|asrt|as|cite|clone|contra|deduc|defn|exis|flse|from|import|intr|" +
         "mthd|of|rels|subdeduc|supp|univ|versus|with|wolog"
     );
 

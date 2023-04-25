@@ -357,7 +357,7 @@ var ContentManager = declare(null, {
         const contentType = this.getContentTypeOfLocalPane(paneId);
         const linkingMap = this.getLinkingMapForContentType(contentType);
         if (!linkingMap) {
-            return;
+            return [];
         }
         const uuid = this.getUuidByPaneId(paneId);
         return linkingMap.localComponent.getTriples({u: uuid});

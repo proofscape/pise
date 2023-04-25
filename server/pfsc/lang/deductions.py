@@ -55,11 +55,21 @@ class NodeLikeObj(PfscObj):
 
     def __init__(self):
         # Some subclasses (like `Deduction`) have multiple inheritance; others
-        # (like `Node`) do not. So we do our superclass init only if it hasn't
-        # been done already.
+        # (like `Node`) do not. So we take care to do our superclass init only
+        # if it hasn't been done already.
         if not hasattr(self, 'items'):
             PfscObj.__init__(self)
         self.comparisons = []
+        self.relpathResolutions = {}
+        self._cloneOf = None
+
+    @property
+    def cloneOf(self):
+        return self._cloneOf
+
+    def populateClone(self, clone):
+        clone._cloneOf = self
+        clone.relpathResolutions = self.relpathResolutions.copy()
 
     def getComparisons(self):
         return self.comparisons
@@ -88,6 +98,46 @@ class NodeLikeObj(PfscObj):
                 'version': cf.target_version,
             } for cf in self.comparisons]
 
+    def resolveRelpathToRealOrClone(self, relpath, missing_obj_descrip=None):
+        """
+        There are a number of occasions on which we have a relative libpath,
+        which one NodeLikeObj has used to refer to another, and we want to
+        resolve this, i.e. obtain the NodeLikeObj it points to.
+
+        For this there is the old `PfscObj.getFromAncestor()` method, but on
+        these particular occasions we also want additional processing:
+
+        * We want to first consult our `self.relpathResolutions` to see if it
+            already holds a resolution for the given relpath; if so, we want
+            to use that; if not, we want to record the object here after we do
+            locate it.
+
+        * If the initial resolution takes us to a ghost node, we want the
+            corresponding real node.
+
+        * We want to check our surrounding `Deduction` for any clone
+            substitution, for the object we find, and apply that.
+
+        Existing sources of relpaths for which this type of resolution is
+        desired include:
+            * `contra` clauses on `Flse` nodes
+            * `versus` clauses on `Supp` nodes
+            * nodelinks `[text](relpath)` in node labels
+
+        """
+        if relpath in self.relpathResolutions:
+            obj = self.relpathResolutions[relpath]
+        else:
+            obj, _ = self.getFromAncestor(relpath, missing_obj_descrip=missing_obj_descrip)
+            if obj:
+                # In case the object is a ghost node:
+                obj = obj.realObj()
+                self.relpathResolutions[relpath] = obj
+        if obj:
+            deduc = self.getDeduction()
+            obj = deduc.getCloneSubstitution(obj.getLibpath()) or obj
+        return obj
+
 
 class Deduction(Enrichment, NodeLikeObj):
 
@@ -110,8 +160,8 @@ class Deduction(Enrichment, NodeLikeObj):
         self.subdeducSeq = []
         self.ghostNodes = []
         self.specialNodes = []
-        self.textRange = None
         self._trusted = None
+        self.cloneSubstitutions = {}
 
         self.rdef_paths = rdef_paths
         self.runningDefs = []
@@ -137,6 +187,9 @@ class Deduction(Enrichment, NodeLikeObj):
             self._trusted = libpath_is_trusted(libpath)
         return self._trusted
 
+    def getCloneSubstitution(self, libpath):
+        return self.cloneSubstitutions.get(libpath, None)
+
     def getGhostNodes(self):
         return self.ghostNodes
 
@@ -151,12 +204,6 @@ class Deduction(Enrichment, NodeLikeObj):
 
     def getGraph(self):
         return self.graph
-
-    def setTextRange(self, row0, col0, row1, col1):
-        """
-        Define the range in the module text over which this entity was defined.
-        """
-        self.textRange = (row0, col0, row1, col1)
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
@@ -415,13 +462,21 @@ class Deduction(Enrichment, NodeLikeObj):
         # Compute the connected components, with each node represented by its libpath.
         lp_comps = util.connected_components(g)
         # Convert into components with actual Supp node instances.
-        node_comps = [set([s[lp] for lp in comp]) for comp in lp_comps]
-        # Inform each Supp node of its component.
+        node_comps = [set([s[lp] for lp in comp if lp in s]) for comp in lp_comps]
+
+        # What we want to do now is augment the list `self.alternate_lps` in
+        # each supp node, "completing" it, as if the module author had been
+        # needlessly thorough, and given each alternative supp node a `versus`
+        # clause listing all of its alternatives. We then also ask the supp
+        # node to resolve each such new target. The reason for doing it this
+        # way is so that if this supp node should be cloned, the clone too will
+        # be capable of resolving all the alternatives.
         for comp in node_comps:
-            for supp in comp:
-                # Here we deliberately _suppress_ the reflexive property of the equivalence,
-                # removing the supp node itself from the component that it records.
-                supp.set_alternates(comp - {supp})
+            for supp0 in comp:
+                for supp1 in comp - {supp0} - supp0.get_alternates():
+                    rp = supp0.get_fwd_rel_libpath(supp1)
+                    supp0.alternate_lps.append(rp)
+                    supp0.resolve_target(rp)
 
     def get_all_supp_nodes_rec(self, lookup):
         """
@@ -469,17 +524,20 @@ class Deduction(Enrichment, NodeLikeObj):
     def getHname(self):
         return self.hname
 
+    def addNodelike(self, obj):
+        name = obj.getName()
+        self[name] = obj
+        obj.setParent(self)
+        if original := obj.cloneOf:
+            self.cloneSubstitutions[original.getLibpath()] = obj
+
     def addNode(self, node):
         self.nodeSeq.append(node)
-        name = node.getName()
-        self[name] = node
-        node.setParent(self)
+        self.addNodelike(node)
 
     def addSubDeduc(self, subdeduc):
         self.subdeducSeq.append(subdeduc)
-        name = subdeduc.getName()
-        self[name] = subdeduc
-        subdeduc.setParent(self)
+        self.addNodelike(subdeduc)
 
     def writeXpanSeq(self):
         seq = []
@@ -719,6 +777,7 @@ class Deduction(Enrichment, NodeLikeObj):
         dg['labelHTML'] = ''
         dg['isAssertoric'] = False
         dg['nodeOrder'] = [u.actualNode.getLibpath() for u in nodesInOrder]
+        dg['cloneOf'] = self.cloneOf.getLibpathV() if self.cloneOf else None
 
         self.add_comparisons_to_dashgraph(dg)
 
@@ -761,6 +820,33 @@ class SubDeduc(Deduction):
 
     def __init__(self, name):
         Deduction.__init__(self, name, [], [])
+
+    def makeClone(self, name=None):
+        """
+        Make a clone of this subdeduc. You can pass a name if you want to specify
+        that; otherwise, it gets the same name as this subdeduc.
+        """
+        clone = SubDeduc(name or self.name)
+        self.populateClone(clone)
+        return clone
+
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        # This list of cloned properties can grow in future versions, as we
+        # learn what it is that we want...
+        cloned_props = [
+            'meson',
+        ]
+        for prop_name in cloned_props:
+            if (value := self.get(prop_name)) is not None:
+                clone[prop_name] = value
+        # Recurse on nodes and subdeducs
+        for node in self.nodeSeq:
+            c = node.makeClone()
+            clone.addNode(c)
+        for subdeduc in self.subdeducSeq:
+            c = subdeduc.makeClone()
+            clone.addSubDeduc(c)
 
     def isDeduc(self):
         return False
@@ -820,8 +906,42 @@ class Node(NodeLikeObj):
         self.nodeType = nodeType
         self.name = name
         self.subnodeSeq = []
-        self.textRange = None
         self.docReference = None
+
+    def makeClone(self, name=None):
+        """
+        Make a clone of this node. You can pass a name if you want to specify
+        that; otherwise, it gets the same name as this node.
+        """
+        if self.nodeType in [NodeType.GHOST, NodeType.QSTN, NodeType.UCON]:
+            # At the moment, I don't know what it would mean to clone ghost or
+            # special nodes. It sounds like sth we shouldn't be doing, but I
+            # haven't thought about it a lot either.
+            msg = (
+                f'Nodes of type `{self.nodeType}` cannot be cloned.'
+                f' (Trying to clone `{self.libpath}`.)'
+            )
+            raise PfscExcep(msg, PECode.CANNOT_CLONE_NODE)
+
+        clone = node_factory(self.nodeType, name or self.name)
+        self.populateClone(clone)
+        return clone
+
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        # This list of cloned properties can grow in future versions, as we
+        # learn what it is that we want...
+        cloned_props = [
+            'en', 'sy', 'de', 'fr', 'ru',
+            'doc',
+        ]
+        for prop_name in cloned_props:
+            if (value := self.get(prop_name)) is not None:
+                clone[prop_name] = value
+        # Recurse on subnodes
+        for subnode in self.subnodeSeq:
+            sc = subnode.makeClone()
+            clone.addNode(sc)
 
     def getChildren(self):
         return self.subnodeSeq
@@ -835,10 +955,6 @@ class Node(NodeLikeObj):
     def resolve_targets(self):
         "Should be overridden by any special node types that may have targets to be resolved."
         pass
-
-    def setTextRange(self, row0, col0, row1, col1):
-        "Define the range in the module text over which this node was defined."
-        self.textRange = (row0, col0, row1, col1)
 
     def resolveDocRefs(self, default_doc_info):
         ref_text = self.get('doc')
@@ -913,6 +1029,7 @@ class Node(NodeLikeObj):
         dg['isAssertoric'] = self.isAssertoric()
         dg['intraDeducPath'] = self.getIntradeducPath()
         dg['textRange'] = self.textRange
+        dg['cloneOf'] = self.cloneOf.getLibpathV() if self.cloneOf else None
 
         if self.docReference:
             dg['docRef'] = self.docReference.combiner_code
@@ -1095,6 +1212,10 @@ class Flse(Node):
         # list of contradicted `Supp` instances themselves:
         self.contra_supps = []
 
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.contra_lps = self.contra_lps[:]
+
     def set_contra(self, contra_lps):
         """
         Set the list of libpaths of supposition nodes that are contradicted.
@@ -1121,7 +1242,7 @@ class Flse(Node):
     def resolve_targets(self):
         desc = 'named as contra for node %s' % self.getLibpath()
         for lp in self.contra_lps:
-            node = self.parent.getFromAncestor(lp, missing_obj_descrip=desc)[0]
+            node = self.resolveRelpathToRealOrClone(lp, missing_obj_descrip=desc)
             if not isinstance(node, Supp):
                 msg = 'Node %s named as contra for node %s is of wrong type.' % (lp, self.getLibpath())
                 msg += ' Only `supp` nodes may be named.'
@@ -1135,6 +1256,10 @@ class WologNode(Node):
         Node.__init__(self, type_, name)
         # boolean to mark whether this step is "wolog":
         self.wolog = False
+
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.wolog = self.wolog
 
     def set_wolog(self, b):
         """
@@ -1168,6 +1293,10 @@ class Supp(WologNode):
         # set of actual alternates (i.e. instances of `Supp` class):
         self.alternates = set()
 
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.alternate_lps = self.alternate_lps[:]
+
     def set_alternate_lps(self, alts):
         """
         Set the list of alternate_lps for this supposition.
@@ -1200,21 +1329,28 @@ class Supp(WologNode):
         self.alternates = alts
 
     def resolve_targets(self):
+        for alt_lp in self.alternate_lps:
+            self.resolve_target(alt_lp)
+
+    def resolve_target(self, alt_lp):
+        """
+        param alt_lp: relative libpath resolvable from here, and referencing
+            and alternative supp to this one.
+        """
         # It is already enforced syntactically that a supp node can never be
         # declared wolog and also name alternates. So we do not need to check that here.
         desc = 'named as alternate to node %s' % self.getLibpath()
-        for alt_lp in self.alternate_lps:
-            alt = self.parent.getFromAncestor(alt_lp, missing_obj_descrip=desc)[0]
-            if not isinstance(alt, Supp):
-                msg = 'Node %s named as alternate for node %s is of wrong type.' % (alt_lp, self.getLibpath())
-                msg += ' Only `supp` nodes may be named.'
-                raise PfscExcep(msg, PECode.TARGET_OF_WRONG_TYPE)
-            # We also check that the alternative it is not identical with this one.
-            # Supp nodes should not be named as alternates of themselves.
-            if alt is self:
-                msg = 'Supp node %s should not name self as alternate.' % self.getLibpath()
-                raise PfscExcep(msg, PECode.SUPP_NODE_NAMES_SELF_AS_ALTERNATE)
-            self.alternates.add(alt)
+        alt = self.resolveRelpathToRealOrClone(alt_lp, missing_obj_descrip=desc)
+        if not isinstance(alt, Supp):
+            msg = 'Node %s named as alternate for node %s is of wrong type.' % (alt_lp, self.getLibpath())
+            msg += ' Only `supp` nodes may be named.'
+            raise PfscExcep(msg, PECode.TARGET_OF_WRONG_TYPE)
+        # We also check that the alternative is not identical with this one.
+        # Supp nodes should not be named as alternates of themselves.
+        if alt is self:
+            msg = 'Supp node %s should not name self as alternate.' % self.getLibpath()
+            raise PfscExcep(msg, PECode.SUPP_NODE_NAMES_SELF_AS_ALTERNATE)
+        self.alternates.add(alt)
 
 
 class CompoundNode(Node):
@@ -1226,6 +1362,10 @@ class QuantifierNode(CompoundNode):
     def __init__(self, nodetype, name):
         Node.__init__(self, nodetype, name)
         self.defaultText = ''
+
+    def populateClone(self, clone):
+        super().populateClone(clone)
+        clone.defaultText = self.defaultText
 
     def writeLabelHTML(self, lang):
         return ''
@@ -1370,3 +1510,21 @@ SPECIAL_NODE_CLASS_LOOKUP = {
     NodeType.UNIV: Univ,
     NodeType.WITH: With
 }
+
+
+def node_factory(type_, name):
+    """
+    Given the desired type for a new node, and its desired name, construct
+    an instance of the right class.
+
+    param type_: element of the NodeType enum class
+    param name: string
+
+    return: instance of some subclass of Node
+    """
+    cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
+    if cls is None:
+        node = Node(type_, name)
+    else:
+        node = cls(name)
+    return node

@@ -23,12 +23,14 @@ import datetime, re
 import inspect
 import pathlib
 
-from lark import Lark
+from lark import Lark, v_args
 from lark.exceptions import VisitError, LarkError
 
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.freestrings import PfscJsonTransformer, json_grammar, json_grammar_imports
-from pfsc.lang.deductions import PfscObj, Deduction, SubDeduc, Node, Supp, Flse, SPECIAL_NODE_CLASS_LOOKUP
+from pfsc.lang.deductions import (
+    PfscObj, Deduction, SubDeduc, Node, Supp, Flse, node_factory,
+)
 from pfsc.lang.objects import PfscDefn
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
@@ -383,7 +385,7 @@ pfsc_grammar = r'''
     deducpreamble : "deduc" IDENTIFIER (OF targets)? (WITH targets)?
     targets : libpath ("," libpath)*
 
-    deduccontents : (subdeduc|node|assignment)*
+    deduccontents : (subdeduc|node|clone|assignment)*
 
     subdeduc : "subdeduc" IDENTIFIER "{" deduccontents "}"
 
@@ -401,6 +403,8 @@ pfsc_grammar = r'''
     flsenode : "flse" IDENTIFIER ("contra" targets)? "{" nodecontents "}"
 
     nodecontents : (node|assignment)*
+
+    clone : "clone" libpath ("as" IDENTIFIER)?
 
     anno: "anno" IDENTIFIER ("on" targets)?
 
@@ -429,7 +433,13 @@ pfsc_grammar = r'''
 pfsc_grammar_imports = '''
 '''
 
-pfsc_parser = Lark(pfsc_grammar + json_grammar + pfsc_grammar_imports + json_grammar_imports, start='module')
+# Pass `propagate_positions=True` so that non-terminal handlers in the `ModuleLoader`
+# can use `@v_args` to get a `meta` arg containing line and column numbers.
+pfsc_parser = Lark(
+    pfsc_grammar + json_grammar + pfsc_grammar_imports + json_grammar_imports,
+    start='module',
+    propagate_positions=True
+)
 
 BLOCK_RE = re.compile(r'(anno +([a-zA-Z]\w*)[^@]*?)@@@(\w{,8})(\s.*?)@@@\3', flags=re.S)
 
@@ -625,6 +635,32 @@ def parse_module_text(text):
         parse_msg = re.sub(r'at line (\d+)', lambda m: ('at line %s' % bc.map_line_num_to_orig(int(m.group(1)))), str(e))
         raise PfscExcep(parse_msg, PECode.PARSING_ERROR)
     return tree, bc
+
+
+class PreClone(PfscObj):
+    """
+    Represents an intention to make a clone of a node or subdeduc.
+    """
+
+    def __init__(self, orig_libpath, local_name):
+        PfscObj.__init__(self)
+        self.orig_libpath = orig_libpath
+        self.local_name = local_name
+
+    def make_clone(self, owner):
+        orig_obj, _ = owner.getFromAncestor(
+            self.orig_libpath,
+            missing_obj_descrip=f'cloned in {owner.name}'
+        )
+        if isinstance(orig_obj, Node):
+            # Asking the node to write its label causes it to resolve any
+            # nodelinks therein, populating its `self.relpathResolutions`
+            # accordingly, which will then be copied into the clone.
+            orig_obj.buildDashgraph()
+        clone = orig_obj.makeClone(name=self.local_name)
+        clone.textRange = self.textRange
+        return clone
+
 
 class PfscAssignment(PfscObj):
 
@@ -888,6 +924,9 @@ class ModuleLoader(PfscJsonTransformer):
         """
         if names is None: names = set()
         for item in contents:
+            # Resolve clones
+            if isinstance(item, PreClone):
+                item = item.make_clone(owner)
             # Must test if SubDeduc _before_ testing if Deduction, since the former is a subclass of the latter.
             if isinstance(item, SubDeduc):
                 self.ban_duplicates(names, item.name)
@@ -989,12 +1028,7 @@ class ModuleLoader(PfscJsonTransformer):
 
     def basicnode(self, items):
         type_, name, contents = items
-        # Construct the node instance
-        cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
-        if cls is None:
-            node = Node(type_, name)
-        else:
-            node = cls(name)
+        node = node_factory(type_, name)
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)
         return node
@@ -1011,8 +1045,7 @@ class ModuleLoader(PfscJsonTransformer):
 
     def wolognode(self, items):
         type_, name, contents = items
-        cls = SPECIAL_NODE_CLASS_LOOKUP.get(type_)
-        node = cls(name)
+        node = node_factory(type_, name)
         node.set_wolog(True)
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)
@@ -1027,6 +1060,17 @@ class ModuleLoader(PfscJsonTransformer):
         self.set_contents(node, contents)
         self.set_first_line(node, name.line)
         return node
+
+    # This is the first non-terminal where we've wanted to know the line num on
+    # which it was defined, but don't have any `Token` instances to consult for
+    # that. So we need Lark's `meta` arg to be passed.
+    @v_args(meta=True)
+    def clone(self, items, meta):
+        libpath = items[0]
+        local_name = items[1] if len(items) == 2 else None
+        pc = PreClone(libpath, local_name)
+        self.set_first_line(pc, meta.line)
+        return pc
 
     def deducpreamble(self, items):
         name = items[0]

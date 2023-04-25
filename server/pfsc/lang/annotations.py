@@ -73,7 +73,6 @@ class Annotation(Enrichment):
         self.widget_seq = []
         self.escaped_html = None
         self.anno_data = None
-        self.textRange = None
 
     @property
     def trusted(self):
@@ -86,12 +85,6 @@ class Annotation(Enrichment):
         for item in self.items.values():
             if callable(getattr(item, 'resolveLibpathsRec', None)):
                 item.resolveLibpathsRec()
-
-    def setTextRange(self, row0, col0, row1, col1):
-        """
-        Define the range in the module text over which this entity was defined.
-        """
-        self.textRange = (row0, col0, row1, col1)
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]

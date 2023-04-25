@@ -56,6 +56,7 @@ class PfscObj:
         self.name = ''
         self.parent = None
         self.origin = None
+        self.textRange = None
 
     def listAllItems(self):
         return list(self.items.keys())
@@ -143,6 +144,12 @@ class PfscObj:
         for item in self.items.values():
             if callable(getattr(item, 'cascadeLibpaths', None)):
                 item.cascadeLibpaths()
+
+    def setTextRange(self, row0, col0, row1, col1):
+        """
+        Define the range in the module text over which this entity was defined.
+        """
+        self.textRange = (row0, col0, row1, col1)
 
     def isNative(self, item, selfNative=True):
         """
@@ -246,6 +253,16 @@ class PfscObj:
         if mod is None:
             return None
         return mod.getVersion()
+
+    def getLibpathV(self):
+        """
+        Get `libpath@version` string for this object.
+        """
+        lp = self.getLibpath()
+        v = self.getVersion()
+        if v:
+            return f'{lp}@{v}'
+        return lp
 
     def getMajorVersion(self, allow_WIP=True):
         vs = self.getVersion()

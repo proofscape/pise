@@ -22,6 +22,7 @@ Improvements:
   ([#21](https://github.com/proofscape/pise/pull/21)).
 * Add `z` command to combiner code syntax.
   ([#21](https://github.com/proofscape/pise/pull/21)).
+* Add `clone` command to pfsc module syntax.
 
 Bug Fixes
 
