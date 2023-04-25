@@ -590,7 +590,8 @@ var ChartManager = declare(AbstractContentManager, {
                 }
             }
             // For deducs that have been closed (and not reloaded), unsubscribe from refresh,
-            // and delete the auto reload menu item from the menu plugin's mapping to free memory.
+            // and delete the "auto reload" menu item from the menu plugin's mapping, in order
+            // to free memory.
             for (let deducpath of trulyClosedDeducpaths) {
                 this.setAutoRefreshDeduc(forest.id, deducpath, false);
                 // Free memory:
@@ -848,23 +849,35 @@ var ChartManager = declare(AbstractContentManager, {
      * param doAutoRefresh: boolean, saying whether we do (true) or don't (false) want auto-refresh
      */
     setAutoRefreshDeduc: function(forestId, deducpath, doAutoRefresh) {
-        const paneId = this.paneIdByForestId[forestId];
-        this.subscriptionManager.setSubscription(paneId, deducpath, doAutoRefresh);
+        // Our subclass `TheorymapManager` currently has no `this.subscriptionManager`, and
+        // is fine with a no-op here.
+        if (this.subscriptionManager) {
+            const paneId = this.paneIdByForestId[forestId];
+            this.subscriptionManager.setSubscription(paneId, deducpath, doAutoRefresh);
+        }
     },
 
     /* Remove a given forest from all its auto-refresh subscriptions.
      */
     removeAllAutoRefreshForForest: function(forestId) {
-        const paneId = this.paneIdByForestId[forestId];
-        this.subscriptionManager.removeAllSubscriptionsForPane(paneId);
+        // Our subclass `TheorymapManager` currently has no `this.subscriptionManager`, and
+        // is fine with a no-op here.
+        if (this.subscriptionManager) {
+            const paneId = this.paneIdByForestId[forestId];
+            this.subscriptionManager.removeAllSubscriptionsForPane(paneId);
+        }
     },
 
     /* Check whether a certain deduction in a certain forest is currently subscribed
      * for auto-refresh.
      */
     checkAutoRefreshDeduc: function(forestId, deducpath) {
-        const paneId = this.paneIdByForestId[forestId];
-        return this.subscriptionManager.checkSubscription(paneId, deducpath);
+        // Our subclass `TheorymapManager` currently has no `this.subscriptionManager`, and
+        // is fine with a no-op here.
+        if (this.subscriptionManager) {
+            const paneId = this.paneIdByForestId[forestId];
+            return this.subscriptionManager.checkSubscription(paneId, deducpath);
+        }
     },
 
 });
