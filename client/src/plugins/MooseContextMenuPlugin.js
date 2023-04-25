@@ -261,6 +261,52 @@ var MooseContextMenuPlugin = declare(null, {
             }
         }));
 
+        if (theNode.cloneOf) {
+            const original = iseUtil.parseTailVersionedLibpath(theNode.cloneOf);
+
+            menu.addChild(new MenuSeparator());
+
+            const cloneOfSubmenu = new Menu({});
+            menu.addChild(new PopupMenuItem({
+                label: 'Clone of...',
+                popup: cloneOfSubmenu,
+            }));
+
+            const cloneOfTsHome = document.createElement("div");
+            iseUtil.addTailSelector(cloneOfTsHome, original.libpath.split('.'));
+            cloneOfSubmenu.addChild(new PopupMenuItem({
+                label: 'Copy libpath',
+                popup: new ContentPane({
+                    class: 'popupCP',
+                    content: cloneOfTsHome,
+                }),
+            }));
+
+            cloneOfSubmenu.addChild(new MenuItem({
+                label: 'Open / Go to',
+                onClick: function(){
+                    forest.requestState({
+                        view: original.libpath,
+                        versions: {
+                            [original.libpath]: original.version,
+                        },
+                    });
+                }
+            }));
+
+            cloneOfSubmenu.addChild(new MenuItem({
+                label: 'Open in new tab',
+                onClick: function(){
+                    chartManager.openExternalContent({
+                        type: "CHART",
+                        libpath: original.libpath,
+                        version: original.version,
+                        view: original.libpath,
+                    });
+                }
+            }));
+        }
+
         if (theNode.nodetype !== 'ded') {
 
             // Separator.
