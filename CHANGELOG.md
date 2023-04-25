@@ -7,38 +7,39 @@ Improvements:
   ([#13](https://github.com/proofscape/pise/pull/13)).
 * When nodes define both latex and docref labels, the latter now only serves
   to navigate a linked doc; it contributes to the label only when no latex
-  label is defined.
+  label is defined
   ([#18](https://github.com/proofscape/pise/pull/18)).
 * In addition to the old navigation links `N --> C` (notes to charts), we now
-  support `D --> T` (doc to tree) as well as `N <--> D <--> C`.
+  support `D --> T` (doc to tree) as well as `N <--> D <--> C`
   ([#21](https://github.com/proofscape/pise/pull/21)).
-* Navigation links are editable via drag-and-drop, and via tab context menu.
+* Navigation links are editable via drag-and-drop, and via tab context menu
   ([#21](https://github.com/proofscape/pise/pull/21)).
 * When defining a docref `doc#code` for a node, may omit the `doc#` part
-  if a `docInfo` field is defined in the surrounding deduc.
+  if a `docInfo` field is defined in the surrounding deduc
   ([#21](https://github.com/proofscape/pise/pull/21)).
 * New pdf widget syntax: added `doc` field; `sel` may point to a node libpath,
-  to clone its doc ref.
+  to clone its doc ref
   ([#21](https://github.com/proofscape/pise/pull/21)).
-* Add `z` command to combiner code syntax.
+* Add `z` command to combiner code syntax
   ([#21](https://github.com/proofscape/pise/pull/21)).
-* Add `clone` command to pfsc module syntax.
+* Add `clone` command to pfsc module syntax
+  ([#22](https://github.com/proofscape/pise/pull/22)).
 
 Bug Fixes
 
 * Widget group control mappings across windows used to be able to create an
   inconsistent state after the primary window was reloaded. Now such mappings
-  are properly saved and restored.
+  are properly saved and restored
   ([#16](https://github.com/proofscape/pise/pull/16)).
-* Manual sorting of tabs is now properly recorded in the saved state.
+* Manual sorting of tabs is now properly recorded in the saved state
   ([#17](https://github.com/proofscape/pise/pull/17)).
 * Stopped build from crashing if a whole module was (accidentally) named in a
-  meson script.
+  meson script
   ([#19](https://github.com/proofscape/pise/pull/19)).
 * Doc refs can no longer be defined under `pdf` field in nodes; instead,
-  must now use `doc` field.
+  must now use `doc` field
   ([#21](https://github.com/proofscape/pise/pull/21)).
-* New pdf widget syntax: `selection` becomes `sel`; `sel: true` is new default.
+* New pdf widget syntax: `selection` becomes `sel`; `sel: true` is new default
   ([#21](https://github.com/proofscape/pise/pull/21)).
 
 ## 0.26.1 (221216)
