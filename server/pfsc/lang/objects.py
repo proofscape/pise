@@ -254,6 +254,16 @@ class PfscObj:
             return None
         return mod.getVersion()
 
+    def getLibpathV(self):
+        """
+        Get `libpath@version` string for this object.
+        """
+        lp = self.getLibpath()
+        v = self.getVersion()
+        if v:
+            return f'{lp}@{v}'
+        return lp
+
     def getMajorVersion(self, allow_WIP=True):
         vs = self.getVersion()
         return get_major_version_part(vs, allow_WIP=allow_WIP)

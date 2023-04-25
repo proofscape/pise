@@ -92,10 +92,10 @@ def test_clone_01(app):
             "test.local.foo.Foo.A25",
         ]
         ch = dg["children"]
-        assert ch[no[0]]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.A10"
+        assert ch[no[0]]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.A10@WIP"
         assert ch[no[0]]["labelHTML"] == "%3Cp%3EThe%20class%20number%20of%20%24%5Cmathbb%7BQ%7D(%5Calpha)%24%3Cbr%3E%0Ais%20not%20divisible%20by%20%24%5Clambda%24.%3C%2Fp%3E%0A"
         assert ch[no[1]]["cloneOf"] is None
-        assert ch[no[2]]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.A30"
+        assert ch[no[2]]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.A30@WIP"
 
 
 @pytest.mark.psm
@@ -141,8 +141,8 @@ def test_clone_02a(app):
             "test.local.foo.Foo.F"
         ]
         ch = dg["children"]
-        assert ch[no[0]]["cloneOf"] == "test.foo.bar.results.Pf.S"
-        assert ch[no[2]]["cloneOf"] == "test.foo.bar.results.Pf.F"
+        assert ch[no[0]]["cloneOf"] == "test.foo.bar.results.Pf.S@WIP"
+        assert ch[no[2]]["cloneOf"] == "test.foo.bar.results.Pf.F@WIP"
         assert ch[no[2]]["contra"] == [
             "test.local.foo.Foo.S"
         ]
@@ -187,7 +187,7 @@ def test_clone_02b(app):
             "test.local.foo.Foo.F"
         ]
         ch = dg["children"]
-        assert ch[no[1]]["cloneOf"] == "test.foo.bar.results.Pf.F"
+        assert ch[no[1]]["cloneOf"] == "test.foo.bar.results.Pf.F@WIP"
         assert ch[no[1]]["contra"] == [
             "test.foo.bar.results.Pf.S"
         ]
@@ -230,7 +230,7 @@ def test_clone_03a(app):
         print(json.dumps(dg, indent=4))
 
         ch = dg["children"]
-        assert ch["test.local.foo.Foo.S10"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs2.S"
+        assert ch["test.local.foo.Foo.S10"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs2.S@WIP"
         assert ch["test.local.foo.Foo.S10"]["alternates"] == [
             "test.hist.lit.K.ummer.Cr040_08.Pf.Cs1.S"
         ]
@@ -269,11 +269,11 @@ def test_clone_03b(app):
         print(json.dumps(dg, indent=4))
 
         ch = dg["children"]
-        assert ch["test.local.foo.Foo.S05"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs1.S"
+        assert ch["test.local.foo.Foo.S05"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs1.S@WIP"
         assert ch["test.local.foo.Foo.S05"]["alternates"] == [
             "test.local.foo.Foo.S10"
         ]
-        assert ch["test.local.foo.Foo.S10"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs2.S"
+        assert ch["test.local.foo.Foo.S10"]["cloneOf"] == "test.hist.lit.K.ummer.Cr040_08.Pf.Cs2.S@WIP"
         assert ch["test.local.foo.Foo.S10"]["alternates"] == [
             "test.local.foo.Foo.S05"
         ]

@@ -777,7 +777,7 @@ class Deduction(Enrichment, NodeLikeObj):
         dg['labelHTML'] = ''
         dg['isAssertoric'] = False
         dg['nodeOrder'] = [u.actualNode.getLibpath() for u in nodesInOrder]
-        dg['cloneOf'] = self.cloneOf.libpath if self.cloneOf else None
+        dg['cloneOf'] = self.cloneOf.getLibpathV() if self.cloneOf else None
 
         self.add_comparisons_to_dashgraph(dg)
 
@@ -1029,7 +1029,7 @@ class Node(NodeLikeObj):
         dg['isAssertoric'] = self.isAssertoric()
         dg['intraDeducPath'] = self.getIntradeducPath()
         dg['textRange'] = self.textRange
-        dg['cloneOf'] = self.cloneOf.libpath if self.cloneOf else None
+        dg['cloneOf'] = self.cloneOf.getLibpathV() if self.cloneOf else None
 
         if self.docReference:
             dg['docRef'] = self.docReference.combiner_code
