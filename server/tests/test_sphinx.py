@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from flask import Flask
 
 from pfsc.build.repo import get_repo_info
+from pfsc.build.manifest import load_manifest
 
 
 def get_widget_data_from_script_tag(soup):
@@ -79,3 +80,19 @@ def test_generated_pfsc_widget_data_script_tag(app):
         soup = BeautifulSoup(html, 'html.parser')
         widget_data = get_widget_data_from_script_tag(soup)
         assert widget_data == expected_widget_data
+
+
+def test_manifest(app):
+    """
+    Test that we get the expected structures in the build manifest.
+    """
+    with app.app_context():
+        libpath = 'test.spx.doc1'
+        version = 'v0.1.0'
+        manifest = load_manifest(libpath, version=version)
+        assert manifest.has_sphinx_doc is True
+
+        root = manifest.get_root_node()
+        s = root.children[0]
+        assert s.id == f'{libpath}._sphinx'
+        assert s.data['type'] == "SPHINX"

@@ -590,9 +590,7 @@ class Builder:
         except (SphinxError, Exception) as e:
             raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
 
-        # TODO:
-        #  Set flag in manifest, indicating that this repo has a Sphinx doc.
-
+        self.manifest.set_has_sphinx_doc()
 
     def inject_origins(self):
         visitor = OriginInjectionVisitor(self.mii.origins)
