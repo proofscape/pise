@@ -74,7 +74,7 @@ def test_generated_pfsc_widget_data_script_tag(app):
         version = 'v0.1.0'
         ri = get_repo_info(libpath)
         build_dir = ri.get_sphinx_build_dir(version)
-        with open(pathlib.Path(build_dir) / 'html' / 'index.html') as f:
+        with open(pathlib.Path(build_dir) / 'index.html') as f:
             html = f.read()
         soup = BeautifulSoup(html, 'html.parser')
         widget_data = get_widget_data_from_script_tag(soup)
