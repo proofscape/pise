@@ -304,6 +304,10 @@ class SphinxBuildLogStream:
             self.monitor.set_state(count, denom, message)
 
     def flush(self):
+        """
+        Just implementing the `stream` interface so that an instance of this
+        class can be passed when constructing a `logging.StreamHandler()`.
+        """
         pass
 
 
