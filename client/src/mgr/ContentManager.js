@@ -461,6 +461,7 @@ var ContentManager = declare(null, {
     },
 
     setupSphinxContentPane: function(title, cp) {
+        domStyle.set(cp.domNode, "padding", 0);
         cp.set('content', '<div class="cpSocket sphinxSocket fullheight tex2jax_ignore"></div>');
         cp.set('title', title);
         var sel = '#' + cp.id + ' .cpSocket';

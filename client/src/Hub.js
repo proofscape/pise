@@ -907,6 +907,7 @@ var Hub = declare(null, {
         this.editManager.setTheme(theme);
         this.pdfManager.setTheme(theme);
         this.notesManager.setTheme(theme);
+        this.sphinxManager.setTheme(theme);
         // Store the new theme value.
         this.currentTheme = theme;
     },

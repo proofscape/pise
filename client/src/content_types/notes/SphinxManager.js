@@ -16,9 +16,11 @@
 
 define([
     "dojo/_base/declare",
+    "dojo/dom-construct",
     "ise/content_types/AbstractContentManager",
 ], function(
     declare,
+    domConstruct,
     AbstractContentManager
 ) {
 
@@ -28,9 +30,14 @@ const SphinxManager = declare(AbstractContentManager, {
     // Properties
     hub: null,
 
+    // FIXME:
+    //  Should instead be a lookup of SphinxControllers (once we have that class)
+    iframesByPaneId: null,
+
     // Methods
 
     constructor: function() {
+        this.iframesByPaneId = new Map();
     },
 
     /* Initialize a ContentPane with content of this manager's type.
@@ -46,6 +53,26 @@ const SphinxManager = declare(AbstractContentManager, {
      */
     initContent: async function(info, elt, pane) {
         console.log('sphinx manager init content:', info);
+        // Get the parts of the libpath, minus the trailing `_sphinx` segment.
+        const p = info.libpath.split('.').slice(0, -1);
+        const url = `static/sphinx/${p.join("/")}/${info.version}/index.html`
+        console.log(url);
+
+        const iframe = domConstruct.toDom(`
+            <iframe
+                width="100%"
+                height="100%"
+                src="${url}">
+            </iframe>
+        `);
+        elt.appendChild(iframe);
+        this.iframesByPaneId.set(pane.id, pane.domNode.children[0].children[0]);
+    },
+
+    setTheme: function(theme) {
+        for (const iframe of this.iframesByPaneId.values()) {
+            iframe.contentWindow.document.body.dataset.theme = theme;
+        }
     },
 
     /* Update the content of an existing pane of this manager's type.
