@@ -184,7 +184,10 @@ class Manifest:
         self.has_sphinx_doc = True
         if add_node:
             sphinx_node = ManifestTreeNode(
-                f'{self.root_node.id}._sphinx', type="SPHINX")
+                f'{self.root_node.id}._sphinx',
+                type="SPHINX",
+                name="Sphinx",
+            )
             self.root_node.add_child(sphinx_node, prepend=True)
 
     def build_dict(self):

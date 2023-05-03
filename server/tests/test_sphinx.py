@@ -97,6 +97,7 @@ def test_manifest(app):
         s = root.children[0]
         assert s.id == f'{libpath}._sphinx'
         assert s.data['type'] == "SPHINX"
+        assert s.data['name'] == "Sphinx"
 
         model = []
         root.build_relational_model(model)
