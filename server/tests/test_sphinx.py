@@ -46,10 +46,10 @@ expected_widget_data = json.loads("""
 [
     {
         "view": [
-            "test.foo.bar.Thm1.Pf"
+            "test.moo.bar.results.Pf"
         ],
         "versions": {
-            "test.foo.bar": "v1.2.4"
+            "test.moo.bar": "v0.3.4"
         },
         "pane_group": "test.spx.doc1@v0.1.0._sphinx.index:CHART:",
         "src_line": 13,

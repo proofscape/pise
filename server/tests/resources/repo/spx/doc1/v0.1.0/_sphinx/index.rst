@@ -8,7 +8,7 @@ Welcome to Foobar's documentation!
 
 .. pfsc-defns::
     :libpaths:
-        Pf: test.foo.bar.Thm1.Pf
+        Pf: test.moo.bar.results.Pf
 
 Let's try :pfsc-chart:`an inline chart widget <Pf>`.
 

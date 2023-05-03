@@ -158,9 +158,10 @@ from tests.util import clear_all_indexing, get_basic_repos
     #['test.moo.bar', 'v0.3.4'],
     #['test.moo.study', 'v1.1.0'],
     #['test.hist.lit', 'v0.0.0'],
-    ['test.comment.notes', 'v0.1.0'],
+    #['test.comment.notes', 'v0.1.0'],
     #['test.wid.get', 'v0.1.0'],
     #['test.moo.beta', 'v0.1.1'],
+    ['test.spx.doc1', 'v0.1.0'],
 ])
 @pytest.mark.psm
 def test_build_release(app, repopath, version):
