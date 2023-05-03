@@ -57,7 +57,8 @@ var ContentManager = declare(null, {
         NOTES:  "NOTES",
         SOURCE: "SOURCE",
         PDF: "PDF",
-        THEORYMAP: "THEORYMAP"
+        THEORYMAP: "THEORYMAP",
+        SPHINX: "SPHINX",
     },
     typeColors: {
         PDF: "red",
@@ -92,15 +93,15 @@ var ContentManager = declare(null, {
 
         this.contentRegistry = {};
 
-        // Method Lookup
         // This maps each content type to the method that sets up panes for that type.
-        var f = {};
-        f[this.crType.NOTES]  = this.setupNotesContentPane.bind(this);
-        f[this.crType.CHART]  = this.setupChartContentPane.bind(this);
-        f[this.crType.SOURCE] = this.setupEditorContentPane.bind(this);
-        f[this.crType.PDF]    = this.setupPdfContentPane.bind(this);
-        f[this.crType.THEORYMAP] = this.setupTheorymapContentPane.bind(this);
-        this.setupMethods = f;
+        this.setupMethods = {
+            [this.crType.NOTES]: this.setupNotesContentPane.bind(this),
+            [this.crType.CHART]: this.setupChartContentPane.bind(this),
+            [this.crType.SOURCE]: this.setupEditorContentPane.bind(this),
+            [this.crType.PDF]: this.setupPdfContentPane.bind(this),
+            [this.crType.THEORYMAP]: this.setupTheorymapContentPane.bind(this),
+            [this.crType.SPHINX]: this.setupSphinxContentPane.bind(this),
+        };
 
         // Type category arrays
         this.libpathTypes = [
@@ -155,6 +156,7 @@ var ContentManager = declare(null, {
         case this.crType.SOURCE: return this.hub.editManager;
         case this.crType.PDF: return this.hub.pdfManager;
         case this.crType.THEORYMAP: return this.hub.theorymapManager;
+        case this.crType.SPHINX: return this.hub.sphinxManager;
         }
     },
 
@@ -401,6 +403,7 @@ var ContentManager = declare(null, {
                 case this.crType.SOURCE: iconClass = 'tabIcon contentIcon srcIcon20'; break;
                 case this.crType.PDF: iconClass = 'tabIcon pdfContentTypeIcon'; break;
                 case this.crType.THEORYMAP: iconClass = 'tabIcon contentIcon deducIcon20'; break;
+                case this.crType.SPHINX: iconClass = 'tabIcon sphinxIcon16'; break;
             }
             icon_part = '<span class="'+iconClass+'">'+iconText+'</span>';
         }
@@ -455,6 +458,13 @@ var ContentManager = declare(null, {
                  info.origType !== "MODULE") ? N - 1 : N,
             subpath = parts.slice(a, b).join('.');
         return subpath;
+    },
+
+    setupSphinxContentPane: function(title, cp) {
+        cp.set('content', '<div class="cpSocket sphinxSocket fullheight tex2jax_ignore"></div>');
+        cp.set('title', title);
+        var sel = '#' + cp.id + ' .cpSocket';
+        return sel;
     },
 
     setupTheorymapContentPane: function(title, cp) {

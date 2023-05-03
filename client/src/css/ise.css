@@ -525,10 +525,12 @@ h6.labelWidget:hover .labellink {
 
 .sphinxIcon16 {
     background-image: url(../img/icons/sphinx_16.png);
+    background-repeat: no-repeat;
 }
 
 .themeDark .sphinxIcon16 {
     background-image: url(../img/icons/sphinx_16_dark.png);
+    background-repeat: no-repeat;
 }
 
 .iconDepth0 {

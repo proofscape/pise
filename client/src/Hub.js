@@ -52,6 +52,7 @@ var Hub = declare(null, {
     contentManager: null,
     editManager: null,
     notesManager: null,
+    sphinxManager: null,
     chartManager: null,
     pdfManager: null,
     feedbackManager: null,
@@ -145,6 +146,7 @@ var Hub = declare(null, {
         contentManager,
         editManager,
         notesManager,
+        sphinxManager,
         chartManager,
         pdfManager,
         feedbackManager,
@@ -195,6 +197,9 @@ var Hub = declare(null, {
 
         this.notesManager = notesManager;
         notesManager.hub = this;
+
+        this.sphinxManager = sphinxManager;
+        sphinxManager.hub = this;
 
         this.chartManager = chartManager;
         chartManager.hub = this;
