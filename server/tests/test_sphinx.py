@@ -84,7 +84,8 @@ def test_generated_pfsc_widget_data_script_tag(app):
 
 def test_manifest(app):
     """
-    Test that we get the expected structures in the build manifest.
+    Test that we get the expected structure in the build manifest,
+    and in the relational model.
     """
     with app.app_context():
         libpath = 'test.spx.doc1'
@@ -96,3 +97,10 @@ def test_manifest(app):
         s = root.children[0]
         assert s.id == f'{libpath}._sphinx'
         assert s.data['type'] == "SPHINX"
+
+        model = []
+        root.build_relational_model(model)
+        # Should have exactly one node of type "SPHINX", and it should be the
+        # second model element, as the first child of the root node.
+        sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
+        assert sphinx_indices == [1]

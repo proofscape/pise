@@ -72,7 +72,8 @@ def build_manifest_from_dict(d):
     manifest.set_build_info_dict(d["build"])
     manifest.set_doc_infos_dict(d.get("doc_info", {}))
     if d.get("sphinx"):
-        manifest.set_has_sphinx_doc()
+        # Node is already in tree model, so don't add again.
+        manifest.set_has_sphinx_doc(add_node=False)
     return manifest
 
 
@@ -179,11 +180,12 @@ class Manifest:
     def set_doc_infos_dict(self, d):
         self.doc_infos = d
 
-    def set_has_sphinx_doc(self):
+    def set_has_sphinx_doc(self, add_node=True):
         self.has_sphinx_doc = True
-        sphinx_node = ManifestTreeNode(
-            f'{self.root_node.id}._sphinx', type="SPHINX")
-        self.root_node.add_child(sphinx_node, prepend=True)
+        if add_node:
+            sphinx_node = ManifestTreeNode(
+                f'{self.root_node.id}._sphinx', type="SPHINX")
+            self.root_node.add_child(sphinx_node, prepend=True)
 
     def build_dict(self):
         """
