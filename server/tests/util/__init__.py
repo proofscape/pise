@@ -83,12 +83,15 @@ def gather_repo_info():
     return REPOS
 
 
-def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
+def make_repos(config=LocalDevConfig, verbose=True, cautious=False, only=None):
     """
     Set up for unit tests by building all the "test" repos.
     :param config: a Config subclass. This is needed for the PFSC_LIB_ROOT.
     :param verbose: control verbosity
     :param cautious: control whether we ask before rebuilding existing repos
+    :param only: if None, simply make *all* the test repos. If not None,
+        should be a list of ordered pairs (user, proj) giving those user/project
+        pairs that are the only repos you want to make.
     :return: nothing
     """
     # Ensure the `test` folder exists.
@@ -97,7 +100,10 @@ def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
         os.makedirs(LIB_TEST_DIR)
     REPOS = gather_repo_info()
     for repo in REPOS:
-        if verbose: print("Repo test.%s.%s..." % (repo.user, repo.proj))
+        user_proj_pair = (repo.user, repo.proj)
+        if only is not None and user_proj_pair not in only:
+            continue
+        if verbose: print("Repo test.%s.%s..." % user_proj_pair)
         USER_DIR = os.path.join(LIB_TEST_DIR, repo.user)
         PROJ_DIR = os.path.join(USER_DIR, repo.proj)
         # Make user dir if does not exist already.

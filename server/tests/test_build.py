@@ -24,6 +24,8 @@ from pfsc.build.products import load_annotation
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer
 
+from tests.util import clear_all_indexing, get_basic_repos, make_repos
+
 
 # FIXME: How do we skip a test based on the app's configuration?
 #   Want to skip this one if not app.config["BUILD_IN_GDB"].
@@ -145,7 +147,17 @@ def test_full_build_at_version(app, libpath, branch, rec):
         build_module(cb)
 
 
-from tests.util import clear_all_indexing, get_basic_repos
+# Handy for manually remaking a single test repo, when developing.
+@pytest.mark.skip(reason="For manual testing only!")
+@pytest.mark.parametrize('only', [
+    [('spx', 'doc1')],
+])
+@pytest.mark.psm
+def test_make_repos(app, only):
+    print()
+    make_repos(only=only)
+
+
 # NOTE: Must skip this test during ordinary unit testing!
 # This test clears test indexing, so if included in the overall test suite,
 # will cause many tests to error out.
