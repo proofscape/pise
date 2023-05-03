@@ -1495,6 +1495,13 @@ ${extraSoftwareTableRows}
 </table>
 ${noticesHtml}
 </div>
+<div class="pise-image-credits">
+<span>Image credits:</span>
+<ul>
+<li>PISE logo by Steve Kieffer</li>
+<li><a target="_blank" href="https://icons8.com/icon/eH0QKNZIgBbS/great-sphinx-of-giza">Great Sphinx Of Giza</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a></li>
+</ul>
+</div>
 </div>
 `;
 }

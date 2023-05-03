@@ -523,6 +523,14 @@ h6.labelWidget:hover .labellink {
     background-image: url(../img/icons/circle3_dark.png);
 }
 
+.sphinxIcon16 {
+    background-image: url(../img/icons/sphinx_16.png);
+}
+
+.themeDark .sphinxIcon16 {
+    background-image: url(../img/icons/sphinx_16_dark.png);
+}
+
 .iconDepth0 {
 }
 
@@ -1128,19 +1136,32 @@ a {
     font-size: 1.4em;
     top: 110px;
     left: 256px;
-    padding-bottom: 10px;
+    padding-bottom: 26px;
+    padding-top: 5px;
 }
 
 .aboutIseDialog .pise-software-table-wrapper {
-    height: 266px;
+    height: 323px;
     overflow: scroll;
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 0 12px;
 }
 
 .aboutIseDialog .pise-software-table {
-    margin-top: 18px;
     width: 100%;
     font-size: 1.3em;
     line-height: 2em;
+}
+
+.aboutIseDialog .pise-image-credits {
+    font-size: 1em;
+    margin-top: 22px;
+    margin-bottom: -16px;
+}
+
+.aboutIseDialog .pise-image-credits span:nth-of-type(1) {
+    font-size: 1.3em;
 }
 
 .aboutIseDialog .pise-software-table thead {

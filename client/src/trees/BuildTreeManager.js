@@ -171,6 +171,8 @@ export class BuildTreeManager extends TreeManager {
                 ];
                 if (this.model.mayHaveChildren(item)) {
                     classes.push('ringIcon');
+                } else if (item.type === "SPHINX") {
+                    classes.push('sphinxIcon16');
                 } else {
                     classes.push('contentIcon');
                     if (item.type === hub.contentManager.crType.NOTES) {
