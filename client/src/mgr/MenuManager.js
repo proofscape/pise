@@ -1475,9 +1475,9 @@ function aboutIseHtml(versionString, agreementsHtml, extraSoftware, notices) {
 <div class="pise-title">Proofscape Integrated Study Environment</div>
 <div class="pise-version">${versionString}</div>
 <div class="pise-copyright">
-  Copyright (c) 2018-2022
+  Copyright (c) 2018-2023
   <a class="external" target="_blank=" href="https://proofscape.org">Proofscape</a>
-  contributors
+  Contributors
 </div>
 <div class="pise-legal">${agreementsHtml}</div>
 <div class="pise-blurb">
