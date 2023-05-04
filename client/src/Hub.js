@@ -910,6 +910,18 @@ var Hub = declare(null, {
         this.sphinxManager.setTheme(theme);
         // Store the new theme value.
         this.currentTheme = theme;
+
+        // Accommodation for Furo:
+        // As long as we can use Furo itself, i.e. can manage without needing our
+        // own custom fork thereof, we are better off in terms of maintenance burden.
+        // Because Furo's `base.html` template includes a script tag,
+        //    <script>
+        //       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+        //    </script>
+        // and because we don't want to risk any visible flicker before we have a chance
+        // to set the theme on a new Sphinx panel ourselves, we store the right value
+        // where Furo will find it:
+        localStorage.setItem("theme", theme);
     },
 
     /*
@@ -930,9 +942,13 @@ var Hub = declare(null, {
         query('#appLayout').removeClass(oldZoomClass).addClass(newZoomClass);
         // Store the new value.
         this.currentGlobalZoom = newZoomLevel;
-        // Ask the EditManager to update all editors.
+
+        // Ace Editor panels
         var fs = this.getCurrentEditorFontSize();
         this.editManager.setFontSize(fs);
+
+        // Sphinx panels
+        this.sphinxManager.setZoom(newZoomLevel);
     },
 
     setAppUrlPrefix: function(prefix) {
