@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { SphinxController } from "./SphinxController";
+
 define([
     "dojo/_base/declare",
     "dojo/dom-construct",
@@ -30,14 +32,12 @@ const SphinxManager = declare(AbstractContentManager, {
     // Properties
     hub: null,
 
-    // FIXME:
-    //  Should instead be a lookup of SphinxControllers (once we have that class)
-    iframesByPaneId: null,
+    sphinxControllersByPaneId: null,
 
     // Methods
 
     constructor: function() {
-        this.iframesByPaneId = new Map();
+        this.sphinxControllersByPaneId = new Map();
     },
 
     /* Initialize a ContentPane with content of this manager's type.
@@ -65,79 +65,8 @@ const SphinxManager = declare(AbstractContentManager, {
         `);
         elt.appendChild(iframe);
         const iframeElt = pane.domNode.children[0].children[0];
-        this.iframesByPaneId.set(pane.id, iframeElt);
-
-        iframeElt.addEventListener('load', event => {
-            this.handleFrameLoad(event.target);
-        });
-    },
-
-    /* Handle the event of a sphinx panel iframe completing loading of a new page.
-     */
-    handleFrameLoad: function(frame) {
-        const cw = frame.contentWindow;
-        const sphinxPageInfo = this.getContentWindowSphinxPageInfo(cw);
-        console.log(sphinxPageInfo);
-
-        // Is it a sphinx page?
-        if (sphinxPageInfo) {
-            // Apply global theme & zoom.
-            this.setThemeOnSphinxContentWindow(this.hub.currentTheme, cw);
-            this.setZoomOnSphinxContentWindow(this.hub.currentGlobalZoom, cw);
-
-            // Remove Furo's light/dark toggle
-            const buttons = cw.document.getElementsByClassName("theme-toggle");
-            Array.from(buttons).forEach((btn) => {
-                btn.remove();
-            });
-
-            // Listen for hashchange within the page.
-            cw.addEventListener('hashchange', event => {
-                const cw = event.target;
-                const sphinxPageInfo = this.getContentWindowSphinxPageInfo(cw);
-                console.log(sphinxPageInfo);
-            });
-
-            // TODO:
-            //  Activate widgets
-        }
-    },
-
-    /* Determine whether a content window is currently at a locally hosted sphinx page,
-     * and if so determine the libpath and version of that page, as well as any
-     * in-page hash at which the window is currently located.
-     *
-     * param cw: the content window
-     *
-     * return: object of the form {
-     *   libpath: str,
-     *   version: str,
-     *   hash: str,
-     * } if at a locally hosted sphinx page, else null.
-     */
-    getContentWindowSphinxPageInfo: function(cw) {
-        const frameLoc = cw.location;
-        const pageLoc = window.location;
-        let result = null;
-        if (frameLoc.origin === pageLoc.origin) {
-            let prefix = pageLoc.pathname;
-            if (!prefix.endsWith('/')) {
-                prefix += '/';
-            }
-            prefix += 'static/sphinx/';
-            const framePath = frameLoc.pathname;
-            if (framePath.startsWith(prefix) && framePath.endsWith('.html')) {
-                const frameTail = framePath.slice(prefix.length, -5);
-                const parts = frameTail.split('/');
-                // Parts go: host, owner, repo, version, remainder...
-                const version = parts[3];
-                parts[3] = "_sphinx";
-                const libpath = parts.join('.');
-                const hash = frameLoc.hash;
-                result = {libpath, version, hash};
-            }
-        }
-        return result;
+        const sc = new SphinxController(this, info, pane, iframeElt);
+        this.sphinxControllersByPaneId.set(pane.id, sc);
     },
 
     /* Set light or dark theme in all sphinx content panels.
@@ -145,8 +74,8 @@ const SphinxManager = declare(AbstractContentManager, {
      * theme: string "light" or "dark"
      */
     setTheme: function(theme) {
-        for (const iframe of this.iframesByPaneId.values()) {
-            this.setThemeOnSphinxContentWindow(theme, iframe.contentWindow);
+        for (const sc of this.sphinxControllersByPaneId.values()) {
+            sc.setTheme(theme);
         }
     },
 
@@ -155,22 +84,9 @@ const SphinxManager = declare(AbstractContentManager, {
      * level: number (str or int) giving a percentage
      */
     setZoom: function(level) {
-        for (const iframe of this.iframesByPaneId.values()) {
-            this.setZoomOnSphinxContentWindow(level, iframe.contentWindow);
+        for (const sc of this.sphinxControllersByPaneId.values()) {
+            sc.setZoom(level);
         }
-    },
-
-    /* Set the theme on a single sphinx content window.
-     */
-    setThemeOnSphinxContentWindow: function(theme, cw) {
-        // Note: This implementation relies on our use of the Furo theme.
-        cw.document.body.dataset.theme = theme;
-    },
-
-    /* Set the zoom level on a single sphinx content window.
-     */
-    setZoomOnSphinxContentWindow: function(level, cw) {
-        cw.document.body.style.fontSize = level + "%";
     },
 
     /* Update the content of an existing pane of this manager's type.
@@ -210,7 +126,7 @@ const SphinxManager = declare(AbstractContentManager, {
      * return: nothing
      */
     noteClosingContent: function(closingPane) {
-        this.iframesByPaneId.delete(closingPane.id);
+        this.sphinxControllersByPaneId.delete(closingPane.id);
     },
 
     /*
@@ -224,8 +140,17 @@ const SphinxManager = declare(AbstractContentManager, {
      * return: Promise that resolves with a pair of booleans indicating whether back resp.
      *   fwd buttons should be enabled for this pane _after_ the requested navigation takes place.
      */
-    navigate: function(pane, direction) {
-        return Promise.resolve([false, false]);
+    navigate: async function(pane, direction) {
+        const sc = this.sphinxControllersByPaneId.get(pane.id);
+        if (direction < 0) {
+            await sc.goBackward();
+        } else if (direction > 0) {
+            await sc.goForward();
+        }
+        // For now, we are not making any effort to try to know whether forward or
+        // backward navigation is possible. We'll just always say they are, and either
+        // something will happen or it won't when the user clicks.
+        return [true, true];
     },
 
     /* For the content in a given pane, return an object describing all the
