@@ -95,7 +95,7 @@ def test_manifest(app):
 
         root = manifest.get_root_node()
         s = root.children[0]
-        assert s.id == f'{libpath}._sphinx'
+        assert s.id == f'{libpath}._sphinx.index'
         assert s.data['type'] == "SPHINX"
         assert s.data['name'] == "Sphinx"
 

@@ -184,7 +184,7 @@ class Manifest:
         self.has_sphinx_doc = True
         if add_node:
             sphinx_node = ManifestTreeNode(
-                f'{self.root_node.id}._sphinx',
+                f'{self.root_node.id}._sphinx.index',
                 type="SPHINX",
                 name="Sphinx",
             )
