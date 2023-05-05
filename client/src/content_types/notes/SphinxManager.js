@@ -52,10 +52,7 @@ const SphinxManager = declare(AbstractContentManager, {
      * return: promise that resolves when the content is loaded.
      */
     initContent: async function(info, elt, pane) {
-        // Get the parts of the libpath, minus the trailing `_sphinx` segment.
-        const p = info.libpath.split('.').slice(0, -1);
-        const url = `static/sphinx/${p.join("/")}/${info.version}/index.html`
-
+        const url = this.makeUrlFromCdo(info);
         const iframe = domConstruct.toDom(`
             <iframe
                 width="100%"
@@ -67,6 +64,21 @@ const SphinxManager = declare(AbstractContentManager, {
         const iframeElt = pane.domNode.children[0].children[0];
         const sc = new SphinxController(this, info, pane, iframeElt);
         this.sphinxControllersByPaneId.set(pane.id, sc);
+    },
+
+    /* Extract the URL from a content descriptor object of SPHINX type.
+     */
+    makeUrlFromCdo: function(cdo) {
+        let url = cdo.url;
+        if (cdo.libpath && cdo.version) {
+            // Libpath goes: host, owner, repo, '_sphinx', remainder...
+            // For the URL we need the version tag in place of '_sphinx'.
+            const parts = cdo.libpath.split('.');
+            parts[3] = cdo.version;
+            const hash = cdo.hash || '';
+            url = `static/sphinx/${parts.join("/")}.html${hash}`
+        }
+        return url;
     },
 
     /* Set light or dark theme in all sphinx content panels.
@@ -96,6 +108,9 @@ const SphinxManager = declare(AbstractContentManager, {
      * return: nothing
      */
     updateContent: function(info, paneId) {
+        const sc = this.sphinxControllersByPaneId.get(paneId);
+        const url = this.makeUrlFromCdo(info);
+        sc.goTo(url);
     },
 
     /* Write a serializable info object, completely describing the current state of a
@@ -107,6 +122,14 @@ const SphinxManager = declare(AbstractContentManager, {
      * return: The info object.
      */
     writeStateInfo: function(oldPaneId, serialOnly) {
+        const sc = this.sphinxControllersByPaneId.get(oldPaneId);
+        // We have to read the `lastLoadedCdo` property, instead of calling
+        // the `getContentDescriptor()` method, due to the behavior when the
+        // TabContainerTree introduces a new split. When that happens, iframes that were
+        // moved get reloaded, and, if we ask a Sphinx panel for its state description
+        // before it has finished reloading, it will report a URL like 'about:blank'.
+        // Therefore we always ask for the last, stable, fully loaded content descriptor.
+        return sc.lastLoadedCdo;
     },
 
     /* Take note of the fact that one pane of this manager's type has been copied to a

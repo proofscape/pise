@@ -19,7 +19,8 @@ export class SphinxController {
 
     constructor(mgr, cdo, pane, iframe) {
         this.mgr = mgr;
-        this.cdo = cdo;
+        this.initialCdo = cdo;
+        this.lastLoadedCdo = null;
         this.pane = pane;
         this.iframe = iframe;
 
@@ -39,7 +40,8 @@ export class SphinxController {
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {
-        const sphinxPageInfo = this.getContentWindowSphinxPageInfo();
+        this.lastLoadedCdo = this.getContentDescriptor();
+        const sphinxPageInfo = this.spi;
         console.log(sphinxPageInfo);
 
         // Is it a sphinx page?
@@ -56,7 +58,8 @@ export class SphinxController {
 
             // Listen for hashchange within the page.
             this.cw.addEventListener('hashchange', event => {
-                const sphinxPageInfo = this.getContentWindowSphinxPageInfo();
+                this.lastLoadedCdo = this.getContentDescriptor();
+                const sphinxPageInfo = this.spi;
                 console.log(sphinxPageInfo);
             });
 
@@ -73,17 +76,25 @@ export class SphinxController {
         return this.cw.history.back();
     }
 
+    goTo(url) {
+        this.cw.location = url;
+    }
+
     /* Set the theme on a single sphinx content window.
      */
     setTheme(theme) {
-        // Note: This implementation relies on our use of the Furo theme.
-        this.cw.document.body.dataset.theme = theme;
+        if (this.spi) {
+            // Note: This implementation relies on our use of the Furo theme.
+            this.cw.document.body.dataset.theme = theme;
+        }
     }
 
     /* Set the zoom level on a single sphinx content window.
      */
     setZoom(level) {
-        this.cw.document.body.style.fontSize = level + "%";
+        if (this.spi) {
+            this.cw.document.body.style.fontSize = level + "%";
+        }
     }
 
     /* Determine whether our content window is currently at a locally hosted sphinx page,
@@ -96,7 +107,7 @@ export class SphinxController {
      *   hash: str,
      * } if at a locally hosted sphinx page, else null.
      */
-    getContentWindowSphinxPageInfo() {
+    get spi() {
         const frameLoc = this.cw.location;
         const pageLoc = window.location;
         let result = null;
@@ -119,5 +130,12 @@ export class SphinxController {
             }
         }
         return result;
+    }
+
+    getContentDescriptor() {
+        const cdo = this.spi || {};
+        cdo.type = this.mgr.hub.contentManager.crType.SPHINX;
+        cdo.url = this.cw.location.href;
+        return cdo;
     }
 }
