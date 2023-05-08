@@ -165,7 +165,7 @@ var NotesManager = declare(AbstractContentManager, {
 
     getSuppliedDocHighlights: function(paneId) {
         const viewer = this.viewers[paneId];
-        const docInfoObj = viewer?.currentPageData.docInfo;
+        const docInfoObj = viewer?.currentPageData?.docInfo;
         const hls = {
             docs: new Map(),
             refs: new Map(),
