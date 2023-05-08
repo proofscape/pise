@@ -14,9 +14,19 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
-import { Listenable } from "browser-peers/src/util";
+import { BasePageViewer } from "./BasePageViewer";
 
-export class SphinxViewer extends Listenable {
+/* Note: One of the reasons to subclass the BasePageViewer is to overcome some
+ * of the deficiencies of using the browser's built-in History API, i.e. simply
+ * doing things like
+ *     this.cw.history.back();
+ * in order to navigate backward. Problems with the native API include:
+ *  * No way to ask where we are in the history, and whether forward or backward
+ *    navigation is currently possible.
+ *  * Requesting backward navigation when no further backward nav is possible within
+ *    an iframe can cause *the entire page* to navigate backward, unloading the ISE!
+ */
+export class SphinxViewer extends BasePageViewer {
 
     /*
      * param nm: The NotesManager.
@@ -28,7 +38,8 @@ export class SphinxViewer extends Listenable {
      * }
      */
     constructor(nm, parent, pane, uuid, options) {
-        super({});
+        super();
+
         // overviewScale option not (yet?) supported
 
         this.mgr = nm;
@@ -39,16 +50,13 @@ export class SphinxViewer extends Listenable {
         iframe.setAttribute('width', '100%');
         iframe.setAttribute('height', '100%');
         parent.appendChild(iframe);
-        // FIXME -- need this?
-        // const iframeElt = pane.domNode.children[0].children[0];
         this.iframe = iframe;
 
         iframe.addEventListener('load', event => {
             this.handleFrameLoad();
         });
 
-        this.lastLoadedCdo = {};
-        this.pageLoadingResolution = null;
+        this.resolvePageUpdate = null;
     }
 
     /* When the frame navigates to a new page, we get a new content window.
@@ -62,9 +70,15 @@ export class SphinxViewer extends Listenable {
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {
-        this.lastLoadedCdo = this.getContentDescriptor();
         const sphinxPageInfo = this.spi;
         console.log(sphinxPageInfo);
+
+        // Listen for hashchange within the page.
+        this.cw.addEventListener('hashchange', event => {
+            const sphinxPageInfo = this.spi;
+            console.log(sphinxPageInfo);
+            this.observeLocationChange();
+        });
 
         // Is it a sphinx page?
         if (sphinxPageInfo) {
@@ -78,18 +92,24 @@ export class SphinxViewer extends Listenable {
                 btn.remove();
             });
 
-            // Listen for hashchange within the page.
-            this.cw.addEventListener('hashchange', event => {
-                this.lastLoadedCdo = this.getContentDescriptor();
-                const sphinxPageInfo = this.spi;
-                console.log(sphinxPageInfo);
-            });
-
             this.activateWidgets();
         }
 
-        if (this.pageLoadingResolution) {
-            this.pageLoadingResolution();
+        this.observeLocationChange();
+    }
+
+    observeLocationChange() {
+        const loc = this.getContentDescriptor();
+        if (this.resolvePageUpdate) {
+            // The location change resulted from a deliberate call to this.updatePage().
+            // Let the Promise returned by that method now resolve.
+            this.resolvePageUpdate();
+            this.resolvePageUpdate = null;
+        } else {
+            // The location change did not result for a deliberate call to this.updatePage().
+            // This means it must have resulted from the user clicking an <a> tag within the
+            // panel. We must update our history accordingly.
+            this.recordNewHistory(loc);
         }
     }
 
@@ -112,62 +132,37 @@ export class SphinxViewer extends Listenable {
         return url;
     }
 
-    forceHistory(history, ptr) {
-        // Not supported (yet)
-    }
-
     showOverviewSidebar(doShow) {
         // Not supported (yet)
     }
 
-    addNavEnableHandler(handler) {
-        // TODO
-    }
-
-    canGoBackward() {
-        // TODO
-        return true;
-    }
-
-    canGoForward() {
-        // TODO
-        return true;
-    }
-
-    async goForward() {
-        // FIXME:
-        //  Note that
-        //   https://developer.mozilla.org/en-US/docs/Web/API/History/forward
-        //  advises adding a listener for the popstate event in order to determine
-        //  when the navigation has completed.
-        return this.cw.history.forward();
-    }
-
-    async goBackward() {
-        // FIXME:
-        //  Note that
-        //   https://developer.mozilla.org/en-US/docs/Web/API/History/forward
-        //  advises adding a listener for the popstate event in order to determine
-        //  when the navigation has completed.
-        return this.cw.history.back();
-    }
-
-    goTo(info) {
+    async updatePage(loc) {
         return new Promise(resolve => {
-            this.pageLoadingResolution = resolve;
-            const url = this.makeUrlFromCdo(info);
+            this.resolvePageUpdate = resolve;
+            const url = this.makeUrlFromCdo(loc);
             this.cw.location = url;
         });
     }
 
     writeContentDescriptor(serialOnly) {
-        // We have to use our `lastLoadedCdo` property, instead of calling
+        // We have to consult our history, instead of calling
         // our `getContentDescriptor()` method, due to the behavior when the
         // TabContainerTree introduces a new split. When that happens, iframes that were
         // moved get reloaded, and, if we try to compute our state description
         // before we have finished reloading, we may report a URL like 'about:blank'.
         // Therefore we always use the last, stable, fully loaded content descriptor.
-        return Object.assign({}, this.lastLoadedCdo);
+        const loc = this.getCurrentLoc() || {};
+        return Object.assign({}, loc);
+    }
+
+    getCurrentLibpathv() {
+        const loc = this.writeContentDescriptor();
+        if (loc.libpath && loc.version) {
+            return `${loc.libpath}@${loc.version}`;
+        }
+    }
+
+    destroy() {
     }
 
     /* Set the theme on a single sphinx content window.
