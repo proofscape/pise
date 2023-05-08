@@ -88,8 +88,8 @@ var PageViewer = declare(null, {
     /*
      * param nm: The NotesManager.
      * param parent: The DOM element in which page content is to be set.
-     * param pane: The ContentPane where elt lives.
-     * param uuid: The uuid of the pane where elt lives.
+     * param pane: The ContentPane where parent lives.
+     * param uuid: The uuid of the pane where parent lives.
      * param options: {
      *   overviewScale: desired initial scale for overview panel
      * }
@@ -503,6 +503,15 @@ var PageViewer = declare(null, {
         return desc;
     },
 
+    writeContentDescriptor: function(serialOnly) {
+        const cdo = this.describeCurrentLocation();
+        cdo.type = this.nm.hub.contentManager.crType.NOTES;
+        cdo.history = this.copyHistory();
+        cdo.sidebar = this.getSidebarProperties();
+        cdo.ptr = this.ptr;
+        return cdo;
+    },
+
     computeScrollFrac: function() {
         var h = this.scrollNode.scrollHeight,
             t = this.scrollNode.scrollTop,
@@ -793,6 +802,14 @@ var PageViewer = declare(null, {
         this.currentPageData = data;
 
         this.nm.setupWidgets(data, this.elt, this.pane);
+    },
+
+    setTheme: function(theme) {
+        // Nothing to do.
+    },
+
+    setZoom: function(level) {
+        // Nothing to do.
     },
 
     /* Presuming the page data for a location is already loaded, do the scrolling

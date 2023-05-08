@@ -52,7 +52,6 @@ var Hub = declare(null, {
     contentManager: null,
     editManager: null,
     notesManager: null,
-    sphinxManager: null,
     chartManager: null,
     pdfManager: null,
     feedbackManager: null,
@@ -146,7 +145,6 @@ var Hub = declare(null, {
         contentManager,
         editManager,
         notesManager,
-        sphinxManager,
         chartManager,
         pdfManager,
         feedbackManager,
@@ -197,9 +195,6 @@ var Hub = declare(null, {
 
         this.notesManager = notesManager;
         notesManager.hub = this;
-
-        this.sphinxManager = sphinxManager;
-        sphinxManager.hub = this;
 
         this.chartManager = chartManager;
         chartManager.hub = this;
@@ -907,7 +902,6 @@ var Hub = declare(null, {
         this.editManager.setTheme(theme);
         this.pdfManager.setTheme(theme);
         this.notesManager.setTheme(theme);
-        this.sphinxManager.setTheme(theme);
         // Store the new theme value.
         this.currentTheme = theme;
 
@@ -947,8 +941,8 @@ var Hub = declare(null, {
         var fs = this.getCurrentEditorFontSize();
         this.editManager.setFontSize(fs);
 
-        // Sphinx panels
-        this.sphinxManager.setZoom(newZoomLevel);
+        // For Sphinx panels (old-style anno pages update automatically via global CSS):
+        this.notesManager.setZoom(newZoomLevel);
     },
 
     setAppUrlPrefix: function(prefix) {

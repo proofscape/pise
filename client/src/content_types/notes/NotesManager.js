@@ -17,6 +17,7 @@
 import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
 import { SubscriptionManager } from "../SubscriptionManager";
+import { SphinxViewer } from "./SphinxViewer";
 
 define([
     "dojo/_base/declare",
@@ -304,7 +305,9 @@ var NotesManager = declare(AbstractContentManager, {
         if (sbProps.scale) {
             options.overviewScale = sbProps.scale;
         }
-        const viewer = new PageViewer(this, elt, pane, info.uuid, options);
+        const viewer = info.type === this.hub.contentManager.crType.SPHINX ?
+            new SphinxViewer(this, elt, pane, info.uuid, options) :
+            new PageViewer(this, elt, pane, info.uuid, options);
         viewer.addNavEnableHandler(this.publishNavEnable.bind(this));
         viewer.on('pageChange', this.notePageChange.bind(this));
         viewer.on('pageReload', this.notePageReload.bind(this));
@@ -340,13 +343,8 @@ var NotesManager = declare(AbstractContentManager, {
      * return: The info object.
      */
     writeStateInfo: function(oldPaneId, serialOnly) {
-        const viewer = this.viewers[oldPaneId],
-            stateInfo = viewer.describeCurrentLocation();
-        stateInfo.type = this.hub.contentManager.crType.NOTES;
-        stateInfo.history = viewer.copyHistory();
-        stateInfo.sidebar = viewer.getSidebarProperties();
-        stateInfo.ptr = viewer.ptr;
-        return stateInfo;
+        const viewer = this.viewers[oldPaneId];
+        return viewer.writeContentDescriptor(serialOnly);
     },
 
     /* Take note of the fact that one pane of this manager's type has been copied to a
@@ -744,8 +742,17 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     setTheme: function(theme) {
+        for (const v of Object.values(this.viewers)) {
+            v.setTheme(theme);
+        }
         for (const w of this.widgets.values()) {
             w.setTheme(theme);
+        }
+    },
+
+    setZoom: function(level) {
+        for (const v of Object.values(this.viewers)) {
+            v.setZoom(level);
         }
     },
 

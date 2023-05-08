@@ -14,19 +14,41 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { Listenable } from "browser-peers/src/util";
 
-export class SphinxController {
+export class SphinxViewer extends Listenable {
 
-    constructor(mgr, cdo, pane, iframe) {
-        this.mgr = mgr;
-        this.initialCdo = cdo;
-        this.lastLoadedCdo = null;
+    /*
+     * param nm: The NotesManager.
+     * param parent: The DOM element in which page content is to be set.
+     * param pane: The ContentPane where parent lives.
+     * param uuid: The uuid of the pane where parent lives.
+     * param options: {
+     *   overviewScale: desired initial scale for overview panel
+     * }
+     */
+    constructor(nm, parent, pane, uuid, options) {
+        super({});
+        // overviewScale option not (yet?) supported
+
+        this.mgr = nm;
         this.pane = pane;
+        this.uuid = uuid;
+
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('width', '100%');
+        iframe.setAttribute('height', '100%');
+        parent.appendChild(iframe);
+        // FIXME -- need this?
+        // const iframeElt = pane.domNode.children[0].children[0];
         this.iframe = iframe;
 
         iframe.addEventListener('load', event => {
             this.handleFrameLoad();
         });
+
+        this.lastLoadedCdo = {};
+        this.pageLoadingResolution = null;
     }
 
     /* When the frame navigates to a new page, we get a new content window.
@@ -65,18 +87,87 @@ export class SphinxController {
 
             this.activateWidgets();
         }
+
+        if (this.pageLoadingResolution) {
+            this.pageLoadingResolution();
+        }
     }
 
-    goForward() {
+    activateWidgets() {
+        // TODO
+    }
+
+    /* Extract the URL from a content descriptor object of SPHINX type.
+     */
+    makeUrlFromCdo(cdo) {
+        let url = cdo.url;
+        if (cdo.libpath && cdo.version) {
+            // Libpath goes: host, owner, repo, '_sphinx', remainder...
+            // For the URL we need the version tag in place of '_sphinx'.
+            const parts = cdo.libpath.split('.');
+            parts[3] = cdo.version;
+            const hash = cdo.hash || '';
+            url = `static/sphinx/${parts.join("/")}.html${hash}`
+        }
+        return url;
+    }
+
+    forceHistory(history, ptr) {
+        // Not supported (yet)
+    }
+
+    showOverviewSidebar(doShow) {
+        // Not supported (yet)
+    }
+
+    addNavEnableHandler(handler) {
+        // TODO
+    }
+
+    canGoBackward() {
+        // TODO
+        return true;
+    }
+
+    canGoForward() {
+        // TODO
+        return true;
+    }
+
+    async goForward() {
+        // FIXME:
+        //  Note that
+        //   https://developer.mozilla.org/en-US/docs/Web/API/History/forward
+        //  advises adding a listener for the popstate event in order to determine
+        //  when the navigation has completed.
         return this.cw.history.forward();
     }
 
-    goBackward() {
+    async goBackward() {
+        // FIXME:
+        //  Note that
+        //   https://developer.mozilla.org/en-US/docs/Web/API/History/forward
+        //  advises adding a listener for the popstate event in order to determine
+        //  when the navigation has completed.
         return this.cw.history.back();
     }
 
-    goTo(url) {
-        this.cw.location = url;
+    goTo(info) {
+        return new Promise(resolve => {
+            this.pageLoadingResolution = resolve;
+            const url = this.makeUrlFromCdo(info);
+            this.cw.location = url;
+        });
+    }
+
+    writeContentDescriptor(serialOnly) {
+        // We have to use our `lastLoadedCdo` property, instead of calling
+        // our `getContentDescriptor()` method, due to the behavior when the
+        // TabContainerTree introduces a new split. When that happens, iframes that were
+        // moved get reloaded, and, if we try to compute our state description
+        // before we have finished reloading, we may report a URL like 'about:blank'.
+        // Therefore we always use the last, stable, fully loaded content descriptor.
+        return Object.assign({}, this.lastLoadedCdo);
     }
 
     /* Set the theme on a single sphinx content window.
@@ -138,7 +229,4 @@ export class SphinxController {
         return cdo;
     }
 
-    activateWidgets() {
-        // TODO
-    }
 }

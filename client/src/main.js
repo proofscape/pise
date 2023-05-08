@@ -30,7 +30,6 @@ define([
     "ise/mgr/NavManager",
     "ise/content_types/source/EditManager",
     "ise/content_types/notes/NotesManager",
-    "ise/content_types/notes/SphinxManager",
     "ise/content_types/chart/ChartManager",
     "ise/content_types/pdf/PdfManager",
     "ise/mgr/FeedbackManager",
@@ -55,7 +54,6 @@ define([
     NavManager,
     EditManager,
     NotesManager,
-    SphinxManager,
     ChartManager,
     PdfManager,
     FeedbackManager,
@@ -166,7 +164,6 @@ function construct(ISE_state) {
     const repoManager = new RepoManager(appLayout.librarySocket, ISE_state);
     const editManager = new EditManager(tct);
     const notesManager = new NotesManager();
-    const sphinxManager = new SphinxManager();
     const chartManager = new ChartManager();
     const pdfManager = new PdfManager(ISE_state);
     const feedbackManager = new FeedbackManager(appLayout.feedbackSocket);
@@ -190,7 +187,6 @@ function construct(ISE_state) {
         contentManager,
         editManager,
         notesManager,
-        sphinxManager,
         chartManager,
         pdfManager,
         feedbackManager,

@@ -156,7 +156,7 @@ var ContentManager = declare(null, {
         case this.crType.SOURCE: return this.hub.editManager;
         case this.crType.PDF: return this.hub.pdfManager;
         case this.crType.THEORYMAP: return this.hub.theorymapManager;
-        case this.crType.SPHINX: return this.hub.sphinxManager;
+        case this.crType.SPHINX: return this.hub.notesManager;
         }
     },
 
