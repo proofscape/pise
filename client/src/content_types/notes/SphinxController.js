@@ -63,8 +63,7 @@ export class SphinxController {
                 console.log(sphinxPageInfo);
             });
 
-            // TODO:
-            //  Activate widgets
+            this.activateWidgets();
         }
     }
 
@@ -137,5 +136,9 @@ export class SphinxController {
         cdo.type = this.mgr.hub.contentManager.crType.SPHINX;
         cdo.url = this.cw.location.href;
         return cdo;
+    }
+
+    activateWidgets() {
+        // TODO
     }
 }
