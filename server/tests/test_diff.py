@@ -20,16 +20,16 @@ from pfsc.build.lib.libpath import PathInfo, git_style_merge_conflict_file
 from pfsc.build.repo import get_repo_info
 
 expected_diff = """
-<<<<<<<< YOURS
+<<<<<<< YOURS
 # We also need to test whether we correctly ignore # chars occurring within
 # strings (i.e. do _not_ strip them out as comments).
 # Also in this version I moved some words around in the last two comment lines,
 # so we can test out our Git-style merge conflict function, by comparing v11
 # and v12.
-========
+=======
 # We also need to test whether we correctly ignore # chars
 # occurring within strings (i.e. do _not_ strip them out as comments).
->>>>>>>> DISK
+>>>>>>> DISK
 """
 
 @pytest.mark.parametrize("repo, branch1, branch2, modpath", (
