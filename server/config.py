@@ -170,6 +170,18 @@ class Config:
 
     # Static assets:
 
+    # Sphinx pages are served as static files. Therefore, when the server is
+    # operating in dynamic mode, it is critical that static files be served
+    # with `Cache-Control: no-cache` header. Since Flask also automatically
+    # gives them an accurate `Last-Modified` header, we are thereby able to
+    # rely on the "force revalidation" pattern
+    #   https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching#force_revalidation
+    # to ensure that the user always gets the most recently built versions.
+    # Setting `SEND_FILE_MAX_AGE_DEFAULT` to `None` gets us the the `no-cache`
+    # header. Although this is the default value since Flask 2.0, we set it
+    # explicitly here, to make it clear that this is deliberate.
+    SEND_FILE_MAX_AGE_DEFAULT = None
+
     ISE_VERSION = PISE_VERSION
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
     # Since a worker script must obey the same-origin policy
