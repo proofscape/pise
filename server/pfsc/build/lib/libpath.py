@@ -19,15 +19,18 @@ Tools for handling libpaths.
 """
 
 import os
-import subprocess
+import pathlib
+import re
+import tempfile
 from functools import lru_cache
 
 from flask import current_app
+from pygit2 import init_repository
 
 from pfsc import check_config
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
-from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part
+from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_commit
 from pfsc.gdb import get_graph_reader, building_in_gdb
 
 
@@ -424,16 +427,18 @@ def get_deduction_closure(libpaths):
 def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_label="DISK"):
     """
     Compare a given text to the contents of a certain module on disk.
-    Return a merged version of the two, showing conflicts in a style similar to
-    what git does when you have a merge conflict:
+    Return a merged version of the two, showing git-style merge conflicts:
 
         ...
-        <<<<<<<< YOURS
+        <<<<<<< YOURS
         ...
-        ========
+        =======
         ...
-        >> >>>>> DISK
+        >> >>>> DISK
         ...
+
+    (Note: a ">" is omitted from the illustration above to avoid matching as
+     Python REPL text in IDEs.)
 
     :param modpath: the libpath of the module to which you want to compare.
     :param yourtext: the text (string) you want to compare with the version on disk.
@@ -441,15 +446,43 @@ def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_la
     :param disk_label: the label you want after ">>>>>>>>"
     :return: Git-style "merge conflict" text (string) combining the two versions.
     """
-    arg_old_fmt = f"--old-group-format=<<<<<<<< {your_label}\n%<========\n"
-    arg_new_fmt = f"--new-group-format=%>>>>>>>>> {disk_label}\n"
     pi = PathInfo(modpath)
     fs_path = pi.get_pfsc_fs_path()
     if fs_path is None:
         msg = f'Module {modpath} does not exist.'
         raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
-    cp = subprocess.run(
-        ['diff', arg_old_fmt, arg_new_fmt, '-', fs_path],
-        input=yourtext, stdout=subprocess.PIPE, text=True
-    )
-    return cp.stdout
+    disktext = pi.read_module()
+    with tempfile.TemporaryDirectory() as tmp_path_str:
+        repo_dir = pathlib.Path(tmp_path_str)
+        filename = repo_dir / 'contested'
+
+        repo = init_repository(repo_dir)
+        initial_id = add_all_and_commit(repo, "Initial commit")
+        initial_commit = repo.get(initial_id)
+
+        disk_branch = repo.branches.local.create('disk_version', initial_commit)
+        your_branch = repo.branches.local.create('your_version', initial_commit)
+
+        repo.checkout(disk_branch)
+        with open(filename, 'w') as f:
+            f.write(disktext)
+        disk_latest_id = add_all_and_commit(repo, "disk version")
+
+        repo.checkout(your_branch)
+        with open(filename, 'w') as f:
+            f.write(yourtext)
+        add_all_and_commit(repo, "your version")
+
+        repo.merge(disk_latest_id)
+
+        with open(filename, 'r') as f:
+            mergetext = f.read()
+
+        mergetext = re.sub(
+            '^<<<<<<< HEAD', f'<<<<<<< {your_label}',
+            mergetext, flags=re.MULTILINE)
+        mergetext = re.sub(
+            f'^>>>>>>> {disk_latest_id.hex}', f'>>>>>>> {disk_label}',
+            mergetext, flags=re.MULTILINE)
+
+    return mergetext
