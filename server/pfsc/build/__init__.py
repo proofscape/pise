@@ -570,9 +570,9 @@ class Builder:
         # Conf overrides
         required_extensions = [
             'sphinx_math_dollar',
-            # This one starts with `pfsc.sphinx.` because we're using the local
-            # version. Ultimately, want to use the independent package, when that
-            # can in turn draw on an independent `pfsc-core` package.
+            # We use the separate extension for the lexers:
+            'sphinx_proofscape',
+            # We use the local extension for everything else:
             'pfsc.sphinx.sphinx_proofscape',
         ]
         confoverrides = {

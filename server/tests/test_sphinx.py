@@ -49,6 +49,13 @@ def get_widget_data_from_script_tag(soup):
     return None
 
 
+def get_highlights(soup, language):
+    """
+    Grab all the highlight divs, for a given language.
+    """
+    return list(soup.find_all('div', class_=f'highlight-{language}'))
+
+
 expected_widget_data_spx_doc1 = json.loads("""
 [
     {
@@ -154,6 +161,16 @@ def test_spx_doc0(app):
             "version": "v0.1.0",
             "widget_libpath": "test.spx.doc0._sphinx.pageA.w0"
         }
+
+        # Page B
+        # ======
+        # We don't check much: just confirm that syntax highlighting is indeed
+        # happening (which proves we're using the external sphinx-proofscape
+        # pkg for this, since we don't define lexers locally).
+        html = (build_dir / 'pageB.html').read_text()
+        soup = BeautifulSoup(html, 'html.parser')
+        hl = get_highlights(soup, 'proofscape')
+        assert len(hl) == 1
         
         # Page C
         # ======
