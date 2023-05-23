@@ -19,6 +19,7 @@
 
 import json
 
+from config import PISE_VERSION
 from pfsc.sphinx.sphinx_proofscape.lang_exts import (
     chartwidget, visit_chartwidget_html, depart_chartwidget_html,
     PfscChartRole,
@@ -28,9 +29,6 @@ from pfsc.sphinx.sphinx_proofscape.lang_exts import (
 from pfsc.sphinx.sphinx_proofscape.lexer import (
     MesonLexer, ProofscapeLexer, MesonBnfGrammarLexer,
 )
-
-
-__version__ = '0.4.0-dev'
 
 
 ###############################################################################
@@ -100,7 +98,7 @@ def setup(app):
     app.connect('html-page-context', write_widget_data)
 
     return {
-        'version': __version__,
+        'version': PISE_VERSION,
         'parallel_read_safe': True,
         'parallel_write_safe': True,
     }
