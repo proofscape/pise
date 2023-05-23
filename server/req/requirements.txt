@@ -667,9 +667,9 @@ sphinx-math-dollar==1.2.1 \
     --hash=sha256:03427240f21fdf23c7b8415289aa1a0e307ac32c198e02f840c59a4b1b0d950c \
     --hash=sha256:0b1523a4d7023b9020ddf3a9301f651d64427a0f1d802af534a87eaf24fbdf19
     # via -r requirements.in
-sphinx-proofscape==0.3.1 \
-    --hash=sha256:60921ca4537031a05c875f881f5105f1b8c8caca75e094b3dce3f66a4fababa8 \
-    --hash=sha256:a4264485ddc63c635992db7d609787481c093ca703fd923458762f5c86265139
+sphinx-proofscape==0.4.0 \
+    --hash=sha256:3c05ba2338570f6602f175afec7eb5d195e9dbc37eb8eefb1a9af92af388deeb \
+    --hash=sha256:79a1e418c1f903ef89ce9bbf1ea9435f5b3b5fc4aae0ea63feae9b31ac63f40a
     # via -r requirements.in
 sphinxcontrib-applehelp==1.0.4 \
     --hash=sha256:29d341f67fb0f6f586b23ad80e072c8e6ad0b48417db2bde114a4c9746feb228 \
