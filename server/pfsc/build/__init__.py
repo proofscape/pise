@@ -571,6 +571,7 @@ class Builder:
         confoverrides = {
             'pfsc_repopath': self.repo_info.libpath,
             'pfsc_repovers': self.version,
+            'html_theme': 'furo',
         }
 
         # Override dependencies
