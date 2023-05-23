@@ -935,7 +935,9 @@ class Builder:
         if self.build_in_gdb:
             self.graph_writer.record_repo_manifest(self.repo_info.libpath, self.version, j)
         else:
+            build_dir = self.repo_info.get_build_dir(version=self.version)
             manifest_json_path = self.repo_info.get_manifest_json_path(version=self.version)
+            os.makedirs(build_dir, exist_ok=True)
             with open(manifest_json_path, 'w') as f:
                 f.write(j)
 
