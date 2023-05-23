@@ -567,14 +567,24 @@ class Builder:
             args = ['clean', sourcedir, outputdir]
             make_mode.run_make_mode(args)
 
-        # Override repopath and repovers
+        # Conf overrides
+        required_extensions = [
+            'sphinx_math_dollar',
+            # This one starts with `pfsc.sphinx.` because we're using the local
+            # version. Ultimately, want to use the independent package, when that
+            # can in turn draw on an independent `pfsc-core` package.
+            'pfsc.sphinx.sphinx_proofscape',
+        ]
         confoverrides = {
             'pfsc_repopath': self.repo_info.libpath,
             'pfsc_repovers': self.version,
             'html_theme': 'furo',
+            # Note: this does not extend, but overwrites completely any 'extensions' list
+            # the user may have specified in their conf.py. This is fine for now since we
+            # are not yet supporting any way of adding extensions to the Proofscape build
+            # system.
+            'extensions': required_extensions,
         }
-
-        # Override dependencies
         for dep_repopath, dep_version in self.repo_dependencies.items():
             confoverrides[f'pfsc_import_repos.{dep_repopath}'] = dep_version
 
