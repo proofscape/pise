@@ -142,6 +142,24 @@ class PfscChartWidgetBuilder:
     Directive classes for pfsc chart widgets.
     """
 
+    ########################################################################
+    # These methods are just here to make my IDE stop complaining about
+    # references made in the `finish_run()` method to things that this class
+    # otherwise would appear not to have.
+    #
+    # Ideally, the Sphinx package would define a common superclass to its
+    # `SphinxRole` and `SphinxDirective` classes. Then this class could simply
+    # be a subclass of that.
+
+    def __init__(self):
+        self.config = None
+        self.env = None
+
+    def get_source_info(self):
+        return None, None
+
+    ########################################################################
+
     def finish_run(self, rawtext, label, widget_fields):
         repopath = self.config.pfsc_repopath
         repovers = self.config.pfsc_repovers
