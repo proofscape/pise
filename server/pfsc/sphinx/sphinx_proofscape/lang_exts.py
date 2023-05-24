@@ -30,6 +30,7 @@ from sphinx.util.docutils import SphinxRole, SphinxDirective
 from pfsc.sphinx.sphinx_proofscape.chart_widget import ChartWidget
 
 
+# FIXME: can we use existing stuff from pise/server?
 LIBPATH_PATTERN = re.compile(r'\w+(\.\w+)*$')
 VERSION_PATTERN = re.compile(r'WIP|v?\d+\.\d+\.\d+$')
 

@@ -24,8 +24,9 @@ from sphinx.errors import SphinxError
 
 class ChartWidget:
     """
-    Ultimately should refactor, and base this on the widget classes
-    defined in pfsc-server. For now, something good enough.
+    FIXME:
+        Ultimately should refactor, and base this on the widget classes
+        defined in pfsc-server. For now, something good enough.
     """
 
     def __init__(self, lp_defns, vers_defns,
@@ -236,6 +237,7 @@ def is_formal_libpath(lp):
     return re.match(r'\.?[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$', lp) is not None
 
 
+# FIXME: Use the `checkinput` module
 def parse_box_listing(box_listing):
     """
     A box listing is a string giving a multipath or comma-separated list of
