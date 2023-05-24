@@ -35,15 +35,16 @@ def get_chart_widget_anchors(soup):
 
 def get_widget_data_from_script_tag(soup):
     """
-    If the HTML contains a <script> tag defining pfsc_widget_data, then parse
-    the JSON and return the widget data itself.
+    If the HTML contains a <script id=""pfsc-page-data"> tag, then parse
+    the JSON and return the data itself.
 
     Otherwise return None.
     """
-    intro = '\nconst pfsc_widget_data = '
-    for s in soup.find_all('script'):
-        if s.text.startswith(intro):
-            rem = s.text[len(intro):]
+    script = soup.find('script', id='pfsc-page-data')
+    if script:
+        intro = '\nconst pfsc_widget_data = '
+        if script.text.startswith(intro):
+            rem = script.text[len(intro):]
             data = json.loads(rem)
             return data
     return None
