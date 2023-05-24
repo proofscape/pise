@@ -40,7 +40,8 @@ class BoxListing:
 
     Such a listing may be given in many ways:
       * It may not be defined at all, in the case of optional fields (so we get None when we look for it);
-      * It may be a string giving a single libpath or multipath;
+      * It may be a string giving either a single libpath or multipath, or a comma-delimited
+        list of libpaths and multipaths;
       * It may be a list of strings giving a mixture of libpaths and multipaths;
       * Sometimes, it may be a string giving a special keyword.
 
@@ -72,9 +73,9 @@ class BoxListing:
             # ...it may have been a keyword,
             if raw_value in allowed_keywords:
                 self.keyword = raw_value
-            # ...otherwise we assume it is a multipath.
+            # ...otherwise we parse it into a list of multipaths.
             else:
-                self.multipaths = [raw_value]
+                self.multipaths = self.parse_raw_string(raw_value)
         # If a list was given, we assume it is a list of multipaths.
         elif isinstance(raw_value, list):
             self.multipaths = raw_value
@@ -86,6 +87,31 @@ class BoxListing:
         # Finally, expand multipaths into plain libpaths.
         for mp in self.multipaths:
             self.libpaths.extend(expand_multipath(mp))
+
+    @staticmethod
+    def parse_raw_string(raw_string):
+        mps = []
+        mp = ''
+        depth = 0
+        for c in raw_string:
+            if c in ' \t\r\n':
+                continue
+            if c == ',' and depth == 0:
+                mps.append(mp)
+                mp = ''
+                continue
+            elif c == '{':
+                depth += 1
+                if depth > 1:
+                    raise PfscExcep(f'Boxlisting contains nested braces: {raw_string}')
+            elif c == '}':
+                depth -= 1
+                if depth < 0:
+                    raise PfscExcep(f'Boxlisting contains unmatched braces: {raw_string}')
+            mp += c
+        if mp:
+            mps.append(mp)
+        return mps
 
     def is_keyword(self, *args):
         """
@@ -355,6 +381,10 @@ def check_libpath(key, raw, typedef):
             value_only: boolean. Default False, in which case we return a CheckedLibpath instance.
               Set True if instead you only want the `value` property thereof to be returned.
 
+            short_okay: boolean. Default False, in which case libpath is expected to
+                contain at least three segments (being the repopath).
+                Set True to allow libpaths shorter than three segments.
+
     :return: a CheckedLibpath object, or just its `value` property (see above).
     """
     checked = CheckedLibpath()
@@ -371,7 +401,7 @@ def check_libpath(key, raw, typedef):
     # Check proper dotted path format
     parts = raw.split('.')
     # Need at least three parts to name a repo.
-    if len(parts) < 3:
+    if len(parts) < 3 and not typedef.get('short_okay'):
         msg = 'Libpath %s is too short.' % raw
         raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
     # Check format of each part.

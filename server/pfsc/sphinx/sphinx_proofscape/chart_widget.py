@@ -17,9 +17,12 @@
 # --------------------------------------------------------------------------- #
 
 from collections import defaultdict
-import re
 
 from sphinx.errors import SphinxError
+
+from pfsc.excep import PfscExcep
+from pfsc.checkinput import check_boxlisting
+from pfsc.lang.widgets import set_up_hovercolor
 
 
 class ChartWidget:
@@ -98,6 +101,7 @@ class ChartWidget:
                                           ' of color codes on the left, and a boxlisting on the right.')
                     color_spec, box_listing = parts
                     color_codes = [c.strip() for c in color_spec.split(',')]
+                    # Restore the leading colons expected by our old code.
                     k = ":" + ":".join(color_codes)
                     v = self.resolve_boxlisting(box_listing)
                     data[k].update(set(v))
@@ -160,47 +164,6 @@ class ChartWidget:
         return ResolvedLibpath(libpath, repopath, version)
 
 
-# FIXME:
-#  This method was copied and modified from the ChartWidget class in the
-#  pfsc-server project. When we refactor, this should be able to move to a common
-#  location, and be implemented just once!
-def set_up_hovercolor(hc):
-    """
-    NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
-
-    If user has requested hovercolor, we enrich the data for ease of
-    use at the front-end.
-
-    Under `hovercolor`, the user provides an ordinary `color` request.
-    The user should _not_ worry about using any of `update`, `save`, `rest`;
-    we take care of all of that. User should just name the colors they want.
-
-    We transform the given color request so that under `hovercolor` our data
-    instead features _two_ ordinary color requests: one called `over` and one
-    called `out`. These can then be applied on `mouseover` and `mouseout` events.
-    """
-    over = {':update': True}
-    def set_prefix(s):
-        if s[0] != ":": return s
-        return f':save:tmp{s}'
-    for k, v in hc.items():
-        k, v = map(set_prefix, [k, v])
-        over[k] = v
-
-    out = {':update': True}
-    def do_weak_restore(s):
-        if s[0] != ":": return s
-        return f':wrest'
-    for k, v in hc.items():
-        k, v = map(do_weak_restore, [k, v])
-        out[k] = v
-
-    return {
-        'over': over,
-        'out': out
-    }
-
-
 class ResolvedLibpath:
 
     def __init__(self, libpath, repopath, version):
@@ -230,23 +193,9 @@ def find_lp_defn_for_docname(lp_defns, segment, docname, local_only=False):
     return None
 
 
-def is_formal_libpath(lp):
-    """
-    Check whether a string is, at least syntactically, a well-formed libpath.
-    """
-    return re.match(r'\.?[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$', lp) is not None
-
-
-# FIXME: Use the `checkinput` module
 def parse_box_listing(box_listing):
     """
-    A box listing is a string giving a multipath or comma-separated list of
-    multipaths.
-
-    A multipath is a libpath in which at most one segment lists several
-    alternative libpaths within braces, and separated by commas.
-
-    We return a list of libpath strings, or raise a SphinxError.
+    Return a list of libpath strings, or raise a SphinxError.
 
     Example:
 
@@ -256,49 +205,12 @@ def parse_box_listing(box_listing):
 
         ['foo.bar', 'foo.spam.baz', foo.cat]
     """
-    if not isinstance(box_listing, str):
-        raise SphinxError('Boxlisting must be a string.')
-    mps = []
-    mp = ''
-    depth = 0
-    for c in box_listing:
-        if c in ' \t\r\n':
-            continue
-        if c == ',' and depth == 0:
-            mps.append(mp)
-            mp = ''
-            continue
-        elif c == '{':
-            depth += 1
-            if depth > 1:
-                raise SphinxError(f'Boxlisting contains nested braces: {box_listing}')
-        elif c == '}':
-            depth -= 1
-            if depth < 0:
-                raise SphinxError(f'Boxlisting contains unmatched braces: {box_listing}')
-        mp += c
-    if mp:
-        mps.append(mp)
-
-    all_lps = []
-    for mp in mps:
-        lps = []
-        i0 = mp.find("{")
-        if i0 < 0:
-            # No opening brace. In this case it should be just an ordinary libpath.
-            lps = [mp]
-        else:
-            i1 = mp.find("}")
-            if i1 <= i0:
-                # If closing brace is missing, or does not come after opening brace, then malformed.
-                raise SphinxError(f'Malformed multipath: {mp}')
-            # Now we have 0 <= i0 < i1, and the two indices i0, i1 point to "{" and "}" chars, resp.
-            prefix = mp[:i0]
-            suffix = mp[i1 + 1:]
-            multi = [p.strip() for p in mp[i0 + 1:i1].split(',')]
-            lps = [prefix + m + suffix for m in multi]
-        for lp in lps:
-            if not is_formal_libpath(lp):
-                raise SphinxError(f'Malformed multipath: {mp}')
-            all_lps.append(lp)
-    return all_lps
+    try:
+        bl = check_boxlisting('', box_listing, {
+            'libpath_type': {
+                'short_okay': True,
+            },
+        })
+    except PfscExcep as pe:
+        raise SphinxError(str(pe))
+    return bl.get_libpaths()

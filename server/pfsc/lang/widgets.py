@@ -498,43 +498,10 @@ class ChartWidget(Widget):
         self.set_up_hovercolor()
 
     def set_up_hovercolor(self):
-        """
-        NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
-
-        If user has requested hovercolor, we enrich the data for ease of
-        use at the front-end.
-
-        Under `hovercolor`, the user provides an ordinary `color` request.
-        The user should _not_ worry about using any of `update`, `save`, `rest`;
-        we take care of all of that. User should just name the colors they want.
-
-        We transform the given color request so that under `hovercolor` our data
-        instead features _two_ ordinary color requests: one called `over` and one
-        called `out`. These can then be applied on `mouseover` and `mouseout` events.
-        """
         hc_name = 'hovercolor'
         if hc_name in self.data:
             hc = self.data[hc_name]
-            # Data for mouseover:
-            over = {':update': True}
-            def set_prefix(s):
-                if s[0] != ":": return s
-                return f':save:tmp{s}'
-            for k, v in hc.items():
-                k, v = map(set_prefix, [k, v])
-                over[k] = v
-            # Data for mouseout:
-            out = {':update': True}
-            def do_weak_restore(s):
-                if s[0] != ":": return s
-                return f':wrest'
-            for k, v in hc.items():
-                k, v = map(do_weak_restore, [k, v])
-                out[k] = v
-            self.data[hc_name] = {
-                'over': over,
-                'out': out
-            }
+            self.data[hc_name] = set_up_hovercolor(hc)
 
     def writeHTML(self, label=None):
         if label is None: label = escape(self.label)
@@ -543,6 +510,48 @@ class ChartWidget(Widget):
             'uid': self.writeUID()
         }
         return chart_widget_template.render(context)
+
+
+def set_up_hovercolor(hc):
+    """
+    NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
+
+    If user has requested hovercolor, we enrich the data for ease of
+    use at the front-end.
+
+    Under `hovercolor`, the user provides an ordinary `color` request.
+    The user should _not_ worry about using any of `update`, `save`, `rest`;
+    we take care of all of that. User should just name the colors they want.
+
+    We transform the given color request so that under `hovercolor` our data
+    instead features _two_ ordinary color requests: one called `over` and one
+    called `out`. These can then be applied on `mouseover` and `mouseout` events.
+    """
+    over = {':update': True}
+
+    def set_prefix(s):
+        if s[0] != ":":
+            return s
+        return f':save:tmp{s}'
+    for k, v in hc.items():
+        k, v = map(set_prefix, [k, v])
+        over[k] = v
+
+    out = {':update': True}
+
+    def do_weak_restore(s):
+        if s[0] != ":":
+            return s
+        return f':wrest'
+    for k, v in hc.items():
+        k, v = map(do_weak_restore, [k, v])
+        out[k] = v
+
+    return {
+        'over': over,
+        'out': out
+    }
+
 
 pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" tabindex="-1" href="#">{{ label }}</a>""")
 

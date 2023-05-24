@@ -27,6 +27,9 @@ from pfsc.sphinx.sphinx_proofscape.lang_exts import (
     PfscDefnsDirective,
 )
 
+from pfsc.constants import WIP_TAG
+from pfsc.build.versions import version_string_is_valid
+
 
 ###############################################################################
 # Standard purge & merge
@@ -49,10 +52,6 @@ def merge_chart_widgets(app, env, docnames, other):
 
 ###############################################################################
 
-# FIXME: can we use existing stuff from pise/server?
-import re
-VERSION_PATTERN = re.compile(r'WIP|v?\d+\.\d+\.\d+$')
-
 
 def regularize_version_dict(app):
     """
@@ -60,17 +59,17 @@ def regularize_version_dict(app):
     it, meaning ensure that each value is either WIP or starts with a 'v', and
     then save the regularized version in the env.
 
-    raises: ValueError if any value fails to match the VERSION_PATTERN
+    raises: ValueError if any version string is improperly formatted
     """
     vers_defns = app.config.pfsc_import_repos or {}
     r = {}
     for k, v in vers_defns.items():
-        if not VERSION_PATTERN.match(v):
-            raise ValueError(v)
-        if v != "WIP" and not v.startswith('v'):
-            r[k] = f'v{v}'
-        else:
-            r[k] = v
+        if v != WIP_TAG:
+            if not v.startswith('v'):
+                v = f'v{v}'
+            if not version_string_is_valid(v):
+                raise ValueError(v)
+        r[k] = v
     app.builder.env.pfsc_vers_defns = r
 
 

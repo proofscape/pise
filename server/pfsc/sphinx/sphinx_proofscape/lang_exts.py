@@ -28,10 +28,8 @@ from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
 from pfsc.sphinx.sphinx_proofscape.chart_widget import ChartWidget
-
-
-# FIXME: can we use existing stuff from pise/server?
-LIBPATH_PATTERN = re.compile(r'\w+(\.\w+)*$')
+from pfsc.checkinput import check_libpath
+from pfsc.excep import PfscExcep
 
 
 ###############################################################################
@@ -88,7 +86,7 @@ class PfscDefnsDirective(SphinxDirective):
     }
 
     def run(self):
-        def parse_list_of_pairs(option_name, key_pattern, value_pattern):
+        def parse_list_of_pairs(option_name, key_pattern, value_test):
             given = self.options.get(option_name)
             if not given:
                 return {}
@@ -103,13 +101,20 @@ class PfscDefnsDirective(SphinxDirective):
                     fail(p)
                 if not re.match(key_pattern, p[0]):
                     fail(p)
-                if not re.match(value_pattern, p[1]):
+                if not value_test(p[1]):
                     fail(p)
 
             mapping = {name: value for name, value in pairs}
             return mapping
 
-        lp_defns = parse_list_of_pairs('libpaths', r'\w+$', LIBPATH_PATTERN)
+        def libpath_test(raw):
+            try:
+                check_libpath('', raw, {})
+            except PfscExcep:
+                return False
+            return True
+
+        lp_defns = parse_list_of_pairs('libpaths', r'\w+$', libpath_test)
         if not hasattr(self.env, 'pfsc_lp_defns_by_docname'):
             self.env.pfsc_lp_defns_by_docname = {}
         self.env.pfsc_lp_defns_by_docname[self.env.docname] = lp_defns
