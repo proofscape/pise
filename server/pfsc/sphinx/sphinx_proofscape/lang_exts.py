@@ -32,26 +32,6 @@ from pfsc.sphinx.sphinx_proofscape.chart_widget import ChartWidget
 
 # FIXME: can we use existing stuff from pise/server?
 LIBPATH_PATTERN = re.compile(r'\w+(\.\w+)*$')
-VERSION_PATTERN = re.compile(r'WIP|v?\d+\.\d+\.\d+$')
-
-
-def regularize_version_dict(d):
-    """
-    d: version dictionary, i.e. dict in which values are version strings
-
-    return: regularized dictionary, i.e. where each value is either WIP or
-        starts with a 'v'
-    raises: ValueError if any value fails to match the VERSION_PATTERN
-    """
-    r = {}
-    for k, v in d.items():
-        if not VERSION_PATTERN.match(v):
-            raise ValueError(v)
-        if v != "WIP" and not v.startswith('v'):
-            r[k] = f'v{v}'
-        else:
-            r[k] = v
-    return r
 
 
 ###############################################################################
@@ -155,10 +135,7 @@ class PfscChartWidgetBuilder:
         repopath = self.config.pfsc_repopath
         repovers = self.config.pfsc_repovers
 
-        vers_defns = self.config.pfsc_import_repos or {}
-        # FIXME:
-        #  Couldn't this be done just once? Maybe on an early sphinx build hook?
-        vers_defns = regularize_version_dict(vers_defns)
+        vers_defns = self.env.pfsc_vers_defns
 
         docname = self.env.docname
         wnum = self.env.new_serialno('widget')

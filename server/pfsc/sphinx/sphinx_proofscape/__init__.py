@@ -49,6 +49,30 @@ def merge_chart_widgets(app, env, docnames, other):
 
 ###############################################################################
 
+# FIXME: can we use existing stuff from pise/server?
+import re
+VERSION_PATTERN = re.compile(r'WIP|v?\d+\.\d+\.\d+$')
+
+
+def regularize_version_dict(app):
+    """
+    Read the version dictionary out of `config.pfsc_import_repos`, regularize
+    it, meaning ensure that each value is either WIP or starts with a 'v', and
+    then save the regularized version in the env.
+
+    raises: ValueError if any value fails to match the VERSION_PATTERN
+    """
+    vers_defns = app.config.pfsc_import_repos or {}
+    r = {}
+    for k, v in vers_defns.items():
+        if not VERSION_PATTERN.match(v):
+            raise ValueError(v)
+        if v != "WIP" and not v.startswith('v'):
+            r[k] = f'v{v}'
+        else:
+            r[k] = v
+    app.builder.env.pfsc_vers_defns = r
+
 
 def write_widget_data(app, pagename, templatename, context, event_arg):
     """
@@ -87,6 +111,7 @@ def setup(app):
 
     app.connect('env-purge-doc', purge_chart_widgets)
     app.connect('env-merge-info', merge_chart_widgets)
+    app.connect('builder-inited', regularize_version_dict)
     app.connect('html-page-context', write_widget_data)
 
     return {
