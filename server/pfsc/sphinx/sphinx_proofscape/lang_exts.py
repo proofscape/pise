@@ -143,24 +143,14 @@ class PfscChartWidgetBuilder:
     Directive classes for pfsc chart widgets.
     """
 
-    ########################################################################
-    # These methods are just here to make my IDE stop complaining about
-    # references made in the `finish_run()` method to things that this class
-    # otherwise would appear not to have.
+    # Making this method static is a way to make my IDE stop complaining about
+    # attributes it doesn't think `self` has. When our subclasses invoke this
+    # method, they just have to remember to pass `self` as first arg.
     #
     # Ideally, the Sphinx package would define a common superclass to its
-    # `SphinxRole` and `SphinxDirective` classes. Then this class could simply
-    # be a subclass of that.
-
-    def __init__(self):
-        self.config = None
-        self.env = None
-
-    def get_source_info(self):
-        return None, None
-
-    ########################################################################
-
+    # `SphinxRole` and `SphinxDirective` classes, and then this class could
+    # simply be a subclass of that.
+    @staticmethod
     def finish_run(self, rawtext, label, widget_fields):
         repopath = self.config.pfsc_repopath
         repovers = self.config.pfsc_repovers
@@ -211,7 +201,7 @@ class PfscChartRole(SphinxRole, PfscChartWidgetBuilder):
             prb = self.inliner.problematic(self.rawtext, self.rawtext, msg)
             return [prb], [msg]
         label, view = [g.strip() for g in M.groups()]
-        node = self.finish_run(self.rawtext, label, {
+        node = self.finish_run(self, self.rawtext, label, {
             'view': view,
         })
         return [node], []
@@ -355,5 +345,5 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
         else:
             raise SphinxError(f'{self.get_location()}: missing label text.')
 
-        node = self.finish_run(rawtext, label, self.options)
+        node = self.finish_run(self, rawtext, label, self.options)
         return [node]
