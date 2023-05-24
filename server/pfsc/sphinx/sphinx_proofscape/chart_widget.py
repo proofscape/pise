@@ -106,7 +106,7 @@ class ChartWidget:
                     v = self.resolve_boxlisting(box_listing)
                     data[k].update(set(v))
                 # Sort for deterministic output. Good for testing.
-                data = {k:list(sorted(list(v))) for k, v in data.items()}
+                data = {k: list(sorted(list(v))) for k, v in data.items()}
 
                 if name == "hovercolor":
                     rf[name] = set_up_hovercolor(data)
