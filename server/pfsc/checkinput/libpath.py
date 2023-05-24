@@ -48,13 +48,15 @@ class BoxListing:
     The purpose of this class is to accept such a value, and uniformize it.
     """
 
-    def __init__(self, raw_value, allowed_keywords=[]):
+    def __init__(self, raw_value, allowed_keywords=None):
         """
         :param raw_value: the raw value of the box listing
         :param allowed_keywords: optional list of keywords allowed for this particular box listing
 
         Our aim is to uniformize the input by storing either a list of libpaths, or a keyword value.
         """
+        if allowed_keywords is None:
+            allowed_keywords = []
 
         # We record a keyword, which will remain `None` if the user did not provide one.
         self.keyword = None
