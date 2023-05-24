@@ -111,6 +111,7 @@ def test_build(libpath, rec):
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, rec", (
     ("test.spx.doc0", True),
+    ("test.spx.doc1", True),
     #("test.moo.bar", True),
     #("test.foo.bar.expansions", False),
     #("test.hist.lit", True),
