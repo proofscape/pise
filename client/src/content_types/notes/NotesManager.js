@@ -840,8 +840,9 @@ var NotesManager = declare(AbstractContentManager, {
      *
      * param uid: the unique id of the widget
      * param event: the browser-native mouse event object
+     * param pane: the Dijit pane in which the event happened
      */
-    handleNavWidgetMouseEvent: async function(uid, event) {
+    handleNavWidgetMouseEvent: async function(uid, event, pane) {
         const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
         const clickedElt = event.target;
         const LN = this.linkingMap;
@@ -850,7 +851,7 @@ var NotesManager = declare(AbstractContentManager, {
         const gid = widget.groupId;
 
         const cm = this.hub.contentManager;
-        const clickedPane = cm.getSurroundingPane(clickedElt);
+        const clickedPane = pane;
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await LN.get(clickedPanelUuid, gid);
 
@@ -898,7 +899,7 @@ var NotesManager = declare(AbstractContentManager, {
                 // to obtain named highlights, if we requested one under `highlightId`.
                 info.requestingUuid = clickedPanelUuid;
             }
-            const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
+            const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedPanelUuid);
             if (spawned) {
                 await LN.add(clickedPanelUuid, gid, spawned);
             } else if (claimable) {

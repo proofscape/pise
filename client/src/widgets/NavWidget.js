@@ -30,16 +30,16 @@ const NavWidget = declare(Widget, {
 
     activate: function(wdq, uid, nm, pane) {
         wdq.on('click', event => {
-            nm.handleNavWidgetMouseEvent(uid, event);
+            nm.handleNavWidgetMouseEvent(uid, event, pane);
             // Alt-click on an <a> tag seems to trigger a request to download
             // (observed in Chrome on macOS), so we need to prevent the default.
             event.preventDefault();
         });
         wdq.on('mouseover', event => {
-            nm.handleNavWidgetMouseEvent(uid, event);
+            nm.handleNavWidgetMouseEvent(uid, event, pane);
         });
         wdq.on('mouseout', event => {
-            nm.handleNavWidgetMouseEvent(uid, event);
+            nm.handleNavWidgetMouseEvent(uid, event, pane);
         });
     },
 
