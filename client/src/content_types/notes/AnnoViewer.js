@@ -66,6 +66,15 @@ export class AnnoViewer extends BasePageViewer {
         // TODO
     }
 
+    describeCurrentLocation() {
+        const loc = super.describeCurrentLocation();
+        if (loc) {
+            // Note scrollFrac.
+            loc.scrollFrac = this.computeScrollFrac();
+        }
+        return loc;
+    }
+
     describeLocationUpdate(loc) {
         const cur = this.getCurrentLoc() || {};
         const libpathChange = cur.libpath !== loc.libpath;

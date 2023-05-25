@@ -23,6 +23,18 @@ export class BasePageViewer extends Listenable {
         this.navEnableHandlers = [];
         this.history = [];
         this.ptr = null;
+        this.currentPageData = null;
+    }
+
+    markWidgetElementAsSelected(elt) {
+        this.clearWidgetSelection();
+        elt.classList.add('selected');
+    }
+
+    clearWidgetSelection() {
+        document.querySelectorAll('a.widget.selected').forEach(a => {
+            a.classList.remove('selected');
+        });
     }
 
     canGoForward() {
@@ -87,6 +99,12 @@ export class BasePageViewer extends Listenable {
     getCurrentLoc() {
         if (this.ptr === null) return null;
         return this.history[this.ptr];
+    }
+
+    describeCurrentLocation() {
+        const loc = this.getCurrentLoc();
+        // Return a copy.
+        return JSON.parse(JSON.stringify(loc));
     }
 
     addNavEnableHandler(callback) {

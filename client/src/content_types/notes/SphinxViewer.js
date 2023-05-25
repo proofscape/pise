@@ -113,7 +113,11 @@ export class SphinxViewer extends BasePageViewer {
     }
 
     activateWidgets() {
-        // TODO
+        const data = this.cw.pfsc_page_data;
+        console.debug('page data:', data);
+        this.currentPageData = data;
+        const elt = this.cw.document.body;
+        this.mgr.setupWidgets(data, elt, this.pane);
     }
 
     /* Extract the URL from a content descriptor object of SPHINX type.
