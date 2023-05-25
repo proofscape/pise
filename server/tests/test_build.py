@@ -175,6 +175,7 @@ def test_make_repos(app, only):
     #['test.wid.get', 'v0.1.0'],
     #['test.moo.beta', 'v0.1.1'],
     ['test.spx.doc0', 'v0.1.0'],
+    ['test.spx.doc1', 'v0.1.0'],
 ])
 @pytest.mark.psm
 def test_build_release(app, repopath, version):
