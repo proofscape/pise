@@ -33,7 +33,7 @@ def get_chart_widget_anchors(soup):
     return list(soup.find_all('a', class_='chartWidget'))
 
 
-def get_widget_data_from_script_tag(soup):
+def get_page_data_from_script_tag(soup):
     """
     If the HTML contains a <script id=""pfsc-page-data"> tag, then parse
     the JSON and return the data itself.
@@ -42,9 +42,10 @@ def get_widget_data_from_script_tag(soup):
     """
     script = soup.find('script', id='pfsc-page-data')
     if script:
-        intro = '\nconst pfsc_widget_data = '
-        if script.text.startswith(intro):
-            rem = script.text[len(intro):]
+        text = script.text.strip()
+        intro = 'const pfsc_page_data = '
+        if text.startswith(intro):
+            rem = text[len(intro):]
             data = json.loads(rem)
             return data
     return None
@@ -58,22 +59,27 @@ def get_highlights(soup, language):
 
 
 expected_widget_data_spx_doc1 = json.loads("""
-[
-    {
-        "view": [
-            "test.moo.bar.results.Pf"
-        ],
-        "versions": {
-            "test.moo.bar": "v0.3.4"
-        },
-        "pane_group": "test.spx.doc1@v0.1.0._sphinx.index:CHART:",
-        "src_line": 13,
-        "type": "CHART",
-        "uid": "test-spx-doc1-_sphinx-index-w0_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc1._sphinx.index.w0"
-    }
-]
+{
+    "libpath": "test.spx.doc1._sphinx.index",
+    "version": "v0.1.0",
+    "widgets": {
+        "test-spx-doc1-_sphinx-index-w0_v0.1.0": {
+            "view": [
+                "test.moo.bar.results.Pf"
+            ],
+            "versions": {
+                "test.moo.bar": "v0.3.4"
+            },
+            "pane_group": "test.spx.doc1@v0.1.0._sphinx.index:CHART:",
+            "src_line": 13,
+            "type": "CHART",
+            "uid": "test-spx-doc1-_sphinx-index-w0_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc1._sphinx.index.w0"
+        }
+    },
+    "docInfo": null
+}
 """)
 
 
@@ -93,7 +99,8 @@ def test_generated_pfsc_widget_data_script_tag(app):
         with open(pathlib.Path(build_dir) / 'index.html') as f:
             html = f.read()
         soup = BeautifulSoup(html, 'html.parser')
-        widget_data = get_widget_data_from_script_tag(soup)
+        widget_data = get_page_data_from_script_tag(soup)
+        #print(json.dumps(widget_data, indent=4))
         assert widget_data == expected_widget_data_spx_doc1
 
 
@@ -144,11 +151,12 @@ def test_spx_doc0(app):
         assert len(A) == 1
         assert 'test-spx-doc0-_sphinx-pageA-w0_v0.1.0' in A[0].get('class')
     
-        # Defines the expected pfsc_widget_data
-        wd = get_widget_data_from_script_tag(soup)
-        assert len(wd) == 1
-        #print('\n', json.dumps(wd[0], indent=4))
-        assert wd[0] == {
+        # Defines the expected pfsc_page_data
+        page_data = get_page_data_from_script_tag(soup)
+        # print('\n', json.dumps(page_data, indent=4))
+        widgets = page_data['widgets']
+        assert len(widgets) == 1
+        assert widgets["test-spx-doc0-_sphinx-pageA-w0_v0.1.0"] == {
             "view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
             ],
@@ -184,10 +192,10 @@ def test_spx_doc0(app):
             assert f'test-spx-doc0-_sphinx-foo-pageC-w{i}_v0.1.0' in a.get('class')
             assert a.text == expected_label
     
-        # Get the expected pfsc_widget_data:
-        wd = get_widget_data_from_script_tag(soup)
-        #print('\n', json.dumps(wd, indent=4))
-        assert wd == PAGE_C_WIDGET_DATA
+        # Get the expected pfsc_page_data:
+        page_data = get_page_data_from_script_tag(soup)
+        #print('\n', json.dumps(page_data, indent=4))
+        assert page_data == PAGE_C_PAGE_DATA
 
 
 PAGE_C_WIDGETS_LABELS = [
@@ -199,104 +207,109 @@ PAGE_C_WIDGETS_LABELS = [
 ]
 
 
-PAGE_C_WIDGET_DATA = [
-    {
-        "view": [
-            "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
-        ],
-        "versions": {
-            "test.hist.lit": "v0.0.0"
+PAGE_C_PAGE_DATA = {
+    "libpath": "test.spx.doc0._sphinx.foo.pageC",
+    "version": "v0.1.0",
+    "widgets": {
+        "test-spx-doc0-_sphinx-foo-pageC-w0_v0.1.0": {
+            "view": [
+                "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
+            ],
+            "versions": {
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 12,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w0_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w0"
         },
-        "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-        "src_line": 12,
-        "type": "CHART",
-        "uid": "test-spx-doc0-_sphinx-foo-pageC-w0_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w0"
-    },
-    {
-        "view": [
-            "test.hist.lit.H.ilbert.ZB.Thm168.Thm"
-        ],
-        "versions": {
-            "test.hist.lit": "v0.0.0"
+        "test-spx-doc0-_sphinx-foo-pageC-w1_v0.1.0": {
+            "view": [
+                "test.hist.lit.H.ilbert.ZB.Thm168.Thm"
+            ],
+            "versions": {
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 14,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w1_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w1"
         },
-        "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-        "src_line": 14,
-        "type": "CHART",
-        "uid": "test-spx-doc0-_sphinx-foo-pageC-w1_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w1"
-    },
-    {
-        "on_board": [
-            "gh.foo.spam.H.ilbert.ZB.Thm168.X1"
-        ],
-        "off_board": [
-            "gh.foo.spam.H.ilbert.ZB.Thm168.X2"
-        ],
-        "view": [
-            "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10",
-            "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
-            "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20"
-        ],
-        "color": {
-            ":olB": [
+        "test-spx-doc0-_sphinx-foo-pageC-w2_v0.1.0": {
+            "on_board": [
+                "gh.foo.spam.H.ilbert.ZB.Thm168.X1"
+            ],
+            "off_board": [
+                "gh.foo.spam.H.ilbert.ZB.Thm168.X2"
+            ],
+            "view": [
+                "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20"
             ],
-            ":bgG": [
-                "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10"
-            ]
+            "color": {
+                ":olB": [
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20"
+                ],
+                ":bgG": [
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10"
+                ]
+            },
+            "versions": {
+                "gh.foo.spam": "WIP",
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 28,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w2_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w2"
         },
-        "versions": {
-            "gh.foo.spam": "WIP",
-            "test.hist.lit": "v0.0.0"
-        },
-        "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-        "src_line": 28,
-        "type": "CHART",
-        "uid": "test-spx-doc0-_sphinx-foo-pageC-w2_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w2"
-    },
-    {
-        "view": [
-            "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
-        ],
-        "color": {
-            ":olB": [
-                "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
-                "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20"
-            ]
-        },
-        "versions": {
-            "test.hist.lit": "v0.0.0"
-        },
-        "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-        "src_line": 36,
-        "type": "CHART",
-        "uid": "test-spx-doc0-_sphinx-foo-pageC-w3_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w3"
-    },
-    {
-        "color": {
-            ":bgG": [
-                "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
-                "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20",
-                "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10"
+        "test-spx-doc0-_sphinx-foo-pageC-w3_v0.1.0": {
+            "view": [
+                "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
             ],
-            ":update": True
+            "color": {
+                ":olB": [
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20"
+                ]
+            },
+            "versions": {
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 36,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w3_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w3"
         },
-        "versions": {
-            "test.hist.lit": "v0.0.0"
-        },
-        "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-        "src_line": 40,
-        "type": "CHART",
-        "uid": "test-spx-doc0-_sphinx-foo-pageC-w4_v0.1.0",
-        "version": "v0.1.0",
-        "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w4"
-    }
-]
+        "test-spx-doc0-_sphinx-foo-pageC-w4_v0.1.0": {
+            "color": {
+                ":bgG": [
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A20",
+                    "test.hist.lit.H.ilbert.ZB.Thm168.Thm.A10"
+                ],
+                ":update": True
+            },
+            "versions": {
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 40,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w4_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w4"
+        }
+    },
+    "docInfo": None
+}

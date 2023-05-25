@@ -253,12 +253,11 @@ class Annotation(Enrichment):
                 uid = widget.writeUID()
                 data = widget.writeData()
                 widget_data[uid] = data
-            anno_data = {
-                'libpath': self.getLibpath(),
-                'version': self.getVersion(),
-                'widgets': widget_data,
-                'docInfo': self.gather_doc_info(caching=caching),
-            }
+            anno_data = format_page_data(
+                self.getLibpath(), self.getVersion(),
+                widget_data,
+                self.gather_doc_info(caching=caching)
+            )
             if caching:
                 self.anno_data = anno_data
         return anno_data
@@ -273,3 +272,12 @@ class Annotation(Enrichment):
             "html": html,
             "data": data
         }
+
+
+def format_page_data(libpath, version, widgets, docInfo):
+    return {
+        'libpath': libpath,
+        'version': version,
+        'widgets': widgets,
+        'docInfo': docInfo,
+    }

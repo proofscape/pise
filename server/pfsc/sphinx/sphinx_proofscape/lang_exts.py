@@ -27,7 +27,7 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.chart_widget import ChartWidget
+from pfsc.sphinx.sphinx_proofscape.chart_widget import SphinxChartWidget
 from pfsc.checkinput import check_libpath
 from pfsc.excep import PfscExcep
 
@@ -137,9 +137,6 @@ class PfscChartWidgetBuilder:
     # simply be a subclass of that.
     @staticmethod
     def finish_run(self, rawtext, label, widget_fields):
-        repopath = self.config.pfsc_repopath
-        repovers = self.config.pfsc_repovers
-
         vers_defns = self.env.pfsc_vers_defns
 
         docname = self.env.docname
@@ -149,13 +146,15 @@ class PfscChartWidgetBuilder:
 
         src_file, lineno = self.get_source_info()
 
-        widget = ChartWidget(lp_defns, vers_defns,
-                             repopath, repovers, docname, src_file, lineno, wnum,
-                             **widget_fields)
+        widget = SphinxChartWidget(
+            self.config, lp_defns, vers_defns,
+            docname, src_file, lineno, wnum,
+            **widget_fields
+        )
 
-        if not hasattr(self.env, 'pfsc_all_chart_widgets'):
-            self.env.pfsc_all_chart_widgets = []
-        self.env.pfsc_all_chart_widgets.append(widget)
+        if not hasattr(self.env, 'pfsc_all_widgets'):
+            self.env.pfsc_all_widgets = []
+        self.env.pfsc_all_widgets.append(widget)
 
         node = chartwidget(rawtext, label, classes=[
             'widget', 'chartWidget', widget.write_uid(),

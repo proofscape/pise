@@ -20,24 +20,25 @@ from collections import defaultdict
 
 from sphinx.errors import SphinxError
 
-from pfsc.excep import PfscExcep
-from pfsc.checkinput import check_boxlisting
 from pfsc.lang.widgets import set_up_hovercolor
+from pfsc.sphinx.sphinx_proofscape.util import (
+    build_libpath, parse_box_listing, find_lp_defn_for_docname,
+    ResolvedLibpath,
+)
 
 
-class ChartWidget:
+class SphinxChartWidget:
     """
     FIXME:
-        Ultimately should refactor, and base this on the widget classes
-        defined in pfsc-server. For now, something good enough.
+     Can we refactor, and base more of this on the widget classes
+     defined in pfsc.lang.widgets?
     """
 
-    def __init__(self, lp_defns, vers_defns,
-                 repopath, repovers, docname, src_file, lineno, wnum, **fields):
+    def __init__(self, config, lp_defns, vers_defns,
+                 docname, src_file, lineno, wnum, **fields):
+        self.sphinx_config = config
         self.lp_defns = lp_defns
         self.vers_defns = vers_defns
-        self.repopath = repopath
-        self.repovers = repovers
         self.docname = docname
         self.src_file = src_file
         self.lineno = lineno
@@ -47,11 +48,18 @@ class ChartWidget:
         # are taking it (value).
         self.versions = {}
 
-        self.intra_repo_docpath = f'_sphinx.{docname.replace("/", ".")}'
-        self.libpath = f'{repopath}.{self.intra_repo_docpath}.w{wnum}'
-        self.pane_group = f'{repopath}@{repovers}.{self.intra_repo_docpath}:CHART:'
+        self.libpath = build_libpath(config, docname, extension=f'w{wnum}')
+        self.pane_group = build_libpath(config, docname, add_repo_version=True) + ':CHART:'
         self.given_fields = fields
         self.resolved_fields = self.resolve_fields(fields)
+
+    @property
+    def repopath(self):
+        return self.sphinx_config.pfsc_repopath
+
+    @property
+    def repovers(self):
+        return self.sphinx_config.pfsc_repovers
 
     def get_location(self):
         return ':'.join(str(s) for s in [self.src_file, self.lineno])
@@ -162,55 +170,3 @@ class ChartWidget:
         version = self.vers_defns[repopath]
         libpath = '.'.join(segs)
         return ResolvedLibpath(libpath, repopath, version)
-
-
-class ResolvedLibpath:
-
-    def __init__(self, libpath, repopath, version):
-        self.libpath = libpath
-        self.repopath = repopath
-        self.version = version
-
-
-def find_lp_defn_for_docname(lp_defns, segment, docname, local_only=False):
-    """
-    Look for a libpath definition for a given segment, which pertains within
-    a given document.
-
-    If local_only is false, then we search definitions for the given document,
-    as well as the index document of any directories above this one. If true,
-    we search only defs for the given document.
-    """
-    lp = lp_defns.get(docname, {}).get(segment)
-    if lp or local_only:
-        return lp
-    names = docname.split('/')
-    for i in range(1, len(names) + 1):
-        dn = '/'.join(names[:-i] + ['index'])
-        lp = lp_defns.get(dn, {}).get(segment)
-        if lp:
-            return lp
-    return None
-
-
-def parse_box_listing(box_listing):
-    """
-    Return a list of libpath strings, or raise a SphinxError.
-
-    Example:
-
-        foo.bar, foo.{spam.baz, cat}
-
-    is transformed into
-
-        ['foo.bar', 'foo.spam.baz', foo.cat]
-    """
-    try:
-        bl = check_boxlisting('', box_listing, {
-            'libpath_type': {
-                'short_okay': True,
-            },
-        })
-    except PfscExcep as pe:
-        raise SphinxError(str(pe))
-    return bl.get_libpaths()

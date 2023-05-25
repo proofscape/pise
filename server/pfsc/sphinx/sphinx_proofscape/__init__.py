@@ -28,6 +28,8 @@ from pfsc.sphinx.sphinx_proofscape.lang_exts import (
 )
 
 from pfsc.constants import WIP_TAG
+from pfsc.lang.annotations import format_page_data
+from pfsc.sphinx.sphinx_proofscape.util import build_libpath
 from pfsc.build.versions import version_string_is_valid
 
 
@@ -36,18 +38,18 @@ from pfsc.build.versions import version_string_is_valid
 # See e.g. https://www.sphinx-doc.org/en/master/development/tutorials/todo.html
 
 
-def purge_chart_widgets(app, env, docname):
-    if not hasattr(env, 'pfsc_all_chart_widgets'):
+def purge_pfsc_widgets(app, env, docname):
+    if not hasattr(env, 'pfsc_all_widgets'):
         return
-    env.pfsc_all_chart_widgets = [w for w in env.pfsc_all_chart_widgets
+    env.pfsc_all_widgets = [w for w in env.pfsc_all_widgets
                                   if w.docname != docname]
 
 
-def merge_chart_widgets(app, env, docnames, other):
-    if not hasattr(env, 'pfsc_all_chart_widgets'):
-        env.pfsc_all_chart_widgets = []
-    if hasattr(other, 'pfsc_all_chart_widgets'):
-        env.pfsc_all_chart_widgets.extend(other.pfsc_all_chart_widgets)
+def merge_pfsc_widgets(app, env, docnames, other):
+    if not hasattr(env, 'pfsc_all_widgets'):
+        env.pfsc_all_widgets = []
+    if hasattr(other, 'pfsc_all_widgets'):
+        env.pfsc_all_widgets.extend(other.pfsc_all_widgets)
 
 
 ###############################################################################
@@ -73,7 +75,7 @@ def regularize_version_dict(app):
     app.builder.env.pfsc_vers_defns = r
 
 
-def write_widget_data(app, pagename, templatename, context, event_arg):
+def write_page_data(app, pagename, templatename, context, event_arg):
     """
     Inject the necessary <script> tag into a document, recording the data for
     any pfsc widgets defined on the page.
@@ -81,15 +83,25 @@ def write_widget_data(app, pagename, templatename, context, event_arg):
     if app.builder.format != 'html':
         return
     env = app.builder.env
-    if not hasattr(env, 'pfsc_all_chart_widgets'):
-        env.pfsc_all_chart_widgets = []
-    widget_descrips = []
-    for w in env.pfsc_all_chart_widgets:
+
+    tvl = build_libpath(app.config, pagename, add_tail_version=True)
+    libpath, version = tvl.split('@')
+
+    docInfo = None  # TODO
+
+    widgets = {}
+
+    if not hasattr(env, 'pfsc_all_widgets'):
+        env.pfsc_all_widgets = []
+
+    for w in env.pfsc_all_widgets:
         if w.docname == pagename:
-            widget_descrips.append(w.write_info_dict())
-    if widget_descrips:
-        body = f'\nconst pfsc_widget_data = {json.dumps(widget_descrips, indent=4)}\n'
-        app.add_js_file(None, body=body, id='pfsc-page-data')
+            uid = w.write_uid()
+            widgets[uid] = w.write_info_dict()
+
+    page_data = format_page_data(libpath, version, widgets, docInfo)
+    body = f'\nconst pfsc_page_data = {json.dumps(page_data, indent=4)}\n'
+    app.add_js_file(None, body=body, id='pfsc-page-data')
 
 
 ###############################################################################
@@ -108,10 +120,10 @@ def setup(app):
     app.add_directive('pfsc-chart', PfscChartDirective)
     app.add_directive('pfsc-defns', PfscDefnsDirective)
 
-    app.connect('env-purge-doc', purge_chart_widgets)
-    app.connect('env-merge-info', merge_chart_widgets)
+    app.connect('env-purge-doc', purge_pfsc_widgets)
+    app.connect('env-merge-info', merge_pfsc_widgets)
     app.connect('builder-inited', regularize_version_dict)
-    app.connect('html-page-context', write_widget_data)
+    app.connect('html-page-context', write_page_data)
 
     return {
         'version': PISE_VERSION,
