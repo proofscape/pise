@@ -103,6 +103,7 @@ export class SphinxViewer extends BasePageViewer {
         if (this.resolvePageUpdate) {
             // The location change resulted from a deliberate call to this.updatePage().
             // Let the Promise returned by that method now resolve.
+            // No need to manage history here, since it was already handled elsewhere.
             this.resolvePageUpdate();
             this.resolvePageUpdate = null;
         } else {
@@ -138,6 +139,8 @@ export class SphinxViewer extends BasePageViewer {
 
     async updatePage(loc) {
         return new Promise(resolve => {
+            // Store the resolution function to be called later, from `observeLocationChange()`,
+            // after the page has finished loading.
             this.resolvePageUpdate = resolve;
             const url = this.makeUrlFromCdo(loc);
             this.cw.location = url;
@@ -182,7 +185,8 @@ export class SphinxViewer extends BasePageViewer {
         }
     }
 
-    /* Determine whether our content window is currently at a locally hosted sphinx page,
+    /* spi = "Sphinx page info"
+     * Determine whether our content window is currently at a locally hosted sphinx page,
      * and if so determine the libpath and version of that page, as well as any
      * in-page hash at which the window is currently located.
      *
