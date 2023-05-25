@@ -70,17 +70,15 @@ export class SphinxViewer extends BasePageViewer {
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {
-        const sphinxPageInfo = this.spi;
-        console.log(sphinxPageInfo);
-
         // Listen for hashchange within the page.
         this.cw.addEventListener('hashchange', event => {
-            const sphinxPageInfo = this.spi;
-            console.log(sphinxPageInfo);
+            console.debug(this.spi);
             this.observeLocationChange();
         });
 
         // Is it a sphinx page?
+        const sphinxPageInfo = this.spi;
+        console.debug(sphinxPageInfo);
         if (sphinxPageInfo) {
             // Apply global theme & zoom.
             this.setTheme(this.mgr.hub.currentTheme);
