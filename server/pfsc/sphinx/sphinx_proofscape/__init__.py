@@ -75,6 +75,9 @@ def regularize_version_dict(app):
     app.builder.env.pfsc_vers_defns = r
 
 
+SCRIPT_INTRO = 'window.pfsc_page_data = '
+
+
 def write_page_data(app, pagename, templatename, context, event_arg):
     """
     Inject the necessary <script> tag into a document, recording the data for
@@ -100,7 +103,7 @@ def write_page_data(app, pagename, templatename, context, event_arg):
             widgets[uid] = w.write_info_dict()
 
     page_data = format_page_data(libpath, version, widgets, docInfo)
-    body = f'\nconst pfsc_page_data = {json.dumps(page_data, indent=4)}\n'
+    body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
     app.add_js_file(None, body=body, id='pfsc-page-data')
 
 

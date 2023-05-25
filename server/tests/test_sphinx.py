@@ -24,6 +24,7 @@ from flask import Flask
 
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
+from pfsc.sphinx.sphinx_proofscape import SCRIPT_INTRO
 
 
 def get_chart_widget_anchors(soup):
@@ -43,7 +44,7 @@ def get_page_data_from_script_tag(soup):
     script = soup.find('script', id='pfsc-page-data')
     if script:
         text = script.text.strip()
-        intro = 'const pfsc_page_data = '
+        intro = SCRIPT_INTRO
         if text.startswith(intro):
             rem = text[len(intro):]
             data = json.loads(rem)
