@@ -141,7 +141,7 @@ export class SphinxViewer extends BasePageViewer {
             // after the page has finished loading.
             this.resolvePageUpdate = resolve;
             const url = this.makeUrlFromCdo(loc);
-            this.cw.location = url;
+            this.iframe.src = url;
         });
     }
 
