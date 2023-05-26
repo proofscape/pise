@@ -21,10 +21,12 @@ import pathlib
 
 from bs4 import BeautifulSoup
 from flask import Flask
+import pytest
 
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.sphinx.sphinx_proofscape import SCRIPT_INTRO
+from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 
 
 def get_chart_widget_anchors(soup):
@@ -59,12 +61,25 @@ def get_highlights(soup, language):
     return list(soup.find_all('div', class_=f'highlight-{language}'))
 
 
+@pytest.mark.parametrize('raw_label, name0, text0', [
+    ['w23: the proof', 'w23', 'the proof'],
+    ['foo: bar: cat', 'foo', 'bar: cat'],
+    ['23w: the proof', None, '23w: the proof'],
+    [' foo: bar', None, 'foo: bar'],
+    ['foo bar ', None, 'foo bar'],
+])
+def test_process_widget_label(raw_label, name0, text0):
+    name1, text1 = process_widget_label(raw_label)
+    assert name1 == name0
+    assert text1 == text0
+
+
 expected_widget_data_spx_doc1 = json.loads("""
 {
     "libpath": "test.spx.doc1._sphinx.index",
     "version": "v0.1.0",
     "widgets": {
-        "test-spx-doc1-_sphinx-index-w0_v0.1.0": {
+        "test-spx-doc1-_sphinx-index-_w0_v0.1.0": {
             "view": [
                 "test.moo.bar.results.Pf"
             ],
@@ -74,9 +89,9 @@ expected_widget_data_spx_doc1 = json.loads("""
             "pane_group": "test.spx.doc1@v0.1.0._sphinx.index:CHART:",
             "src_line": 13,
             "type": "CHART",
-            "uid": "test-spx-doc1-_sphinx-index-w0_v0.1.0",
+            "uid": "test-spx-doc1-_sphinx-index-_w0_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc1._sphinx.index.w0"
+            "widget_libpath": "test.spx.doc1._sphinx.index._w0"
         }
     },
     "docInfo": null
@@ -150,14 +165,14 @@ def test_spx_doc0(app):
         # Have exactly one chart widget anchor tag, and it has a class encoding its UID.
         A = get_chart_widget_anchors(soup)
         assert len(A) == 1
-        assert 'test-spx-doc0-_sphinx-pageA-w0_v0.1.0' in A[0].get('class')
+        assert 'test-spx-doc0-_sphinx-pageA-proof1_v0.1.0' in A[0].get('class')
     
         # Defines the expected pfsc_page_data
         page_data = get_page_data_from_script_tag(soup)
         # print('\n', json.dumps(page_data, indent=4))
         widgets = page_data['widgets']
         assert len(widgets) == 1
-        assert widgets["test-spx-doc0-_sphinx-pageA-w0_v0.1.0"] == {
+        assert widgets["test-spx-doc0-_sphinx-pageA-proof1_v0.1.0"] == {
             "view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
             ],
@@ -167,9 +182,9 @@ def test_spx_doc0(app):
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.pageA:CHART:",
             "src_line": 10,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-pageA-w0_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-pageA-proof1_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.pageA.w0"
+            "widget_libpath": "test.spx.doc0._sphinx.pageA.proof1"
         }
 
         # Page B
@@ -189,8 +204,8 @@ def test_spx_doc0(app):
     
         # Get the expected anchor tags:
         A = get_chart_widget_anchors(soup)
-        for i, (a, expected_label) in enumerate(zip(A, PAGE_C_WIDGETS_LABELS)):
-            assert f'test-spx-doc0-_sphinx-foo-pageC-w{i}_v0.1.0' in a.get('class')
+        for a, expected_name, expected_label in zip(A, PAGE_C_WIDGET_NAMES, PAGE_C_WIDGET_LABELS):
+            assert f'test-spx-doc0-_sphinx-foo-pageC-{expected_name}_v0.1.0' in a.get('class')
             assert a.text == expected_label
     
         # Get the expected pfsc_page_data:
@@ -199,7 +214,11 @@ def test_spx_doc0(app):
         assert page_data == PAGE_C_PAGE_DATA
 
 
-PAGE_C_WIDGETS_LABELS = [
+PAGE_C_WIDGET_NAMES = [
+    '_w0', '_w1', 'w000', 'w001', 'w002'
+]
+
+PAGE_C_WIDGET_LABELS = [
     'chart widget',
     'chart widgets',
     'substitutions',
@@ -212,7 +231,7 @@ PAGE_C_PAGE_DATA = {
     "libpath": "test.spx.doc0._sphinx.foo.pageC",
     "version": "v0.1.0",
     "widgets": {
-        "test-spx-doc0-_sphinx-foo-pageC-w0_v0.1.0": {
+        "test-spx-doc0-_sphinx-foo-pageC-_w0_v0.1.0": {
             "view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
             ],
@@ -222,11 +241,11 @@ PAGE_C_PAGE_DATA = {
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
             "src_line": 12,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-foo-pageC-w0_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-_w0_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w0"
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC._w0"
         },
-        "test-spx-doc0-_sphinx-foo-pageC-w1_v0.1.0": {
+        "test-spx-doc0-_sphinx-foo-pageC-_w1_v0.1.0": {
             "view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Thm"
             ],
@@ -236,11 +255,11 @@ PAGE_C_PAGE_DATA = {
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
             "src_line": 14,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-foo-pageC-w1_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-_w1_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w1"
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC._w1"
         },
-        "test-spx-doc0-_sphinx-foo-pageC-w2_v0.1.0": {
+        "test-spx-doc0-_sphinx-foo-pageC-w000_v0.1.0": {
             "on_board": [
                 "gh.foo.spam.H.ilbert.ZB.Thm168.X1"
             ],
@@ -268,11 +287,11 @@ PAGE_C_PAGE_DATA = {
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
             "src_line": 28,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-foo-pageC-w2_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w000_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w2"
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w000"
         },
-        "test-spx-doc0-_sphinx-foo-pageC-w3_v0.1.0": {
+        "test-spx-doc0-_sphinx-foo-pageC-w001_v0.1.0": {
             "view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
             ],
@@ -288,11 +307,11 @@ PAGE_C_PAGE_DATA = {
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
             "src_line": 36,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-foo-pageC-w3_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w001_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w3"
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w001"
         },
-        "test-spx-doc0-_sphinx-foo-pageC-w4_v0.1.0": {
+        "test-spx-doc0-_sphinx-foo-pageC-w002_v0.1.0": {
             "color": {
                 ":bgG": [
                     "test.hist.lit.H.ilbert.ZB.Thm168.Pf.A10",
@@ -307,9 +326,9 @@ PAGE_C_PAGE_DATA = {
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
             "src_line": 40,
             "type": "CHART",
-            "uid": "test-spx-doc0-_sphinx-foo-pageC-w4_v0.1.0",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-w002_v0.1.0",
             "version": "v0.1.0",
-            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w4"
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC.w002"
         }
     },
     "docInfo": None

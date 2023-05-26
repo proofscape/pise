@@ -28,6 +28,7 @@ from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
 from pfsc.sphinx.sphinx_proofscape.chart_widget import SphinxChartWidget
+from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.checkinput import check_libpath
 from pfsc.excep import PfscExcep
 
@@ -136,11 +137,22 @@ class PfscChartWidgetBuilder:
     # `SphinxRole` and `SphinxDirective` classes, and then this class could
     # simply be a subclass of that.
     @staticmethod
-    def finish_run(self, rawtext, label, widget_fields):
+    def finish_run(self, rawtext, label, widget_fields, widget_name=None):
         vers_defns = self.env.pfsc_vers_defns
 
         docname = self.env.docname
-        wnum = self.env.new_serialno('widget')
+
+        if widget_name:
+            # Do not allow user-supplied names to begin with underscore.
+            if widget_name.startswith('_'):
+                raise SphinxError(
+                    f'{self.get_location()}: User-supplied widget name may not'
+                    ' begin with underscore "_"'
+                )
+        else:
+            # Make a new name of the form `_w\d+`
+            wnum = self.env.new_serialno('widget')
+            widget_name = f'_w{wnum}'
 
         lp_defns = getattr(self.env, 'pfsc_lp_defns_by_docname', {})
 
@@ -148,7 +160,7 @@ class PfscChartWidgetBuilder:
 
         widget = SphinxChartWidget(
             self.config, lp_defns, vers_defns,
-            docname, src_file, lineno, wnum,
+            docname, src_file, lineno, widget_name,
             **widget_fields
         )
 
@@ -165,8 +177,8 @@ class PfscChartWidgetBuilder:
 class PfscChartRole(SphinxRole, PfscChartWidgetBuilder):
     """
     A simple, inline syntax for minimal chart widgets:
-        - The label text cannot have any formatting.
-        - Must define only a `view` field.
+        - The label may optionally begin with a widget name.
+        - Must define only a `view` field, in angle brackets.
 
     Example:
 
@@ -181,10 +193,11 @@ class PfscChartRole(SphinxRole, PfscChartWidgetBuilder):
                 line=self.lineno)
             prb = self.inliner.problematic(self.rawtext, self.rawtext, msg)
             return [prb], [msg]
-        label, view = [g.strip() for g in M.groups()]
-        node = self.finish_run(self, self.rawtext, label, {
+        raw_label, view = [g.strip() for g in M.groups()]
+        widget_name, final_label_text = process_widget_label(raw_label)
+        node = self.finish_run(self, self.rawtext, final_label_text, {
             'view': view,
-        })
+        }, widget_name=widget_name)
         return [node], []
 
 
@@ -192,9 +205,9 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
     r"""
     Full, directive syntax for chart widgets.
 
-    The label text may be passed as the one optional argument.
-    This may be omitted only if the label text is instead passed via
-    the 'alt' option. Note that, if we are defined under an rST substitution,
+    Label text must be passed via exactly one of two ways: either as the one
+    optional argument of the directive, or else via the 'alt' option.
+    Note that, if we are defined under an rST substitution,
     (see https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#substitution-definitions)
     then the 'alt' option will be automatically set equal to the inner text of
     the substitution.
@@ -202,9 +215,8 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
     Label Rule
     ==========
 
-    If the label text is passed via 'alt' option,
-    then, if it begins with a substring matching the regex r'[a-z]+\d+:\s*',
-    then this prefix is omitted from the label text.
+    The label follows our general rule for widget labels, regarding optional
+    definition of a widget name at the beginning. See the docs.
 
     Example: In
 
@@ -215,9 +227,7 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
             :color:
                 bgB: Pf.A03
 
-    the label text will be "proof". This allows adding an enumeration (w001 etc.)
-    to the substitution text for the sake of unique matching, without messing
-    up the label.
+    the widget name will be `w001`, while the label text will be "proof".
 
     Current support
     ===============
@@ -317,17 +327,38 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
     }
 
     def run(self):
+        n = len(self.arguments)
+        if n > 1:
+            raise SphinxError(
+                f'{self.get_location()}: too many args.'
+                'Widget accepts at most one arg, being the label text.'
+            )
+        arg_raw = self.arguments[0] if n == 1 else None
+
         # If we're defined under an rST substitution, then we'll have an 'alt'
         # option, giving the alt text.
-        rawtext = self.options.get('alt', '')
+        alt_raw = self.options.get('alt')
 
-        if self.arguments:
-            label = self.arguments[0]
-        elif rawtext:
-            M = re.match(r'[a-z]+\d+:\s*', rawtext)
-            label = rawtext[len(M.group()):] if M else rawtext
-        else:
-            raise SphinxError(f'{self.get_location()}: missing label text.')
+        if arg_raw and alt_raw:
+            raise SphinxError(
+                f'{self.get_location()}: double label definition.'
+                'Widget label should be defined either via directive argument, '
+                'or via alt text, but not both.'
+            )
 
-        node = self.finish_run(self, rawtext, label, self.options)
+        if not arg_raw and not alt_raw:
+            raise SphinxError(
+                f'{self.get_location()}: missing label definition.'
+                'Widget label should be defined either via directive argument, '
+                'or via alt text.'
+            )
+
+        raw_label = arg_raw or alt_raw
+
+        widget_name, final_label_text = process_widget_label(raw_label)
+
+        node = self.finish_run(
+            self, raw_label, final_label_text, self.options,
+            widget_name=widget_name
+        )
         return [node]

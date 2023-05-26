@@ -35,20 +35,20 @@ class SphinxChartWidget:
     """
 
     def __init__(self, config, lp_defns, vers_defns,
-                 docname, src_file, lineno, wnum, **fields):
+                 docname, src_file, lineno, name, **fields):
         self.sphinx_config = config
         self.lp_defns = lp_defns
         self.vers_defns = vers_defns
         self.docname = docname
         self.src_file = src_file
         self.lineno = lineno
-        self.wnum = wnum
+        self.name = name
 
         # Here we will record for each repopath (key) the version at which we
         # are taking it (value).
         self.versions = {}
 
-        self.libpath = build_libpath(config, docname, extension=f'w{wnum}')
+        self.libpath = build_libpath(config, docname, extension=name)
         self.pane_group = build_libpath(config, docname, add_repo_version=True) + ':CHART:'
         self.given_fields = fields
         self.resolved_fields = self.resolve_fields(fields)

@@ -19,7 +19,44 @@
 from sphinx.errors import SphinxError
 
 from pfsc.excep import PfscExcep
-from pfsc.checkinput import check_boxlisting
+from pfsc.checkinput import check_boxlisting, check_libseg
+
+
+def process_widget_label(raw_label):
+    """
+    Process a raw widget label, extracting an optional widget name, and
+    stripping external whitespace.
+
+    If a name is to be provided, it must come at the very beginning of the raw
+    label (no whitespace before it!), followed by a colon. The name must be a
+    valid libpath segment.
+
+    :returns: pair (name, text) being the widget name (possibly None),
+        and final label text
+    """
+    name = None
+    text = raw_label
+
+    # If there is a colon at positive index...
+    i0 = raw_label.find(":")
+    if i0 > 0:
+        # ...and if the text up to the first such colon
+        # matches as a valid libseg...
+        prefix = raw_label[:i0]
+        try:
+            check_libseg('', prefix, {})
+        except PfscExcep:
+            pass
+        else:
+            # ...then that prefix is the widget name, while everything coming
+            # after the colon is the text.
+            name = prefix
+            text = raw_label[i0+1:]
+
+    # Strip external whitespace off the text.
+    text = text.strip()
+
+    return name, text
 
 
 def build_intra_repo_libpath(pagename, extension=None):
