@@ -199,7 +199,10 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
     then the 'alt' option will be automatically set equal to the inner text of
     the substitution.
 
-    Special rule: if the label text is passed via 'alt' option,
+    Label Rule
+    ==========
+
+    If the label text is passed via 'alt' option,
     then, if it begins with a substring matching the regex r'[a-z]+\d+:\s*',
     then this prefix is omitted from the label text.
 
@@ -216,14 +219,14 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
     to the substitution text for the sake of unique matching, without messing
     up the label.
 
+    Current support
+    ===============
+
     The intention is to support the same options that are supported by chart
     widgets in the classic annotation syntax; however,
         * At this time, support is incomplete.
         * The syntax is somewhat different.
     See below.
-
-    Current support
-    ===============
 
     * Each of the `on_board`, `off_board`, `view`, and `select` fields
       can receive only a boxlisting. This means:
