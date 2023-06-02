@@ -27,6 +27,7 @@ from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.sphinx.sphinx_proofscape import SCRIPT_INTRO
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
+from pfsc.excep import PfscExcep
 
 
 def get_chart_widget_anchors(soup):
@@ -62,16 +63,25 @@ def get_highlights(soup, language):
 
 
 @pytest.mark.parametrize('raw_label, name0, text0', [
-    ['w23: the proof', 'w23', 'the proof'],
-    ['foo: bar: cat', 'foo', 'bar: cat'],
-    ['23w: the proof', None, '23w: the proof'],
-    [' foo: bar', None, 'foo: bar'],
     ['foo bar ', None, 'foo bar'],
+    ['foo: bar ', 'foo', 'bar'],
+    ['myGreatWidget: foo: bar', 'myGreatWidget', 'foo: bar'],
+    [': foo: bar', '', 'foo: bar'],
+    [':foo: bar', '', 'foo: bar'],
+
 ])
 def test_process_widget_label(raw_label, name0, text0):
     name1, text1 = process_widget_label(raw_label)
     assert name1 == name0
     assert text1 == text0
+
+
+@pytest.mark.parametrize('raw_label', [
+    '23w: the proof',
+])
+def test_process_widget_label_exception(raw_label):
+    with pytest.raises(PfscExcep):
+        process_widget_label(raw_label)
 
 
 expected_widget_data_spx_doc1 = json.loads("""
@@ -215,15 +225,16 @@ def test_spx_doc0(app):
 
 
 PAGE_C_WIDGET_NAMES = [
-    '_w0', '_w1', 'w000', 'w001', 'w002'
+    '_w0', '_w1', 'w000', '_w2', 'w001', 'w002'
 ]
 
 PAGE_C_WIDGET_LABELS = [
     'chart widget',
     'chart widgets',
     'substitutions',
+    'like: this one',
     'one-line color definition',
-    'color defn with repeated LHS, plus use of update',
+    'color defn with: repeated LHS, plus use of update',
 ]
 
 
@@ -259,6 +270,20 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0",
             "widget_libpath": "test.spx.doc0._sphinx.foo.pageC._w1"
         },
+        "test-spx-doc0-_sphinx-foo-pageC-_w2_v0.1.0": {
+            "view": [
+                "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
+            ],
+            "versions": {
+                "test.hist.lit": "v0.0.0"
+            },
+            "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
+            "src_line": 36,
+            "type": "CHART",
+            "uid": "test-spx-doc0-_sphinx-foo-pageC-_w2_v0.1.0",
+            "version": "v0.1.0",
+            "widget_libpath": "test.spx.doc0._sphinx.foo.pageC._w2"
+        },
         "test-spx-doc0-_sphinx-foo-pageC-w000_v0.1.0": {
             "on_board": [
                 "gh.foo.spam.H.ilbert.ZB.Thm168.X1"
@@ -285,7 +310,7 @@ PAGE_C_PAGE_DATA = {
                 "test.hist.lit": "v0.0.0"
             },
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-            "src_line": 28,
+            "src_line": 39,
             "type": "CHART",
             "uid": "test-spx-doc0-_sphinx-foo-pageC-w000_v0.1.0",
             "version": "v0.1.0",
@@ -305,7 +330,7 @@ PAGE_C_PAGE_DATA = {
                 "test.hist.lit": "v0.0.0"
             },
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-            "src_line": 36,
+            "src_line": 47,
             "type": "CHART",
             "uid": "test-spx-doc0-_sphinx-foo-pageC-w001_v0.1.0",
             "version": "v0.1.0",
@@ -324,7 +349,7 @@ PAGE_C_PAGE_DATA = {
                 "test.hist.lit": "v0.0.0"
             },
             "pane_group": "test.spx.doc0@v0.1.0._sphinx.foo.pageC:CHART:",
-            "src_line": 40,
+            "src_line": 51,
             "type": "CHART",
             "uid": "test-spx-doc0-_sphinx-foo-pageC-w002_v0.1.0",
             "version": "v0.1.0",

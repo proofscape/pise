@@ -185,16 +185,27 @@ class PfscChartRole(SphinxRole, PfscChartWidgetBuilder):
         Let's open :pfsc-chart:`the proof <libpath.of.some.proof>`.
     """
 
+    def write_error_return_values(self, msg_text):
+        msg = self.inliner.reporter.error(msg_text, line=self.lineno)
+        prb = self.inliner.problematic(self.rawtext, self.rawtext, msg)
+        return [prb], [msg]
+
     def run(self):
         M = re.match(f'^(.+)<([^<>]+)>$', self.text)
         if not M:
-            msg = self.inliner.reporter.error(
-                'Inline Proofscape chart widgets must have the form `LABEL <VIEW>`.',
-                line=self.lineno)
-            prb = self.inliner.problematic(self.rawtext, self.rawtext, msg)
-            return [prb], [msg]
+            return self.write_error_return_values(
+                'Inline Proofscape chart widgets must have the form `LABEL <VIEW>`.'
+            )
         raw_label, view = [g.strip() for g in M.groups()]
-        widget_name, final_label_text = process_widget_label(raw_label)
+
+        try:
+            widget_name, final_label_text = process_widget_label(raw_label)
+        except PfscExcep:
+            return self.write_error_return_values(
+                'Widget name (text before colon) malformed.'
+                ' Must be valid libpath segment, or empty.'
+            )
+
         node = self.finish_run(self, self.rawtext, final_label_text, {
             'view': view,
         }, widget_name=widget_name)
@@ -355,7 +366,13 @@ class PfscChartDirective(SphinxDirective, PfscChartWidgetBuilder):
 
         raw_label = arg_raw or alt_raw
 
-        widget_name, final_label_text = process_widget_label(raw_label)
+        try:
+            widget_name, final_label_text = process_widget_label(raw_label)
+        except PfscExcep:
+            raise SphinxError(
+                f'{self.get_location()}: widget name (text before colon) malformed.'
+                ' Must be valid libpath segment, or empty.'
+            )
 
         node = self.finish_run(
             self, raw_label, final_label_text, self.options,
