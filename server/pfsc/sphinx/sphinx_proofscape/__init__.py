@@ -20,12 +20,13 @@
 import json
 
 from config import PISE_VERSION
-from pfsc.sphinx.sphinx_proofscape.lang_exts import (
-    chartwidget, visit_chartwidget_html, depart_chartwidget_html,
-    PfscChartRole,
-    PfscChartDirective,
-    PfscDefnsDirective,
+from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
+    navwidget, visit_navwidget_html, depart_navwidget_html,
 )
+from pfsc.sphinx.sphinx_proofscape.chart_widget import (
+    PfscChartRole, PfscChartDirective,
+)
+from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
 
 from pfsc.constants import WIP_TAG
 from pfsc.lang.annotations import format_page_data
@@ -116,12 +117,13 @@ def setup(app):
     app.add_config_value('pfsc_repovers', None, 'html')
     app.add_config_value('pfsc_import_repos', None, 'html')
 
-    app.add_node(chartwidget,
-                 html=(visit_chartwidget_html, depart_chartwidget_html))
+    app.add_node(navwidget,
+                 html=(visit_navwidget_html, depart_navwidget_html))
+
+    app.add_directive('pfsc-defns', PfscDefnsDirective)
 
     app.add_role('pfsc-chart', PfscChartRole())
     app.add_directive('pfsc-chart', PfscChartDirective)
-    app.add_directive('pfsc-defns', PfscDefnsDirective)
 
     app.connect('env-purge-doc', purge_pfsc_widgets)
     app.connect('env-merge-info', merge_pfsc_widgets)

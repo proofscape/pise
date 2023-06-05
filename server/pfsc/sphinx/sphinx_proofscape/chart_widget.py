@@ -18,9 +18,13 @@
 
 from collections import defaultdict
 
+from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 
 from pfsc.lang.widgets import set_up_hovercolor
+from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
+    PfscNavWidgetRole, PfscNavWidgetDirective,
+)
 from pfsc.sphinx.sphinx_proofscape.util import (
     build_libpath, parse_box_listing, find_lp_defn_for_docname,
     ResolvedLibpath,
@@ -170,3 +174,139 @@ class SphinxChartWidget:
         version = self.vers_defns[repopath]
         libpath = '.'.join(segs)
         return ResolvedLibpath(libpath, repopath, version)
+
+
+class PfscChartRole(PfscNavWidgetRole):
+    """
+    Example:
+
+        Let's open :pfsc-chart:`the proof <libpath.of.some.proof>`.
+    """
+    widget_class = SphinxChartWidget
+    html_class = 'chartWidget'
+    widget_type_name = 'chart'
+    target_field_name = 'view'
+
+
+class PfscChartDirective(PfscNavWidgetDirective):
+    r"""
+    Full, directive syntax for chart widgets.
+
+    Label text must be passed via exactly one of two ways: either as the one
+    optional argument of the directive, or else via the 'alt' option.
+    Note that, if we are defined under an rST substitution,
+    (see https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#substitution-definitions)
+    then the 'alt' option will be automatically set equal to the inner text of
+    the substitution.
+
+    Label Rule
+    ==========
+
+    The label follows our general rule for widget labels, regarding optional
+    definition of a widget name at the beginning. See the docs.
+
+    Example: In
+
+        Let's open the |w001: proof|.
+
+        .. |w001: proof| pfsc-chart::
+            :view: Pf
+            :color:
+                bgB: Pf.A03
+
+    the widget name will be `w001`, while the label text will be "proof".
+
+    Current support
+    ===============
+
+    The intention is to support the same options that are supported by chart
+    widgets in the classic annotation syntax; however,
+        * At this time, support is incomplete.
+        * The syntax is somewhat different.
+    See below.
+
+    * Each of the `on_board`, `off_board`, `view`, and `select` fields
+      can receive only a boxlisting. This means:
+        - None of these fields can yet receive any keywords (e.g. "all" for `off_board`).
+        - The `view` option cannot yet receive its more advanced format, where
+          a whole dictionary is passed.
+    * The `color` and `hovercolor` fields are fully supported.
+
+    Syntax
+    ======
+
+    Generally, the goal is to take advantage of the possibilities of rST, to make
+    a nicer, easier syntax than is available in annotations. In the latter, we
+    are constrained by JSON format; here we are not.
+
+    Boxlistings
+    -----------
+
+    There is no need for surrounding brackets to make a list, or
+    for quotation marks to make a string. Thus, for example, you may write
+
+        :view: Thm.A10, Pf.{A10,A20}
+
+    which is equivalent to `view: ["Thm.A10", "Pf.{A10,A20}"]` in the old,
+    annotation syntax.
+
+    Color / Hovercolor
+    ------------------
+
+    In the old annotation syntax, this is defined by a dictionary
+    of key-value pairs. Because keys must be unique there, we allowed the keys
+    to be either color codes, or multipaths.
+
+    Here, you should instead give a listing of `colorCodes: boxlisting` pairs,
+    one per line.
+
+    Because there is no unique-key constraint, there is no reason to allow
+    multipaths on the left. (For annotations, we decided you might want to be
+    able to use the same color spec twice, without having to make a giant RHS,
+    so we allowed the option of putting the libpaths on the LHS.)
+    Therefore color codes should always be on the left, boxlistings on the right.
+
+    Since multipaths are no longer allowed on the left, there is no longer a
+    need to disambiguate between color codes and libpaths, and therefore color
+    codes no longer need to be preceded by colons. On the contrary, in rST we
+    don't want color codes to begin and end with colons, since this would be
+    recognized by syntax highlighters as being a part of rST.
+
+    Therefore color codes should simply be separated by commas.
+
+    As in the old annotation syntax, we support the special `update` color code,
+    which applies to the whole directive, and therefore does not need any
+    righthand side.
+
+    Example:
+
+        update
+        push,bgR,olY,fi0,diGB: libpath.to.node1
+
+    which means:
+
+        Do not clear existing colors; simply add the given settings.
+        For node1:
+            - push current colors onto node1's color stack
+            - set background red
+            - set outline yellow
+            - clear any existing colors from incoming flow edges
+            - give incoming deduction edges a gradient from green to blue
+
+    Note that `update` is meaningless in hovercolor, which is always done as
+    an update.
+
+    See the docstring for the ColorManager class in pfsc-moose for more info.
+
+    """
+    widget_class = SphinxChartWidget
+    html_class = 'chartWidget'
+    option_spec = {
+        **PfscNavWidgetDirective.option_spec,
+        "on_board": unchanged,
+        "off_board": unchanged,
+        "view": unchanged,
+        "color": unchanged,
+        "hovercolor": unchanged,
+        "select": unchanged,
+    }
