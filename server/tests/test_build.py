@@ -129,7 +129,7 @@ def test_build(libpath, rec):
 @pytest.mark.psm
 def test_full_build(app, libpath, rec):
     with app.app_context():
-        cb = Builder(libpath, recursive=rec, verbose=False)
+        cb = Builder(libpath, recursive=rec, verbose=False, clean_sphinx=True)
         build_module(cb)
 
 
@@ -212,5 +212,5 @@ def test_build_release(app, repopath, version):
                 for k, v in prereqs:
                     request_version(k, v)
             else:
-                build_release(rp, version=vers, verbose=True)
+                build_release(rp, version=vers, verbose=True, clean_sphinx=True)
                 repos_built.add(f'{rp}@{vers}')

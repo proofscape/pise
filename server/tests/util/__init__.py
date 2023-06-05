@@ -203,7 +203,9 @@ def build_big(verbose=True):
     # Ensure we are able to build:
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
-        build_release(repopath, version=version, verbose=verbose)
+        build_release(
+            repopath, version=version, verbose=verbose, clean_sphinx=True
+        )
 
 
 def build_all(verbose=True):
@@ -218,7 +220,10 @@ def build_all(verbose=True):
     with app.app_context():
         for repo in repos:
             for version in repo.tag_names:
-                build_release(repo.libpath, version=version, verbose=verbose)
+                build_release(
+                    repo.libpath, version=version, verbose=verbose,
+                    clean_sphinx=True
+                )
 
 
 def get_tags_to_build_as_wip():
@@ -240,5 +245,8 @@ def build_at_wip(verbose=True):
         for repopath, tag in tags_to_build_as_wip:
             ri = get_repo_info(repopath)
             ri.checkout(tag)
-            build_module(repopath, recursive=True, caching=0, verbose=verbose)
+            build_module(
+                repopath, recursive=True, caching=0, verbose=verbose,
+                clean_sphinx=True
+            )
             ri.clean()

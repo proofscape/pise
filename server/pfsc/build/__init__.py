@@ -78,7 +78,11 @@ import pfsc.util
 import pfsc.constants
 
 
-def build_module(target, recursive=False, caching=CachePolicy.TIME, verbose=False, progress=None):
+def build_module(
+        target, recursive=False, caching=CachePolicy.TIME,
+        verbose=False, progress=None,
+        clean_sphinx=False
+):
     """
     Build a module.
 
@@ -88,10 +92,15 @@ def build_module(target, recursive=False, caching=CachePolicy.TIME, verbose=Fals
     :param caching: as for the Builder class.
     :param verbose: as for the Builder class.
     :param progress: as for the Builder class.
+    :param clean_sphinx: as for the Builder class.
     :return: the Builder instance that built the module.
     """
     if not isinstance(target, Builder):
-        b = Builder(target, version=pfsc.constants.WIP_TAG, recursive=recursive, caching=caching, verbose=verbose, progress=progress)
+        b = Builder(
+            target, version=pfsc.constants.WIP_TAG, recursive=recursive,
+            caching=caching, verbose=verbose, progress=progress,
+            clean_sphinx=clean_sphinx
+        )
     else:
         b = target
     if verbose:
@@ -100,7 +109,11 @@ def build_module(target, recursive=False, caching=CachePolicy.TIME, verbose=Fals
         b.build_write_index()
     return b
 
-def build_release(repopath, version, caching=CachePolicy.TIME, verbose=False, progress=None):
+
+def build_release(
+        repopath, version, caching=CachePolicy.TIME, verbose=False,
+        progress=None, clean_sphinx=False
+):
     """
     Build a release.
 
@@ -109,14 +122,19 @@ def build_release(repopath, version, caching=CachePolicy.TIME, verbose=False, pr
     :param caching: as for the Builder class.
     :param verbose: as for the Builder class.
     :param progress: as for the Builder class.
+    :param clean_sphinx: as for the Builder class.
     :return: the Builder instance we use to do the build.
     """
-    b = Builder(repopath, version=version, recursive=True, caching=caching, verbose=verbose, progress=progress)
+    b = Builder(
+        repopath, version=version, recursive=True, caching=caching,
+        verbose=verbose, progress=progress, clean_sphinx=clean_sphinx
+    )
     if verbose:
         profile_build_write_index(b)
     else:
         b.build_write_index()
     return b
+
 
 def profile_build_write_index(builder):
     import cProfile
@@ -367,7 +385,11 @@ class Builder:
     Builds Proofscape modules.
     """
 
-    def __init__(self, modpath, version=pfsc.constants.WIP_TAG, recursive=False, caching=CachePolicy.TIME, verbose=False, progress=None):
+    def __init__(
+            self, modpath, version=pfsc.constants.WIP_TAG, recursive=False,
+            caching=CachePolicy.TIME, verbose=False, progress=None,
+            clean_sphinx=False
+    ):
         """
         :param modpath: libpath of the module to be built.
         :param version: the version we are building. Must be either "WIP", meaning we want
@@ -376,6 +398,8 @@ class Builder:
         :param caching: set the cache policy
         :param verbose: control printing
         :param progress: a function to which to pass progress updates
+        :param clean_sphinx: set True to `make clean` the `_sphinx` doc before
+            building it, if a part of the build
         """
         self.module_path = modpath
         self.version = version
@@ -383,6 +407,7 @@ class Builder:
         self.recursive = recursive
         self.caching = caching
         self.verbose = verbose
+        self.clean_sphinx = clean_sphinx
         self.monitor = BuildMonitor(progress)
         self.graph_writer = get_graph_writer()
         self.build_in_gdb = building_in_gdb()
@@ -516,7 +541,7 @@ class Builder:
                 # and it defines a Sphinx doc (and we are not using the BUILD_IN_GDB configuration -- we
                 # have no plans to support Sphinx build under this config), then do the Sphinx build now.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc()
+                    self.build_sphinx_doc(do_clean=self.clean_sphinx)
 
                 # Consider the possibilities.
                 walking = self.recursive and path_info.is_dir
