@@ -44,8 +44,8 @@ class navwidget(nodes.General, nodes.Inline, nodes.TextElement):
 
 
 def visit_navwidget_html(self, node):
-    # We do want the 'reference' class, which eliminates the underscore text
-    # decoration.
+    # We do want Sphinx's 'reference' class, which eliminates the underscore
+    # text decoration. We also set Proofscape's 'widget' class here.
     atts = {
         'href': '#',
         'class': 'widget reference',

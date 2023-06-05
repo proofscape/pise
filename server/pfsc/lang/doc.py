@@ -47,6 +47,8 @@ def doc_ref_factory(code=None, origin_node=None,
     Rules
     -----
 
+    * If an `origin_node` is passed, we simply return a clone of its doc ref.
+
     * If we can attempt to resolve -- i.e. we have a `context` and a libpath,
       then we will attempt it, and raise an exception if the resolution fails.
 
