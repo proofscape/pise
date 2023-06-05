@@ -26,6 +26,9 @@ from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
 from pfsc.sphinx.sphinx_proofscape.chart_widget import (
     PfscChartRole, PfscChartDirective,
 )
+from pfsc.sphinx.sphinx_proofscape.doc_widget import (
+    PfscDocRole, PfscDocDirective,
+)
 from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
 
 from pfsc.constants import WIP_TAG
@@ -124,6 +127,9 @@ def setup(app):
 
     app.add_role('pfsc-chart', PfscChartRole())
     app.add_directive('pfsc-chart', PfscChartDirective)
+
+    app.add_role('pfsc-doc', PfscDocRole())
+    app.add_directive('pfsc-doc', PfscDocDirective)
 
     app.connect('env-purge-doc', purge_pfsc_widgets)
     app.connect('env-merge-info', merge_pfsc_widgets)
