@@ -178,6 +178,15 @@ class SphinxChartWidget:
 
 class PfscChartRole(PfscNavWidgetRole):
     """
+    Role syntax for chart widgets.
+
+    Interpreted text takes the form:
+
+        LABEL <VIEW>
+
+    where VIEW is the same as the `view` field in the directive syntax for
+    chart widgets.
+
     Example:
 
         Let's open :pfsc-chart:`the proof <libpath.of.some.proof>`.
@@ -190,7 +199,7 @@ class PfscChartRole(PfscNavWidgetRole):
 
 class PfscChartDirective(PfscNavWidgetDirective):
     r"""
-    Full, directive syntax for chart widgets.
+    Directive syntax for chart widgets.
 
     Label text must be passed via exactly one of two ways: either as the one
     optional argument of the directive, or else via the 'alt' option.
