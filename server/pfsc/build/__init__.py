@@ -528,6 +528,46 @@ class Builder:
                 building_a_release_of = self.building_a_release_of()
                 # Get path info.
                 path_info = PathInfo(self.module_path)
+
+                def reading_phase(sphinx_env=None):
+                    """
+                    An approximate equivalent to Sphinx's READING phase.
+
+                    In cases where we're going to do a Sphinx build, this function
+                    should be carried out after the Sphinx build has
+                    finished its READING phase, but before it begins its RESOLVING phase. The results
+                    of our build will be made available in the Sphinx build environment, so that it can
+                    resolve imports from the pfsc side into the Sphinx side.
+
+                    :param sphinx_env: optional Sphinx BuildEnvironment
+                        Can be used to resolve imports into pfsc modules from rst modules.
+                        (Not supported yet.)
+                    """
+                    # Consider the possibilities.
+                    walking = self.recursive and path_info.is_dir
+                    module_has_contents = path_info.get_pfsc_fs_path() is not None
+                    just_the_module = module_has_contents and not walking
+                    # Act accordingly.
+                    if walking:
+                        if self.verbose: print(f"Building {self.module_path}@{self.version} recursively...")
+                        self.walk(path_info.abs_fs_path_to_dir)
+                    elif just_the_module:
+                        if self.verbose: print(f"Building {self.module_path}@{self.version}...")
+                        self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
+                        self.handle_pfsc_module(self.module_path, self.root_node)
+                    else:
+                        if self.verbose: print("Nothing to do.")
+                        return
+
+                    self.mii.cut_add_validate()
+                    self.mii.here_elsewhere_nowhere()
+                    self.mii.compute_origins(self.graph_writer.reader)
+                    self.inject_origins()
+                    self.timestamp = datetime.now()
+                    self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
+                    self.merge_manifests()
+                    self.have_built = True
+
                 # Note: It was not until we checked out the intended version that we could construct
                 # our PathInfo object, and examine the filesystem structures representing our root module.
                 # It's easy to think some of this stuff may belong in our __init__ method, but for
@@ -541,34 +581,11 @@ class Builder:
                 # and it defines a Sphinx doc (and we are not using the BUILD_IN_GDB configuration -- we
                 # have no plans to support Sphinx build under this config), then do the Sphinx build now.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc(do_clean=self.clean_sphinx)
-
-                # Consider the possibilities.
-                walking = self.recursive and path_info.is_dir
-                module_has_contents = path_info.get_pfsc_fs_path() is not None
-                just_the_module = module_has_contents and not walking
-                # Act accordingly.
-                if walking:
-                    if self.verbose: print(f"Building {self.module_path}@{self.version} recursively...")
-                    self.walk(path_info.abs_fs_path_to_dir)
-                elif just_the_module:
-                    if self.verbose: print(f"Building {self.module_path}@{self.version}...")
-                    self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
-                    self.handle_pfsc_module(self.module_path, self.root_node)
+                    self.build_sphinx_doc(reading_phase, do_clean=self.clean_sphinx)
                 else:
-                    if self.verbose: print("Nothing to do.")
-                    return
+                    reading_phase()
 
-                self.mii.cut_add_validate()
-                self.mii.here_elsewhere_nowhere()
-                self.mii.compute_origins(self.graph_writer.reader)
-                self.inject_origins()
-                self.timestamp = datetime.now()
-                self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
-                self.merge_manifests()
-                self.have_built = True
-
-    def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None):
+    def build_sphinx_doc(self, reading_phase, do_clean=False, force_all=False, filenames=None):
         """
         do_clean: Set True to do a `make clean` before building
         force_all: write all files, instead of just for new or changed source
@@ -618,10 +635,15 @@ class Builder:
         logger = logging.getLogger('sphinx.sphinx.util')
         logger.addHandler(handler)
 
+        def env_updated_handler(app, env):
+            reading_phase(sphinx_env=env)
+            env.proofscape.pfsc_modules = self.modules
+
         try:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              'html', confoverrides=confoverrides)
+                app.connect('env-updated', env_updated_handler)
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e

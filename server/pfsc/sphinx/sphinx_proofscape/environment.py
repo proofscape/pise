@@ -34,6 +34,10 @@ class SphinxPfscEnvironment:
         self.vers_defns = regularize_version_dict(app)
         self.lp_defns_by_docname = {}
 
+        # Slot for results of build on the pfsc side.
+        # Will be lookup of PfscModule instances, by libpath.
+        self.pfsc_modules = {}
+
     def purge(self, docname):
         # See https://www.sphinx-doc.org/en/master/development/tutorials/
         # TODO: other things besides widgets?
