@@ -19,7 +19,18 @@ Turn the resources in our `repo` directory into actual git repositories
 under LIB_ROOT/test.
 """
 
+import sys
+
 from tests.util import make_repos
 
 if __name__ == "__main__":
-    make_repos()
+    only = None
+    """
+    One optional CLI arg may be passed, of the form 'user.proj', in order to
+    make *only* the repo 'test.user.proj'. Otherwise, *all* repos are made.
+    """
+    if len(sys.argv) > 1:
+        only_repo = sys.argv[1]
+        user, proj = only_repo.split('.')
+        only = [(user, proj)]
+    make_repos(only=only)
