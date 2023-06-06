@@ -23,6 +23,7 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
+from pfsc.sphinx.sphinx_proofscape.environment import SphinxPfscEnvironment
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
 
@@ -75,7 +76,9 @@ def finish_run(self, widget_class, html_class, rawtext,
         e.g. for SphinxChartWidget this will include the 'view' field, among others
     :param widget_name: optional user-supplied name for the widget
     """
-    vers_defns = self.env.pfsc_vers_defns
+    pfsc_env = self.env.proofscape
+    assert isinstance(pfsc_env, SphinxPfscEnvironment)
+    vers_defns = pfsc_env.vers_defns
 
     docname = self.env.docname
 
@@ -91,7 +94,7 @@ def finish_run(self, widget_class, html_class, rawtext,
         wnum = self.env.new_serialno('widget')
         widget_name = f'_w{wnum}'
 
-    lp_defns = getattr(self.env, 'pfsc_lp_defns_by_docname', {})
+    lp_defns = pfsc_env.lp_defns_by_docname
 
     src_file, lineno = self.get_source_info()
 
@@ -101,9 +104,7 @@ def finish_run(self, widget_class, html_class, rawtext,
         **widget_fields
     )
 
-    if not hasattr(self.env, 'pfsc_all_widgets'):
-        self.env.pfsc_all_widgets = []
-    self.env.pfsc_all_widgets.append(widget)
+    pfsc_env.all_widgets.append(widget)
 
     classes = [widget.write_uid(), html_class]
 

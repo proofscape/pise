@@ -20,6 +20,8 @@
 import json
 
 from config import PISE_VERSION
+
+from pfsc.sphinx.sphinx_proofscape.environment import SphinxPfscEnvironment
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     navwidget, visit_navwidget_html, depart_navwidget_html,
 )
@@ -30,53 +32,30 @@ from pfsc.sphinx.sphinx_proofscape.doc_widget import (
     PfscDocRole, PfscDocDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
-
-from pfsc.constants import WIP_TAG
-from pfsc.lang.annotations import format_page_data
 from pfsc.sphinx.sphinx_proofscape.util import build_libpath
-from pfsc.build.versions import version_string_is_valid
 
-
-###############################################################################
-# Standard purge & merge
-# See e.g. https://www.sphinx-doc.org/en/master/development/tutorials/todo.html
-
-
-def purge_pfsc_widgets(app, env, docname):
-    if not hasattr(env, 'pfsc_all_widgets'):
-        return
-    env.pfsc_all_widgets = [w for w in env.pfsc_all_widgets
-                                  if w.docname != docname]
-
-
-def merge_pfsc_widgets(app, env, docnames, other):
-    if not hasattr(env, 'pfsc_all_widgets'):
-        env.pfsc_all_widgets = []
-    if hasattr(other, 'pfsc_all_widgets'):
-        env.pfsc_all_widgets.extend(other.pfsc_all_widgets)
+from pfsc.lang.annotations import format_page_data
 
 
 ###############################################################################
 
 
-def regularize_version_dict(app):
-    """
-    Read the version dictionary out of `config.pfsc_import_repos`, regularize
-    it, meaning ensure that each value is either WIP or starts with a 'v', and
-    then save the regularized version in the env.
+def setup_pfsc_env(app):
+    pfsc_env = SphinxPfscEnvironment(app)
+    app.env.proofscape = pfsc_env
 
-    raises: ValueError if any version string is improperly formatted
-    """
-    vers_defns = app.config.pfsc_import_repos or {}
-    r = {}
-    for k, v in vers_defns.items():
-        if v != WIP_TAG:
-            if not v.startswith('v'):
-                v = f'v{v}'
-            if not version_string_is_valid(v):
-                raise ValueError(v)
-        r[k] = v
-    app.builder.env.pfsc_vers_defns = r
+
+def purge_pfsc_env(app, env, docname):
+    assert isinstance(env.proofscape, SphinxPfscEnvironment)
+    env.proofscape.purge(docname)
+
+
+def merge_pfsc_env(app, env, docnames, other):
+    assert isinstance(env.proofscape, SphinxPfscEnvironment)
+    env.proofscape.merge(other)
+
+
+###############################################################################
 
 
 SCRIPT_INTRO = 'window.pfsc_page_data = '
@@ -90,6 +69,8 @@ def write_page_data(app, pagename, templatename, context, event_arg):
     if app.builder.format != 'html':
         return
     env = app.builder.env
+    pfsc_env = env.proofscape
+    assert isinstance(pfsc_env, SphinxPfscEnvironment)
 
     tvl = build_libpath(app.config, pagename, add_tail_version=True)
     libpath, version = tvl.split('@')
@@ -98,10 +79,7 @@ def write_page_data(app, pagename, templatename, context, event_arg):
 
     widgets = {}
 
-    if not hasattr(env, 'pfsc_all_widgets'):
-        env.pfsc_all_widgets = []
-
-    for w in env.pfsc_all_widgets:
+    for w in pfsc_env.all_widgets:
         if w.docname == pagename:
             uid = w.write_uid()
             widgets[uid] = w.write_info_dict()
@@ -115,7 +93,6 @@ def write_page_data(app, pagename, templatename, context, event_arg):
 
 
 def setup(app):
-
     app.add_config_value('pfsc_repopath', None, 'html')
     app.add_config_value('pfsc_repovers', None, 'html')
     app.add_config_value('pfsc_import_repos', None, 'html')
@@ -131,9 +108,10 @@ def setup(app):
     app.add_role('pfsc-doc', PfscDocRole())
     app.add_directive('pfsc-doc', PfscDocDirective)
 
-    app.connect('env-purge-doc', purge_pfsc_widgets)
-    app.connect('env-merge-info', merge_pfsc_widgets)
-    app.connect('builder-inited', regularize_version_dict)
+    app.connect('builder-inited', setup_pfsc_env)
+    app.connect('env-purge-doc', purge_pfsc_env)
+    app.connect('env-merge-info', merge_pfsc_env)
+
     app.connect('html-page-context', write_page_data)
 
     return {
