@@ -22,7 +22,7 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.environment import SphinxPfscEnvironment
+from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
 from pfsc.checkinput import check_libpath
 from pfsc.excep import PfscExcep
 
@@ -78,8 +78,7 @@ class PfscDefnsDirective(SphinxDirective):
             return True
 
         lp_defns = parse_list_of_pairs('libpaths', r'\w+$', libpath_test)
-        pfsc_env = self.env.proofscape
-        assert isinstance(pfsc_env, SphinxPfscEnvironment)
+        pfsc_env = get_pfsc_env(self.env)
         pfsc_env.lp_defns_by_docname[self.env.docname] = lp_defns
 
         return []

@@ -21,7 +21,9 @@ import json
 
 from config import PISE_VERSION
 
-from pfsc.sphinx.sphinx_proofscape.environment import SphinxPfscEnvironment
+from pfsc.sphinx.sphinx_proofscape.environment import (
+    setup_pfsc_env, get_pfsc_env, purge_pfsc_env, merge_pfsc_env,
+)
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     navwidget, visit_navwidget_html, depart_navwidget_html,
 )
@@ -37,27 +39,6 @@ from pfsc.sphinx.sphinx_proofscape.util import build_libpath
 from pfsc.lang.annotations import format_page_data
 
 
-###############################################################################
-
-
-def setup_pfsc_env(app):
-    pfsc_env = SphinxPfscEnvironment(app)
-    app.env.proofscape = pfsc_env
-
-
-def purge_pfsc_env(app, env, docname):
-    assert isinstance(env.proofscape, SphinxPfscEnvironment)
-    env.proofscape.purge(docname)
-
-
-def merge_pfsc_env(app, env, docnames, other):
-    assert isinstance(env.proofscape, SphinxPfscEnvironment)
-    env.proofscape.merge(other)
-
-
-###############################################################################
-
-
 SCRIPT_INTRO = 'window.pfsc_page_data = '
 
 
@@ -68,9 +49,7 @@ def write_page_data(app, pagename, templatename, context, event_arg):
     """
     if app.builder.format != 'html':
         return
-    env = app.builder.env
-    pfsc_env = env.proofscape
-    assert isinstance(pfsc_env, SphinxPfscEnvironment)
+    pfsc_env = get_pfsc_env(app.env)
 
     tvl = build_libpath(app.config, pagename, add_tail_version=True)
     libpath, version = tvl.split('@')
@@ -87,9 +66,6 @@ def write_page_data(app, pagename, templatename, context, event_arg):
     page_data = format_page_data(libpath, version, widgets, docInfo)
     body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
     app.add_js_file(None, body=body, id='pfsc-page-data')
-
-
-###############################################################################
 
 
 def setup(app):

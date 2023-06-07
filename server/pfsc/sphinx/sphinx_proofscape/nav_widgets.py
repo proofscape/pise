@@ -23,7 +23,7 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.environment import SphinxPfscEnvironment
+from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
 
@@ -76,8 +76,7 @@ def finish_run(self, widget_class, html_class, rawtext,
         e.g. for SphinxChartWidget this will include the 'view' field, among others
     :param widget_name: optional user-supplied name for the widget
     """
-    pfsc_env = self.env.proofscape
-    assert isinstance(pfsc_env, SphinxPfscEnvironment)
+    pfsc_env = get_pfsc_env(self.env)
     vers_defns = pfsc_env.vers_defns
 
     docname = self.env.docname

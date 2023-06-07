@@ -50,6 +50,39 @@ class SphinxPfscEnvironment:
         self.all_widgets.extend(other.all_widgets)
 
 
+def setup_pfsc_env(app):
+    """
+    To be registered as a handler for the 'builder-inited' event.
+    Puts a `SphinxPfscEnvironment` instance into the Sphinx BuildEnvironment.
+    """
+    pfsc_env = SphinxPfscEnvironment(app)
+    app.env.proofscape = pfsc_env
+
+
+def get_pfsc_env(sphinx_env) -> SphinxPfscEnvironment:
+    """
+    Accessor for the `SphinxPfscEnvironment` stored in a Sphinx
+    BuildEnvironment.
+    """
+    return sphinx_env.proofscape
+
+
+def purge_pfsc_env(app, env, docname):
+    """
+    Handler for the Sphinx 'env-purge-doc' event.
+    Updates the `SphinxPfscEnvironment` accordingly.
+    """
+    get_pfsc_env(env).purge(docname)
+
+
+def merge_pfsc_env(app, env, docnames, other):
+    """
+    Handler for the Sphinx 'env-merge-info' event.
+    Updates the `SphinxPfscEnvironment` accordingly.
+    """
+    get_pfsc_env(env).merge(other)
+
+
 def regularize_version_dict(app):
     """
     Read the version dictionary out of `config.pfsc_import_repos`, regularize
