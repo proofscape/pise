@@ -27,10 +27,10 @@ from pfsc.lang.freestrings import PfscJsonTransformer
 from pfsc.excep import PfscExcep, PECode
 
 
-class PfscImport:
+class PendingImport:
     """
-    Represents a pfsc import (as achieved via `pfsc-import::` directive, before
-    resolution.
+    Represents a pfsc import (as achieved via `pfsc-import::` directive)
+    that is pending, i.e. has not yet been resolved.
     """
     PLAIN_IMPORT_FORMAT = 0
     FROM_IMPORT_FORMAT = 1
@@ -142,7 +142,7 @@ class ImportReader(PfscJsonTransformer):
         self.imports = []
 
     def module(self, items):
-        # Each item should be a list of `PfscImport` objects.
+        # Each item should be a list of `PendingImport` objects.
         self.imports = sum(items, [])
         return self.imports
 
@@ -152,7 +152,7 @@ class ImportReader(PfscJsonTransformer):
 
             fromimport : "from" (relpath|libpath) "import" (STAR|identlist ("as" IDENTIFIER)?)
 
-        :return: list of PfscImport instances (one for each imported object)
+        :return: list of PendingImport instances (one for each imported object)
         """
         src = items[0]
         object_names = items[1]
@@ -165,15 +165,15 @@ class ImportReader(PfscJsonTransformer):
         N = len(object_names)
         for i, object_name in enumerate(object_names):
             local_name = requested_local_name if requested_local_name and i == N - 1 else object_name
-            imports.append(PfscImport(
-                PfscImport.FROM_IMPORT_FORMAT, src, original_name=object_name,
+            imports.append(PendingImport(
+                PendingImport.FROM_IMPORT_FORMAT, src, original_name=object_name,
                 local_name=local_name, homepath=self.modpath
             ))
         return imports
 
     def plainimport(self, items):
         """
-        :return: list of length 1, containing a single PfscImport instance
+        :return: list of length 1, containing a single PendingImport instance
         """
         src = items[0]
         # Are we using a relative libpath or absolute one?
@@ -187,8 +187,8 @@ class ImportReader(PfscJsonTransformer):
         else:
             # In this case an "as" clause is optional.
             local_name = items[1] if len(items) == 2 else src
-        return [PfscImport(
-            PfscImport.PLAIN_IMPORT_FORMAT, src,
+        return [PendingImport(
+            PendingImport.PLAIN_IMPORT_FORMAT, src,
             local_name=local_name, homepath=self.modpath
         )]
 
