@@ -52,3 +52,11 @@ So there should be no ``<script>`` tag defining a ``pfsc_page_data``.
     method ::= how nodes
     supposition ::= modal nodes
     nodes ::= name (conj name)*
+
+
+.. _pageB-subsec:
+
+Subsection
+----------
+
+This is a subsection.

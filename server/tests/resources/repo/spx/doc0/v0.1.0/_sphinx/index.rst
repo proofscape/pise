@@ -8,3 +8,4 @@ sphinx-proofscape test doc
    pageA
    pageB
    foo/pageC
+   foo/pageD

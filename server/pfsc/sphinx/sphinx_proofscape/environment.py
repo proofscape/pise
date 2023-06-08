@@ -33,6 +33,7 @@ class SphinxPfscEnvironment:
         self.all_widgets = []
         self.vers_defns = regularize_version_dict(app)
         self.lp_defns_by_docname = {}
+        self.imports_by_modpath = {}
 
         # Slot for results of build on the pfsc side.
         # Will be lookup of PfscModule instances, by libpath.

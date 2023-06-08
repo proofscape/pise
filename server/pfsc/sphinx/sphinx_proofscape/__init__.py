@@ -34,6 +34,7 @@ from pfsc.sphinx.sphinx_proofscape.doc_widget import (
     PfscDocRole, PfscDocDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
+from pfsc.sphinx.sphinx_proofscape.imports import PfscImportDirective
 from pfsc.sphinx.sphinx_proofscape.util import build_libpath
 
 from pfsc.lang.annotations import format_page_data
@@ -77,6 +78,7 @@ def setup(app):
                  html=(visit_navwidget_html, depart_navwidget_html))
 
     app.add_directive('pfsc-defns', PfscDefnsDirective)
+    app.add_directive('pfsc-import', PfscImportDirective)
 
     app.add_role('pfsc-chart', PfscChartRole())
     app.add_directive('pfsc-chart', PfscChartDirective)
