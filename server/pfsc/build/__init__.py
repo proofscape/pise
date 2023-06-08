@@ -636,6 +636,13 @@ class Builder:
         logger.addHandler(handler)
 
         def env_updated_handler(app, env):
+            """
+            This handler is called when Sphinx has finished its READING phase,
+            but has not yet begun its RESOLVING phase. This is now our chance
+            to do our own reading, to enrich the Sphinx env, and to carry out
+            resolution of pending pfsc objects in that env. For example, we can
+            resolve `PendingImport` objects formed while reading rst files.
+            """
             reading_phase(sphinx_env=env)
             env.proofscape.pfsc_modules.update(self.modules)
 
