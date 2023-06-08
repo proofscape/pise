@@ -637,7 +637,7 @@ class Builder:
 
         def env_updated_handler(app, env):
             reading_phase(sphinx_env=env)
-            env.proofscape.pfsc_modules = self.modules
+            env.proofscape.pfsc_modules.update(self.modules)
 
         try:
             with patch_docutils(confdir), docutils_namespace():

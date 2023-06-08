@@ -20,6 +20,7 @@ from sphinx.util.docutils import SphinxDirective
 from lark.exceptions import VisitError
 
 from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
+from pfsc.sphinx.sphinx_proofscape.pages import build_libpath_for_rst
 from pfsc.build.lib.libpath import get_modpath
 from pfsc.lang.modules import parse_module_text, PfscRelpath
 from pfsc.lang.freestrings import PfscJsonTransformer
@@ -225,12 +226,11 @@ class PfscImportDirective(SphinxDirective):
     }
 
     def run(self):
-        pfsc_env = get_pfsc_env(self.env)
-
-        # TODO
-        #  Obtain the modpath (for the module where the import is happening)
-        #  from the env
-        modpath = 'foo'
+        env = self.env
+        config = env.config
+        docname = env.docname
+        pfsc_env = get_pfsc_env(env)
+        modpath = build_libpath_for_rst(config, docname, within_page=False)
 
         # self.content is an instance of `docutils.statemachine.StringList`.
         # It presents the lines of the content as a list, with left indent stripped.

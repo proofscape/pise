@@ -35,8 +35,9 @@ class SphinxPfscEnvironment:
         self.lp_defns_by_docname = {}
         self.imports_by_modpath = {}
 
-        # Slot for results of build on the pfsc side.
-        # Will be lookup of PfscModule instances, by libpath.
+        # Lookup for PfscModule instances, by libpath.
+        # This will hold all modules, whether constructed from pfsc
+        # files, or from rst files.
         self.pfsc_modules = {}
 
     def purge(self, docname):

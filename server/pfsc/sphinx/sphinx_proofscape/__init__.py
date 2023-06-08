@@ -24,6 +24,9 @@ from config import PISE_VERSION
 from pfsc.sphinx.sphinx_proofscape.environment import (
     setup_pfsc_env, get_pfsc_env, purge_pfsc_env, merge_pfsc_env,
 )
+from pfsc.sphinx.sphinx_proofscape.pages import (
+    form_pfsc_module_for_rst_file, build_libpath_for_rst,
+)
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     navwidget, visit_navwidget_html, depart_navwidget_html,
 )
@@ -35,7 +38,6 @@ from pfsc.sphinx.sphinx_proofscape.doc_widget import (
 )
 from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
 from pfsc.sphinx.sphinx_proofscape.imports import PfscImportDirective
-from pfsc.sphinx.sphinx_proofscape.util import build_libpath
 
 from pfsc.lang.annotations import format_page_data
 
@@ -52,7 +54,9 @@ def write_page_data(app, pagename, templatename, context, event_arg):
         return
     pfsc_env = get_pfsc_env(app.env)
 
-    tvl = build_libpath(app.config, pagename, add_tail_version=True)
+    tvl = build_libpath_for_rst(
+        app.config, pagename, within_page=True, add_tail_version=True
+    )
     libpath, version = tvl.split('@')
 
     docInfo = None  # TODO
@@ -89,7 +93,7 @@ def setup(app):
     app.connect('builder-inited', setup_pfsc_env)
     app.connect('env-purge-doc', purge_pfsc_env)
     app.connect('env-merge-info', merge_pfsc_env)
-
+    app.connect('source-read', form_pfsc_module_for_rst_file)
     app.connect('html-page-context', write_page_data)
 
     return {

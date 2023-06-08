@@ -65,46 +65,6 @@ def process_widget_label(raw_label):
     return name, text
 
 
-def build_intra_repo_libpath(pagename, extension=None):
-    """
-    Build the intra-repo libpath, i.e. the part coming after the repopath,
-    for a Sphinx page, or for some item within a Sphinx page.
-
-    :param pagename: the canonical pagename for the page, as provided by Sphinx
-    :param extension: optional extension to add onto end of path (should NOT
-        begin with a dot)
-    """
-    libpath = f'_sphinx.{pagename.replace("/", ".")}'
-    if extension:
-        libpath += '.' + extension
-    return libpath
-
-
-def build_libpath(config, pagename, extension=None,
-                  add_repo_version=False, add_tail_version=False):
-    """
-    Build the libpath (possibly with version number) for a Sphinx page or for
-    some item within a Sphinx page.
-
-    :param config: the Sphinx app's `config` object
-    :param pagename: the canonical pagename for the page, as provided by Sphinx
-    :param extension: optional extension to add onto end of path (should NOT
-        begin with a dot)
-    :param add_repo_version: set True to make it a repo-versioned libpath
-    :param add_tail_version: set True to make it a tail-versioned libpath
-    """
-    irl = build_intra_repo_libpath(pagename, extension=extension)
-    prefix = config.pfsc_repopath
-    if add_repo_version or add_tail_version:
-        version_suffix = '@' + config.pfsc_repovers
-        if add_repo_version:
-            prefix += version_suffix
-        else:
-            irl += version_suffix
-    libpath = prefix + '.' + irl
-    return libpath
-
-
 class ResolvedLibpath:
 
     def __init__(self, libpath, repopath, version):

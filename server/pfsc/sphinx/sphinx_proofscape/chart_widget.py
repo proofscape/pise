@@ -25,8 +25,9 @@ from pfsc.lang.widgets import set_up_hovercolor
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     PfscNavWidgetRole, PfscNavWidgetDirective,
 )
+from pfsc.sphinx.sphinx_proofscape.pages import build_libpath_for_rst
 from pfsc.sphinx.sphinx_proofscape.util import (
-    build_libpath, parse_box_listing, find_lp_defn_for_docname,
+    parse_box_listing, find_lp_defn_for_docname,
     ResolvedLibpath,
 )
 
@@ -52,8 +53,12 @@ class SphinxChartWidget:
         # are taking it (value).
         self.versions = {}
 
-        self.libpath = build_libpath(config, docname, extension=name)
-        self.pane_group = build_libpath(config, docname, add_repo_version=True) + ':CHART:'
+        self.libpath = build_libpath_for_rst(
+            config, docname, within_page=True, extension=name
+        )
+        self.pane_group = build_libpath_for_rst(
+            config, docname, within_page=True, add_repo_version=True
+        ) + ':CHART:'
         self.given_fields = fields
         self.resolved_fields = self.resolve_fields(fields)
 
