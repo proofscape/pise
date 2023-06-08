@@ -398,7 +398,7 @@ class Builder:
         :param caching: set the cache policy
         :param verbose: control printing
         :param progress: a function to which to pass progress updates
-        :param clean_sphinx: set True to `make clean` the `_sphinx` doc before
+        :param clean_sphinx: set True to `make clean` the Sphinx doc before
             building it, if a part of the build
         """
         self.module_path = modpath
@@ -479,9 +479,6 @@ class Builder:
         #   path-within-repo points to dict optionally defining 'dirs' and 'files' keys, under each of which is
         #   a list of dirnames or filenames to be skipped under this path.
         self.skip_items = {
-            '.': {
-                'dirs': ['_sphinx']
-            },
         }
 
     def is_release_build(self):
@@ -495,7 +492,7 @@ class Builder:
         return self.repo_info.libpath if self.is_release_build() else None
 
     def has_sphinx_doc(self):
-        p = pathlib.Path(self.repo_info.get_sphinx_dir())
+        p = pathlib.Path(self.repo_info.abs_fs_path_to_dir) / 'index.rst'
         return p.exists()
 
     def raise_missing_change_log_excep(self):
@@ -576,10 +573,8 @@ class Builder:
                 self.mii.compute_mm_closure(self.graph_writer.reader)
 
                 # Sphinx build.
-                # A Proofscape repo is allowed to define a single Sphinx doc, in a directory called
-                # `_sphinx`, at the root level of the repo. If we are currently building a whole repo,
-                # and it defines a Sphinx doc (and we are not using the BUILD_IN_GDB configuration -- we
-                # have no plans to support Sphinx build under this config), then do the Sphinx build now.
+                # If you want a Sphinx build to take place, you have to have an `index.rst` file
+                # in the repo root dir.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
                     self.build_sphinx_doc(reading_phase, do_clean=self.clean_sphinx)
                 else:
@@ -597,7 +592,7 @@ class Builder:
             https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-a
             https://www.sphinx-doc.org/en/master/man/sphinx-build.html#synopsis
         """
-        sourcedir = self.repo_info.get_sphinx_dir()
+        sourcedir = self.repo_info.abs_fs_path_to_dir
         confdir = sourcedir
         outputdir = self.repo_info.get_sphinx_build_dir(version=self.version)
         doctreedir = os.path.join(outputdir, '.doctrees')
@@ -789,6 +784,12 @@ class Builder:
                 # Is it a pfsc module?
                 if f[-5:] == '.pfsc':
                     name = f[:-5]
+                    if (pathlib.Path(P) / f'{name}.rst').exists():
+                        msg = (
+                            f'Module name `{name}` occurs with both .pfsc and'
+                            f' .rst extension in dir `{P}`.'
+                        )
+                        raise PfscExcep(msg, PECode.MODULE_NAME_USED_WITH_MULTIPLE_EXTENSIONS)
                     # Reconstruct the module's abs libpath.
                     modpath = parent_node_id if name == "__" else parent_node_id + '.' + name
                     if name == "__":

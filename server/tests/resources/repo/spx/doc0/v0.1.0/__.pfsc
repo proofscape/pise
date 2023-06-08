@@ -1,0 +1,4 @@
+doc1 = {
+    url: "https://example.org/pdf/foo1.pdf",
+    docId: "pdffp:fedcba9876543210"
+}

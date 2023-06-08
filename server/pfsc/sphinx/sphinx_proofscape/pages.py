@@ -73,7 +73,7 @@ def build_libpath_for_rst(
     :param add_repo_version: set ``True`` to make it a repo-versioned libpath
     :param add_tail_version: set ``True`` to make it a tail-versioned libpath
     """
-    libpath = f'_sphinx.{sphinx_provided_pagename.replace("/", ".")}'
+    libpath = sphinx_provided_pagename.replace("/", ".")
     if within_page:
         libpath += '.' + FIXED_PAGE_NAME
     if extension:

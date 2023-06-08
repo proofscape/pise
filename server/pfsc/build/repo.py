@@ -255,14 +255,6 @@ class RepoInfo:
         """
         return tag_name in [t.name for t in self.get_all_version_tags_in_increasing_order()]
 
-    def get_sphinx_dir(self):
-        """
-        Get the absolute filesystem path of the Sphinx dir for this repo.
-        Note: Does not guarantee this directory exists, just constructs the
-        right path.
-        """
-        return os.path.join(self.abs_fs_path_to_dir, '_sphinx')
-
     def get_build_dir(self, version=pfsc.constants.WIP_TAG):
         build_root = check_config("PFSC_BUILD_ROOT")
         build_dir = os.path.join(
