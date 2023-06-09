@@ -16,6 +16,7 @@
 
 from pfsc.constants import WIP_TAG
 from pfsc.build.versions import version_string_is_valid
+from pfsc.lang.modules import load_module
 
 
 class SphinxPfscEnvironment:
@@ -33,12 +34,36 @@ class SphinxPfscEnvironment:
         self.all_widgets = []
         self.vers_defns = regularize_version_dict(app)
         self.lp_defns_by_docname = {}
-        self.imports_by_modpath = {}
+        self.imports_by_homepath = {}
 
         # Lookup for PfscModule instances, by libpath.
         # This will hold all modules, whether constructed from pfsc
         # files, or from rst files.
         self.pfsc_modules = {}
+
+    def update_modules(self, modules):
+        """
+        Update our dict of pfsc modules with a given dict.
+
+        :param modules: dict of modules by modpath
+        """
+        self.pfsc_modules.update(modules)
+
+    def get_module(self, modpath, version=None):
+        """
+        Get a module, trying our catalog first, or resorting to loading from
+        disk if need be.
+
+        :param modpath: the libpath of the desired module
+        :param version: if defined, and if we do not already have the module
+             in our catalog, then we will attempt to load it from disk, at
+             this version
+        :return: PfscModule or None
+        """
+        module = self.pfsc_modules.get(modpath)
+        if module is None and version is not None:
+            module = load_module(modpath, version=version)
+        return module
 
     def purge(self, docname):
         # See https://www.sphinx-doc.org/en/master/development/tutorials/
@@ -50,6 +75,17 @@ class SphinxPfscEnvironment:
     def merge(self, other):
         # TODO: other things besides widgets?
         self.all_widgets.extend(other.all_widgets)
+
+    def resolve(self):
+        """
+        Invoked after both the rst side and the pfsc side having finished
+        their READING phase. It is time now to RESOLVE pending imports etc.
+        """
+        # Pending imports
+        for pending_import_list in self.imports_by_homepath.values():
+            for pending_import in pending_import_list:
+                pending_import.resolve(self)
+        # Anything else? ...
 
 
 def setup_pfsc_env(app):

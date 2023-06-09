@@ -2,3 +2,7 @@ doc1 = {
     url: "https://example.org/pdf/foo1.pdf",
     docId: "pdffp:fedcba9876543210"
 }
+
+dependencies = {
+    "test.spx.doc1": "v0.1.0",
+}

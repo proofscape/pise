@@ -639,7 +639,9 @@ class Builder:
             resolve `PendingImport` objects formed while reading rst files.
             """
             reading_phase(sphinx_env=env)
-            env.proofscape.pfsc_modules.update(self.modules)
+            pfsc_env = env.proofscape
+            pfsc_env.update_modules(self.modules)
+            pfsc_env.resolve()
 
         try:
             with patch_docutils(confdir), docutils_namespace():

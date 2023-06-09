@@ -32,53 +32,85 @@ class PendingImport:
     """
     Represents a pfsc import (as achieved via `pfsc-import::` directive)
     that is pending, i.e. has not yet been resolved.
+
+    NOTE: We're going to try to keep to a design where objects like this one,
+    that will be stored in the Sphinx build environment, will *not* retain their
+    own reference to the environment object. This is in order to try to keep the
+    ``merge`` operation simple, and not have to change each object's env reference
+    at that time. Thus, this class's ``__init__()`` method does *not* accept an
+    ``env`` argument, but its ``resolve()`` method does.
     """
     PLAIN_IMPORT_FORMAT = 0
     FROM_IMPORT_FORMAT = 1
 
-    def __init__(self, format, src, original_name=None, local_name=None, homepath=None):
+    def __init__(self, home_module, format, src_modpath, original_name=None, local_path=None):
         """
+        :param home_module: the PfscModule where the import happened
         :param format: one of PLAIN_IMPORT_FORMAT, FROM_IMPORT_FORMAT, indicating
             the format of the import statement
-        :param src: the libpath named as the source in the import statement
+        :param src_modpath: the libpath of the module named as the source in
+            the import statement
         :param original_name: for FROM imports, the name of the imported object
-            inside of ``src``
-        :param local_name: optional local name given in an "as" clause in the import
-        :param homepath: libpath of the module where the import happened. May
-            be useful later for resolving ``src``, if relative.
+            inside of the source module, or "*" if importing all from there
+        :param local_path: dotted path or name under which the imported object
+            is to be stored in the home module
         """
+        self.home_module = home_module
         self.format = format
-        self.src = src
+        self.src_modpath = src_modpath
         self.original_name = original_name
-        self.local_name = local_name
-        self.homepath = homepath
+        self.local_path = local_path
+        self.homepath = self.home_module.libpath
 
-    def resolve_src(self):
+    def get_desired_version_for_target(self, targetpath):
         """
-        Resolve src if a relative path, otherwise return it as is (already resolved).
-        """
-        src = self.src
-        if isinstance(src, PfscRelpath):
-            return src.resolve(self.homepath)
-        return src
+        :param targetpath: The libpath of the target object.
+        :return: the version at which we wish to take the repo to which the
+          named target belongs.
 
-    def get_module(self, modpath, version):
+        NOTE: Copied from `pfsc.lang.modules.ModuleLoader.get_desired_version_for_target()`
         """
-        Get a PfscModule from the environment
-        """
-        ...  # TODO
+        extra_msg = f' Required for import in module `{self.homepath}`.'
+        return self.home_module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
 
-    def carry_out_from_import(self, modpath, version):
+    def resolve(self, pfsc_env):
+        """
+        Resolve this import, and store the result in the "home module," i.e.
+        the module where this import statement occurred.
+
+        :param pfsc_env: the SphinxPfscEnvironment object in place at the time
+            that resolution needs to happen.
+        """
+        if self.format == self.PLAIN_IMPORT_FORMAT:
+            self.resolve_plainimport(pfsc_env)
+        elif self.format == self.FROM_IMPORT_FORMAT:
+            self.resolve_fromimport(pfsc_env)
+
+    def resolve_plainimport(self, pfsc_env):
+        """
+        Carry out (delayed) resolution of a PLAIN-IMPORT.
+
+        Based on `pfsc.lang.modules.ModuleLoader.plainimport()`.
+        """
+        modpath = self.src_modpath
+        version = self.get_desired_version_for_target(modpath)
+        module = pfsc_env.get_module(modpath, version=version)
+        self.home_module[self.local_path] = module
+
+    def resolve_fromimport(self, pfsc_env):
         """
         Carry out (delayed) resolution of a FROM-IMPORT.
 
-        Experimental.
-        Based on `pfsc.lang.modules.ModuleLoader.fromimport()`.
+        Copied from `pfsc.lang.modules.ModuleLoader.fromimport()`.
         """
+        modpath = self.src_modpath
+        version = self.get_desired_version_for_target(modpath)
+
         # Now we have the module libpath and version from which we are attempting to import something.
         # What we're allowed to do depends on whether the modpath we've constructed is the
         # same as that of this module, or different.
         # Usually it will be different, and then we have these permissions:
+        may_import_all = True
         may_search_within_module = True
 
         if modpath == self.homepath:
@@ -88,40 +120,58 @@ class PendingImport:
             #     from . import e
             # where a.b.c.d.e is a submodule of a.b.c.d, then this case arises.
             # In this case, submodules are the _only_ thing we can try to import.
+            may_import_all = False
             may_search_within_module = False
             src_module = None
         else:
             # In all other cases, the modpath points to something other than this module.
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
-            src_module = self.get_module(modpath, version)
+            src_module = pfsc_env.get_module(modpath, version=version)
 
-        local_name = self.local_name
         object_name = self.original_name
-        # Initialize imported object to None, so we can check for success.
-        obj = None
-        # Construct the full path to the object, and compute the longest initial segment
-        # of it that points to a module.
-        full_object_path = modpath + '.' + object_name
-        object_modpath = get_modpath(full_object_path, version=version)
-        # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
-        if object_modpath == self.homepath:
-            if full_object_path == self.homepath:
-                msg = f'Module {self.homepath} attempts to import itself from its ancestor.'
+        # Next behavior depends on whether we wanted to import "all", or named individual object(s).
+        if object_name == "*":
+            if not may_import_all:
+                # Currently the only time when importing all is prohibited is when we are
+                # trying to import from self.
+                msg = 'Module %s is attempting to import * from itself.' % self.homepath
+                raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+            # Importing "all".
+            # In this case, the modpath must point to an actual module, or else it is an error.
+            if src_module is None:
+                msg = 'Attempting to import * from non-existent module: %s' % modpath
+                raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+            all_names = src_module.listAllItems()
+            for name in all_names:
+                self.home_module[name] = src_module[name]
+        else:
+            local_name = self.local_path
+            # Initialize imported object to None, so we can check for success.
+            obj = None
+            # Construct the full path to the object, and compute the longest initial segment
+            # of it that points to a module.
+            full_object_path = modpath + '.' + object_name
+            object_modpath = get_modpath(full_object_path, version=version)
+            # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
+            if object_modpath == self.homepath:
+                if full_object_path == self.homepath:
+                    msg = f'Module {self.homepath} attempts to import itself from its ancestor.'
+                else:
+                    msg = f'Module {self.homepath} attempts to import from within itself.'
+                raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+            # The first attempt is to find the name in the source module, if any.
+            if src_module and may_search_within_module:
+                obj = src_module.get(object_name)
+            # If that failed, try to import a submodule.
+            if obj is None:
+                obj = pfsc_env.get_module(full_object_path, version=version)
+            # If that failed too, it's an error.
+            if obj is None:
+                msg = 'Could not import %s from %s' % (object_name, modpath)
+                raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
+                # Otherwise, record the object.
             else:
-                msg = f'Module {self.homepath} attempts to import from within itself.'
-            raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
-        # The first attempt is to find the name in the source module, if any.
-        if src_module and may_search_within_module:
-            obj = src_module.get(object_name)
-        # If that failed, try to import a submodule.
-        if obj is None:
-            obj = self.get_module(full_object_path, version)
-        # If that failed too, it's an error.
-        if obj is None:
-            msg = 'Could not import %s from %s' % (object_name, modpath)
-            raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
-
-        return obj
+                self.home_module[local_name] = obj
 
 
 class ImportReader(PfscJsonTransformer):
@@ -134,12 +184,13 @@ class ImportReader(PfscJsonTransformer):
     `ModuleLoader`, as just described.)
     """
 
-    def __init__(self, modpath):
+    def __init__(self, home_module):
         """
-        :param modpath: The libpath of the module where the import happened.
+        :param home_module: the PfscModule where the import happened
         """
         super().__init__()
-        self.modpath = modpath
+        self.home_module = home_module
+        self.homepath = home_module.libpath
         self.imports = []
 
     def module(self, items):
@@ -167,42 +218,50 @@ class ImportReader(PfscJsonTransformer):
 
         :return: list of PendingImport instances (one for each imported object)
         """
-        src = items[0]
+        src_modpath = items[0]
+        is_relative = isinstance(src_modpath, PfscRelpath)
+        if is_relative:
+            src_modpath = src_modpath.resolve(self.homepath)
         object_names = items[1]
         requested_local_name = items[2] if len(items) == 3 else None
 
-        if object_names == "*":
-            raise PfscExcep('import "*" not allowed in this context')
-
         imports = []
-        N = len(object_names)
-        for i, object_name in enumerate(object_names):
-            local_name = requested_local_name if requested_local_name and i == N - 1 else object_name
+
+        if object_names == "*":
             imports.append(PendingImport(
-                PendingImport.FROM_IMPORT_FORMAT, src, original_name=object_name,
-                local_name=local_name, homepath=self.modpath
+                self.home_module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
+                original_name=object_names
             ))
+        else:
+            n = len(object_names)
+            for i, object_name in enumerate(object_names):
+                local_name = requested_local_name if requested_local_name and i == n - 1 else object_name
+                imports.append(PendingImport(
+                    self.home_module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
+                    original_name=object_name, local_path=local_name
+                ))
         return imports
 
     def plainimport(self, items):
         """
         :return: list of length 1, containing a single PendingImport instance
         """
-        src = items[0]
+        src_modpath = items[0]
         # Are we using a relative libpath or absolute one?
-        is_relative = isinstance(items[0], PfscRelpath)
+        is_relative = isinstance(src_modpath, PfscRelpath)
         if is_relative:
+            src_modpath = src_modpath.resolve(self.homepath)
             # In this case the user _must_ provide an "as" clause.
             if len(items) < 2:
                 msg = 'Plain import with relative libpath failed to provide "as" clause.'
                 raise PfscExcep(msg, PECode.PLAIN_RELATIVE_IMPORT_MISSING_LOCAL_NAME)
-            local_name = items[1]
+            local_path = items[1]
         else:
             # In this case an "as" clause is optional.
-            local_name = items[1] if len(items) == 2 else src
+            local_path = items[1] if len(items) == 2 else src_modpath
         return [PendingImport(
-            PendingImport.PLAIN_IMPORT_FORMAT, src,
-            local_name=local_name, homepath=self.modpath
+            self.home_module, PendingImport.PLAIN_IMPORT_FORMAT, src_modpath,
+            local_path=local_path
         )]
 
     def relpath(self, items):
@@ -242,21 +301,22 @@ class PfscImportDirective(SphinxDirective):
         env = self.env
         config = env.config
         docname = env.docname
-        pfsc_env = get_pfsc_env(env)
         modpath = build_libpath_for_rst(config, docname, within_page=False)
+        pfsc_env = get_pfsc_env(env)
+        module = pfsc_env.get_module(modpath)
 
         # self.content is an instance of `docutils.statemachine.StringList`.
         # It presents the lines of the content as a list, with left indent stripped.
         text = '\n'.join(self.content)
         tree, _ = parse_module_text(text)
-        reader = ImportReader(modpath)
+        reader = ImportReader(module)
         try:
             imports = reader.transform(tree)
         except VisitError as v:
             # Lark traps our PfscExceps, re-raising them within a VisitError. We want to see the PfscExcep.
             raise v.orig_exc from v
 
-        pfsc_env.imports_by_modpath[modpath] = imports
+        pfsc_env.imports_by_homepath[modpath] = imports
 
         # No presence in the final document.
         return []

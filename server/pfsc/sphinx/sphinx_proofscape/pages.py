@@ -39,8 +39,9 @@ FIXED_PAGE_NAME = '_page'
 
 class SphinxPage(PfscObj):
 
-    def __init__(self, libpath):
+    def __init__(self, module, libpath):
         super().__init__()
+        self.parent = module
         self.libpath = libpath
         self.name = FIXED_PAGE_NAME
 
@@ -114,7 +115,7 @@ def form_pfsc_module_for_rst_file(app, docname, source):
     module = PfscModule(modpath)
     module.setRepresentedVersion(version)
 
-    page = SphinxPage(pagepath)
+    page = SphinxPage(module, pagepath)
     module[FIXED_PAGE_NAME] = page
 
     pfsc_env = get_pfsc_env(app.env)

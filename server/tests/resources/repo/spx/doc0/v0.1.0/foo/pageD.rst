@@ -3,7 +3,7 @@ Page D
 
 .. pfsc-import::
 
-    import gh.toepproj.lit as tpl
-    from gh.toepproj.lit.H.ilbert.ZB168 import Thm as ZB168
+    import test.spx.doc1
+    from ... import doc1
 
 This is a reference to :ref:`a section on another page <pageB-subsec>`.
