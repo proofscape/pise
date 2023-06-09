@@ -17,6 +17,7 @@
 # --------------------------------------------------------------------------- #
 
 from sphinx.util.docutils import SphinxDirective
+from lark import Tree
 from lark.exceptions import VisitError
 
 from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
@@ -142,8 +143,20 @@ class ImportReader(PfscJsonTransformer):
         self.imports = []
 
     def module(self, items):
-        # Each item should be a list of `PendingImport` objects.
-        self.imports = sum(items, [])
+        # Each item should be a list of ``PendingImport`` objects.
+        # If the user wrote anything other than an import, it will be received
+        # here as an un-transformed AST node (a ``Tree`` instance).
+        for item in items:
+            if isinstance(item, Tree):
+                raise PfscExcep(
+                    f'`pfsc-import` directive tries to define'
+                    f' `{item.data}`'
+                    # line/col are within directive; maybe more confusing than helpful
+                    # f' at line {item.line}, col {item.column}'
+                    f'. Only imports are allowed.'
+                )
+            else:
+                self.imports.extend(item)
         return self.imports
 
     def fromimport(self, items):
