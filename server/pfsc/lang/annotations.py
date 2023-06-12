@@ -63,7 +63,7 @@ class Annotation(Enrichment):
         self.parent = module
         self.name = name
         self.text = text
-        self.find_and_store_targets(target_paths, module)
+        self.target_paths = target_paths
         self._trusted = None
         # Stuff we need to build:
         self.raw_parts = None
@@ -73,6 +73,14 @@ class Annotation(Enrichment):
         self.widget_seq = []
         self.escaped_html = None
         self.anno_data = None
+
+    def resolve(self):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+        """
+        self.find_and_store_targets(self.target_paths, self.parent)
+        self.resolveLibpathsRec()
 
     @property
     def trusted(self):

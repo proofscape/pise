@@ -75,6 +75,19 @@ class PfscModule(PfscObj):
             self.load_and_validate_dependency_info()
             assert isinstance(self.dependencies, dict)
             self.dependencies.update(given_dependencies)
+        self.pending_imports = []
+
+    def resolve(self):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+        """
+        for pi in self.pending_imports:
+            ...  # TODO
+        native = self.getNativeItemsInDefOrder()
+        for item in native.values():
+            if isinstance(item, (Annotation, Deduction)):
+                item.resolve()
 
     def isRepo(self):
         return self.libpath == self.repopath
@@ -994,7 +1007,6 @@ class ModuleLoader(PfscJsonTransformer):
         pa.build()
         # Now that it has built its widgets, we can cascade and resolve libpaths.
         pa.cascadeLibpaths()
-        pa.resolveLibpathsRec()
         return pa
 
     def deduc(self, items):
@@ -1007,8 +1019,6 @@ class ModuleLoader(PfscJsonTransformer):
         # Deductions are declared at the top level of modules,
         # so now we can let libpaths cascade down.
         ded.cascadeLibpaths()
-        ded.resolve_objects()
-        ded.buildGraph()
         return ded
 
     def subdeduc(self, items):

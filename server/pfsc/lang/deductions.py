@@ -165,8 +165,15 @@ class Deduction(Enrichment, NodeLikeObj):
 
         self.rdef_paths = rdef_paths
         self.runningDefs = []
+        self.target_paths = target_paths
 
-        if not module: return
+    def resolve(self):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+        """
+        target_paths = self.target_paths
+        module = self.parent
         self.find_and_store_targets(target_paths, module, all_nodes=True, common_deduc=True)
 
         # FIXME: isn't this redundant?
@@ -179,6 +186,9 @@ class Deduction(Enrichment, NodeLikeObj):
         #for ts in target_paths:
         #    G = self.createGhosts(ts)
         #    self.ghostNodes.append(G)
+
+        self.resolve_objects()
+        self.buildGraph()
 
     @property
     def trusted(self):
