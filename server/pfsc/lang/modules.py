@@ -456,6 +456,7 @@ pfsc_parser = Lark(
 
 BLOCK_RE = re.compile(r'(anno +([a-zA-Z]\w*)[^@]*?)@@@(\w{,8})(\s.*?)@@@\3', flags=re.S)
 
+
 class BlockChunker:
     '''
     Contrary to the appearance of the pfsc_parser definition in EBNF above, "annotation blocks"
@@ -690,12 +691,14 @@ class PfscAssignment(PfscObj):
     def get_rhs(self):
         return self.rhs
 
+
 class PfscDeducPreamble:
 
     def __init__(self, name, targets, rdefs):
         self.name = name
         self.targets = targets
         self.rdefs = rdefs
+
 
 class PfscRelpath:
 
@@ -732,6 +735,7 @@ class PfscRelpath:
         abspath = '.'.join(keep_parts)
         return abspath
 
+
 class CachePolicy:
     """
     Enum class for ways of using the module cache.
@@ -746,6 +750,7 @@ class CachePolicy:
     NEVER=0
     ALWAYS=1
     TIME=2
+
 
 class ModuleLoader(PfscJsonTransformer):
 
@@ -1128,6 +1133,7 @@ class ModuleLoader(PfscJsonTransformer):
         pa.cascadeLibpaths()
         return pa
 
+
 class CachedModule:
 
     def __init__(self, read_time, module):
@@ -1137,6 +1143,7 @@ class CachedModule:
         """
         self.read_time = read_time
         self.module = module
+
 
 class TimestampedText:
 
@@ -1148,7 +1155,9 @@ class TimestampedText:
         self.read_time = read_time
         self.text = text
 
+
 _MODULE_CACHE = {}
+
 
 def remove_modules_from_cache(modpaths, version=pfsc.constants.WIP_TAG):
     for modpath in modpaths:
@@ -1339,6 +1348,7 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
         # We are not reloading, i.e. we are using the cache.
         module = cache[verspath].module
         return module
+
 
 def build_module_from_text(text, modpath, version=pfsc.constants.WIP_TAG, history=None, caching=CachePolicy.TIME, dependencies=None):
     """
