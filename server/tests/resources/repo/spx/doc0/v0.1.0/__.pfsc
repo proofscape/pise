@@ -3,6 +3,11 @@ doc1 = {
     docId: "pdffp:fedcba9876543210"
 }
 
+doc2 = {
+  url: "https://example.org/pdf/foo2.pdf",
+  docId: "pdffp:0123456789abcdef"
+}
+
 dependencies = {
     "test.spx.doc1": "v0.1.0",
 }

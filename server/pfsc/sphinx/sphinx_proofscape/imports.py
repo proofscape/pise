@@ -43,22 +43,23 @@ class PendingImport:
     PLAIN_IMPORT_FORMAT = 0
     FROM_IMPORT_FORMAT = 1
 
-    def __init__(self, home_module, format, src_modpath, original_name=None, local_path=None):
+    def __init__(self, home_module, format, src_modpath, object_names=None, local_path=None):
         """
         :param home_module: the PfscModule where the import happened
         :param format: one of PLAIN_IMPORT_FORMAT, FROM_IMPORT_FORMAT, indicating
             the format of the import statement
         :param src_modpath: the libpath of the module named as the source in
             the import statement
-        :param original_name: for FROM imports, the name of the imported object
-            inside of the source module, or "*" if importing all from there
+        :param object_names: for FROM imports, the name or names (str or list of
+            str) of the imported object or objects inside of the source module,
+            or "*" if importing all from there
         :param local_path: dotted path or name under which the imported object
-            is to be stored in the home module
+            (last imported object, if several) is to be stored in the home module
         """
         self.home_module = home_module
         self.format = format
         self.src_modpath = src_modpath
-        self.original_name = original_name
+        self.object_names = object_names
         self.local_path = local_path
         self.homepath = self.home_module.libpath
 
@@ -128,9 +129,9 @@ class PendingImport:
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
             src_module = pfsc_env.get_module(modpath, version=version)
 
-        object_name = self.original_name
+        object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
-        if object_name == "*":
+        if object_names == "*":
             if not may_import_all:
                 # Currently the only time when importing all is prohibited is when we are
                 # trying to import from self.
@@ -145,33 +146,38 @@ class PendingImport:
             for name in all_names:
                 self.home_module[name] = src_module[name]
         else:
-            local_name = self.local_path
-            # Initialize imported object to None, so we can check for success.
-            obj = None
-            # Construct the full path to the object, and compute the longest initial segment
-            # of it that points to a module.
-            full_object_path = modpath + '.' + object_name
-            object_modpath = get_modpath(full_object_path, version=version)
-            # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
-            if object_modpath == self.homepath:
-                if full_object_path == self.homepath:
-                    msg = f'Module {self.homepath} attempts to import itself from its ancestor.'
+            # Importing individual name(s).
+            N = len(object_names)
+            requested_local_name = self.local_path
+            for i, object_name in enumerate(object_names):
+                # Set up the local name.
+                local_name = requested_local_name if requested_local_name and i == N - 1 else object_name
+                # Initialize imported object to None, so we can check for success.
+                obj = None
+                # Construct the full path to the object, and compute the longest initial segment
+                # of it that points to a module.
+                full_object_path = modpath + '.' + object_name
+                object_modpath = get_modpath(full_object_path, version=version)
+                # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
+                if object_modpath == self.homepath:
+                    if full_object_path == self.homepath:
+                        msg = f'Module {self.homepath} attempts to import itself from its ancestor.'
+                    else:
+                        msg = f'Module {self.homepath} attempts to import from within itself.'
+                    raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+                # The first attempt is to find the name in the source module, if any.
+                if src_module and may_search_within_module:
+                    obj = src_module.get(object_name)
+                # If that failed, try to import a submodule.
+                if obj is None:
+                    obj = pfsc_env.get_module(full_object_path, version=version)
+                # If that failed too, it's an error.
+                if obj is None:
+                    msg = 'Could not import %s from %s' % (object_name, modpath)
+                    raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
+                    # Otherwise, record the object.
                 else:
-                    msg = f'Module {self.homepath} attempts to import from within itself.'
-                raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
-            # The first attempt is to find the name in the source module, if any.
-            if src_module and may_search_within_module:
-                obj = src_module.get(object_name)
-            # If that failed, try to import a submodule.
-            if obj is None:
-                obj = pfsc_env.get_module(full_object_path, version=version)
-            # If that failed too, it's an error.
-            if obj is None:
-                msg = 'Could not import %s from %s' % (object_name, modpath)
-                raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
-                # Otherwise, record the object.
-            else:
-                self.home_module[local_name] = obj
+                    self.home_module[local_name] = obj
 
 
 class ImportReader(PfscJsonTransformer):
@@ -194,7 +200,7 @@ class ImportReader(PfscJsonTransformer):
         self.imports = []
 
     def module(self, items):
-        # Each item should be a list of ``PendingImport`` objects.
+        # Each item should be a ``PendingImport`` instance.
         # If the user wrote anything other than an import, it will be received
         # here as an un-transformed AST node (a ``Tree`` instance).
         for item in items:
@@ -207,7 +213,7 @@ class ImportReader(PfscJsonTransformer):
                     f'. Only imports are allowed.'
                 )
             else:
-                self.imports.extend(item)
+                self.imports.append(item)
         return self.imports
 
     def fromimport(self, items):
@@ -216,7 +222,7 @@ class ImportReader(PfscJsonTransformer):
 
             fromimport : "from" (relpath|libpath) "import" (STAR|identlist ("as" IDENTIFIER)?)
 
-        :return: list of PendingImport instances (one for each imported object)
+        :return: PendingImport instance
         """
         src_modpath = items[0]
         is_relative = isinstance(src_modpath, PfscRelpath)
@@ -224,27 +230,14 @@ class ImportReader(PfscJsonTransformer):
             src_modpath = src_modpath.resolve(self.homepath)
         object_names = items[1]
         requested_local_name = items[2] if len(items) == 3 else None
-
-        imports = []
-
-        if object_names == "*":
-            imports.append(PendingImport(
-                self.home_module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
-                original_name=object_names
-            ))
-        else:
-            n = len(object_names)
-            for i, object_name in enumerate(object_names):
-                local_name = requested_local_name if requested_local_name and i == n - 1 else object_name
-                imports.append(PendingImport(
-                    self.home_module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
-                    original_name=object_name, local_path=local_name
-                ))
-        return imports
+        return PendingImport(
+            self.home_module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
+            object_names=object_names, local_path=requested_local_name
+        )
 
     def plainimport(self, items):
         """
-        :return: list of length 1, containing a single PendingImport instance
+        :return: PendingImport instance
         """
         src_modpath = items[0]
         # Are we using a relative libpath or absolute one?
@@ -259,10 +252,10 @@ class ImportReader(PfscJsonTransformer):
         else:
             # In this case an "as" clause is optional.
             local_path = items[1] if len(items) == 2 else src_modpath
-        return [PendingImport(
+        return PendingImport(
             self.home_module, PendingImport.PLAIN_IMPORT_FORMAT, src_modpath,
             local_path=local_path
-        )]
+        )
 
     def relpath(self, items):
         num_dots = len(items[0])
