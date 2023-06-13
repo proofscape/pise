@@ -853,6 +853,7 @@ class Builder:
                               nodes representing its items are to be added
         """
         self.monitor.set_message('Reading %s...' % module_path)
+        if self.verbose: print("  ", module_path)
 
         try:
             # Tricky couple of steps here: We are currently working in a context where the
@@ -889,7 +890,7 @@ class Builder:
         """
         module_path = module.libpath
         self.monitor.set_message('Scanning %s...' % module_path)
-        if self.verbose: print("  ", module_path)
+        #if self.verbose: print("  ", module_path)
 
         self.modules[module.libpath] = module
 
