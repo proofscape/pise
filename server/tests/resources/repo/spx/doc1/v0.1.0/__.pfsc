@@ -1,8 +1,13 @@
-dependencies = {
-    'test.moo.bar': 'v0.3.4'
+doc1 = {
+    url: "https://example.org/pdf/foo1.pdf",
+    docId: "pdffp:fedcba9876543210"
 }
 
+doc2 = {
+  url: "https://example.org/pdf/foo2.pdf",
+  docId: "pdffp:0123456789abcdef"
+}
 
-anno Notes @@@
-Hello.
-@@@
+dependencies = {
+    "test.spx.doc0": "v0.1.0",
+}
