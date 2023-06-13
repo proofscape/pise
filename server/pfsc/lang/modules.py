@@ -90,11 +90,11 @@ class PfscModule(PfscObj):
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
         """
-        self.resolve_libpaths_to_rhses()
-
         while self.pending_imports:
             pi = self.pending_imports.popleft()
             pi.resolve()
+
+        self.resolve_libpaths_to_rhses()
 
         native = self.getNativeItemsInDefOrder()
         for item in native.values():
