@@ -25,7 +25,7 @@ class SphinxPfscEnvironment:
     under the attribute 'proofscape'.
 
     It is designed to hold all of the environment data structures relevant to
-    the sphinx-proofscape extension, such as Widget instances, etc.
+    the sphinx-proofscape extension.
 
     It supports merge/purge operations, for Sphinx parallel builds.
     """
@@ -74,7 +74,8 @@ class SphinxPfscEnvironment:
 
     def merge(self, other):
         # TODO: other things besides widgets?
-        self.all_widgets.extend(other.all_widgets)
+        other_pfsc_env = get_pfsc_env(other)
+        self.all_widgets.extend(other_pfsc_env.all_widgets)
 
     def resolve(self):
         """
