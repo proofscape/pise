@@ -44,9 +44,11 @@ To build non-recursively means to act on only the module itself.
 """
 
 import os, json, math, re
+from collections import deque
 from datetime import datetime
 import logging
 import pathlib
+import traceback
 
 from sphinx.cmd import make_mode
 from sphinx.application import Sphinx
@@ -69,7 +71,10 @@ from pfsc.build.repo import RepoInfo, checkout, get_repo_info
 from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType
-from pfsc.lang.modules import CachePolicy, load_module, PfscDefn, PfscAssignment
+from pfsc.lang.modules import (
+    CachePolicy, load_module, PfscDefn, PfscAssignment,
+    cache_module, resolve_all_cached_modules,
+)
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
 from pfsc.lang.widgets import GoalWidget
@@ -467,6 +472,11 @@ class Builder:
             node.add_child(child_node)
             node = child_node
         self.root_node = node
+        
+        # A "scan job" is a pair (PfscModule, ManifestTreeNode), representing
+        # a module that we have loaded from disk, but have not yet analyzed its
+        # contents.
+        self.scan_jobs = deque()
 
         # A place to store a copy of the dependencies declared by the repo being built:
         self.repo_dependencies = {}
@@ -523,52 +533,7 @@ class Builder:
             with checkout(self.repo_info, self.version):
                 # Set signal visible below this frame by inspecting the stack.
                 building_a_release_of = self.building_a_release_of()
-                # Get path info.
-                path_info = PathInfo(self.module_path)
 
-                def reading_phase(sphinx_env=None):
-                    """
-                    An approximate equivalent to Sphinx's READING phase.
-
-                    In cases where we're going to do a Sphinx build, this function
-                    should be carried out after the Sphinx build has
-                    finished its READING phase, but before it begins its RESOLVING phase. The results
-                    of our build will be made available in the Sphinx build environment, so that it can
-                    resolve imports from the pfsc side into the Sphinx side.
-
-                    :param sphinx_env: optional Sphinx BuildEnvironment
-                        Can be used to resolve imports into pfsc modules from rst modules.
-                        (Not supported yet.)
-                    """
-                    # Consider the possibilities.
-                    walking = self.recursive and path_info.is_dir
-                    module_has_contents = path_info.get_pfsc_fs_path() is not None
-                    just_the_module = module_has_contents and not walking
-                    # Act accordingly.
-                    if walking:
-                        if self.verbose: print(f"Building {self.module_path}@{self.version} recursively...")
-                        self.walk(path_info.abs_fs_path_to_dir)
-                    elif just_the_module:
-                        if self.verbose: print(f"Building {self.module_path}@{self.version}...")
-                        self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
-                        self.handle_pfsc_module(self.module_path, self.root_node)
-                    else:
-                        if self.verbose: print("Nothing to do.")
-                        return
-
-                    self.mii.cut_add_validate()
-                    self.mii.here_elsewhere_nowhere()
-                    self.mii.compute_origins(self.graph_writer.reader)
-                    self.inject_origins()
-                    self.timestamp = datetime.now()
-                    self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
-                    self.merge_manifests()
-                    self.have_built = True
-
-                # Note: It was not until we checked out the intended version that we could construct
-                # our PathInfo object, and examine the filesystem structures representing our root module.
-                # It's easy to think some of this stuff may belong in our __init__ method, but for
-                # this reason it has to wait until now.
                 self.check_root_declarations()
                 self.mii.compute_mm_closure(self.graph_writer.reader)
 
@@ -576,11 +541,64 @@ class Builder:
                 # If you want a Sphinx build to take place, you have to have an `index.rst` file
                 # in the repo root dir.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc(reading_phase, do_clean=self.clean_sphinx)
+                    self.build_sphinx_doc(do_clean=self.clean_sphinx)
                 else:
-                    reading_phase()
+                    self.reading_phase()
+                    self.resolving_phase()
 
-    def build_sphinx_doc(self, reading_phase, do_clean=False, force_all=False, filenames=None):
+                self.have_built = True
+
+    def reading_phase(self):
+        """
+        Form modules by READING pfsc files, but do not yet RESOLVE them.
+
+        In cases where we're going to do a Sphinx build, this function
+        should be carried out after the Sphinx build has
+        finished its READING phase, but before it begins its RESOLVING phase.
+        """
+        # Note: It is critical that this method be invoked only within the
+        # context provided by the `checkout()` context manager, which is invoked
+        # in our `build()` method. In particular,
+        # it was not until we checked out the intended version that we could construct
+        # our PathInfo object, and examine the filesystem structures representing our root module.
+        # It's easy to think some of this stuff may belong in our __init__ method, but for
+        # this reason it has to wait until now.
+        path_info = PathInfo(self.module_path)
+
+        walking = self.recursive and path_info.is_dir
+        module_has_contents = path_info.get_pfsc_fs_path() is not None
+        just_the_module = module_has_contents and not walking
+
+        if walking:
+            if self.verbose: print(f"Building {self.module_path}@{self.version} recursively...")
+            self.walk(path_info.abs_fs_path_to_dir)
+        elif just_the_module:
+            if self.verbose: print(f"Building {self.module_path}@{self.version}...")
+            self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
+            self.read_pfsc_module(self.module_path, self.root_node)
+        else:
+            if self.verbose: print("Nothing to do.")
+            return
+
+    def resolving_phase(self):
+        """
+        RESOLVE the pfsc modules formed in the READING phase.
+        """
+        resolve_all_cached_modules()
+
+        while self.scan_jobs:
+            module, manifest_node = self.scan_jobs.popleft()
+            self.scan_pfsc_module(module, manifest_node)
+
+        self.mii.cut_add_validate()
+        self.mii.here_elsewhere_nowhere()
+        self.mii.compute_origins(self.graph_writer.reader)
+        self.inject_origins()
+        self.timestamp = datetime.now()
+        self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
+        self.merge_manifests()
+
+    def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None):
         """
         do_clean: Set True to do a `make clean` before building
         force_all: write all files, instead of just for new or changed source
@@ -633,15 +651,21 @@ class Builder:
         def env_updated_handler(app, env):
             """
             This handler is called when Sphinx has finished its READING phase,
-            but has not yet begun its RESOLVING phase. This is now our chance
-            to do our own reading, to enrich the Sphinx env, and to carry out
-            resolution of pending pfsc objects in that env. For example, we can
-            resolve `PendingImport` objects formed while reading rst files.
+            but has not yet begun its RESOLVING phase. We do our own READING
+            and RESOLVING, and we also in a sense begin the Sphinx RESOLVING
+            phase, by resolving all pfsc modules formed from rst files.
             """
-            reading_phase(sphinx_env=env)
+            self.reading_phase()
+
+            # TODO:
+            #  Here is where we would pickle the module cache, to be restored
+            #  on next build.
+
             pfsc_env = env.proofscape
-            pfsc_env.update_modules(self.modules)
-            pfsc_env.resolve()
+            for rst_module in pfsc_env.pfsc_modules.values():
+                cache_module(rst_module)
+
+            self.resolving_phase()
 
         try:
             with patch_docutils(confdir), docutils_namespace():
@@ -650,6 +674,7 @@ class Builder:
                 app.connect('env-updated', env_updated_handler)
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
+            traceback.print_exc()
             raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
 
         self.manifest.set_has_sphinx_doc()
@@ -725,7 +750,7 @@ class Builder:
         :return: nothing
         """
         # We will build a list of "jobs," being pairs (modpath, tree_node), to be passed to
-        # our `handle_pfsc_module` method.
+        # our `read_pfsc_module` method.
         jobs = []
         walk_list = list(os.walk(root_fs_path))
         self.monitor.begin_phase(len(walk_list), 'Scanning...')
@@ -817,36 +842,18 @@ class Builder:
 
         self.monitor.begin_phase(self.prog_count_per_module * len(jobs), 'Building...')
         for modpath, mod_node in jobs:
-            self.handle_pfsc_module(modpath, mod_node)
+            self.read_pfsc_module(modpath, mod_node)
 
-    def handle_pfsc_module(self, module_path, manifest_node):
+    def read_pfsc_module(self, module_path, manifest_node):
         """
-        Process a single proofscape module. This means recording dashgraphs and annotations,
-        adding manifest tree nodes, and recording indexing info, for the contents of this module.
-
-        At present we index two relationships: TARGETS, and EXPANDS.
-
-            TARGETS
-
-                The possible forms of a target relationship are:
-
-                        (e:E)-[:TARGETS]->(u:Node)
-
-                where E is among {Deduc, Examp, Anno}.
-
-            EXPANDS
-
-                An expansion relationship is of the form:
-
-                        (e:Deduc)-[:EXPANDS]->(d:Deduc)
+        Read a proofscape module, and record it as a scan job.
 
         :param module_path: the libpath of the module to be processed
         :param manifest_node: a ManifestTreeNode representing this module, and to which
                               nodes representing its items are to be added
         """
-        self.monitor.set_message('Building %s...' % module_path)
-        if self.verbose: print("  ", module_path)
-        # Build the module.
+        self.monitor.set_message('Reading %s...' % module_path)
+
         try:
             # Tricky couple of steps here: We are currently working in a context where the
             # desired version of the repo being built has been checked out. So we can get
@@ -869,6 +876,21 @@ class Builder:
                 raise e
 
         self.monitor.inc_count(self.prog_count_for_parsing)
+        self.scan_jobs.append((module, manifest_node))
+
+    def scan_pfsc_module(self, module, manifest_node):
+        """
+        Process a single proofscape module. This means recording dashgraphs and annotations,
+        adding manifest tree nodes, and recording indexing info, for the contents of this module.
+
+        :param module: the PfscModule to be scanned
+        :param manifest_node: a ManifestTreeNode representing this module, and to which
+                              nodes representing its items are to be added
+        """
+        module_path = module.libpath
+        self.monitor.set_message('Scanning %s...' % module_path)
+        if self.verbose: print("  ", module_path)
+
         self.modules[module.libpath] = module
 
         manifest_node.update_data({'isTerminal': module.isTerminal()})
