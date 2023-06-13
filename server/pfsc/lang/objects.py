@@ -162,6 +162,14 @@ class PfscObj:
         slp = self.libpath
         n = len(slp)
         ilp = item.getLibpath()
+        if not ilp:
+            # This case can arise e.g. in the case of a plain import,
+            #   import test.foo.bar
+            # in which case we will have an item called `test` that points to
+            # a PfscObj that has no libpath. (Should we instead give that obj
+            # the libpath `test`? What about assumption that all absolute
+            # libpaths have length at least three segments?)
+            return False
         m = len(ilp)
         pre = ilp[:n]
         return pre == slp and (
@@ -169,13 +177,20 @@ class PfscObj:
             ( m > n and ilp[n] == '.' )
         )
 
-    def getNativeItemsInDefOrder(self):
+    def getNativeItemsInDefOrder(self, accept_primitive=False):
         """
         Get an ordered dict of all native items in definition order.
 
+        :param accept_primitive: set True to also accept primitive items, i.e.
+            items that are not instances of `PfscObj`.
         :return: ordered dict of native items
         """
-        return {name:item for name, item in self.items.items() if self.isNative(item)}
+        def test(item):
+            return self.isNative(item) or (
+                accept_primitive and not isinstance(item, PfscObj)
+            )
+
+        return {name:item for name, item in self.items.items() if test(item)}
 
     def recursiveItemVisit(self, visitor_func):
         """
