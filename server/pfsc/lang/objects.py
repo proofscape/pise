@@ -333,6 +333,17 @@ class PfscObj:
     def getDocRefInternalId(self):
         return self.getLibpath()
 
+    def add_as_content(self, owner):
+        """
+        Add self as "contents" to owner, in a way respecting the type of
+        contents. For use during READ/RESOLVE of modules.
+
+        Subclasses may override, for special ways of recording.
+
+        :param owner: PfscObj to which self is to be added
+        """
+        owner[self.name] = self
+
     def __getitem__(self, path):
         """
         As in the `get` method, you may access objects within objects by passing a path, and the

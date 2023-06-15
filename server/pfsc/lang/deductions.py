@@ -831,6 +831,9 @@ class SubDeduc(Deduction):
     def __init__(self, name):
         Deduction.__init__(self, name, [], [])
 
+    def add_as_content(self, owner):
+        owner.addSubDeduc(self)
+
     def makeClone(self, name=None):
         """
         Make a clone of this subdeduc. You can pass a name if you want to specify
@@ -917,6 +920,9 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.docReference = None
+
+    def add_as_content(self, owner):
+        owner.addNode(self)
 
     def makeClone(self, name=None):
         """

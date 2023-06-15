@@ -754,6 +754,9 @@ class PfscAssignment(PfscObj):
     def get_rhs(self):
         return self.rhs
 
+    def add_as_content(self, owner):
+        owner[self.lhs] = self.rhs
+
 
 class PfscDeducPreamble:
 
@@ -1078,34 +1081,6 @@ class ModuleLoader(PfscJsonTransformer):
         obj.setTextRange(actual_lineno, None, None, None)
         return actual_lineno
 
-    def set_contents(self, owner, contents, names=None):
-        """
-        Add contents to an owner (Deduc, Node, SubDeduc)
-
-        :param owner: the owner to which the contents are to be added
-        :param contents: the contents to be added to the owner
-        :param names: the set of names already recorded in the owner
-        """
-        if names is None: names = set()
-        for item in contents:
-            # Resolve clones
-            if isinstance(item, PreClone):
-                item = item.make_clone(owner)
-            # Must test if SubDeduc _before_ testing if Deduction, since the former is a subclass of the latter.
-            if isinstance(item, SubDeduc):
-                self.ban_duplicates(names, item.name)
-                owner.addSubDeduc(item)
-            elif isinstance(item, Node):
-                self.ban_duplicates(names, item.name)
-                owner.addNode(item)
-            # Assignments are recorded as plain strings, under their given names.
-            elif isinstance(item, PfscAssignment):
-                self.ban_duplicates(names, item.lhs)
-                owner[item.lhs] = item.rhs
-            elif isinstance(item, (Deduction, Annotation, PfscDefn)):
-                self.ban_duplicates(names, item.name)
-                owner[item.name] = item
-
     def module(self, items):
         # In our handlers for top-level nonterminals (deduc, anno, etc.), we
         # are already recording the item in the module, so there is nothing
@@ -1135,11 +1110,9 @@ class ModuleLoader(PfscJsonTransformer):
         preamble, contents = items
         ded = Deduction(preamble.name, preamble.targets, preamble.rdefs, module=self._module)
         self.set_first_line(ded, preamble.name.line)
-        # Add to module now, so later defs can reference.
         self._module[ded.name] = ded
-        self.set_contents(ded, contents)
-        # Deductions are declared at the top level of modules,
-        # so now we can let libpaths cascade down.
+        for item in contents:
+            item.add_as_content(ded)
         ded.cascadeLibpaths()
         return ded
 
@@ -1147,7 +1120,8 @@ class ModuleLoader(PfscJsonTransformer):
         name, contents = items
         subdeduc = SubDeduc(name)
         self.set_first_line(subdeduc, name.line)
-        self.set_contents(subdeduc, contents)
+        for item in contents:
+            item.add_as_content(subdeduc)
         return subdeduc
 
     def defn(self, items):
@@ -1161,7 +1135,8 @@ class ModuleLoader(PfscJsonTransformer):
     def basicnode(self, items):
         type_, name, contents = items
         node = node_factory(type_, name)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1171,7 +1146,8 @@ class ModuleLoader(PfscJsonTransformer):
         alternate_lps = items[1] if len(items) == 3 else []
         node = Supp(name)
         node.set_alternate_lps(alternate_lps)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1179,7 +1155,8 @@ class ModuleLoader(PfscJsonTransformer):
         type_, name, contents = items
         node = node_factory(type_, name)
         node.set_wolog(True)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1189,7 +1166,8 @@ class ModuleLoader(PfscJsonTransformer):
         contra = items[1] if len(items) == 3 else []
         node = Flse(name)
         node.set_contra(contra)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
