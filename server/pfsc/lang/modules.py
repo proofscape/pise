@@ -1107,38 +1107,9 @@ class ModuleLoader(PfscJsonTransformer):
                 owner[item.name] = item
 
     def module(self, items):
-        # Among the types of contents in a module are: imports, deducs, and other stuff.
-        # The imports are not to be recorded; they just _do_ something.
-        # The deducs already have been recorded. They record themselves, so that subsequent
-        # deducs are able to find them. Likewise for annos and assignments.
-        # Anything else is yet to be recorded in this module, so we do that here.
-        existing_names = set(self._module.listAllItems())
-        types_to_be_recorded = [
-            # There used to be a couple of types needing to be recorded here,
-            # but no more. For now we keep all this code in case it is useful
-            # again at some point.
-            #
-            # To be clear, if one of the nonterminal handler methods for an
-            # entity that can be defined at the top level of a pfsc module
-            # returns items of class Foo, then you should list Foo here.
-            #
-            # For example, we used to list PfscAssignment here. But that ended
-            # when we started recording these in the `assignment` nonterminal
-            # handler method below.
-            #
-            # Generally speaking, we have switched to a design where top-level
-            # entities record themselves in the module as soon as they can, so
-            # that entities defined after them can reference them.
-        ]
-        items_to_be_recorded = []
-        for item in items:
-            for type_ in types_to_be_recorded:
-                if isinstance(item, type_):
-                    items_to_be_recorded.append(item)
-                    break
-        self.set_contents(self._module, items_to_be_recorded, existing_names)
-        # Whether we keep the above, defunct code around or not, we still need to
-        # return self._module.
+        # In our handlers for top-level nonterminals (deduc, anno, etc.), we
+        # are already recording the item in the module, so there is nothing
+        # left to do here.
         return self._module
 
     def anno(self, items):
