@@ -90,16 +90,17 @@ class PfscModule(PfscObj):
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
         """
-        while self.pending_imports:
-            pi = self.pending_imports.popleft()
-            pi.resolve()
+        if not self.resolved:
+            while self.pending_imports:
+                pi = self.pending_imports.popleft()
+                pi.resolve()
 
-        self.resolve_libpaths_to_rhses()
+            self.resolve_libpaths_to_rhses()
 
-        native = self.getNativeItemsInDefOrder()
-        for item in native.values():
-            if isinstance(item, (Annotation, Deduction)):
-                item.resolve()
+            native = self.getNativeItemsInDefOrder()
+            for item in native.values():
+                if isinstance(item, (Annotation, Deduction)):
+                    item.resolve()
 
         self.resolved = True
 
@@ -866,7 +867,9 @@ class PendingImport:
         """
         modpath = self.src_modpath
         version = self.get_desired_version_for_target(modpath)
-        module = load_module(modpath, version=version)
+        module = load_module(modpath, version=version, fail_gracefully=False)
+        # Depth-first resolution:
+        module.resolve()
         self.home_module[self.local_path] = module
 
     def resolve_fromimport(self):
@@ -896,7 +899,11 @@ class PendingImport:
         else:
             # In all other cases, the modpath points to something other than this module.
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
-            src_module = load_module(modpath, version=version)
+            # TODO: do we need to pass a `history` here, to handle cyclic import errors?
+            src_module = load_module(modpath, version=version, fail_gracefully=True)
+            if src_module:
+                # Depth-first resolution:
+                src_module.resolve()
 
         object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
@@ -939,7 +946,11 @@ class PendingImport:
                     obj = src_module.get(object_name)
                 # If that failed, try to import a submodule.
                 if obj is None:
-                    obj = load_module(full_object_path, version=version)
+                    # TODO: do we need to pass a `history` here, to handle cyclic import errors?
+                    obj = load_module(full_object_path, version=version, fail_gracefully=True)
+                    if obj:
+                        # Depth-first resolution:
+                        obj.resolve()
                 # If that failed too, it's an error.
                 if obj is None:
                     msg = 'Could not import %s from %s' % (object_name, modpath)
