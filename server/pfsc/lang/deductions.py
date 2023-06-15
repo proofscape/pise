@@ -20,7 +20,7 @@ module, as defined in a .pfsc file.
 """
 
 import re, traceback
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import mistletoe
 from markupsafe import Markup
@@ -166,6 +166,7 @@ class Deduction(Enrichment, NodeLikeObj):
         self.rdef_paths = rdef_paths
         self.runningDefs = []
         self.target_paths = target_paths
+        self.pending_clones = deque()
 
     def resolve(self):
         """
@@ -187,8 +188,18 @@ class Deduction(Enrichment, NodeLikeObj):
         #    G = self.createGhosts(ts)
         #    self.ghostNodes.append(G)
 
+        while self.pending_clones:
+            pc = self.pending_clones.popleft()
+            clone = pc.make_clone(self)
+            clone.add_as_content(self)
+        # Cascade libpaths *again*, so that newly resolved clones can know theirs.
+        self.cascadeLibpaths()
+
         self.resolve_objects()
         self.buildGraph()
+
+    def add_pending_clone(self, pc):
+        self.pending_clones.append(pc)
 
     @property
     def trusted(self):

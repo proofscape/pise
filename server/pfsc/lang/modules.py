@@ -714,7 +714,7 @@ def parse_module_text(text):
     return tree, bc
 
 
-class PreClone(PfscObj):
+class PendingClone(PfscObj):
     """
     Represents an intention to make a clone of a node or subdeduc.
     """
@@ -723,6 +723,9 @@ class PreClone(PfscObj):
         PfscObj.__init__(self)
         self.orig_libpath = orig_libpath
         self.local_name = local_name
+
+    def add_as_content(self, owner):
+        owner.add_pending_clone(self)
 
     def make_clone(self, owner):
         orig_obj, _ = owner.getFromAncestor(
@@ -1178,7 +1181,7 @@ class ModuleLoader(PfscJsonTransformer):
     def clone(self, items, meta):
         libpath = items[0]
         local_name = items[1] if len(items) == 2 else None
-        pc = PreClone(libpath, local_name)
+        pc = PendingClone(libpath, local_name)
         self.set_first_line(pc, meta.line)
         return pc
 
