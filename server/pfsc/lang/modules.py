@@ -36,6 +36,7 @@ from pfsc.lang.deductions import (
     PfscObj, Deduction, SubDeduc, Node, Supp, Flse, node_factory,
 )
 from pfsc.lang.objects import PfscDefn
+from pfsc.lang.widgets import Widget
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
 from pfsc.build.repo import get_repo_part
@@ -128,9 +129,7 @@ class PfscModule(PfscObj):
         This takes over, in the READ/RESOLVE design, for the resolution that
         used to take place in `PfscJsonTransformer.json_libpath()`.
         """
-        scope = self
-
-        def replace_or_replace_within(item):
+        def replace_or_replace_within(item, scope):
             """
             If item is a `Libpath`, then resolve to RHS or not at all; if it
             is a list or dict, resolve recursively within.
@@ -142,10 +141,10 @@ class PfscModule(PfscObj):
                 return item.resolve_to_rhs_or_not_at_all(scope)
             elif isinstance(item, list):
                 for i, list_item in enumerate(item):
-                    item[i] = replace_or_replace_within(list_item)
+                    item[i] = replace_or_replace_within(list_item, scope)
             elif isinstance(item, dict):
                 for k, v in item.items():
-                    item[k] = replace_or_replace_within(v)
+                    item[k] = replace_or_replace_within(v, scope)
             return item
 
         def visit(obj):
@@ -162,9 +161,11 @@ class PfscModule(PfscObj):
             if isinstance(obj, (Node, Deduction)):
                 native = obj.getNativeItemsInDefOrder(accept_primitive=True)
                 for name, item in native.items():
-                    obj[name] = replace_or_replace_within(item)
+                    obj[name] = replace_or_replace_within(item, obj)
             elif isinstance(obj, PfscAssignment):
-                obj.rhs = replace_or_replace_within(obj.rhs)
+                obj.rhs = replace_or_replace_within(obj.rhs, obj)
+            elif isinstance(obj, Widget):
+                replace_or_replace_within(obj.data, obj)
 
         self.recursiveItemVisit(visit)
 

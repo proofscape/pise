@@ -237,6 +237,7 @@ def test_extended_json_syntax(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v11')
         mod = load_module('test.foo.bar.expansions', caching=0)
+        mod.resolve()
         print(mod['obj1'].rhs)
         obj1 = {'foo': ['bar', 3, True, False, None]}
         assert mod['obj1'].rhs == obj1
