@@ -211,15 +211,19 @@ def test_param_widget_1(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v0')
         mod = load_module('test.foo.eg.notes', caching=0)
-        # In Notes1, the widgets are broken, so we get a total of zero widgets.
-        # In Notes2, they build okay, so we get two of them.
-        for name, n in [
-            ['Notes1', 0],
-            ['Notes2', 2],
-        ]:
-            anno = mod[name]
-            data = anno.get_anno_data()
-            assert len(data['widgets']) == n
+        mod.resolve()
+
+        # In Notes1, the widgets try to import each other, cyclically.
+        with pytest.raises(PfscExcep) as ei:
+            anno = mod['Notes1']
+            anno.get_anno_data()
+        assert ei.value.code() == PECode.DAG_HAS_CYCLE
+
+        # In Notes2, the widgets build okay.
+        anno = mod['Notes2']
+        data = anno.get_anno_data()
+        assert len(data['widgets']) == 2
+
 
 @pytest.mark.psm
 def test_param_widget_2(app):

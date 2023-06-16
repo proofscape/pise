@@ -997,7 +997,12 @@ class ExampWidget(Widget):
         dep_graph = {}
         info_by_libpath = {}
         self._compute_dependency_closure_recursive(dep_graph, info_by_libpath, top_level=True)
-        order = topological_sort(dep_graph, reversed=True)
+        try:
+            order = topological_sort(dep_graph, reversed=True)
+        except PfscExcep as pe:
+            if pe.code() == PECode.DAG_HAS_CYCLE:
+                pe.extendMsg(f' Trying to resolve dependencies for widget {self.libpath}')
+            raise pe
         closure = [info_by_libpath[lp] for lp in order if lp != self.libpath]
         return closure
 
