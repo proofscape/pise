@@ -186,6 +186,7 @@ def test_libpath_resolve(app):
         ri = RepoInfo('test.moo.links')
         ri.checkout('v0.1.0')
         mod = load_module('test.moo.links.anno1', caching=0)
+        mod.resolve()
         assert mod['Notes'].widget_seq[0].data['ref'] == 'test.moo.links.deducs1.Foo'
 
 
@@ -199,6 +200,7 @@ def test_local_libpath_resolve(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v10')
         mod = load_module('test.foo.bar.expansions', caching=0)
+        mod.resolve()
         assert mod['Notes3'].widget_seq[0].data['altpath'] == 'test.foo.bar.expansions.Notes3.w2'
         assert mod['Notes3'].widget_seq[1].data['altpath'] == 'test.foo.bar.expansions.Notes3.w2'
 
@@ -228,6 +230,7 @@ def test_param_widget_2(app):
         ri = RepoInfo('test.comment.notes')
         ri.checkout('v0.1.0')
         mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         html = anno.get_escaped_html()
         data = anno.get_anno_data()
@@ -265,6 +268,7 @@ def test_disp_widget_1(app):
         ri = RepoInfo('test.comment.notes')
         ri.checkout('v0.1.0')
         mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         widget_data = data["widgets"]
