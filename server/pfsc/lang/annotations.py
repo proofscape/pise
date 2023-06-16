@@ -116,7 +116,7 @@ class Annotation(Enrichment):
         assert self.Np % 2 == 1
         # Number of widget defns:
         self.Nw = int((self.Np - 1) / 2)
-        transformer = PfscJsonTransformer(scope=self)
+        transformer = PfscJsonTransformer(scope=None)
         # Iterate over the widget defns:
         for k in range(self.Nw):
             # Each widget defn comes in the form of a RawWidgetData named tuple.
