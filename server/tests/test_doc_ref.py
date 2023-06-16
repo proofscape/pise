@@ -37,7 +37,8 @@ def test_doc_ref_validate_1(app, mod, expected_code):
         ri.checkout('v0')
         print()
         with pytest.raises(PfscExcep) as ei:
-            load_module(f'test.foo.doc.{mod}')
+            mod = load_module(f'test.foo.doc.{mod}')
+            mod.resolve()
         pe = ei.value
         code = pe.code()
         print(pe, code)
@@ -68,6 +69,7 @@ def test_doc_ref_assemble_1(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v0')
         mod = load_module('test.foo.doc.Z1')
+        mod.resolve()
         print()
         dg = mod['Z1'].buildDashgraph()
         doc_info = dg['deducInfo']['docInfo']
@@ -114,6 +116,7 @@ def test_doc_ref_assemble_2(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v1')
         mod = load_module('test.foo.doc.results')
+        mod.resolve()
         print()
         dg = mod['Pf'].buildDashgraph()
         doc_info = dg['deducInfo']['docInfo']
@@ -132,6 +135,7 @@ def test_doc_ref_formats_1(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v2')
         mod = load_module('test.foo.doc.results')
+        mod.resolve()
         print()
         dg = mod['Pf'].buildDashgraph()
         pf_doc_info = dg['deducInfo']['docInfo']

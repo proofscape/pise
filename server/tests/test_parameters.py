@@ -27,6 +27,7 @@ def test_string_arg_escape(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v3')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         wl = anno.get_widget_lookup()
@@ -62,6 +63,7 @@ def test_params_01(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v2')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         #html = anno.get_escaped_html()
         # print(html)
@@ -110,6 +112,7 @@ def test_params_02(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v2')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         wl = anno.get_widget_lookup()
@@ -152,6 +155,7 @@ def test_params_03(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v2')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         wl = anno.get_widget_lookup()
@@ -191,6 +195,7 @@ def test_params_04(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v2')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         wl = anno.get_widget_lookup()
@@ -231,6 +236,7 @@ def test_params_05(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v2')
         mod = load_module('test.foo.eg.notes', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         data = anno.get_anno_data()
         wl = anno.get_widget_lookup()

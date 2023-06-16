@@ -41,7 +41,8 @@ error = [
 def test_load_module_error(app, pfsc_text, err_code):
     with app.app_context():
         with pytest.raises(PfscExcep) as ei:
-            load_module('foo.dummy.path', text=pfsc_text)
+            mod = load_module('foo.dummy.path', text=pfsc_text)
+            mod.resolve()
         assert ei.value.code() == err_code
 
 
@@ -97,7 +98,8 @@ def test_cyclic_import_error(app):
         with pytest.raises(PfscExcep) as ei:
             ri = get_repo_info('test.foo.bar')
             ri.checkout('v6')
-            load_module('test.foo.bar.results', caching=0)
+            mod = load_module('test.foo.bar.results', caching=0)
+            mod.resolve()
         assert ei.value.code() == PECode.CYCLIC_IMPORT_ERROR
 
 @pytest.mark.parametrize(['vers_num', 'err_code'], [
@@ -143,6 +145,7 @@ def test_import_submodule_through_self(app):
         ri = get_repo_info('test.foo.imp')
         ri.checkout('v10')
         mod = load_module('test.foo.imp.A.B', caching=0)
+        mod.resolve()
         assert mod['C.c'].typename == 'annotation'
 
 @pytest.mark.psm
@@ -290,7 +293,8 @@ def test_empty_meson_script(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v15')
         with pytest.raises(PfscExcep) as ei:
-            load_module('test.foo.bar.results', caching=0)
+            mod = load_module('test.foo.bar.results', caching=0)
+            mod.resolve()
         assert ei.value.code() == PECode.DEDUCTION_DEFINES_NO_GRAPH
 
 

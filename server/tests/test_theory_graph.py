@@ -34,6 +34,7 @@ def test_lower_graph(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.hist.lit': "WIP",
         })
+        module.resolve()
         theorymap = module[name]
         dg = theorymap.buildDashgraph()
         print(json.dumps(dg, indent=4))
@@ -55,6 +56,7 @@ def test_upper_graph(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.hist.lit': "WIP",
         })
+        module.resolve()
         theorymap = module[name]
         dg = theorymap.buildDashgraph()
         print(json.dumps(dg, indent=4))
