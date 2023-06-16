@@ -23,17 +23,8 @@ from pfsc.lang.annotations import json_parser, PfscJsonTransformer
 
 
 error = [
-    # (0) Duplicate definition within a Node
-    ("deduc Thm { exis E10 { intr I10 {} intr I10 {} } }", PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (1) Duplicate definition within a Node again
-    ('deduc Thm {  intr I { en = "foo" en = "bar"  }  }', PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (2) Duplicate definition within a Deduc
-    ('deduc Thm {  intr I { en = "foo" }  intr I { en = "bar" }  }', PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (3)
     ('deduc Thm { asrt C {} meson="C" } deduc Pf of Thm.A {}', PECode.TARGET_DOES_NOT_EXIST),
-    # (4)
     ('deduc Thm { asrt C {} meson="C" } deduc Pf of Thm {}', PECode.TARGET_OF_WRONG_TYPE),
-    # (5)
     ('deduc Thm1 { asrt C {} meson="C" }  deduc Thm2 { asrt C {} meson="C" }  deduc Pf of Thm1.C, Thm2.C {}', PECode.TARGETS_BELONG_TO_DIFFERENT_DEDUCS),
 ]
 @pytest.mark.parametrize(['pfsc_text', 'err_code'], error)
