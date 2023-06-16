@@ -301,6 +301,7 @@ class StudyPageBuilder(GoalDataHandler):
         module = build_module_from_text(pfsc_text, modpath, dependencies={
             repopath: vers.full,
         })
+        module.resolve()
         # Hack: Before writing the data for the page, tell this PfscModule
         # that it represents the same version as that of the subject matter
         # the study page is about. The study page itself was built at "WIP"
