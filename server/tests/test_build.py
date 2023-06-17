@@ -110,7 +110,7 @@ def test_build(libpath, rec):
 # To build at a numbered release, see `test_build_release()` below.
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, rec", (
-    ("test.spx.doc0", True),
+    #("test.spx.doc0", True),
     ("test.spx.doc1", True),
     #("test.moo.bar", True),
     #("test.foo.bar.expansions", False),
@@ -164,7 +164,7 @@ def test_make_repos(app, only):
 # will cause many tests to error out.
 @pytest.mark.skip(reason="For manual testing only!")
 @pytest.mark.parametrize('repopath, version', [
-    #['test.alex.math', 'v3.0.0'],
+    #['test.alex.math', 'v0.0.0'],
     #['test.brook.math', 'v0.0.0'],
     #['test.moo.bar', 'v2.1.0'],
     #['test.moo.links', 'v0.1.0'],
@@ -174,7 +174,7 @@ def test_make_repos(app, only):
     #['test.comment.notes', 'v0.1.0'],
     #['test.wid.get', 'v0.1.0'],
     #['test.moo.beta', 'v0.1.1'],
-    ['test.spx.doc0', 'v0.1.0'],
+    #['test.spx.doc0', 'v0.1.0'],
     ['test.spx.doc1', 'v0.1.0'],
 ])
 @pytest.mark.psm
