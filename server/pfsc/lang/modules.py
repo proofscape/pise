@@ -81,6 +81,7 @@ class PfscModule(PfscObj):
             assert isinstance(self.dependencies, dict)
             self.dependencies.update(given_dependencies)
         self.pending_imports = deque()
+        self.resolving = False
         self.resolved = False
 
     def add_pending_import(self, pi):
@@ -91,7 +92,9 @@ class PfscModule(PfscObj):
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
         """
-        if not self.resolved:
+        if not self.resolved and not self.resolving:
+            self.resolving = True
+
             while self.pending_imports:
                 pi = self.pending_imports.popleft()
                 pi.resolve()
@@ -103,7 +106,8 @@ class PfscModule(PfscObj):
                 if isinstance(item, (Annotation, Deduction)):
                     item.resolve()
 
-        self.resolved = True
+            self.resolving = False
+            self.resolved = True
 
     def isRepo(self):
         return self.libpath == self.repopath
@@ -873,6 +877,9 @@ class PendingImport:
         Carry out (delayed) resolution of a PLAIN-IMPORT.
         """
         modpath = self.src_modpath
+        if modpath == self.homepath:
+            msg = 'Module %s is attempting to import itself.' % self.homepath
+            raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
         version = self.get_desired_version_for_target(modpath)
         module = load_module(modpath, version=version, fail_gracefully=False)
         # Depth-first resolution:

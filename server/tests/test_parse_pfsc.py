@@ -79,19 +79,35 @@ def test_parse(app):
         assert d_alp.lhs == r"$\alpha$"
 
 @pytest.mark.psm
-def test_cyclic_import_error(app):
+def test_no_cyclic_import_error(app):
     """
-    This test shows that we catch the case in which module
-    A imports something from module B, while module B also
+    This test shows that, FOR NOW at least, there is no error in the case in
+    which module A imports something from module B, while module B also
     imports something from module A.
+
+    In our old system, with early resolution, we detected this case and raised
+    a PECode.CYCLIC_IMPORT_ERROR. Having now moved to a system with separate
+    READ and RESOLVE phases, cyclic imports don't *have to* be an error.
+
+    However, they are still an odd case, and it remains to be seen whether we
+    should make them an error or not. If we wanted to detect them now, we
+    might do that in `pfsc.lang.modules.PfscModule.resolve()`, under an
+    `if self.resolving:` block.
+
+    The potential remaining problem is that, while the second module gets away
+    with importing an object from the first, that object is, as yet, unresolved.
+    As the second module proceeds with its own resolution, might something go
+    wrong as it attempts to *use* this "unsaturated" object?
+
+    It seems like some imports of this kind could be fine, while others could
+    be problematic, depending on the types of objects involved.
     """
     with app.app_context():
-        with pytest.raises(PfscExcep) as ei:
-            ri = get_repo_info('test.foo.bar')
-            ri.checkout('v6')
-            mod = load_module('test.foo.bar.results', caching=0)
-            mod.resolve()
-        assert ei.value.code() == PECode.CYCLIC_IMPORT_ERROR
+        ri = get_repo_info('test.foo.bar')
+        ri.checkout('v6')
+        mod = load_module('test.foo.bar.results', caching=0)
+        mod.resolve()
+
 
 @pytest.mark.parametrize(['vers_num', 'err_code'], [
     (0, PECode.PLAIN_RELATIVE_IMPORT_MISSING_LOCAL_NAME),
@@ -121,7 +137,8 @@ def test_isolated_import_error(app, vers_num, err_code):
         with pytest.raises(PfscExcep) as ei:
             ri = get_repo_info('test.foo.imp')
             ri.checkout(vers)
-            load_module('test.foo.imp.A.B', caching=0)
+            mod = load_module('test.foo.imp.A.B', caching=0)
+            mod.resolve()
         print('\n', vers)
         print(ei.value)
         assert ei.value.code() == err_code
