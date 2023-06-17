@@ -278,7 +278,7 @@ class PfscModule(PfscObj):
         possible_submodule_path = '.'.join([self.libpath, name])
         sub = load_module(possible_submodule_path, version=self.loading_version, fail_gracefully=True)
         if sub is not None:
-            # We did manage to load a submodule. Save it under its name.
+            sub.resolve()
             self[name] = sub
         return sub
 
@@ -833,7 +833,8 @@ class PendingImport:
     PLAIN_IMPORT_FORMAT = 0
     FROM_IMPORT_FORMAT = 1
 
-    def __init__(self, home_module, format, src_modpath, object_names=None, local_path=None):
+    def __init__(self, home_module, format, cache,
+                 src_modpath, object_names=None, local_path=None):
         """
         :param home_module: the PfscModule where the import happened
         :param format: one of PLAIN_IMPORT_FORMAT, FROM_IMPORT_FORMAT, indicating
@@ -848,6 +849,7 @@ class PendingImport:
         """
         self.home_module = home_module
         self.format = format
+        self.module_cache = cache
         self.src_modpath = src_modpath
         self.object_names = object_names
         self.local_path = local_path
@@ -881,7 +883,14 @@ class PendingImport:
             msg = 'Module %s is attempting to import itself.' % self.homepath
             raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
         version = self.get_desired_version_for_target(modpath)
-        module = load_module(modpath, version=version, fail_gracefully=False)
+        # Pending imports are resolved in the RESOLVE phase, which doesn't begin
+        # until after the READ phase has completed. Therefore, we use cache
+        # policy ALWAYS, ensuring that we get the versions we just finished
+        # reading.
+        module = load_module(
+            modpath, version=version, fail_gracefully=False,
+            caching=CachePolicy.ALWAYS, cache=self.module_cache
+        )
         # Depth-first resolution:
         module.resolve()
         self.home_module[self.local_path] = module
@@ -913,8 +922,10 @@ class PendingImport:
         else:
             # In all other cases, the modpath points to something other than this module.
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
-            # TODO: do we need to pass a `history` here, to handle cyclic import errors?
-            src_module = load_module(modpath, version=version, fail_gracefully=True)
+            src_module = load_module(
+                modpath, version=version, fail_gracefully=True,
+                caching=CachePolicy.ALWAYS, cache=self.module_cache
+            )
             if src_module:
                 # Depth-first resolution:
                 src_module.resolve()
@@ -960,8 +971,10 @@ class PendingImport:
                     obj = src_module.get(object_name)
                 # If that failed, try to import a submodule.
                 if obj is None:
-                    # TODO: do we need to pass a `history` here, to handle cyclic import errors?
-                    obj = load_module(full_object_path, version=version, fail_gracefully=True)
+                    obj = load_module(
+                        full_object_path, version=version, fail_gracefully=True,
+                        caching=CachePolicy.ALWAYS, cache=self.module_cache
+                    )
                     if obj:
                         # Depth-first resolution:
                         obj.resolve()
@@ -977,7 +990,7 @@ class PendingImport:
 class ModuleLoader(PfscJsonTransformer):
 
     def __init__(
-            self, modpath, bc,
+            self, modpath, bc, cache,
             version=pfsc.constants.WIP_TAG, existing_module=None,
             history=None, caching=CachePolicy.TIME,
             dependencies=None, do_imports=True
@@ -985,6 +998,7 @@ class ModuleLoader(PfscJsonTransformer):
         """
         :param modpath: The libpath of this module
         :param bc: The BlockChunker that performed the first chunking pass on this module's text
+        :param cache: the module cache
         :param version: The version being loaded
         :param existing_module: optional existing `PfscModule` instance to be extended
         :param history: a list of libpaths we have already imported; helps detect cyclic import errors
@@ -998,6 +1012,7 @@ class ModuleLoader(PfscJsonTransformer):
         # to store the PfscModule object we are building.
         self.modpath = modpath
         self.version = version
+        self.module_cache = cache
         self._module = existing_module or PfscModule(
             modpath, loading_version=version, given_dependencies=dependencies
         )
@@ -1027,8 +1042,8 @@ class ModuleLoader(PfscJsonTransformer):
             object_names = items[1]
             requested_local_name = items[2] if len(items) == 3 else None
             pi = PendingImport(
-                self._module, PendingImport.FROM_IMPORT_FORMAT, src_modpath,
-                object_names=object_names, local_path=requested_local_name
+                self._module, PendingImport.FROM_IMPORT_FORMAT, self.module_cache,
+                src_modpath, object_names=object_names, local_path=requested_local_name
             )
             self._module.add_pending_import(pi)
 
@@ -1048,8 +1063,8 @@ class ModuleLoader(PfscJsonTransformer):
                 # In this case an "as" clause is optional.
                 local_path = items[1] if len(items) == 2 else src_modpath
             pi = PendingImport(
-                self._module, PendingImport.PLAIN_IMPORT_FORMAT, src_modpath,
-                local_path=local_path
+                self._module, PendingImport.PLAIN_IMPORT_FORMAT, self.module_cache,
+                src_modpath, local_path=local_path
             )
             self._module.add_pending_import(pi)
 
@@ -1269,35 +1284,15 @@ class TimestampedText:
 _MODULE_CACHE = {}
 
 
-def cache_module(module):
+def cache_module(module, cache):
     """Record a PfscModule in the cache."""
     modpath = module.libpath
     version = module.represented_version
     verspath = f'{modpath}@{version}'
     read_time = make_timestamp_for_module_cache()
     cm = CachedModule(read_time, module)
-    _MODULE_CACHE[verspath] = cm
+    cache[verspath] = cm
 
-
-def resolve_all_cached_modules():
-    """
-    Invoke `resolve()` on unresolved modules in the cache, until all are
-    resolved.
-
-    Since resolving a module can cause new modules to be loaded, which were not
-    in the cache to begin with, this procedure works recursively, until a state
-    is reached in which all modules in the cache are resolved.
-    """
-    cache = _MODULE_CACHE
-
-    def compute_todo_list():
-        return [cm.module for cm in cache.values() if not cm.module.resolved]
-
-    todo = compute_todo_list()
-    while todo:
-        for module in todo:
-            module.resolve()
-        todo = compute_todo_list()
 
 
 def remove_modules_from_cache(modpaths, version=pfsc.constants.WIP_TAG):
@@ -1326,7 +1321,11 @@ def inherit_release_build_signal():
     return signal
 
 
-def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_gracefully=False, history=None, caching=CachePolicy.TIME, cache=_MODULE_CACHE):
+def load_module(
+        path_spec, version=pfsc.constants.WIP_TAG, text=None,
+        fail_gracefully=False, history=None,
+        caching=CachePolicy.TIME, cache=None
+):
     """
     This is how you get a PfscModule object, i.e. an internal representation of a pfsc module.
     You can call it directly, or you can call it through a PathInfo object's own `load_module` method.
@@ -1356,12 +1355,7 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
 
     @param caching: Here is where you can set the cache policy. See `CachePolicy` enum class.
 
-    @param cache: The cache itself, where the modules are stored. Generally you don't need to use this yourself
-                  (but you could, in order to have more fine-grained control over what gets reloaded and what
-                  does not). Note that here we are using Python's #1 Gotcha -- the mutable default arg.
-                  That means the dict we use as a cache is set at
-                  function def time, and persists through all calls to this function (in other words, does
-                  what you would want).
+    @param cache: The cache itself, where the modules are stored.
 
     @return: If successful, the loaded PfscModule instance is returned. If unsuccessful, then behavior depends
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
@@ -1392,6 +1386,8 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
         else:
             msg = f'Could not find source code for module `{modpath}` at version `{version}`.'
             raise PfscExcep(msg, PECode.MODULE_HAS_NO_CONTENTS)
+    if cache is None:
+        cache = {}
     # Now let's decide whether we're going to _reload_ the module (i.e. _not_ use the cache).
     # To begin with, if any of the following three conditions obtains, then yes we want to reload:
     #   (1) text given, (2) cache policy "never", or (3) cache miss.
@@ -1429,8 +1425,7 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
     # Are we reloading?
     if should_reload:
         # Only when we have to reload does history become relevant, so we deal with it now.
-        # If history is None, we actually want an empty list. As opposed to our deliberate use of a mutable
-        # default arg for the `cache` kwarg, here we have to _work around_ that behavior.
+        # If history is None, we actually want an empty list.
         if history is None: history = []
         # If the module we're trying to build is already in the history of imports that have
         # led us to this point, then we raise a cyclic import error.
@@ -1474,7 +1469,10 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
                 return fail(force_excep=(version!=pfsc.constants.WIP_TAG))
             ts_text = TimestampedText(read_time, module_contents)
         # Construct a PfscModule.
-        module = build_module_from_text(ts_text.text, modpath, version=version, history=history, caching=caching)
+        module = build_module_from_text(
+            ts_text.text, modpath, version=version, history=history,
+            caching=caching, cache=cache
+        )
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
@@ -1494,7 +1492,8 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
 def build_module_from_text(
         text, modpath,
         version=pfsc.constants.WIP_TAG, existing_module=None,
-        history=None, caching=CachePolicy.TIME, dependencies=None
+        history=None, caching=CachePolicy.TIME, cache=None,
+        dependencies=None
 ):
     """
     Build a module, given its text, and its libpath.
@@ -1505,12 +1504,15 @@ def build_module_from_text(
     :param history: (list) optional history of modules built; useful for
       detecting cyclic import errors
     :param caching: the desired CachePolicy
+    :param cache: the module cache
     :param dependencies: optionally pass a dict mapping repopaths to required versions.
     :return: the PfscModule instance constructed
     """
     tree, bc = parse_module_text(text)
+    if cache is None:
+        cache = {}
     loader = ModuleLoader(
-        modpath, bc,
+        modpath, bc, cache,
         version=version, existing_module=existing_module,
         history=history, caching=caching, dependencies=dependencies
     )

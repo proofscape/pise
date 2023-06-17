@@ -73,7 +73,7 @@ from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType
 from pfsc.lang.modules import (
     CachePolicy, load_module, PfscDefn, PfscAssignment,
-    cache_module, resolve_all_cached_modules,
+    cache_module,
 )
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
@@ -447,6 +447,8 @@ class Builder:
         #   Any such dirs ought to be noted in a .pfscignore file (_and_ we need to support that!)
         self.useless_dirs = []
 
+        self.module_cache = {}
+
         # a ModuleIndexInfo
         self.mii = ModuleIndexInfo(
             self.monitor,
@@ -584,7 +586,9 @@ class Builder:
         """
         RESOLVE the pfsc modules formed in the READING phase.
         """
-        resolve_all_cached_modules()
+        modules = [cm.module for cm in self.module_cache.values()]
+        for module in modules:
+            module.resolve()
 
         while self.scan_jobs:
             module, manifest_node = self.scan_jobs.popleft()
@@ -663,7 +667,7 @@ class Builder:
 
             pfsc_env = env.proofscape
             for rst_module in pfsc_env.pfsc_modules.values():
-                cache_module(rst_module)
+                cache_module(rst_module, self.module_cache)
 
             self.resolving_phase()
 
@@ -716,7 +720,10 @@ class Builder:
                 self.raise_missing_change_log_excep()
             else:
                 return
-        module = load_module(self.repo_info.libpath, version=pfsc.constants.WIP_TAG, fail_gracefully=False, caching=self.caching)
+        module = load_module(
+            self.repo_info.libpath, version=pfsc.constants.WIP_TAG,
+            fail_gracefully=False, caching=self.caching, cache=self.module_cache
+        )
         # Change log
         cl = module.getAsgnValue(pfsc.constants.CHANGE_LOG_LHS)
         if is_release and not is_major_zero:
@@ -862,7 +869,10 @@ class Builder:
             # in fact, we can _only_ get it from there, since it's not yet available in the
             # build dir, as we are right now in the process of making that very build. So
             # we must pass WIP as version to the load_module function.
-            module = load_module(module_path, version=pfsc.constants.WIP_TAG, fail_gracefully=False, caching=self.caching)
+            module = load_module(
+                module_path, version=pfsc.constants.WIP_TAG,
+                fail_gracefully=False, caching=self.caching, cache=self.module_cache
+            )
             # On the other hand, if we are doing a release build, then this module actually
             # represents a non-WIP version. We must set the represented version now, so that
             # as we add kNodes and kRelns to self.mii, they record the right version numbers.
