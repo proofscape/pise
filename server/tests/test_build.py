@@ -24,7 +24,7 @@ from pfsc.build.products import load_annotation
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer
 
-from tests.util import clear_all_indexing, get_basic_repos, make_repos
+from tests.util import clear_and_build_releases_with_deps_depth_first, make_repos
 
 
 # FIXME: How do we skip a test based on the app's configuration?
@@ -179,38 +179,4 @@ def test_make_repos(app, only):
 ])
 @pytest.mark.psm
 def test_build_release(app, repopath, version):
-    """
-    Clear index of test junk, then build the desired repo at the desired
-    version, first building any dependencies.
-    """
-    repos_built = set()
-    clear_all_indexing()
-    repos = get_basic_repos()
-    repos = {r.libpath:r for r in repos}
-    stack = []
-    def request_version(rp, vers):
-        repo = repos[rp]
-        i0 = repo.tag_names.index(vers)
-        versions = reversed(repo.tag_names[:i0+1])
-        stack.extend([(rp, v) for v in versions])
-    request_version(repopath, version)
-    with app.app_context():
-        # Setting ALLOW_WIP to False makes this serve as a test of the
-        # `pfsc.lang.modules.inherit_release_build_signal()` function.
-        app.config["ALLOW_WIP"] = False
-        while stack:
-            rp, vers = stack.pop()
-            repo = repos[rp]
-            repo.lookup_dependencies()
-            deps = repo.deps[vers].rhs if vers in repo.deps else {}
-            prereqs = []
-            for k, v in deps.items():
-                if f'{k}@{v}' not in repos_built:
-                    prereqs.append((k, v))
-            if prereqs:
-                stack.append((rp, vers))
-                for k, v in prereqs:
-                    request_version(k, v)
-            else:
-                build_release(rp, version=vers, verbose=True, clean_sphinx=True)
-                repos_built.add(f'{rp}@{vers}')
+    clear_and_build_releases_with_deps_depth_first(app, [(repopath, version)])

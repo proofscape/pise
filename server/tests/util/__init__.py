@@ -208,22 +208,67 @@ def build_big(verbose=True):
         )
 
 
-def build_all(verbose=True):
+def clear_and_build_releases_with_deps_depth_first(
+        app, repopath_version_pairs, verbose=False
+):
+    """
+    Clear index of test junk, then build the desired repos at the desired
+    versions, first building any dependencies, in topological order ("depth first").
+
+    :param app: Flask app
+    :param repopath_version_pairs: iterable of pairs (repopath, version)
+    """
+    repos_built = set()
     clear_all_indexing()
+    repos = get_basic_repos()
+    repos = {r.libpath: r for r in repos}
+    stack = []
+
+    def request_version(rp, vers):
+        repo = repos[rp]
+        i0 = repo.tag_names.index(vers)
+        versions = reversed(repo.tag_names[:i0 + 1])
+        stack.extend([(rp, v) for v in versions])
+
+    with app.app_context():
+        # Note: Setting ALLOW_WIP to False makes this serve as a test of the
+        # `pfsc.lang.modules.inherit_release_build_signal()` function.
+        app.config["ALLOW_WIP"] = False
+
+        for repopath, version in repopath_version_pairs:
+            request_version(repopath, version)
+            while stack:
+                rp, vers = stack.pop()
+                if f'{rp}@{vers}' in repos_built:
+                    continue
+                repo = repos[rp]
+                repo.lookup_dependencies()
+                deps = repo.deps[vers].rhs if vers in repo.deps else {}
+                prereqs = []
+                for k, v in deps.items():
+                    if f'{k}@{v}' not in repos_built:
+                        prereqs.append((k, v))
+                if prereqs:
+                    stack.append((rp, vers))
+                    for k, v in prereqs:
+                        request_version(k, v)
+                else:
+                    build_release(rp, version=vers, verbose=verbose, clean_sphinx=True)
+                    repos_built.add(f'{rp}@{vers}')
+
+
+def build_all(verbose=True):
     repos = get_basic_repos()
     app = make_app(ConfigName.LOCALDEV)
     # Ensure we are able to build:
     app.config["PERSONAL_SERVER_MODE"] = True
-    # Setting ALLOW_WIP to False makes this serve as a test of the
-    # `pfsc.lang.modules.inherit_release_build_signal()` function.
-    app.config["ALLOW_WIP"] = False
-    with app.app_context():
-        for repo in repos:
-            for version in repo.tag_names:
-                build_release(
-                    repo.libpath, version=version, verbose=verbose,
-                    clean_sphinx=True
-                )
+    repopath_version_pairs = []
+    for repo in repos:
+        for version in repo.tag_names:
+            repopath_version_pairs.append((repo.libpath, version))
+    clear_and_build_releases_with_deps_depth_first(
+        app, repopath_version_pairs, verbose=verbose
+    )
 
 
 def get_tags_to_build_as_wip():
