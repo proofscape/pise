@@ -21,164 +21,55 @@ from collections import defaultdict
 from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 
-from pfsc.lang.widgets import set_up_hovercolor
+from pfsc.lang.widgets import ChartWidget
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     PfscNavWidgetRole, PfscNavWidgetDirective,
 )
-from pfsc.sphinx.sphinx_proofscape.pages import build_libpath_for_rst
-from pfsc.sphinx.sphinx_proofscape.util import (
-    parse_box_listing, find_lp_defn_for_docname,
-    ResolvedLibpath,
-)
+from pfsc.sphinx.sphinx_proofscape.util import parse_box_listing
 
 
-class SphinxChartWidget:
+def regularize_color_option_text(raw, location, option_name):
     """
-    FIXME:
-     Can we refactor, and base more of this on the widget classes
-     defined in pfsc.lang.widgets?
+    Transform the raw text of a "color option" (``color`` or ``hovercolor``)
+    into the format expected by the ChartWidget class.
+
+    :param raw: the raw text
+    :param location: a string giving the location of the option. For example,
+        coule be based on the `src_file` and `lineno` returned by
+        `self.get_source_info()`, where `self` is the `PfscChartDirective`
+        whose option value this is
+    :param option_name: the name of the option, such as "color" or "hovercolor"
     """
+    update = False
+    data = defaultdict(set)
+    lines = [L.strip() for L in raw.split('\n')]
+    for line in lines:
+        if line == 'update' and option_name == 'color':
+            update = True
+            continue
+        parts = [p.strip() for p in line.split(":")]
+        if len(parts) != 2:
+            raise SphinxError(f'{location}: each line in the :{option_name}: option'
+                              ' should have a single colon (:), with a comma-separated list'
+                              ' of color codes on the left, and a boxlisting on the right.')
+        color_spec, box_listing = parts
+        color_codes = [c.strip() for c in color_spec.split(',')]
+        # Restore the leading colons expected in the old format.
+        k = ":" + ":".join(color_codes)
+        v = parse_box_listing(box_listing)
+        data[k].update(set(v))
+    # Sort for deterministic output. Good for testing.
+    data = {k: list(sorted(list(v))) for k, v in data.items()}
 
-    def __init__(self, config, lp_defns, vers_defns,
-                 docname, src_file, lineno, name, **fields):
-        self.sphinx_config = config
-        self.lp_defns = lp_defns
-        self.vers_defns = vers_defns
-        self.docname = docname
-        self.src_file = src_file
-        self.lineno = lineno
-        self.name = name
+    if option_name == "hovercolor":
+        #result = set_up_hovercolor(data)  # ChartWidget class does this
+        result = data
+    else:
+        if update:
+            data[':update'] = True
+        result = data
 
-        # Here we will record for each repopath (key) the version at which we
-        # are taking it (value).
-        self.versions = {}
-
-        self.libpath = build_libpath_for_rst(
-            config, docname, within_page=True, extension=name
-        )
-        self.pane_group = build_libpath_for_rst(
-            config, docname, within_page=True, add_repo_version=True
-        ) + ':CHART:'
-        self.given_fields = fields
-        self.resolved_fields = self.resolve_fields(fields)
-
-    @property
-    def repopath(self):
-        return self.sphinx_config.pfsc_repopath
-
-    @property
-    def repovers(self):
-        return self.sphinx_config.pfsc_repovers
-
-    def get_location(self):
-        return ':'.join(str(s) for s in [self.src_file, self.lineno])
-
-    def write_uid(self):
-        return f"{self.libpath.replace('.', '-')}_{self.repovers}"
-
-    def write_info_dict(self):
-        info = self.resolved_fields.copy()
-        info.update({
-            'pane_group': self.pane_group,
-            'src_line': self.lineno,
-            'type': "CHART",
-            'uid': self.write_uid(),
-            'version': self.repovers,
-            'widget_libpath': self.libpath,
-        })
-        return info
-
-    def resolve_fields(self, fields):
-        rf = {}
-        versions = {}
-
-        # TODO:
-        #  Implement the full set of possibilities for each of these fields.
-        #  See `TransitionManager` class in pfsc-moose.
-        #  For now, we simply accept a boxlisting for each field.
-        for name in ["on_board", "off_board", "view", "select"]:
-            box_listing = fields.get(name)
-            if box_listing:
-                rf[name] = self.resolve_boxlisting(box_listing)
-
-        for name in ["color", "hovercolor"]:
-            raw = fields.get(name)
-            if raw:
-                update = False
-                data = defaultdict(set)
-                lines = [L.strip() for L in raw.split('\n')]
-                for line in lines:
-                    if line == 'update' and name == 'color':
-                        update = True
-                        continue
-                    parts = [p.strip() for p in line.split(":")]
-                    if len(parts) != 2:
-                        raise SphinxError(f'{self.get_location()}: each line in the :{name}: option'
-                                          ' should have a single colon (:), with a comma-separated list'
-                                          ' of color codes on the left, and a boxlisting on the right.')
-                    color_spec, box_listing = parts
-                    color_codes = [c.strip() for c in color_spec.split(',')]
-                    # Restore the leading colons expected by our old code.
-                    k = ":" + ":".join(color_codes)
-                    v = self.resolve_boxlisting(box_listing)
-                    data[k].update(set(v))
-                # Sort for deterministic output. Good for testing.
-                data = {k: list(sorted(list(v))) for k, v in data.items()}
-
-                if name == "hovercolor":
-                    rf[name] = set_up_hovercolor(data)
-                else:
-                    if update:
-                        data[':update'] = True
-                    rf[name] = data
-
-        rf['versions'] = self.versions.copy()
-        return rf
-
-    def resolve_boxlisting(self, box_listing):
-        given_lps = parse_box_listing(box_listing)
-        resolved_lps = []
-        for lp in given_lps:
-            rlp = self.resolve_libpath(lp)
-            if rlp.repopath in self.versions:
-                if rlp.version != (v := self.versions[rlp.repopath]):
-                    raise SphinxError(f'Multiple versions {rlp.version},'
-                                      f' {v} declared for {rlp.repopath}')
-            else:
-                self.versions[rlp.repopath] = rlp.version
-            resolved_lps.append(rlp.libpath)
-        return resolved_lps
-
-    def resolve_libpath(self, given_path):
-        """
-        Given a (possibly relative, possibly absolute) libpath, and the dictionaries
-        of libpath definitions and version definitions for a document, resolve the
-        libpath. This means substituting for the first segment, if it has a definition,
-        and determining the required version for the repo to which the absolute
-        libpath belongs.
-
-        If you do not want resolution from relative to absolute to be attempted,
-        you can begin the given libpath with a dot ('.').
-        """
-        if not given_path:
-            raise SphinxError(f'{self.get_location()}: Empty libpath')
-        segs = given_path.split('.')
-        s0 = segs[0]
-        if s0 == '':
-            # Given path began with dot. Do not try to substitute.
-            segs = segs[1:]
-        else:
-            prefix = find_lp_defn_for_docname(self.lp_defns, s0, self.docname)
-            if prefix:
-                segs = prefix.split('.') + segs[1:]
-        if len(segs) < 3:
-            raise SphinxError(f'{self.get_location()}: Short libpath: {".".join(segs)}')
-        repopath = '.'.join(segs[:3])
-        if not repopath in self.vers_defns:
-            raise SphinxError(f'{self.get_location()}: Missing version declaration for repo: {repopath}')
-        version = self.vers_defns[repopath]
-        libpath = '.'.join(segs)
-        return ResolvedLibpath(libpath, repopath, version)
+    return result
 
 
 class PfscChartRole(PfscNavWidgetRole):
@@ -196,7 +87,7 @@ class PfscChartRole(PfscNavWidgetRole):
 
         Let's open :pfsc-chart:`the proof <libpath.of.some.proof>`.
     """
-    widget_class = SphinxChartWidget
+    widget_class = ChartWidget
     html_class = 'chartWidget'
     widget_type_name = 'chart'
     target_field_name = 'view'
@@ -206,29 +97,6 @@ class PfscChartDirective(PfscNavWidgetDirective):
     r"""
     Directive syntax for chart widgets.
 
-    Label text must be passed via exactly one of two ways: either as the one
-    optional argument of the directive, or else via the 'alt' option.
-    Note that, if we are defined under an rST substitution,
-    (see https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#substitution-definitions)
-    then the 'alt' option will be automatically set equal to the inner text of
-    the substitution.
-
-    Label Rule
-    ==========
-
-    The label follows our general rule for widget labels, regarding optional
-    definition of a widget name at the beginning. See the docs.
-
-    Example: In
-
-        Let's open the |w001: proof|.
-
-        .. |w001: proof| pfsc-chart::
-            :view: Pf
-            :color:
-                bgB: Pf.A03
-
-    the widget name will be `w001`, while the label text will be "proof".
 
     Current support
     ===============
@@ -263,6 +131,10 @@ class PfscChartDirective(PfscNavWidgetDirective):
 
     which is equivalent to `view: ["Thm.A10", "Pf.{A10,A20}"]` in the old,
     annotation syntax.
+
+    Keywords may be passed surrounded by angle brackets, as in
+
+        <all>
 
     Color / Hovercolor
     ------------------
@@ -313,14 +185,24 @@ class PfscChartDirective(PfscNavWidgetDirective):
     See the docstring for the ColorManager class in pfsc-moose for more info.
 
     """
-    widget_class = SphinxChartWidget
+    widget_class = ChartWidget
     html_class = 'chartWidget'
     option_spec = {
         **PfscNavWidgetDirective.option_spec,
         "on_board": unchanged,
         "off_board": unchanged,
+
         "view": unchanged,
-        "color": unchanged,
-        "hovercolor": unchanged,
+        # When we're ready to do input checking, sth like this could work:
+        #'view': lambda t: check_boxlisting('view', t, {
+        #    'allowed_keywords': ['all'],
+        #}),
+
+        #"color": unchanged,
+        'color': lambda t: regularize_color_option_text(t, '', 'color'),
+
+        #"hovercolor": unchanged,
+        'hovercolor': lambda t: regularize_color_option_text(t, '', 'hovercolor'),
+
         "select": unchanged,
     }

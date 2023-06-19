@@ -6,9 +6,10 @@
 Welcome to Foobar's documentation!
 ==================================
 
-.. pfsc-defns::
-    :libpaths:
-        Pf: test.moo.bar.results.Pf
+.. pfsc::
+
+   from test.moo.bar.results import Pf
+
 
 Let's try :pfsc-chart:`an inline chart widget <Pf>`.
 

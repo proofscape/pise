@@ -16,16 +16,12 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-
-import json
-
 from config import PISE_VERSION
 
-from pfsc.sphinx.sphinx_proofscape.environment import (
-    setup_pfsc_env, get_pfsc_env, purge_pfsc_env, merge_pfsc_env,
-)
 from pfsc.sphinx.sphinx_proofscape.pages import (
-    form_pfsc_module_for_rst_file, build_libpath_for_rst,
+    form_pfsc_module_for_rst_file,
+    setup_pfsc_env, purge_pfsc_env, merge_pfsc_env,
+    write_page_data,
 )
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     navwidget, visit_navwidget_html, depart_navwidget_html,
@@ -36,42 +32,7 @@ from pfsc.sphinx.sphinx_proofscape.chart_widget import (
 from pfsc.sphinx.sphinx_proofscape.doc_widget import (
     PfscDocRole, PfscDocDirective,
 )
-# FIXME: delete
-from pfsc.sphinx.sphinx_proofscape.defns import PfscDefnsDirective
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
-
-from pfsc.lang.annotations import format_page_data
-
-
-SCRIPT_INTRO = 'window.pfsc_page_data = '
-
-
-def write_page_data(app, pagename, templatename, context, event_arg):
-    """
-    Inject the necessary <script> tag into a document, recording the data for
-    any pfsc widgets defined on the page.
-    """
-    if app.builder.format != 'html':
-        return
-    pfsc_env = get_pfsc_env(app.env)
-
-    tvl = build_libpath_for_rst(
-        app.config, pagename, within_page=True, add_tail_version=True
-    )
-    libpath, version = tvl.split('@')
-
-    docInfo = None  # TODO
-
-    widgets = {}
-
-    for w in pfsc_env.all_widgets:
-        if w.docname == pagename:
-            uid = w.write_uid()
-            widgets[uid] = w.write_info_dict()
-
-    page_data = format_page_data(libpath, version, widgets, docInfo)
-    body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
-    app.add_js_file(None, body=body, id='pfsc-page-data')
 
 
 def setup(app):
@@ -82,7 +43,6 @@ def setup(app):
     app.add_node(navwidget,
                  html=(visit_navwidget_html, depart_navwidget_html))
 
-    app.add_directive('pfsc-defns', PfscDefnsDirective)
     app.add_directive('pfsc', PfscEmbedDirective)
 
     app.add_role('pfsc-chart', PfscChartRole())

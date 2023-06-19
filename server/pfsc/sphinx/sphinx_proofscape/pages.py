@@ -16,10 +16,12 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
+import json
 
+from pfsc.lang.annotations import format_page_data
 from pfsc.lang.objects import PfscObj
 from pfsc.lang.modules import PfscModule
+from pfsc.lang.widgets import Widget
 
 
 # Since it seems most natural that rst files should correspond to modules,
@@ -44,6 +46,26 @@ class SphinxPage(PfscObj):
         self.parent = module
         self.libpath = libpath
         self.name = FIXED_PAGE_NAME
+        self.widgets = []
+
+    def add_widget(self, w):
+        self.widgets.append(w)
+        self[w.name] = w
+
+    def resolve(self):
+        self.cascadeLibpaths()
+        self.resolveLibpathsRec()
+
+    def write_page_data(self):
+        libpath = self.libpath
+        version = self.getVersion()
+        docInfo = None  # TODO
+        widgets = {}
+        for w in self.widgets:
+            w.enrich_data()
+            uid = w.writeUID()
+            widgets[uid] = w.writeData()
+        return format_page_data(libpath, version, widgets, docInfo)
 
 
 def build_libpath_for_rst(
@@ -120,3 +142,124 @@ def form_pfsc_module_for_rst_file(app, docname, source):
 
     pfsc_env = get_pfsc_env(app.env)
     pfsc_env.add_module(modpath, module)
+
+
+def get_sphinx_page(env, docname=None) -> SphinxPage:
+    """
+    Get a ``SphinxPage`` from the Sphinx environment.
+
+    :param env: Sphinx ``BuildEnvironment``
+    :param docname: the docname for the desired page. If not given, we will
+        use ``env.docname``
+    :return: ``SphinxPage`` or ``None``
+    """
+    pfsc_env = get_pfsc_env(env)
+    docname = docname or env.docname
+    config = env.config
+    modpath = build_libpath_for_rst(config, docname, within_page=False)
+    module = pfsc_env.get_module(modpath)
+    return module[FIXED_PAGE_NAME] if module else None
+
+
+SCRIPT_INTRO = 'window.pfsc_page_data = '
+
+
+def write_page_data(app, pagename, templatename, context, event_arg):
+    """
+    Handler for Sphinx 'html-page-context' event.
+
+    Inject the necessary <script> tag into a document, recording the data for
+    any pfsc widgets defined on the page.
+    """
+    if app.builder.format != 'html':
+        return
+    page = get_sphinx_page(app.env, pagename)
+    if not page:
+        return
+    page_data = page.write_page_data()
+    body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
+    app.add_js_file(None, body=body, id='pfsc-page-data')
+
+
+class SphinxPfscEnvironment:
+    """
+    An instance of this class will be stored in the Sphinx BuildEnvironment,
+    under the attribute 'proofscape'.
+
+    It is designed to hold all of the environment data structures relevant to
+    the sphinx-proofscape extension.
+
+    It supports merge/purge operations, for Sphinx parallel builds.
+    """
+
+    def __init__(self, app):
+        self.all_widgets = []
+        # Lookup for PfscModule instances, by libpath.
+        self.pfsc_modules = {}
+
+    def update_modules(self, modules):
+        """
+        Update our dict of pfsc modules with a given dict.
+
+        :param modules: dict of modules by modpath
+        """
+        self.pfsc_modules.update(modules)
+
+    def add_module(self, modpath, module):
+        self.pfsc_modules[modpath] = module
+
+    def get_module(self, modpath):
+        """
+        Get a module from our lookup.
+        """
+        return self.pfsc_modules.get(modpath)
+
+    def purge(self, app, docname):
+        modpath = build_libpath_for_rst(app.config, docname, within_page=False)
+        if modpath in self.pfsc_modules:
+            del self.pfsc_modules[modpath]
+
+    def merge(self, other):
+        other_pfsc_env = get_pfsc_env(other)
+        self.pfsc_modules.update(other_pfsc_env.pfsc_modules)
+
+    def resolve(self):
+        """
+        Invoked after both the rst side and the pfsc side having finished
+        their READING phase. It is time now to RESOLVE pending imports etc.
+        """
+        for module in self.pfsc_modules.values():
+            module.resolve()
+
+
+def setup_pfsc_env(app):
+    """
+    To be registered as a handler for the 'builder-inited' event.
+    Puts a `SphinxPfscEnvironment` instance into the Sphinx BuildEnvironment.
+    """
+    pfsc_env = SphinxPfscEnvironment(app)
+    app.env.proofscape = pfsc_env
+
+
+def get_pfsc_env(sphinx_env) -> SphinxPfscEnvironment:
+    """
+    Accessor for the `SphinxPfscEnvironment` stored in a Sphinx
+    BuildEnvironment.
+    """
+    return sphinx_env.proofscape
+
+
+def purge_pfsc_env(app, env, docname):
+    """
+    Handler for the Sphinx 'env-purge-doc' event.
+    Updates the `SphinxPfscEnvironment` accordingly.
+    """
+    get_pfsc_env(env).purge(app, docname)
+
+
+def merge_pfsc_env(app, env, docnames, other):
+    """
+    Handler for the Sphinx 'env-merge-info' event.
+    Updates the `SphinxPfscEnvironment` accordingly.
+    """
+    get_pfsc_env(env).merge(other)

@@ -1,9 +1,10 @@
 Page A
 ======
 
-.. pfsc-defns::
-    :libpaths:
-        Pf:  test.hist.lit.H.ilbert.ZB.Thm168.Pf
+.. pfsc::
+
+    from test.hist.lit.H.ilbert.ZB.Thm168 import Pf
+
 
 This is Page A.
 

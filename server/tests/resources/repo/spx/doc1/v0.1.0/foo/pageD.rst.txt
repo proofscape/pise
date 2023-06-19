@@ -3,12 +3,12 @@ Page D
 
 Try out some doc widgets.
 
-.. pfsc-defns::
-    :docs:
-        doc1: {
-            url: "https://example.org/pdf/foo1.pdf",
-            docId: "pdffp:fedcba9876543210"
-        }
+.. pfsc::
+
+    doc1 = {
+        url: "https://example.org/pdf/foo1.pdf",
+        docId: "pdffp:fedcba9876543210"
+    }
 
 
 Here is :pfsc-doc:`an inline doc widget <doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)>`.

@@ -23,7 +23,7 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 from sphinx.util.docutils import SphinxRole, SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
+from pfsc.sphinx.sphinx_proofscape.pages import get_sphinx_page
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
 
@@ -68,19 +68,14 @@ def finish_run(self, widget_class, html_class, rawtext,
     for pfsc nav widgets.
 
     :param self: the ``self`` instance for the calling Directive or Role
-    :param widget_class: the widget class to instantiate, e.g. SphinxChartWidget
+    :param widget_class: the widget class to instantiate, e.g. ChartWidget
     :param html_class: string to appear as widget class in HTML, e.g. 'chartWidget'
     :param rawtext: the raw text of the widget
     :param label: the final (processed) label text
     :param widget_fields: dictionary of special fields for the widget type,
-        e.g. for SphinxChartWidget this will include the 'view' field, among others
+        e.g. for ChartWidget this will include the 'view' field, among others
     :param widget_name: optional user-supplied name for the widget
     """
-    pfsc_env = get_pfsc_env(self.env)
-    vers_defns = pfsc_env.vers_defns
-
-    docname = self.env.docname
-
     if widget_name:
         # Do not allow user-supplied names to begin with underscore.
         if widget_name.startswith('_'):
@@ -93,21 +88,15 @@ def finish_run(self, widget_class, html_class, rawtext,
         wnum = self.env.new_serialno('widget')
         widget_name = f'_w{wnum}'
 
-    lp_defns = pfsc_env.lp_defns_by_docname
-
     src_file, lineno = self.get_source_info()
 
-    widget = widget_class(
-        self.config, lp_defns, vers_defns,
-        docname, src_file, lineno, widget_name,
-        **widget_fields
-    )
+    page = get_sphinx_page(self.env)
+    widget = widget_class(widget_name, label, widget_fields, page, lineno)
+    page.add_widget(widget)
 
-    pfsc_env.all_widgets.append(widget)
-
-    classes = [widget.write_uid(), html_class]
-
-    node = navwidget(rawtext, label, classes=classes)
+    node = navwidget(rawtext, label, classes=[
+        widget.writeUID(), html_class
+    ])
     return node
 
 
@@ -120,7 +109,7 @@ class PfscNavWidgetRole(SphinxRole):
             for chart widgets).
 
     Subclasses must override:
-        widget_class (e.g. SphinxChartWidget)
+        widget_class (e.g. ChartWidget)
         html_class (e.g. 'chartWidget')
         widget_type_name (e.g. 'chart')
         target_field_name (e.g. 'view')
@@ -174,7 +163,7 @@ class PfscNavWidgetDirective(SphinxDirective):
     pattern.
 
     Subclasses must override:
-        widget_class (e.g. SphinxChartWidget)
+        widget_class (e.g. ChartWidget)
         html_class (e.g. 'chartWidget')
 
     Subclasses should extend:

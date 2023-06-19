@@ -65,35 +65,6 @@ def process_widget_label(raw_label):
     return name, text
 
 
-class ResolvedLibpath:
-
-    def __init__(self, libpath, repopath, version):
-        self.libpath = libpath
-        self.repopath = repopath
-        self.version = version
-
-
-def find_lp_defn_for_docname(lp_defns, segment, docname, local_only=False):
-    """
-    Look for a libpath definition for a given segment, which pertains within
-    a given document.
-
-    If local_only is false, then we search definitions for the given document,
-    as well as the index document of any directories above this one. If true,
-    we search only defs for the given document.
-    """
-    lp = lp_defns.get(docname, {}).get(segment)
-    if lp or local_only:
-        return lp
-    names = docname.split('/')
-    for i in range(1, len(names) + 1):
-        dn = '/'.join(names[:-i] + ['index'])
-        lp = lp_defns.get(dn, {}).get(segment)
-        if lp:
-            return lp
-    return None
-
-
 def parse_box_listing(box_listing):
     """
     Return a list of libpath strings, or raise a SphinxError.

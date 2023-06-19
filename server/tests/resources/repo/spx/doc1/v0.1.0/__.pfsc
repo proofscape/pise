@@ -10,4 +10,5 @@ doc2 = {
 
 dependencies = {
     "test.spx.doc0": "v0.1.0",
+    "test.hist.lit": "v0.0.0",
 }

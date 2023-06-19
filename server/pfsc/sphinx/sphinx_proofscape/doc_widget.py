@@ -18,13 +18,10 @@
 
 from docutils.parsers.rst.directives import unchanged
 
+from pfsc.lang.widgets import PdfWidget
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     PfscNavWidgetRole, PfscNavWidgetDirective,
 )
-
-
-class SphinxDocWidget:
-    ...  # TODO
 
 
 class PfscDocRole(PfscNavWidgetRole):
@@ -42,7 +39,7 @@ class PfscDocRole(PfscNavWidgetRole):
 
         Compare :pfsc-doc:`the original proof <doc1#v2;s3;(1:1758:2666:400:200:100:50)>`.
     """
-    widget_class = SphinxDocWidget
+    widget_class = PdfWidget
     html_class = 'docWidget'
     widget_type_name = 'doc'
     target_field_name = 'sel'
@@ -72,7 +69,7 @@ class PfscDocDirective(PfscNavWidgetDirective):
         field (see above) is undefined.
 
     """
-    widget_class = SphinxDocWidget
+    widget_class = PdfWidget
     html_class = 'docWidget'
     option_spec = {
         **PfscNavWidgetDirective.option_spec,

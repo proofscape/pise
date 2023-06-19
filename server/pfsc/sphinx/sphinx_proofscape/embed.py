@@ -18,8 +18,9 @@
 
 from sphinx.util.docutils import SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.environment import get_pfsc_env
-from pfsc.sphinx.sphinx_proofscape.pages import build_libpath_for_rst
+from pfsc.sphinx.sphinx_proofscape.pages import (
+    build_libpath_for_rst, get_pfsc_env,
+)
 from pfsc.lang.modules import build_module_from_text, CachePolicy
 
 

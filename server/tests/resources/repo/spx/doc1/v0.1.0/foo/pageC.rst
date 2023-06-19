@@ -4,10 +4,11 @@ Page C
 This is Page C, and it lives inside the ``foo`` directory.
 Widgets defined here should have the ``foo`` segment in their libpath.
 
-.. pfsc-defns::
-    :libpaths:
-        Pf:  test.hist.lit.H.ilbert.ZB.Thm168.Pf
-        Thm: test.hist.lit.H.ilbert.ZB.Thm168.Thm
+.. pfsc::
+
+    from test.hist.lit.H.ilbert.ZB.Thm168 import Pf
+    from test.hist.lit.H.ilbert.ZB.Thm168 import Thm
+
 
 Let's try another inline :pfsc-chart:`chart widget <Pf>`.
 
