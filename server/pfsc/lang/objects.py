@@ -150,6 +150,9 @@ class PfscObj:
             if callable(getattr(item, 'resolveLibpathsRec', None)):
                 item.resolveLibpathsRec()
 
+    def resolve(self):
+        pass
+
     def setTextRange(self, row0, col0, row1, col1):
         """
         Define the range in the module text over which this entity was defined.

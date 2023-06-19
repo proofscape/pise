@@ -103,7 +103,7 @@ class PfscModule(PfscObj):
 
             native = self.getNativeItemsInDefOrder()
             for item in native.values():
-                if isinstance(item, (Annotation, Deduction)):
+                if isinstance(item, PfscObj):
                     item.resolve()
 
             self.resolving = False
