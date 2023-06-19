@@ -123,11 +123,9 @@ def expand_multipath(mp):
     an expression of the form `{lp1,lp2,...,lpn}`, where each lpi itself has the
     form of a libpath. The multipath thereby indicates multiple libpaths.
 
-    Note: there must be no whitespace inside the braces.
-
     For example, the multipath
 
-                    foo.bar.{spam.baz,cat}.boo
+                    foo.bar.{spam.baz, cat}.boo
 
     indicates the two libpaths,
 
@@ -150,7 +148,7 @@ def expand_multipath(mp):
     prefix = mp[:i0]
     suffix = mp[i1+1:]
     multi = mp[i0+1:i1].split(',')
-    return [prefix + m + suffix for m in multi]
+    return [prefix + m.strip() + suffix for m in multi]
 
 
 class PathInfo:
