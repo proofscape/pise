@@ -89,11 +89,6 @@ class Annotation(Enrichment):
             self._trusted = libpath_is_trusted(libpath)
         return self._trusted
 
-    def resolveLibpathsRec(self):
-        for item in self.items.values():
-            if callable(getattr(item, 'resolveLibpathsRec', None)):
-                item.resolveLibpathsRec()
-
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
 

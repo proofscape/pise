@@ -240,9 +240,7 @@ class Widget(PfscObj):
 
     def resolveLibpathsRec(self):
         self.repos = self.resolve_libpaths_in_data(self.libpath_datapaths)
-        for item in self.items.values():
-            if callable(getattr(item, 'resolveLibpathsRec', None)):
-                item.resolveLibpathsRec()
+        PfscObj.resolveLibpathsRec(self)
 
     def getRequiredRepoVersions(self, loading_time=True):
         # Get ahold of the desired version for each repo implicated by libpaths

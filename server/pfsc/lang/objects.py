@@ -145,6 +145,11 @@ class PfscObj:
             if callable(getattr(item, 'cascadeLibpaths', None)):
                 item.cascadeLibpaths()
 
+    def resolveLibpathsRec(self):
+        for item in self.items.values():
+            if callable(getattr(item, 'resolveLibpathsRec', None)):
+                item.resolveLibpathsRec()
+
     def setTextRange(self, row0, col0, row1, col1):
         """
         Define the range in the module text over which this entity was defined.
