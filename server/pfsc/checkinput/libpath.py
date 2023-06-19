@@ -102,7 +102,8 @@ class BoxListing:
                 mps.append(mp)
                 mp = ''
                 continue
-            elif c == '{':
+
+            if c == '{':
                 depth += 1
                 if depth > 1:
                     raise PfscExcep(f'Boxlisting contains nested braces: {raw_string}')
@@ -110,6 +111,7 @@ class BoxListing:
                 depth -= 1
                 if depth < 0:
                     raise PfscExcep(f'Boxlisting contains unmatched braces: {raw_string}')
+
             mp += c
         if mp:
             mps.append(mp)
