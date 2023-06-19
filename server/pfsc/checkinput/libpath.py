@@ -43,7 +43,8 @@ class BoxListing:
       * It may be a string giving either a single libpath or multipath, or a comma-delimited
         list of libpaths and multipaths;
       * It may be a list of strings giving a mixture of libpaths and multipaths;
-      * Sometimes, it may be a string giving a special keyword.
+      * Sometimes, it may be a string of the form `<...>`, i.e. beginning and
+        ending with angle brackets, giving a special keyword.
 
     The purpose of this class is to accept such a value, and uniformize it.
     """
@@ -51,12 +52,14 @@ class BoxListing:
     def __init__(self, raw_value, allowed_keywords=None):
         """
         :param raw_value: the raw value of the box listing
-        :param allowed_keywords: optional list of keywords allowed for this particular box listing
+        :param allowed_keywords: optional list of keywords allowed for this
+            particular box listing. Keywords should be listed here *without*
+            angle brackets.
 
-        Our aim is to uniformize the input by storing either a list of libpaths, or a keyword value.
+        Our aim is to uniformize the input by storing either a list of
+        libpaths, or a keyword value.
         """
-        if allowed_keywords is None:
-            allowed_keywords = []
+        self.allowed_keywords = allowed_keywords or []
 
         # We record a keyword, which will remain `None` if the user did not provide one.
         self.keyword = None
@@ -72,12 +75,12 @@ class BoxListing:
             return
         # If a string was given...
         if isinstance(raw_value, str):
-            # ...it may have been a keyword,
-            if raw_value in allowed_keywords:
-                self.keyword = raw_value
+            # ...Is it an angle-bracketed keyword?
+            if keyword := self.extract_keyword(raw_value):
+                self.keyword = keyword
             # ...otherwise we parse it into a list of multipaths.
             else:
-                self.multipaths = self.parse_raw_string(raw_value)
+                self.multipaths = self.parse_raw_string_as_multipaths(raw_value)
         # If a list was given, we assume it is a list of multipaths.
         elif isinstance(raw_value, list):
             self.multipaths = raw_value
@@ -90,8 +93,26 @@ class BoxListing:
         for mp in self.multipaths:
             self.libpaths.extend(expand_multipath(mp))
 
+    def extract_keyword(self, raw_string):
+        """
+        Given a raw input string, determine whether it is an angle-bracketed
+        one of our allowed keywwords.
+
+        :return: the inner, unbracketed keyword, if it is one; else None
+        """
+        if raw_string.startswith("<") and raw_string.endswith(">"):
+            if (inner := raw_string[1:-1]) in self.allowed_keywords:
+                return inner
+        return None
+
     @staticmethod
-    def parse_raw_string(raw_string):
+    def parse_raw_string_as_multipaths(raw_string):
+        """
+        Parse a string as a comma-delimited list of multipaths, with skipped
+        whitespace.
+
+        :return: list of strings, believed to be multipaths
+        """
         mps = []
         mp = ''
         depth = 0
