@@ -25,7 +25,8 @@ in order to ensure that the substitution text is unique, even if the phrase
 coming after the name is not. However, for thoroughness in our tests, we want
 to be sure that rST will accept a substitution text with a leading colon,
 |: like: this one|. In Proofscape Sphinx docs, this is the only way to have
-the system supply the widget name, while the final label text contains a colon.
+the final label text contain a colon, while *also* having the system supply the
+widget name for you.
 
 Now we'll need a series of chart widgets, for unit tests.
 

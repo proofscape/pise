@@ -39,7 +39,7 @@ def process_widget_label(raw_label):
         In all cases, everything up to and including the first colon will be deleted, external
         whitespace will be stripped from what remains, and that will be the final label text.
 
-    :returns: pair (name, text) being the widget name (possibly None),
+    :returns: pair (name, text) being the widget name (possibly None, possibly empty string),
         and final label text
     :raises: PfscExcep if the raw text contains a colon, but what comes before
         the first colon is neither empty nor a valid libpath segment.

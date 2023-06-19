@@ -204,8 +204,9 @@ class PfscNavWidgetDirective(SphinxDirective):
             )
         arg_raw = self.arguments[0] if n == 1 else None
 
-        # If we're defined under an rST substitution, then we'll have an 'alt'
-        # option, giving the alt text.
+        # If we're defined under an rST substitution,
+        # (see https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#substitution-definitions)
+        # then we'll have an 'alt' option, giving the alt text.
         alt_raw = self.options.get('alt')
 
         if arg_raw and alt_raw:

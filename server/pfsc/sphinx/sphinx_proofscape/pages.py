@@ -96,7 +96,7 @@ def form_pfsc_module_for_rst_file(app, docname, source):
     """
     Designed as a handler for the Sphinx 'source-read' event.
 
-    It is when an rst fource file has been read, that it is time
+    It is when an rst source file has been read, that it is time
     to form a `PfscModule` and `SphinxPage`, to represent the module
     and page defined by that rst file.
 

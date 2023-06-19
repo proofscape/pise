@@ -62,7 +62,7 @@ class BoxListing:
         self.keyword = None
         # All libpaths are initially considered to be (potential) multipaths, until expanded.
         self.multipaths = []
-        # After expanding potential multipaths, we store them here as plain libpaths.
+        # After expanding (potential) multipaths, we store them here as plain libpaths.
         self.libpaths = []
         # We may also want to check the libpaths, and so we can store CheckedLibpath instances as well.
         self.checked_libpaths = []
@@ -142,11 +142,14 @@ def check_boxlisting(key, raw, typedef):
     :param raw: The raw value of the boxlisting. May be None, str, or list.
     :param typedef:
         opt:
-            allowed_keywords: list of keywords allowed for this box listing; see doctext for `BoxListing` class
+            allowed_keywords: list of keywords allowed for this box listing;
+                see doctext for `BoxListing` class
 
-            libpath_type: a typedef dict d. If given, we will pass this dictionary d to the check_libpath
-                          function when we check all libpaths in the boxlisting. CheckedLibpath instances
-                          will be stored in the BoxListing.
+            libpath_type: a typedef dict d. If given, we will pass this
+                dictionary d to the check_libpath function when we check all
+                libpaths in the boxlisting. CheckedLibpath instances will be
+                stored in the BoxListing.
+
     :return: a BoxListing instance
     """
     # Form the BoxListing instance.
