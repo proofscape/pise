@@ -49,6 +49,9 @@ class SphinxPfscEnvironment:
         """
         self.pfsc_modules.update(modules)
 
+    def add_module(self, modpath, module):
+        self.pfsc_modules[modpath] = module
+
     def get_module(self, modpath, version=None):
         """
         Get a module, trying our catalog first, or resorting to loading from

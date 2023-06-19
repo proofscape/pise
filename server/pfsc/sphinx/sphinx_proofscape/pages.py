@@ -119,4 +119,4 @@ def form_pfsc_module_for_rst_file(app, docname, source):
     module[FIXED_PAGE_NAME] = page
 
     pfsc_env = get_pfsc_env(app.env)
-    pfsc_env.pfsc_modules[modpath] = module
+    pfsc_env.add_module(modpath, module)
