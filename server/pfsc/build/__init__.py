@@ -1013,13 +1013,10 @@ class Builder:
         with checkout(self.repo_info, self.version):
             # Set signal visible below this frame by inspecting the stack.
             building_a_release_of = self.building_a_release_of()
-            # How many writes do we have to do? (Count modules twice: once for lib dir, once for build dir.)
-            n = 2*len(self.modules) + len(self.deductions) + len(self.annotations)
+            # How many writes do we have to do?
+            n = len(self.modules) + len(self.deductions) + len(self.annotations)
             self.monitor.begin_phase(n, 'Writing...')
             self.clear_build_dirs()
-            if self.version == pfsc.constants.WIP_TAG:
-                # We update the working versions only if this is a WIP build.
-                self.write_built_modules_to_lib_dir()
             self.write_built_modules_to_build_dir()
             self.write_manifest()
             self.write_dashgraphs()
@@ -1036,17 +1033,6 @@ class Builder:
             os.makedirs(build_dir, exist_ok=True)
             with open(manifest_json_path, 'w') as f:
                 f.write(j)
-
-    def write_built_modules_to_lib_dir(self):
-        """
-        Module text may change during building.
-        Currently there is only one way for this to happen; namely, when widget names are
-        automatically supplied in annotation blocks.
-        This method writes the built versions of the modules to disk, in the case that they differ.
-        """
-        for module in self.modules.values():
-            module.writeBuiltVersionToDisk(writeOnlyIfDifferent=True, makeTildeBackup=True)
-            self.monitor.inc_count()
 
     def write_built_modules_to_build_dir(self):
         """
