@@ -21,7 +21,6 @@ import json
 from pfsc.lang.annotations import format_page_data
 from pfsc.lang.objects import PfscObj
 from pfsc.lang.modules import PfscModule
-from pfsc.lang.widgets import Widget
 
 
 # Since it seems most natural that rst files should correspond to modules,
