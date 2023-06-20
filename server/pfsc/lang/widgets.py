@@ -787,7 +787,7 @@ class WrapperWidget(Widget):
     would make a correct representation of the label text. Here the tag will be either `span` or
     else one of the heading tags h1 - h6.
 
-    Subclasses may write their own writeHTML method, or, if it suffices, simply set self.template,
+    Subclasses may write their own writeHTML method, or, if it suffices, simply set self.template_name,
     and use the abstract method of this class.
 
     NB: The templates you use should be one-liners. This is because they are going to be passed
@@ -817,10 +817,26 @@ class WrapperWidget(Widget):
             'contents': self.contents,
             'uid': self.writeUID()
         }
-        return self.template.render(context)
+        template = wrapper_widget_templates[self.template_name]
+        return template.render(context)
 
 
+"""
+Note: We need Widget classes (along with all PfscObj subclasses) to be
+picklable, so that internal representations can be stored on disk, and restored
+later to speed up re-builds.
+
+Jinja templates appear not to be picklable, so we store the following templates
+in a lookup, instead of storing them as attributes of their respective Widget
+classes.
+"""
 label_widget_template = jinja2.Template("""<{{tag}} class="widget labelWidget {{ uid }}">{{contents}}<span class="labellink">¶</span></{{tag}}>""")
+goal_widget_template = jinja2.Template("""<{{tag}} class="widget goalWidget {{ uid }}"><span class="graphics"></span>{{contents}}</{{tag}}>""")
+wrapper_widget_templates = {
+    'label_widget_template': label_widget_template,
+    'goal_widget_template': goal_widget_template,
+}
+
 
 class LabelWidget(WrapperWidget):
     """
@@ -834,10 +850,8 @@ class LabelWidget(WrapperWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.LABEL, name, label, data, anno, lineno)
-        self.template = label_widget_template
+        self.template_name = 'label_widget_template'
 
-
-goal_widget_template = jinja2.Template("""<{{tag}} class="widget goalWidget {{ uid }}"><span class="graphics"></span>{{contents}}</{{tag}}>""")
 
 class GoalWidget(WrapperWidget):
     """
@@ -858,15 +872,10 @@ class GoalWidget(WrapperWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.GOAL, name, label, data, anno, lineno)
-        self.template = goal_widget_template
+        self.template_name = 'goal_widget_template'
         self.libpath_datapaths = [
             'altpath'
         ]
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state['template'] = None
-        return state
 
     def compute_origin(self, force=False):
         # If the origin was already given, don't bother to do anything (unless forcing).
