@@ -19,10 +19,6 @@ extensions = []
 # are overridden by our use of the `-D` switch when we do the Sphinx build.
 pfsc_repopath = 'an.incorrect.value'
 pfsc_repovers = "not_the_right_version_number"
-pfsc_import_repos = {
-    'test.moo.bar': 'contradicts.root.module',
-}
-
 
 templates_path = ['_templates']
 exclude_patterns = []

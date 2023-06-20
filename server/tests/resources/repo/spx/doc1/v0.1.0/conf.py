@@ -19,12 +19,6 @@ author = 'author'
 
 extensions = []
 
-pfsc_import_repos = {
-    'test.hist.lit': '0.0.0',
-    'gh.foo.baz': 'v2.4.6',
-    'gh.foo.spam': 'WIP',
-}
-
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv']
 

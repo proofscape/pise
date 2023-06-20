@@ -38,7 +38,6 @@ from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 def setup(app):
     app.add_config_value('pfsc_repopath', None, 'html')
     app.add_config_value('pfsc_repovers', None, 'html')
-    app.add_config_value('pfsc_import_repos', None, 'html')
 
     app.add_node(navwidget,
                  html=(visit_navwidget_html, depart_navwidget_html))

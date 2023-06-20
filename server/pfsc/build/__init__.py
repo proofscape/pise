@@ -644,8 +644,6 @@ class Builder:
             # system.
             'extensions': required_extensions,
         }
-        for dep_repopath, dep_version in self.repo_dependencies.items():
-            confoverrides[f'pfsc_import_repos.{dep_repopath}'] = dep_version
 
         stream = SphinxBuildLogStream(self.monitor)
         handler = logging.StreamHandler(stream)
