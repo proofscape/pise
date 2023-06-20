@@ -50,9 +50,9 @@ class SphinxPage(PfscObj):
     def add_widget(self, w):
         self.widgets.append(w)
         self[w.name] = w
+        w.cascadeLibpaths()
 
     def resolve(self):
-        self.cascadeLibpaths()
         self.resolveLibpathsRec()
 
     def write_page_data(self):
