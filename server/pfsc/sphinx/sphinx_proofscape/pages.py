@@ -193,7 +193,6 @@ class SphinxPfscEnvironment:
     """
 
     def __init__(self, app):
-        self.all_widgets = []
         # Lookup for PfscModule instances, by libpath.
         self.pfsc_modules = {}
 
