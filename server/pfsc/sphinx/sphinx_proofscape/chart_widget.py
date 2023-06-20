@@ -21,6 +21,7 @@ from collections import defaultdict
 from docutils.parsers.rst.directives import unchanged
 from sphinx.errors import SphinxError
 
+from pfsc.checkinput import check_boxlisting
 from pfsc.lang.widgets import ChartWidget
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     PfscNavWidgetRole, PfscNavWidgetDirective,
@@ -192,16 +193,15 @@ class PfscChartDirective(PfscNavWidgetDirective):
         "on_board": unchanged,
         "off_board": unchanged,
 
-        "view": unchanged,
-        # When we're ready to do input checking, sth like this could work:
-        #'view': lambda t: check_boxlisting('view', t, {
-        #    'allowed_keywords': ['all'],
-        #}),
+        'view': lambda t: check_boxlisting('view', t, {
+            'allowed_keywords': ['all'],
+            'libpath_type': {
+                'short_okay': True,
+            }
+        }).get_libpaths(),
 
-        #"color": unchanged,
         'color': lambda t: regularize_color_option_text(t, '', 'color'),
 
-        #"hovercolor": unchanged,
         'hovercolor': lambda t: regularize_color_option_text(t, '', 'hovercolor'),
 
         "select": unchanged,
