@@ -863,6 +863,11 @@ class GoalWidget(WrapperWidget):
             'altpath'
         ]
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['template'] = None
+        return state
+
     def compute_origin(self, force=False):
         # If the origin was already given, don't bother to do anything (unless forcing).
         if 'origin' in self.data and not force:
