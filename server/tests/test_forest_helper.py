@@ -76,7 +76,7 @@ def prepare_info_for_fuh(info):
             d['desired_versions'] = c
         elif k == 'current_forest':
             d[k] = prepare_current_forest(v)
-        elif v == 'all':
+        elif v == '<all>':
             d[k] = v
         elif isinstance(v, str):
             d[k] = names2lps(v)
@@ -175,7 +175,7 @@ def examine_fuh_response(r):
         'to_close': "Pf",
         'to_open': "Pf X1 W2"
     }),
-    # Try reloading "all".
+    # Try reloading "<all>".
     ({
         #'current_deducs': "Thm1 Pf X1 W1 W2",
         'current_forest': {
@@ -189,12 +189,12 @@ def examine_fuh_response(r):
             },
         },
         'dv': 2,
-        'reload': 'all'
+        'reload': '<all>'
      }, {
         'to_close': 'Thm1',
         'to_open': "Thm1 Pf X1 W1 W2"
     }),
-    # Try clearing the board with "all", while also asking for certain deducs to be on board.
+    # Try clearing the board with "<all>", while also asking for certain deducs to be on board.
     ({
         #'current_deducs': 'Thm1 Pf Thm2 Pf13 Pf2',
         'current_forest': {
@@ -207,7 +207,7 @@ def examine_fuh_response(r):
             },
         },
         'dv': 3,
-        'off_board': 'all',
+        'off_board': '<all>',
         'on_board': 'Pf2'
      },{
         'to_close': 'Thm1 Pf13'

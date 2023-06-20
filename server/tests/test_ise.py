@@ -331,7 +331,7 @@ def test_forest_update_helper_0(app, client, repos_ready):
         info = {
             "current_forest": {},
             #"on_board": [],
-            "off_board": "all",
+            "off_board": "<all>",
             "to_view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.D330.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.D330.A20"
@@ -355,7 +355,7 @@ def test_forest_update_helper_1(app, client, repos_ready):
         info = {
             "current_forest": {},
             #"on_board": [],
-            "off_board": "all",
+            "off_board": "<all>",
             "to_view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A20"
@@ -440,7 +440,7 @@ def test_permission_rejections_POST(app, client, repos_ready, url):
 @pytest.mark.parametrize('info', [
 {
     "current_forest": {},
-    "off_board": "all",
+    "off_board": "<all>",
     "to_view": [
         "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A10",
         "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A20"
@@ -452,7 +452,7 @@ def test_permission_rejections_POST(app, client, repos_ready, url):
 },
 {
     "current_forest": {"test.hist.lit.H.ilbert.ZB.Thm168.Pf1A@WIP":{}},
-    "reload": "all",
+    "reload": "<all>",
     "incl_nbhd_in_view": True
 }
 ])
