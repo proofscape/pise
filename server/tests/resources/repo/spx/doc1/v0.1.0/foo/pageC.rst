@@ -6,8 +6,8 @@ Widgets defined here should have the ``foo`` segment in their libpath.
 
 .. pfsc::
 
-    from test.hist.lit.H.ilbert.ZB.Thm168 import Pf
-    from test.hist.lit.H.ilbert.ZB.Thm168 import Thm
+    from test.moo.bar.results import Thm, Pf
+    import test.moo.comment.bar as comment
 
 
 Let's try another inline :pfsc-chart:`chart widget <Pf>`.
@@ -39,18 +39,18 @@ Now we'll need a series of chart widgets, for unit tests.
     :view: Pf
 
 .. |w000: substitutions| pfsc-chart::
-    :view: Thm.A10, Pf.{A10,A20}
-    :on_board: gh.foo.spam.H.ilbert.ZB.Thm168.X1
-    :off_board: gh.foo.spam.H.ilbert.ZB.Thm168.X2
+    :view: Thm.C, Pf.{R,S}
+    :on_board: comment.xpan_S
+    :off_board: comment.xpan_T
     :color:
-        olB: Pf.{A10,A20}
-        bgG: Thm.A10
+        olB: Pf.{R,S}
+        bgG: Thm.C
 
 .. |w001: one-line color definition| pfsc-chart::
     :view: Pf
-    :color: olB: Pf.{A10,A20}
+    :color: olB: Pf.{R,S}
 
 .. |w002: color defn with: repeated LHS, plus use of update| pfsc-chart::
     :color: update
-        bgG: Pf.{A10,A20}
-        bgG: Thm.A10
+        bgG: Pf.{R,S}
+        bgG: Thm.C

@@ -3,7 +3,7 @@ Page A
 
 .. pfsc::
 
-    from test.hist.lit.H.ilbert.ZB.Thm168 import Pf
+    from test.moo.bar.results import Pf
 
 
 This is Page A.

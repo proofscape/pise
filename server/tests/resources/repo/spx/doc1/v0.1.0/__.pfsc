@@ -10,5 +10,6 @@ doc2 = {
 
 dependencies = {
     "test.spx.doc0": "v0.1.0",
-    "test.hist.lit": "v0.0.0",
+    "test.moo.bar": "v1.0.0",
+    "test.moo.comment": "v0.1.0",
 }

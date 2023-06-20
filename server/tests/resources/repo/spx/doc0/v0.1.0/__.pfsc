@@ -1,5 +1,5 @@
 dependencies = {
-    'test.moo.bar': 'v0.3.4'
+    'test.moo.bar': 'v1.0.0'
 }
 
 
