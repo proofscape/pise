@@ -886,6 +886,7 @@ class Builder:
 
         self.monitor.inc_count(self.prog_count_for_parsing)
         self.scan_jobs.append((module, manifest_node))
+        self.modules[module.libpath] = module
 
     def scan_pfsc_module(self, module, manifest_node):
         """
@@ -898,9 +899,6 @@ class Builder:
         """
         module_path = module.libpath
         self.monitor.set_message('Scanning %s...' % module_path)
-        #if self.verbose: print("  ", module_path)
-
-        self.modules[module.libpath] = module
 
         manifest_node.update_data({'isTerminal': module.isTerminal()})
 
