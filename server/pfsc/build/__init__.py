@@ -48,6 +48,7 @@ from collections import deque
 from datetime import datetime
 import logging
 import pathlib
+import pickle
 import traceback
 
 from sphinx.cmd import make_mode
@@ -567,6 +568,14 @@ class Builder:
         # this reason it has to wait until now.
         path_info = PathInfo(self.module_path)
 
+        is_wip = not self.is_release_build()
+        pickle_path = self.repo_info.get_modules_pickle_path(version=self.version)
+
+        if is_wip:
+            if os.path.exists(pickle_path):
+                with open(pickle_path, 'rb') as f:
+                    self.module_cache = pickle.load(f)
+
         walking = self.recursive and path_info.is_dir
         module_has_contents = path_info.get_pfsc_fs_path() is not None
         just_the_module = module_has_contents and not walking
@@ -581,6 +590,19 @@ class Builder:
         else:
             if self.verbose: print("Nothing to do.")
             return
+
+        if is_wip:
+            build_dir = self.repo_info.get_build_dir(version=self.version)
+            os.makedirs(build_dir, exist_ok=True)
+            with open(pickle_path, 'wb') as f:
+                # Store only the pfsc modules (not rst modules) belonging to
+                # *this* repo, and which the `walk()` has determined *still* belong
+                # to this repo.
+                local_pfsc_mod_cache = {
+                    verspath: cm for verspath, cm in self.module_cache.items()
+                    if cm.module.libpath in self.modules
+                }
+                pickle.dump(local_pfsc_mod_cache, f, pickle.HIGHEST_PROTOCOL)
 
     def resolving_phase(self):
         """
@@ -658,10 +680,6 @@ class Builder:
             phase, by resolving all pfsc modules formed from rst files.
             """
             self.reading_phase()
-
-            # TODO:
-            #  Here is where we would pickle the module cache, to be restored
-            #  on next build.
 
             pfsc_env = env.proofscape
             for rst_module in pfsc_env.pfsc_modules.values():
@@ -869,7 +887,7 @@ class Builder:
             # we must pass WIP as version to the load_module function.
             module = load_module(
                 module_path, version=pfsc.constants.WIP_TAG,
-                fail_gracefully=False, caching=self.caching, cache=self.module_cache
+                fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
             )
             # On the other hand, if we are doing a release build, then this module actually
             # represents a non-WIP version. We must set the represented version now, so that

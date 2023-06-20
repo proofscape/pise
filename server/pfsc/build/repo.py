@@ -289,6 +289,10 @@ class RepoInfo:
         )
         return build_dir
 
+    def get_modules_pickle_path(self, version=pfsc.constants.WIP_TAG):
+        build_dir = self.get_build_dir(version=version)
+        return os.path.join(build_dir, 'modules.pickle')
+
     def get_manifest_json_path(self, version=pfsc.constants.WIP_TAG):
         build_dir = self.get_build_dir(version=version)
         return os.path.join(build_dir, 'manifest.json')
