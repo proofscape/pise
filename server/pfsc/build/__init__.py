@@ -574,7 +574,8 @@ class Builder:
             with open(pickle_path, 'rb') as f:
                 try:
                     self.module_cache = pickle.load(f)
-                except EOFError:
+                except Exception as e:
+                    # TODO: log the exception
                     # If the pickle file is malformed, just give up. It's the
                     # same as if we didn't have one at all. We'll overwrite it
                     # with a good one later.
