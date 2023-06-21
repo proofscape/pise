@@ -572,7 +572,13 @@ class Builder:
 
         if os.path.exists(pickle_path):
             with open(pickle_path, 'rb') as f:
-                self.module_cache = pickle.load(f)
+                try:
+                    self.module_cache = pickle.load(f)
+                except EOFError:
+                    # If the pickle file is malformed, just give up. It's the
+                    # same as if we didn't have one at all. We'll overwrite it
+                    # with a good one later.
+                    pass
 
         walking = self.recursive and path_info.is_dir
         module_has_contents = path_info.get_pfsc_fs_path() is not None
