@@ -189,10 +189,14 @@ class SphinxPfscEnvironment:
     An instance of this class will be stored in the Sphinx BuildEnvironment,
     under the attribute 'proofscape'.
 
-    It is designed to hold all of the environment data structures relevant to
-    the sphinx-proofscape extension.
+    It is designed to hold any and all data structures relevant to the
+    sphinx-proofscape extension.
 
     It supports merge/purge operations, for Sphinx parallel builds.
+
+    At this point, it is essentially just a wrapper around a dictionary of
+    PfscModule instances, by libpath. Could just use a dictionary instead, but
+    we keep this class in case useful in the future.
     """
 
     def __init__(self, app):
@@ -224,14 +228,6 @@ class SphinxPfscEnvironment:
     def merge(self, other):
         other_pfsc_env = get_pfsc_env(other)
         self.pfsc_modules.update(other_pfsc_env.pfsc_modules)
-
-    def resolve(self):
-        """
-        Invoked after both the rst side and the pfsc side having finished
-        their READING phase. It is time now to RESOLVE pending imports etc.
-        """
-        for module in self.pfsc_modules.values():
-            module.resolve()
 
 
 def setup_pfsc_env(app):
