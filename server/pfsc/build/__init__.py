@@ -568,13 +568,11 @@ class Builder:
         # this reason it has to wait until now.
         path_info = PathInfo(self.module_path)
 
-        is_wip = not self.is_release_build()
         pickle_path = self.repo_info.get_modules_pickle_path(version=self.version)
 
-        if is_wip:
-            if os.path.exists(pickle_path):
-                with open(pickle_path, 'rb') as f:
-                    self.module_cache = pickle.load(f)
+        if os.path.exists(pickle_path):
+            with open(pickle_path, 'rb') as f:
+                self.module_cache = pickle.load(f)
 
         walking = self.recursive and path_info.is_dir
         module_has_contents = path_info.get_pfsc_fs_path() is not None
@@ -591,18 +589,17 @@ class Builder:
             if self.verbose: print("Nothing to do.")
             return
 
-        if is_wip:
-            build_dir = self.repo_info.get_build_dir(version=self.version)
-            os.makedirs(build_dir, exist_ok=True)
-            with open(pickle_path, 'wb') as f:
-                # Store only the pfsc modules (not rst modules) belonging to
-                # *this* repo, and which the `walk()` has determined *still* belong
-                # to this repo.
-                local_pfsc_mod_cache = {
-                    verspath: cm for verspath, cm in self.module_cache.items()
-                    if cm.module.libpath in self.modules
-                }
-                pickle.dump(local_pfsc_mod_cache, f, pickle.HIGHEST_PROTOCOL)
+        build_dir = self.repo_info.get_build_dir(version=self.version)
+        os.makedirs(build_dir, exist_ok=True)
+        with open(pickle_path, 'wb') as f:
+            # Store only the pfsc modules (not rst modules) belonging to
+            # *this* repo, and which the `walk()` has determined *still* belong
+            # to this repo.
+            local_pfsc_mod_cache = {
+                verspath: cm for verspath, cm in self.module_cache.items()
+                if cm.module.libpath in self.modules
+            }
+            pickle.dump(local_pfsc_mod_cache, f, pickle.HIGHEST_PROTOCOL)
 
     def resolving_phase(self):
         """
