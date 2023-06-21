@@ -872,20 +872,18 @@ class Builder:
         if self.verbose: print("  ", module_path)
 
         try:
-            # Tricky couple of steps here: We are currently working in a context where the
+            # We are currently working in a context where the
             # desired version of the repo being built has been checked out. So we can get
             # the module source code we need from the WIP version, i.e. from the lib dir;
             # in fact, we can _only_ get it from there, since it's not yet available in the
             # build dir, as we are right now in the process of making that very build. So
-            # we must pass WIP as version to the load_module function.
+            # we must pass WIP as *loading* version to the load_module function. However,
+            # we can pass the represented version as well, so that that will be set in the
+            # module after it is loaded.
             module = load_module(
-                module_path, version=pfsc.constants.WIP_TAG,
+                module_path, version=pfsc.constants.WIP_TAG, represented_version=self.version,
                 fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
             )
-            # On the other hand, if we are doing a release build, then this module actually
-            # represents a non-WIP version. We must set the represented version now, so that
-            # as we add kNodes and kRelns to self.mii, they record the right version numbers.
-            module.setRepresentedVersion(self.version)
         except PfscExcep as e:
             if e.code() == PECode.PARSING_ERROR:
                 msg = 'Error while parsing module `%s`.' % module_path

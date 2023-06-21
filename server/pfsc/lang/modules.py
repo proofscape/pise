@@ -1306,7 +1306,8 @@ def inherit_release_build_signal():
 
 
 def load_module(
-        path_spec, version=pfsc.constants.WIP_TAG, text=None,
+        path_spec, version=pfsc.constants.WIP_TAG,
+        represented_version=None, text=None,
         fail_gracefully=False, history=None,
         caching=CachePolicy.TIME, cache=None
 ):
@@ -1320,6 +1321,11 @@ def load_module(
                       just going to start by constructing the PathInfo on it.
 
     @param version: The version of this module that you wish to load.
+
+    @param represented_version: optional version that the module represents. In some
+        cases (such as when building a numbered release), this may differ from the
+        loading version. If given, will be set in the `PfscModule` after construction,
+        but only if the module was constructed, not if it was loaded from cache.
 
     @param text: If you happen to already have the text of the module, you can pass it here.
                  Note that when you provide the text we will definitely bypass the cache _for this module_;
@@ -1457,6 +1463,8 @@ def load_module(
             ts_text.text, modpath, version=version, history=history,
             caching=caching, cache=cache, read_time=ts_text.read_time
         )
+        if represented_version is not None:
+            module.setRepresentedVersion(represented_version)
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
