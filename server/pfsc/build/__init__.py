@@ -580,20 +580,9 @@ class Builder:
                     # with a good one later.
                     pass
 
-        walking = self.recursive and path_info.is_dir
-        module_has_contents = path_info.get_pfsc_fs_path() is not None
-        just_the_module = module_has_contents and not walking
-
-        if walking:
-            if self.verbose: print(f"Building {self.module_path}@{self.version} recursively...")
-            self.walk(path_info.abs_fs_path_to_dir)
-        elif just_the_module:
-            if self.verbose: print(f"Building {self.module_path}@{self.version}...")
-            self.monitor.begin_phase(self.prog_count_per_module, 'Building...')
-            self.read_pfsc_module(self.module_path, self.root_node)
-        else:
-            if self.verbose: print("Nothing to do.")
-            return
+        if self.verbose:
+            print(f"Building {self.module_path}@{self.version}...")
+        self.walk(path_info.abs_fs_path_to_dir)
 
         build_dir = self.repo_info.get_build_dir(version=self.version)
         os.makedirs(build_dir, exist_ok=True)
