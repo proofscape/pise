@@ -74,7 +74,6 @@ from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType
 from pfsc.lang.modules import (
     CachePolicy, load_module, PfscDefn, PfscAssignment,
-    cache_module,
 )
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
@@ -592,8 +591,8 @@ class Builder:
             # *this* repo, and which the `walk()` has determined *still* belong
             # to this repo.
             local_pfsc_mod_cache = {
-                verspath: cm for verspath, cm in self.module_cache.items()
-                if cm.module.libpath in self.modules
+                verspath: module for verspath, module in self.module_cache.items()
+                if module.libpath in self.modules
             }
             pickle.dump(local_pfsc_mod_cache, f, pickle.HIGHEST_PROTOCOL)
 
@@ -601,7 +600,7 @@ class Builder:
         """
         RESOLVE the pfsc modules formed in the READING phase.
         """
-        modules = [cm.module for cm in self.module_cache.values()]
+        modules = list(self.module_cache.values())
         for module in modules:
             module.resolve()
 
@@ -676,7 +675,8 @@ class Builder:
 
             pfsc_env = env.proofscape
             for rst_module in pfsc_env.pfsc_modules.values():
-                cache_module(rst_module, self.module_cache)
+                lpv = rst_module.getLibpathV()
+                self.module_cache[lpv] = rst_module
 
             self.resolving_phase()
 

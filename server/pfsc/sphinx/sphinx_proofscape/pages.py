@@ -20,7 +20,7 @@ import json
 
 from pfsc.lang.annotations import format_page_data
 from pfsc.lang.objects import PfscObj
-from pfsc.lang.modules import PfscModule
+from pfsc.lang.modules import PfscModule, make_timestamp_for_module
 
 
 # Since it seems most natural that rst files should correspond to modules,
@@ -128,12 +128,16 @@ def form_pfsc_module_for_rst_file(app, docname, source):
     just want to overwrite the existing `PfscModule` object. Either way,
     now is the time to form a `PfscModule` (and corresp. `SphinxPage`).
     """
+    # I don't see any way to get the actual read time from Sphinx. Marking it
+    # right now should be good enough.
+    read_time = make_timestamp_for_module()
+
     config = app.config
     modpath = build_libpath_for_rst(config, docname, within_page=False)
     pagepath = build_libpath_for_rst(config, docname, within_page=True)
     version = config.pfsc_repovers
 
-    module = PfscModule(modpath)
+    module = PfscModule(modpath, read_time=read_time)
     module.setRepresentedVersion(version)
 
     page = SphinxPage(module, pagepath)

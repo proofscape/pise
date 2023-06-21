@@ -53,7 +53,10 @@ class PfscModule(PfscObj):
     Represents a whole Proofscape Module.
     """
 
-    def __init__(self, libpath, loading_version=pfsc.constants.WIP_TAG, given_dependencies=None):
+    def __init__(
+            self, libpath, loading_version=pfsc.constants.WIP_TAG,
+            given_dependencies=None, read_time=None
+    ):
         """
         :param libpath: the libpath of this module.
         :param loading_version: the version of this module that we are using
@@ -63,6 +66,7 @@ class PfscModule(PfscObj):
         """
         PfscObj.__init__(self)
         self.libpath = libpath
+        self.read_time = read_time
         self.repopath = get_repo_part(libpath)
         self.loading_version = loading_version
         # This module may represent a different version than that named by
@@ -993,7 +997,7 @@ class ModuleLoader(PfscJsonTransformer):
             self, modpath, bc, cache,
             version=pfsc.constants.WIP_TAG, existing_module=None,
             history=None, caching=CachePolicy.TIME,
-            dependencies=None, do_imports=True
+            dependencies=None, read_time=None, do_imports=True
     ):
         """
         :param modpath: The libpath of this module
@@ -1005,6 +1009,7 @@ class ModuleLoader(PfscJsonTransformer):
         :param caching: set the cache policy.
         :param dependencies: optionally pass a dict mapping repopaths to required versions. If provided,
           these will override what we would have determined by checking dependencies declared in the repo root module.
+        :param read_time: Unix time stamp for when the file was read from disk
         :param do_imports: Set False if you don't actually want to perform imports. May be useful for testing.
         """
         # Since we are subclassing Transformer, and since our grammar has a nonterminal
@@ -1014,7 +1019,8 @@ class ModuleLoader(PfscJsonTransformer):
         self.version = version
         self.module_cache = cache
         self._module = existing_module or PfscModule(
-            modpath, loading_version=version, given_dependencies=dependencies
+            modpath, loading_version=version, given_dependencies=dependencies,
+            read_time=read_time
         )
 
         # For delayed resolution, we dot NOT want our `PfscJsonTransformer`
@@ -1255,19 +1261,8 @@ class ModuleLoader(PfscJsonTransformer):
         return pa
 
 
-def make_timestamp_for_module_cache():
+def make_timestamp_for_module():
     return datetime.datetime.now().timestamp()
-
-
-class CachedModule:
-
-    def __init__(self, read_time, module):
-        """
-        @param read_time: a Unix timestamp for the time at which the module's contents were read off disk.
-        @param module: the PfscModule to be cached
-        """
-        self.read_time = read_time
-        self.module = module
 
 
 class TimestampedText:
@@ -1282,17 +1277,6 @@ class TimestampedText:
 
 
 _MODULE_CACHE = {}
-
-
-def cache_module(module, cache):
-    """Record a PfscModule in the cache."""
-    modpath = module.libpath
-    version = module.represented_version
-    verspath = f'{modpath}@{version}'
-    read_time = make_timestamp_for_module_cache()
-    cm = CachedModule(read_time, module)
-    cache[verspath] = cm
-
 
 
 def remove_modules_from_cache(modpaths, version=pfsc.constants.WIP_TAG):
@@ -1462,7 +1446,7 @@ def load_module(
             # To be on the safe side, make timestamp just _before_ performing the read operation.
             # (This is "safe" in the sense that the read operation looks older, so we will be more
             # likely to reload in the future, i.e. to catch updates.)
-            read_time = make_timestamp_for_module_cache()
+            read_time = make_timestamp_for_module()
             try:
                 module_contents = path_info.read_module(version=version)
             except FileNotFoundError:
@@ -1471,7 +1455,7 @@ def load_module(
         # Construct a PfscModule.
         module = build_module_from_text(
             ts_text.text, modpath, version=version, history=history,
-            caching=caching, cache=cache
+            caching=caching, cache=cache, read_time=ts_text.read_time
         )
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
@@ -1479,13 +1463,12 @@ def load_module(
         assert to_forget == modpath
         # If the module text has a timestamp, then save the module in the cache.
         if ts_text.read_time is not None:
-            cm = CachedModule(ts_text.read_time, module)
-            cache[verspath] = cm
+            cache[verspath] = module
         # Finally, we can return the module.
         return module
     else:
         # We are not reloading, i.e. we are using the cache.
-        module = cache[verspath].module
+        module = cache[verspath]
         return module
 
 
@@ -1493,7 +1476,7 @@ def build_module_from_text(
         text, modpath,
         version=pfsc.constants.WIP_TAG, existing_module=None,
         history=None, caching=CachePolicy.TIME, cache=None,
-        dependencies=None
+        dependencies=None, read_time=None,
 ):
     """
     Build a module, given its text, and its libpath.
@@ -1506,6 +1489,7 @@ def build_module_from_text(
     :param caching: the desired CachePolicy
     :param cache: the module cache
     :param dependencies: optionally pass a dict mapping repopaths to required versions.
+    :param read_time: Unix time stamp for when the file was read from disk
     :return: the PfscModule instance constructed
     """
     tree, bc = parse_module_text(text)
@@ -1514,7 +1498,8 @@ def build_module_from_text(
     loader = ModuleLoader(
         modpath, bc, cache,
         version=version, existing_module=existing_module,
-        history=history, caching=caching, dependencies=dependencies
+        history=history, caching=caching, dependencies=dependencies,
+        read_time=read_time
     )
     try:
         module = loader.transform(tree)
