@@ -48,7 +48,6 @@ from collections import deque
 from datetime import datetime
 import logging
 import pathlib
-import pickle
 import traceback
 
 from sphinx.cmd import make_mode
@@ -73,7 +72,7 @@ from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType
 from pfsc.lang.modules import (
-    CachePolicy, load_module, PfscDefn, PfscAssignment,
+    CachePolicy, load_module, PfscDefn, PfscAssignment, pickle_module,
 )
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
@@ -566,35 +565,9 @@ class Builder:
         # It's easy to think some of this stuff may belong in our __init__ method, but for
         # this reason it has to wait until now.
         path_info = PathInfo(self.module_path)
-
-        pickle_path = self.repo_info.get_modules_pickle_path(version=self.version)
-
-        if os.path.exists(pickle_path):
-            with open(pickle_path, 'rb') as f:
-                try:
-                    self.module_cache = pickle.load(f)
-                except Exception as e:
-                    # TODO: log the exception
-                    # If the pickle file is malformed, just give up. It's the
-                    # same as if we didn't have one at all. We'll overwrite it
-                    # with a good one later.
-                    pass
-
         if self.verbose:
             print(f"Building {self.module_path}@{self.version}...")
         self.walk(path_info.abs_fs_path_to_dir)
-
-        build_dir = self.repo_info.get_build_dir(version=self.version)
-        os.makedirs(build_dir, exist_ok=True)
-        with open(pickle_path, 'wb') as f:
-            # Store only the pfsc modules (not rst modules) belonging to
-            # *this* repo, and which the `walk()` has determined *still* belong
-            # to this repo.
-            local_pfsc_mod_cache = {
-                verspath: module for verspath, module in self.module_cache.items()
-                if module.libpath in self.modules
-            }
-            pickle.dump(local_pfsc_mod_cache, f, pickle.HIGHEST_PROTOCOL)
 
     def resolving_phase(self):
         """
@@ -674,9 +647,17 @@ class Builder:
             self.reading_phase()
 
             pfsc_env = env.proofscape
-            for rst_module in pfsc_env.pfsc_modules.values():
+            for rst_module in pfsc_env.get_modules().values():
+                # .pfsc modules get pickled when constructed by `load_module()`;
+                # .rst modules don't have that chance, so it happens here.
+                pickle_module(rst_module)
+                # *Could* just pickle, and then `load_module()` would find these
+                # modules that way. But we manually store them in the cache now,
+                # so that they needn't be read from disk in order to get in there.
                 lpv = rst_module.getLibpathV()
                 self.module_cache[lpv] = rst_module
+            # The modules don't need to be pickled as a part of the Sphinx environment.
+            pfsc_env.clear_modules()
 
             self.resolving_phase()
 

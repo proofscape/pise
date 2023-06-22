@@ -211,6 +211,12 @@ class SphinxPfscEnvironment:
         """
         self.pfsc_modules.update(modules)
 
+    def get_modules(self):
+        return self.pfsc_modules
+
+    def clear_modules(self):
+        self.pfsc_modules.clear()
+
     def add_module(self, modpath, module):
         self.pfsc_modules[modpath] = module
 

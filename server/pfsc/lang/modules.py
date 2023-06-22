@@ -23,6 +23,7 @@ from collections import deque
 import datetime
 import inspect
 import pathlib
+import pickle
 import re
 
 from lark import Lark, v_args
@@ -1305,6 +1306,51 @@ def inherit_release_build_signal():
     return signal
 
 
+def pickle_module(module, path_info=None):
+    """
+    Save a pickled representation of a `PfscModule` at its correct location in
+    the build directory for the repo and version to which the module belongs.
+
+    :param module: the PfscModule
+    :param path_info: optional PathInfo object for this module. If not given,
+        we construct it here.
+    :return: the path of the pickle file
+    """
+    if path_info is None:
+        path_info = PathInfo(module.libpath)
+    pickle_path = pathlib.Path(path_info.get_pickle_path(version=module.represented_version))
+    if not pickle_path.parent.exists():
+        pickle_path.parent.mkdir(parents=True)
+    with open(pickle_path, 'wb') as f:
+        pickle.dump(module, f, pickle.HIGHEST_PROTOCOL)
+    return pickle_path
+
+
+def unpickle_module(path_info, loading_version, represented_version):
+    """
+    Try to load a module from its pickle file.
+
+    :param path_info: PathInfo object for the module
+    :param loading_version: the version at which you are trying to load the
+        module
+    :param represented_version: indicates the build directory in which the
+        right pickle file would be found
+    :return: PfscModule, or None if pickle file doesn't exist or is malformed
+    """
+    module = None
+    pickle_path = pathlib.Path(path_info.get_pickle_path(version=represented_version))
+    if pickle_path.exists():
+        with open(pickle_path, 'rb') as f:
+            try:
+                module = pickle.load(f)
+            except Exception as e:
+                # TODO: log the exception
+                pass
+            else:
+                module.loading_version = loading_version
+    return module
+
+
 def load_module(
         path_spec, version=pfsc.constants.WIP_TAG,
         represented_version=None, text=None,
@@ -1362,6 +1408,7 @@ def load_module(
     # Grab the modpath.
     modpath = path_info.libpath
     repopath = get_repo_part(modpath)
+    verspath = f'{modpath}@{version}'
     if version == pfsc.constants.WIP_TAG:
         if inherit_release_build_signal() != repopath and not have_repo_permission(
             ActionType.READ, repopath, pfsc.constants.WIP_TAG
@@ -1378,28 +1425,35 @@ def load_module(
             raise PfscExcep(msg, PECode.MODULE_HAS_NO_CONTENTS)
     if cache is None:
         cache = {}
-    # Now let's decide whether we're going to _reload_ the module (i.e. _not_ use the cache).
-    # To begin with, if any of the following three conditions obtains, then yes we want to reload:
-    #   (1) text given, (2) cache policy "never", or (3) cache miss.
-    # So we begin by checking these.
+    # Now we decide whether to *reload* the module (i.e. *not* use the cache).
+    # First consider whether we *want* to use the cache.
     text_given = (text is not None)
     never_use_cache = (caching == CachePolicy.NEVER)
-    verspath = f'{modpath}@{version}'
-    cache_miss = (verspath not in cache)
-    if text_given or never_use_cache or cache_miss:
+    if text_given or never_use_cache:
         should_reload = True
     else:
-        # In this case, the text was not given, and it's a cache hit, and the cache policy is
-        # either "always" or the time-based policy.
-        # If it's the "always" policy, then we do want to use the cache, i.e. do _not_ want to reload.
-        if caching == CachePolicy.ALWAYS:
+        # In this case, we *want* to use the cache, provided it is both
+        # *possible* (module is available) and *appropriate* (i.e. time stamps
+        # check out, if using time-based policy).
+        # The cache essentially has two layers: in-memory, and on-disk (i.e.
+        # pickle files). Check the first layer:
+        cache_miss = (verspath not in cache)
+        if cache_miss:
+            # Check the second layer:
+            module = unpickle_module(path_info, version, represented_version or version)
+            if module:
+                cache[verspath] = module
+                cache_miss = False
+        if cache_miss:
+            should_reload = True
+        elif caching == CachePolicy.ALWAYS:
             should_reload = False
-        # Or, if we want a numbered release version, then there's no question of it having
-        # changed since last load. Numbered releases, by definition, do not change!
+        # Otherwise, the module is in the cache, and we're using time-based policy.
+        # If we want a numbered release version, then there's no question of it having
+        # changed since last load, since numbered releases, by definition, do not change!
         elif version != pfsc.constants.WIP_TAG:
             should_reload = False
         else:
-            # In this case, it should be the time-based cache policy.
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
             t_r = cache[verspath].read_time
@@ -1469,9 +1523,11 @@ def load_module(
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
         assert to_forget == modpath
-        # If the module text has a timestamp, then save the module in the cache.
+        # If the module text has a timestamp, then save the module in the cache
+        # and pickle it.
         if ts_text.read_time is not None:
             cache[verspath] = module
+            pickle_module(module, path_info)
         # Finally, we can return the module.
         return module
     else:
