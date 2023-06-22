@@ -233,11 +233,12 @@ class PathInfo:
 
     def get_build_dir_and_filename(self, version=pfsc.constants.WIP_TAG):
         """
-        If this libpath represents a module, compute the build output dir for that module.
+        Get the directory to which this module's source code should be saved
+        when building, and the filename to use.
 
         :param version: which version we are building.
-        :return: The absolute filesystem path to the build dir for this module, or None if
-          this does not appear to be a module.
+        :return: Pair (build_dir, filename) giving the absolute filesystem path
+            to the build dir for this module, and the filename to use.
         """
         parts = self.libpath.split('.')
         build_root = check_config("PFSC_BUILD_ROOT")
