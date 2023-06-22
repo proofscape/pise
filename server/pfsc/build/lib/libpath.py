@@ -246,6 +246,17 @@ class PathInfo:
         filename = '__.src'
         return os.path.join(*fs_dir_parts), filename
 
+    def get_pickle_path(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the path for this module's pickle file.
+
+        :param version: which version we are building.
+        :return: The absolute filesystem path to the pickle file for this
+            module.
+        """
+        build_dir, _ = self.get_build_dir_and_filename(version=version)
+        return os.path.join(build_dir, 'module.pickle')
+
     def name_is_available(self, proposed_name):
         """
         If this path points to a directory, say whether a certain name is still available
