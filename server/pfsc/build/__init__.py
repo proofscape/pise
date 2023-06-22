@@ -650,14 +650,18 @@ class Builder:
             for rst_module in pfsc_env.get_modules().values():
                 # .pfsc modules get pickled when constructed by `load_module()`;
                 # .rst modules don't have that chance, so it happens here.
+                # Note: since we are doing our own pickling of .rst modules, we
+                # don't need them to be pickled as a part of the Sphinx environment,
+                # for the sake of restoration on subsequent builds; however, we
+                # *do* need these modules to stay in the Sphinx environment, because
+                # they are still needed during Sphinx's WRITE phase (in particular,
+                # for our handler for the Sphinx 'html-page-context' event).
                 pickle_module(rst_module)
                 # *Could* just pickle, and then `load_module()` would find these
                 # modules that way. But we manually store them in the cache now,
                 # so that they needn't be read from disk in order to get in there.
                 lpv = rst_module.getLibpathV()
                 self.module_cache[lpv] = rst_module
-            # The modules don't need to be pickled as a part of the Sphinx environment.
-            pfsc_env.clear_modules()
 
             self.resolving_phase()
 
