@@ -575,7 +575,7 @@ class Builder:
         """
         modules = list(self.module_cache.values())
         for module in modules:
-            module.resolve()
+            module.resolve(cache=self.module_cache)
 
         while self.scan_jobs:
             module, manifest_node = self.scan_jobs.popleft()

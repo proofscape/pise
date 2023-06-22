@@ -92,7 +92,7 @@ class PfscModule(PfscObj):
     def add_pending_import(self, pi):
         self.pending_imports.append(pi)
 
-    def resolve(self):
+    def resolve(self, cache=None):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
@@ -100,9 +100,12 @@ class PfscModule(PfscObj):
         if not self.resolved and not self.resolving:
             self.resolving = True
 
+            if cache is None:
+                cache = {}
+
             while self.pending_imports:
                 pi = self.pending_imports.popleft()
-                pi.resolve()
+                pi.resolve(cache=cache)
 
             self.resolve_libpaths_to_rhses()
 
@@ -838,7 +841,7 @@ class PendingImport:
     PLAIN_IMPORT_FORMAT = 0
     FROM_IMPORT_FORMAT = 1
 
-    def __init__(self, home_module, format, cache,
+    def __init__(self, home_module, format,
                  src_modpath, object_names=None, local_path=None):
         """
         :param home_module: the PfscModule where the import happened
@@ -854,7 +857,6 @@ class PendingImport:
         """
         self.home_module = home_module
         self.format = format
-        self.module_cache = cache
         self.src_modpath = src_modpath
         self.object_names = object_names
         self.local_path = local_path
@@ -869,20 +871,24 @@ class PendingImport:
         extra_msg = f' Required for import in module `{self.homepath}`.'
         return self.home_module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
 
-    def resolve(self):
+    def resolve(self, cache=None):
         """
         Resolve this import, and store the result in the "home module," i.e.
         the module where this import statement occurred.
         """
+        if cache is None:
+            cache = {}
         if self.format == self.PLAIN_IMPORT_FORMAT:
-            self.resolve_plainimport()
+            self.resolve_plainimport(cache=cache)
         elif self.format == self.FROM_IMPORT_FORMAT:
-            self.resolve_fromimport()
+            self.resolve_fromimport(cache=cache)
 
-    def resolve_plainimport(self):
+    def resolve_plainimport(self, cache=None):
         """
         Carry out (delayed) resolution of a PLAIN-IMPORT.
         """
+        if cache is None:
+            cache = {}
         modpath = self.src_modpath
         if modpath == self.homepath:
             msg = 'Module %s is attempting to import itself.' % self.homepath
@@ -894,16 +900,18 @@ class PendingImport:
         # reading.
         module = load_module(
             modpath, version=version, fail_gracefully=False,
-            caching=CachePolicy.ALWAYS, cache=self.module_cache
+            caching=CachePolicy.ALWAYS, cache=cache
         )
         # Depth-first resolution:
-        module.resolve()
+        module.resolve(cache=cache)
         self.home_module[self.local_path] = module
 
-    def resolve_fromimport(self):
+    def resolve_fromimport(self, cache=None):
         """
         Carry out (delayed) resolution of a FROM-IMPORT.
         """
+        if cache is None:
+            cache = {}
         modpath = self.src_modpath
         version = self.get_desired_version_for_target(modpath)
 
@@ -929,11 +937,11 @@ class PendingImport:
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
             src_module = load_module(
                 modpath, version=version, fail_gracefully=True,
-                caching=CachePolicy.ALWAYS, cache=self.module_cache
+                caching=CachePolicy.ALWAYS, cache=cache
             )
             if src_module:
                 # Depth-first resolution:
-                src_module.resolve()
+                src_module.resolve(cache=cache)
 
         object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
@@ -978,11 +986,11 @@ class PendingImport:
                 if obj is None:
                     obj = load_module(
                         full_object_path, version=version, fail_gracefully=True,
-                        caching=CachePolicy.ALWAYS, cache=self.module_cache
+                        caching=CachePolicy.ALWAYS, cache=cache
                     )
                     if obj:
                         # Depth-first resolution:
-                        obj.resolve()
+                        obj.resolve(cache=cache)
                 # If that failed too, it's an error.
                 if obj is None:
                     msg = 'Could not import %s from %s' % (object_name, modpath)
@@ -995,7 +1003,7 @@ class PendingImport:
 class ModuleLoader(PfscJsonTransformer):
 
     def __init__(
-            self, modpath, bc, cache,
+            self, modpath, bc,
             version=pfsc.constants.WIP_TAG, existing_module=None,
             history=None, caching=CachePolicy.TIME,
             dependencies=None, read_time=None, do_imports=True
@@ -1003,7 +1011,6 @@ class ModuleLoader(PfscJsonTransformer):
         """
         :param modpath: The libpath of this module
         :param bc: The BlockChunker that performed the first chunking pass on this module's text
-        :param cache: the module cache
         :param version: The version being loaded
         :param existing_module: optional existing `PfscModule` instance to be extended
         :param history: a list of libpaths we have already imported; helps detect cyclic import errors
@@ -1018,7 +1025,6 @@ class ModuleLoader(PfscJsonTransformer):
         # to store the PfscModule object we are building.
         self.modpath = modpath
         self.version = version
-        self.module_cache = cache
         self._module = existing_module or PfscModule(
             modpath, loading_version=version, given_dependencies=dependencies,
             read_time=read_time
@@ -1049,7 +1055,7 @@ class ModuleLoader(PfscJsonTransformer):
             object_names = items[1]
             requested_local_name = items[2] if len(items) == 3 else None
             pi = PendingImport(
-                self._module, PendingImport.FROM_IMPORT_FORMAT, self.module_cache,
+                self._module, PendingImport.FROM_IMPORT_FORMAT,
                 src_modpath, object_names=object_names, local_path=requested_local_name
             )
             self._module.add_pending_import(pi)
@@ -1070,7 +1076,7 @@ class ModuleLoader(PfscJsonTransformer):
                 # In this case an "as" clause is optional.
                 local_path = items[1] if len(items) == 2 else src_modpath
             pi = PendingImport(
-                self._module, PendingImport.PLAIN_IMPORT_FORMAT, self.module_cache,
+                self._module, PendingImport.PLAIN_IMPORT_FORMAT,
                 src_modpath, local_path=local_path
             )
             self._module.add_pending_import(pi)
@@ -1515,7 +1521,7 @@ def load_module(
         # Construct a PfscModule.
         module = build_module_from_text(
             ts_text.text, modpath, version=version, history=history,
-            caching=caching, cache=cache, read_time=ts_text.read_time
+            caching=caching, read_time=ts_text.read_time
         )
         if represented_version is not None:
             module.setRepresentedVersion(represented_version)
@@ -1539,7 +1545,7 @@ def load_module(
 def build_module_from_text(
         text, modpath,
         version=pfsc.constants.WIP_TAG, existing_module=None,
-        history=None, caching=CachePolicy.TIME, cache=None,
+        history=None, caching=CachePolicy.TIME,
         dependencies=None, read_time=None,
 ):
     """
@@ -1551,16 +1557,13 @@ def build_module_from_text(
     :param history: (list) optional history of modules built; useful for
       detecting cyclic import errors
     :param caching: the desired CachePolicy
-    :param cache: the module cache
     :param dependencies: optionally pass a dict mapping repopaths to required versions.
     :param read_time: Unix time stamp for when the file was read from disk
     :return: the PfscModule instance constructed
     """
     tree, bc = parse_module_text(text)
-    if cache is None:
-        cache = {}
     loader = ModuleLoader(
-        modpath, bc, cache,
+        modpath, bc,
         version=version, existing_module=existing_module,
         history=history, caching=caching, dependencies=dependencies,
         read_time=read_time
