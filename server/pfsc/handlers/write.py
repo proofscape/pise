@@ -109,6 +109,7 @@ class WidgetDataWriter(AutoWriter):
         # Load the module
         pi = PathInfo(modpath)
         module = load_module(pi, fail_gracefully=False)
+        # No need to call module.resolve(); just updating text.
         # Rewrite the text of the module, after substituting the given widget data.
         bc = module.getBlockChunker()
         text = bc.write_module_text(widget_data)

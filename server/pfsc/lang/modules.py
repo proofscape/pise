@@ -189,6 +189,8 @@ class PfscModule(PfscObj):
                     self.repopath, version=self.loading_version, fail_gracefully=True, history=[]
                 )
                 if root_module:
+                    # No need to call root_module.resolve(), since we are only interested in
+                    # an assignment made in this module (which needs no resolution).
                     deps = root_module.getAsgnValue(pfsc.constants.DEPENDENCIES_LHS, default={})
 
             checked_deps = {}

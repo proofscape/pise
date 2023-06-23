@@ -718,6 +718,8 @@ class Builder:
             self.repo_info.libpath, version=pfsc.constants.WIP_TAG,
             fail_gracefully=False, caching=self.caching, cache=self.module_cache
         )
+        # No need to call module.resolve(), since we are only interested in
+        # a couple of assignments made in this module (which need no resolution).
         # Change log
         cl = module.getAsgnValue(pfsc.constants.CHANGE_LOG_LHS)
         if is_release and not is_major_zero:

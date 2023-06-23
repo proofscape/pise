@@ -605,6 +605,8 @@ class ModuleLoad_GoalDataLoader(GoalDataLoader):
 
     def load_goal_data(self):
         module = load_module(self.modpath, version=self.version.full)
+        # Q: Do we need to call `module.resolve()`? Don't see any obvious need
+        # for it, at the moment. Could review again in future.
         if self.type_ in [IndexType.ANNO, IndexType.DEDUC]:
             item_name = self.libpath[len(self.modpath) + 1:]
             item = module.get(item_name)
