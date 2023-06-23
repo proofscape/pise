@@ -18,8 +18,13 @@ import pytest
 
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.repo import RepoInfo, get_repo_info
-from pfsc.lang.modules import load_module, PathInfo, strip_comments
+from pfsc.lang.modules import (
+    load_module, PathInfo, strip_comments, remove_modules_from_disk_cache
+)
 from pfsc.lang.annotations import json_parser, PfscJsonTransformer
+from pfsc.lang.widgets import ChartWidget
+from pfsc.sphinx.sphinx_proofscape.pages import SphinxPage
+from pfsc.constants import WIP_TAG
 
 
 error = [
@@ -142,6 +147,33 @@ def test_isolated_import_error(app, vers_num, err_code):
         print('\n', vers)
         print(ei.value)
         assert ei.value.code() == err_code
+
+
+@pytest.mark.psm
+def test_import_unbuilt_external_rst_module_at_wip(app):
+    """
+    Test that we can import from an rst module defined in another repo,
+    at WIP version, which has not been built yet (or anyway, which has no
+    pickle file).
+
+    What's special about this case is that it prompts a call to
+    `Builder.build()` from within the `load_module()` function.
+    """
+    with app.app_context():
+        # Purge pickle file, ensuring that the module has to be rebuilt.
+        remove_modules_from_disk_cache(['test.spx.doc0.index'], version=WIP_TAG)
+
+        ri = get_repo_info('test.foo.imp')
+        ri.checkout('v11')
+        mod = load_module('test.foo.imp.A.B', caching=0)
+        mod.resolve()
+
+        assert mod
+        ix = mod.get('doc0_index')
+        assert isinstance(ix, SphinxPage)
+        w0 = ix.get('w0')
+        assert isinstance(w0, ChartWidget)
+
 
 @pytest.mark.psm
 def test_import_submodule_through_self(app):

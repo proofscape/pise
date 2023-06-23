@@ -11,7 +11,7 @@ Welcome to Foobar's documentation!
    from test.moo.bar.results import Pf
 
 
-Let's try :pfsc-chart:`an inline chart widget <Pf>`.
+Let's try :pfsc-chart:`w0: an inline chart widget <Pf>`.
 
 .. toctree::
    :maxdepth: 2

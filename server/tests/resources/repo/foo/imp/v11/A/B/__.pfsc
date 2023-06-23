@@ -1,0 +1,7 @@
+# Import from an external rst module, @WIP
+
+from test.spx.doc0.index import _page as doc0_index
+
+anno b @@@
+b
+@@@

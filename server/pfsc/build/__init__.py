@@ -522,10 +522,13 @@ class Builder:
         self.write_all()
         self.monitor.declare_complete()
 
-    def build(self, force=False):
+    def build(self, force=False, force_reread_rst_paths=None):
         """
         Here is where we do the actual building operations.
         :param force: Must set True if you want to build again, after already building once.
+        :param force_reread_rst_paths: optional list of filesystem paths to rst files
+            which you want Sphinx to re-read (even if they have not been modified
+            since last build)
         :return: nothing
         """
         # Build only if have not yet built, or if forcing.
@@ -542,7 +545,7 @@ class Builder:
                 # If you want a Sphinx build to take place, you have to have an `index.rst` file
                 # in the repo root dir.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc(do_clean=self.clean_sphinx)
+                    self.build_sphinx_doc(do_clean=self.clean_sphinx, force_reread_rst_paths=force_reread_rst_paths)
                 else:
                     self.reading_phase()
                     self.resolving_phase()
@@ -589,13 +592,17 @@ class Builder:
         self.manifest.set_build_info(self.module_path, self.version, self.repo_info.git_hash, self.timestamp, self.recursive)
         self.merge_manifests()
 
-    def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None):
+    def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None,
+                         force_reread_rst_paths=None):
         """
-        do_clean: Set True to do a `make clean` before building
-        force_all: write all files, instead of just for new or changed source
+        :param do_clean: Set True to do a `make clean` before building
+        :param force_all: write all files, instead of just for new or changed source
             files. Same as `-a` siwtch to commandline Sphinx.
-        filenames: try to build only these output files. Same as passing filenames
+        :param filenames: try to build only these output files. Same as passing filenames
             to commandline Sphinx.
+        :param force_reread_rst_paths: optional list of filesystem paths to rst files
+            which you want Sphinx to re-read (even if they have not been modified
+            since last build)
 
         See:
             https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-a
@@ -637,6 +644,14 @@ class Builder:
         logger = logging.getLogger('sphinx.sphinx.util')
         logger.addHandler(handler)
 
+        force_reread_rst_paths = force_reread_rst_paths or []
+
+        def force_reread(app, env, docnames):
+            for path in force_reread_rst_paths:
+                docname = env.path2doc(path)
+                if docname not in docnames:
+                    docnames.append(docname)
+
         def env_updated_handler(app, env):
             """
             This handler is called when Sphinx has finished its READING phase,
@@ -670,6 +685,8 @@ class Builder:
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              'html', confoverrides=confoverrides)
                 app.connect('env-updated', env_updated_handler)
+                if force_reread_rst_paths:
+                    app.connect('env-before-read-docs', force_reread)
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             traceback.print_exc()

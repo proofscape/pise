@@ -89,12 +89,12 @@ expected_widget_data_spx_doc0 = json.loads("""
     "libpath": "test.spx.doc0.index._page",
     "version": "v0.1.0",
     "widgets": {
-        "test-spx-doc0-index-_page-_w0_v0-1-0": {
+        "test-spx-doc0-index-_page-w0_v0-1-0": {
             "view": "test.moo.bar.results.Pf",
             "type": "CHART",
             "src_line": 14,
-            "widget_libpath": "test.spx.doc0.index._page._w0",
-            "uid": "test-spx-doc0-index-_page-_w0_v0-1-0",
+            "widget_libpath": "test.spx.doc0.index._page.w0",
+            "uid": "test-spx-doc0-index-_page-w0_v0-1-0",
             "pane_group": "test.spx.doc0@v0_1_0.index._page:CHART:",
             "versions": {
                 "test.moo.bar": "v1.0.0"

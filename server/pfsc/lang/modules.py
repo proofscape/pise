@@ -1501,54 +1501,63 @@ def load_module(
             raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
         # Otherwise, add this modpath to the history.
         history.append(modpath)
-        # We need an instance of TimestampedText.
-        if text_given:
-            # Text was given.
-            if not isinstance(text, TimestampedText):
-                # If text was provided but is not already an instance of TimestampedText, then it must be a string.
-                assert isinstance(text, str)
-                # We set `None` as timestamp, to ensure the module will not be cached.
-                ts_text = TimestampedText(None, text)
-            else:
-                ts_text = text
+
+        is_rst = path_info.is_rst_file()
+        if version != pfsc.constants.WIP_TAG and (is_rst or not text_given):
+            # If it's not a WIP module, and we need to load from disk, then
+            # we need the desired version to have already been built and indexed.
+            if not get_graph_reader().version_is_already_indexed(repopath, version):
+                msg = f'Trying to load `{modpath}` at release `{version}`'
+                msg += ', but that version has not been built yet on this server.'
+                e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
+                e.extra_data({
+                    'repopath': repopath,
+                    'version': version,
+                    'modpath': modpath,
+                })
+                raise e
+
+        if is_rst:
+            from pfsc.build import Builder
+            b = Builder(repopath, version=pfsc.constants.WIP_TAG, recursive=True)
+            b.build(force_reread_rst_paths=[path_info.abs_fs_path_to_file])
+            module = b.module_cache[verspath]
         else:
-            # Text was not given, so we need to read it from disk.
-            if version != pfsc.constants.WIP_TAG:
-                # If it's not a WIP module, we need the desired version to have
-                # already been built and indexed. Check that now.
-                if not get_graph_reader().version_is_already_indexed(repopath, version):
-                    msg = f'Trying to load `{modpath}` at release `{version}`'
-                    msg += ', but that version has not been built yet on this server.'
-                    e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
-                    e.extra_data({
-                        'repopath': repopath,
-                        'version': version,
-                        'modpath': modpath,
-                    })
-                    raise e
-            # To be on the safe side, make timestamp just _before_ performing the read operation.
-            # (This is "safe" in the sense that the read operation looks older, so we will be more
-            # likely to reload in the future, i.e. to catch updates.)
-            read_time = make_timestamp_for_module()
-            try:
-                module_contents = path_info.read_module(version=version)
-            except FileNotFoundError:
-                return fail(force_excep=(version!=pfsc.constants.WIP_TAG))
-            ts_text = TimestampedText(read_time, module_contents)
-        # Construct a PfscModule.
-        module = build_module_from_text(
-            ts_text.text, modpath, version=version, history=history,
-            caching=caching, read_time=ts_text.read_time
-        )
+            # We need an instance of TimestampedText.
+            if text_given:
+                # Text was given.
+                if not isinstance(text, TimestampedText):
+                    # If text was provided but is not already an instance of TimestampedText, then it must be a string.
+                    assert isinstance(text, str)
+                    # We set `None` as timestamp, to ensure the module will not be cached.
+                    ts_text = TimestampedText(None, text)
+                else:
+                    ts_text = text
+            else:
+                # To be on the safe side, make timestamp just _before_ performing the read operation.
+                # (This is "safe" in the sense that the read operation looks older, so we will be more
+                # likely to reload in the future, i.e. to catch updates.)
+                read_time = make_timestamp_for_module()
+                try:
+                    module_contents = path_info.read_module(version=version)
+                except FileNotFoundError:
+                    return fail(force_excep=(version!=pfsc.constants.WIP_TAG))
+                ts_text = TimestampedText(read_time, module_contents)
+            # Construct a PfscModule.
+            module = build_module_from_text(
+                ts_text.text, modpath, version=version, history=history,
+                caching=caching, read_time=ts_text.read_time
+            )
+
         if represented_version is not None:
             module.setRepresentedVersion(represented_version)
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
         assert to_forget == modpath
-        # If the module text has a timestamp, then save the module in the cache
+        # If the module has a timestamp, then save the module in the cache
         # and pickle it.
-        if ts_text.read_time is not None:
+        if module.read_time is not None:
             cache[verspath] = module
             pickle_module(module, path_info)
         # Finally, we can return the module.
