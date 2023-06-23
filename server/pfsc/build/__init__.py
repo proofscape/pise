@@ -706,7 +706,7 @@ class Builder:
         is_major_zero = self.mii.is_major_zero()
         repopath = self.repo_info.libpath
         pi = PathInfo(repopath)
-        module_has_contents = pi.get_pfsc_fs_path() is not None
+        module_has_contents = pi.get_src_fs_path() is not None
         if not module_has_contents:
             # If it's a release build for a major version increment, there must be a
             # repo root module (so that it can declare a change log).

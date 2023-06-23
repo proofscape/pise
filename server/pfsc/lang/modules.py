@@ -1474,7 +1474,7 @@ def load_module(
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
             t_r = unpickled_module.read_time
-            t_m = path_info.pfsc_file_modification_time
+            t_m = path_info.src_file_modification_time
             if t_m is None:
                 return fail()
             # We should reload the module if it has been modified since it was last read.

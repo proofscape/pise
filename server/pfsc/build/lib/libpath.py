@@ -61,9 +61,9 @@ def libpathToAbsFSPath(libpath):
     :return: the corresponding absolute filesystem path
 
     NB: This is a purely syntactic operation, not semantic. It is up to
-    you to decide if '.pfsc' or '/__.pfsc' needs to be tacked onto
+    you to decide if '.pfsc', '.rst', or '/__.pfsc' needs to be tacked onto
     the end. If you need help with this, you should probably be using
-    the `PathInfo` class. See in particular `PathInfo.get_pfsc_fs_path()`.
+    the `PathInfo` class. See in particular `PathInfo.get_src_fs_path()`.
     """
     parts = libpath.split('.')
     lib_root = check_config("PFSC_LIB_ROOT")
@@ -82,8 +82,10 @@ def absFSPathToLibpath(abs_fs_path):
     path = os.path.relpath(abs_fs_path, lib_root)
     if path[-5:] == '.pfsc':
         path = path[:-5]
-    if path[-2:] == "__":
-        path = path[:-3]
+        if path[-2:] == "__":
+            path = path[:-3]
+    elif path[-4:] == '.rst':
+        path = path[:-4]
     libpath = path.replace(os.sep, '.')
     return libpath
 
@@ -164,7 +166,7 @@ class PathInfo:
 
         # Before populating our info fields, we define them all here:
 
-        # Does the path refer to an existing .pfsc file?
+        # Does the path refer to an existing file?
         self.is_file = None
         # If so, record the absolute filesystem path to the file.
         self.abs_fs_path_to_file = None
@@ -177,9 +179,9 @@ class PathInfo:
         self.dir_has_default_module = None
         # If we do have a default module, record the abs fs path to it.
         self.abs_fs_path_to_default_module = None
-        # If the path refers to a .pfsc file, or to a dir that has a __.pfsc file,
+        # If the path refers to a file, or to a dir that has a __.pfsc file,
         # record the modification time of that file, as a Unix timestamp.
-        self.pfsc_file_modification_time = None
+        self.src_file_modification_time = None
 
         # Now check the given path, populating the info fields.
         self.check_libpath()
@@ -189,11 +191,15 @@ class PathInfo:
         Check the given libpath, populating all info fields to describe what we learn.
         """
         fs_path = libpathToAbsFSPath(self.libpath)
-        # Is there a pfsc module under this name?
-        modpath = fs_path + '.pfsc'
-        self.is_file = os.path.exists(modpath)
-        if self.is_file:
-            self.abs_fs_path_to_file = modpath
+
+        # Is there a .pfsc or .rst file under this name?
+        for ext in ['.pfsc', '.rst']:
+            modpath = fs_path + ext
+            self.is_file = os.path.exists(modpath)
+            if self.is_file:
+                self.abs_fs_path_to_file = modpath
+                break
+
         # Does the path name a directory?
         self.is_dir = os.path.isdir(fs_path)
         # If so, is there a default module within the directory?
@@ -203,10 +209,11 @@ class PathInfo:
             self.dir_has_default_module  = os.path.exists(default_modpath)
             if self.dir_has_default_module:
                 self.abs_fs_path_to_default_module = default_modpath
-        # If there is a pfsc file, get its modification time.
-        pfsc_fs_path = self.get_pfsc_fs_path()
-        if pfsc_fs_path is not None:
-            self.pfsc_file_modification_time = os.stat(pfsc_fs_path).st_mtime
+
+        # If there is a module file, get its modification time.
+        src_fs_path = self.get_src_fs_path()
+        if src_fs_path is not None:
+            self.src_file_modification_time = os.stat(src_fs_path).st_mtime
 
     def get_formal_parent_path(self):
         """
@@ -257,13 +264,20 @@ class PathInfo:
         build_dir, _ = self.get_build_dir_and_filename(version=version)
         return os.path.join(build_dir, 'module.pickle')
 
+    def is_rst_file(self):
+        """
+        Say whether the file representing this module is an `.rst` file.
+        """
+        p = self.abs_fs_path_to_file
+        return p and p.endswith('.rst')
+
     def name_is_available(self, proposed_name):
         """
         If this path points to a directory, say whether a certain name is still available
-        for a .pfsc file within this directory.
+        for a file within this directory.
 
         :param proposed_name: The name whose availability is to be checked.
-          _Must not_ include the `.pfsc` file extension.
+          _Must not_ include the `.pfsc` or `.rst` file extension.
         :return: boolean
         :raises: PfscExcep if this path does not point to a directory.
         """
@@ -274,8 +288,11 @@ class PathInfo:
         with os.scandir(self.abs_fs_path_to_dir) as it:
             for entry in it:
                 name = entry.name
-                if entry.is_file() and name.endswith('.pfsc'):
-                    existing_names.append(name[:-5])
+                if entry.is_file():
+                    if name.endswith('.pfsc'):
+                        existing_names.append(name[:-5])
+                    elif name.endswith('.rst'):
+                        existing_names.append(name[:-4])
                 # For dirs, definitely want to skip `.git`. We'll skip all hidden dirs.
                 elif entry.is_dir() and not name.startswith('.'):
                     if '__.pfsc' in os.listdir(entry.path):
@@ -283,9 +300,9 @@ class PathInfo:
         available = proposed_name not in existing_names
         return available
 
-    def get_pfsc_fs_path(self):
+    def get_src_fs_path(self):
         """
-        :return: If this libpath points to a .pfsc file, return the absolute filesystem
+        :return: If this libpath points to a file, return the absolute filesystem
                  path to that file. Otherwise return None.
         """
         if self.is_dir and self.dir_has_default_module:
@@ -321,15 +338,15 @@ class PathInfo:
 
     def write_module(self, text, appendTilde=False):
         """
-        Write the given text to disk under the .pfsc for this module, if any.
+        Write the given text to disk in the file for this module, if any.
         :param text: The fulltext of the module to be written.
         :param appendTilde: If True, append a tilde "~" to the end of the filename.
         :return: number of bytes written
-        :raises: PfscExcep if no such .pfsc file exists
+        :raises: PfscExcep if no such file exists
         """
-        fs_path = self.get_pfsc_fs_path()
+        fs_path = self.get_src_fs_path()
         if fs_path is None:
-            msg = 'Libpath %s does not point to a .pfsc file.' % self.libpath
+            msg = 'Libpath %s does not point to a file.' % self.libpath
             raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
         if appendTilde:
             fs_path += "~"
@@ -349,7 +366,7 @@ class PathInfo:
         :raises: FileNotFoundError if there is no file for the desired version.
         """
         if version == pfsc.constants.WIP_TAG:
-            fs_path = self.get_pfsc_fs_path()
+            fs_path = self.get_src_fs_path()
             if fs_path is None:
                 raise FileNotFoundError
         elif building_in_gdb():
@@ -457,7 +474,7 @@ def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_la
     :return: Git-style "merge conflict" text (string) combining the two versions.
     """
     pi = PathInfo(modpath)
-    fs_path = pi.get_pfsc_fs_path()
+    fs_path = pi.get_src_fs_path()
     if fs_path is None:
         msg = f'Module {modpath} does not exist.'
         raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)

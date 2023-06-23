@@ -72,7 +72,7 @@ def shadow_save_and_commit(true_path_info, fulltext):
     else:
         shadow_repo = Repository(shadow_repo_path)
 
-    mod_fs_path = true_path_info.get_pfsc_fs_path()
+    mod_fs_path = true_path_info.get_src_fs_path()
     if mod_fs_path is None:
         msg = 'Module must have a true filesystem path to be shadow saved.'
         raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
