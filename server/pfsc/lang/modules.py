@@ -894,13 +894,9 @@ class PendingImport:
             msg = 'Module %s is attempting to import itself.' % self.homepath
             raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
         version = self.get_desired_version_for_target(modpath)
-        # Pending imports are resolved in the RESOLVE phase, which doesn't begin
-        # until after the READ phase has completed. Therefore, we use cache
-        # policy ALWAYS, ensuring that we get the versions we just finished
-        # reading.
         module = load_module(
             modpath, version=version, fail_gracefully=False,
-            caching=CachePolicy.ALWAYS, cache=cache
+            caching=CachePolicy.TIME, cache=cache
         )
         # Depth-first resolution:
         module.resolve(cache=cache)
@@ -937,7 +933,7 @@ class PendingImport:
             # We can now attempt to build it, in case it points to a module (receiving None if it does not).
             src_module = load_module(
                 modpath, version=version, fail_gracefully=True,
-                caching=CachePolicy.ALWAYS, cache=cache
+                caching=CachePolicy.TIME, cache=cache
             )
             if src_module:
                 # Depth-first resolution:
@@ -986,7 +982,7 @@ class PendingImport:
                 if obj is None:
                     obj = load_module(
                         full_object_path, version=version, fail_gracefully=True,
-                        caching=CachePolicy.ALWAYS, cache=cache
+                        caching=CachePolicy.TIME, cache=cache
                     )
                     if obj:
                         # Depth-first resolution:
@@ -1396,9 +1392,10 @@ def load_module(
     @param history: This is used for detecting cyclic import errors. Generally, you don't have to use this
                     yourself; it is already used appropriately by the system.
 
-    @param caching: Here is where you can set the cache policy. See `CachePolicy` enum class.
+    @param caching: Cache policy controlling how we use the on-disk cache (i.e. pickle files).
+        See `CachePolicy` enum class. Note that we always use the in-mem cache, when it's a hit.
 
-    @param cache: The cache itself, where the modules are stored.
+    @param cache: The in-mem module cache.
 
     @return: If successful, the loaded PfscModule instance is returned. If unsuccessful, then behavior depends
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
@@ -1433,29 +1430,32 @@ def load_module(
     if cache is None:
         cache = {}
     # Now we decide whether to *reload* the module (i.e. *not* use the cache).
-    # First consider whether we *want* to use the cache.
     text_given = (text is not None)
-    never_use_cache = (caching == CachePolicy.NEVER)
-    if text_given or never_use_cache:
+    mem_cache_hit = (verspath in cache)
+    never_use_disk_cache = (caching == CachePolicy.NEVER)
+    if text_given:
+        # If module text was passed, this is always to be used to construct
+        # the module.
+        should_reload = True
+    elif mem_cache_hit:
+        # The cache policy only controls how we use the on-disk cache (i.e.
+        # pickle files). If we have a cache hit in the in-mem cache, we always
+        # use it.
+        should_reload = False
+    elif never_use_disk_cache:
+        # At this point, it's at best an on-disk cache hit. If we're told not
+        # to use that, then we should reload.
         should_reload = True
     else:
-        # In this case, we *want* to use the cache, provided it is both
+        # In this case, we *want* to use the on-disk cache, provided it is both
         # *possible* (module is available) and *appropriate* (i.e. time stamps
         # check out, if using time-based policy).
-        # The cache essentially has two layers: in-memory, and on-disk (i.e.
-        # pickle files). Check the first layer:
-        cache_miss = (verspath not in cache)
-        if cache_miss:
-            # Check the second layer:
-            module = unpickle_module(path_info, version, represented_version or version)
-            if module:
-                cache[verspath] = module
-                cache_miss = False
-        if cache_miss:
+        unpickled_module = unpickle_module(path_info, version, represented_version or version)
+        if not unpickled_module:
             should_reload = True
         elif caching == CachePolicy.ALWAYS:
             should_reload = False
-        # Otherwise, the module is in the cache, and we're using time-based policy.
+        # Otherwise, the module was found in the on-disk cache, and we're using time-based policy.
         # If we want a numbered release version, then there's no question of it having
         # changed since last load, since numbered releases, by definition, do not change!
         elif version != pfsc.constants.WIP_TAG:
@@ -1463,7 +1463,7 @@ def load_module(
         else:
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
-            t_r = cache[verspath].read_time
+            t_r = unpickled_module.read_time
             t_m = path_info.pfsc_file_modification_time
             if t_m is None: return fail()
             # We should reload the module if it has been modified since it was last read.
@@ -1473,6 +1473,10 @@ def load_module(
             # modification time. To prevent this, we give the modification time a "boost"
             # by adding one to it.
             should_reload = t_m + 1 >= t_r
+        # If it was an on-disk cache hit, and we're going to use it, then elevate
+        # it to the in-mem cache.
+        if unpickled_module and not should_reload:
+            cache[verspath] = unpickled_module
     # Are we reloading?
     if should_reload:
         # Only when we have to reload does history become relevant, so we deal with it now.

@@ -168,7 +168,7 @@ def test_supp_alts_and_flse_contras(app):
         cache = {}
         res = load_module('test.foo.bar.results', cache=cache)
         exp = load_module('test.foo.bar.expansions', cache=cache)
-        exp.resolve()
+        exp.resolve(cache=cache)
         assert res['Pf.F'].get_contras()[0]['en'] == "Suppose not C."
         assert res['Pf.T'].wolog
         assert res['Pf.Case1.S'].get_alternates().pop()['en'] == "The assumption of the second case."
