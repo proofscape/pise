@@ -1401,7 +1401,6 @@ def load_module(
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
              be returned, as a `PfscException` will be raised instead.
     """
-    # Get a PathInfo object.
     if isinstance(path_spec, PathInfo):
         # You already gave us a PathInfo object.
         path_info = path_spec
@@ -1409,10 +1408,11 @@ def load_module(
         assert isinstance(path_spec, str)
         # You gave a libpath. Construct a PathInfo on it.
         path_info = PathInfo(path_spec)
-    # Grab the modpath.
+
     modpath = path_info.libpath
     repopath = get_repo_part(modpath)
     verspath = f'{modpath}@{version}'
+
     if version == pfsc.constants.WIP_TAG:
         if inherit_release_build_signal() != repopath and not have_repo_permission(
             ActionType.READ, repopath, pfsc.constants.WIP_TAG
@@ -1427,8 +1427,10 @@ def load_module(
         else:
             msg = f'Could not find source code for module `{modpath}` at version `{version}`.'
             raise PfscExcep(msg, PECode.MODULE_HAS_NO_CONTENTS)
+
     if cache is None:
         cache = {}
+
     # Now we decide whether to *reload* the module (i.e. *not* use the cache).
     text_given = (text is not None)
     mem_cache_hit = (verspath in cache)
@@ -1465,7 +1467,8 @@ def load_module(
             # We need to compare the modification time to the read time.
             t_r = unpickled_module.read_time
             t_m = path_info.pfsc_file_modification_time
-            if t_m is None: return fail()
+            if t_m is None:
+                return fail()
             # We should reload the module if it has been modified since it was last read.
             # SUBTLETY: The Unix mtime timestamp is truncated to next lowest integer; the
             # read time is not. This can result in cases where, if we built a module and
@@ -1477,11 +1480,12 @@ def load_module(
         # it to the in-mem cache.
         if unpickled_module and not should_reload:
             cache[verspath] = unpickled_module
-    # Are we reloading?
+
     if should_reload:
         # Only when we have to reload does history become relevant, so we deal with it now.
         # If history is None, we actually want an empty list.
-        if history is None: history = []
+        if history is None:
+            history = []
         # If the module we're trying to build is already in the history of imports that have
         # led us to this point, then we raise a cyclic import error.
         if modpath in history:
