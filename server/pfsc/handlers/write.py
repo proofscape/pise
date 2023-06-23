@@ -22,7 +22,7 @@ import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler, SocketHandler, Handler
 from pfsc.build import build_module
-from pfsc.lang.modules import remove_modules_from_cache, load_module
+from pfsc.lang.modules import remove_modules_from_disk_cache, load_module
 from pfsc.checkinput import IType, EntityType
 from pfsc.build.shadow import shadow_save_and_commit
 from pfsc.build.lib.libpath import git_style_merge_conflict_file, PathInfo, get_modpath
@@ -268,13 +268,13 @@ class WriteHandler(RepoTaskHandler):
         # about a trade-off between saving some build time on the one hand, versus the
         # cardinal error of application development (overwriting the user's work) on the other.
         # Not a tough decision.
-        remove_modules_from_cache(writepaths)
+        remove_modules_from_disk_cache(writepaths)
         # Do any autowrites.
         if self.autowriters:
             self.step_autowrite()
             # Again purge from cache, for the same reason. (AutoWriters are required
             # to extend the `writepaths` list with the libpaths of any modules they write.)
-            remove_modules_from_cache(writepaths)
+            remove_modules_from_disk_cache(writepaths)
         if writepaths:
             # Let the client know immediately when the writes are done.
             self.emit('listenable', {

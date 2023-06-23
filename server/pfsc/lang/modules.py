@@ -1279,14 +1279,20 @@ class TimestampedText:
         self.text = text
 
 
-_MODULE_CACHE = {}
+def remove_modules_from_disk_cache(modpaths, version=pfsc.constants.WIP_TAG):
+    """
+    Purge any pickle files that may be present on disk, for the named modules.
 
-
-def remove_modules_from_cache(modpaths, version=pfsc.constants.WIP_TAG):
+    :param modpaths: iterable of module libpaths (strings)
+    :param version: the version at which these module pickle files should be purged
+    """
     for modpath in modpaths:
-        verspath = f'{modpath}@{version}'
-        if verspath in _MODULE_CACHE:
-            del _MODULE_CACHE[verspath]
+        path_info = PathInfo(modpath)
+        pickle_path = pathlib.Path(path_info.get_pickle_path(version=version))
+        if pickle_path.exists():
+            # Double check:
+            if pickle_path.name.endswith('.pickle'):
+                pickle_path.unlink()
 
 
 def inherit_release_build_signal():
