@@ -1332,11 +1332,11 @@ def pickle_module(module, path_info=None):
     return pickle_path
 
 
-def unpickle_module(path_info, loading_version, represented_version):
+def unpickle_module(path_spec, loading_version, represented_version):
     """
     Try to load a module from its pickle file.
 
-    :param path_info: PathInfo object for the module
+    :param path_spec: libpath (str), or PathInfo object for the module
     :param loading_version: the version at which you are trying to load the
         module
     :param represented_version: indicates the build directory in which the
@@ -1344,6 +1344,7 @@ def unpickle_module(path_info, loading_version, represented_version):
     :return: PfscModule, or None if pickle file doesn't exist or is malformed
     """
     module = None
+    path_info = path_spec if isinstance(path_spec, PathInfo) else PathInfo(path_spec)
     pickle_path = pathlib.Path(path_info.get_pickle_path(version=represented_version))
     if pickle_path.exists():
         with open(pickle_path, 'rb') as f:
