@@ -1478,12 +1478,16 @@ def load_module(
             if t_m is None:
                 return fail()
             # We should reload the module if it has been modified since it was last read.
-            # SUBTLETY: The Unix mtime timestamp is truncated to next lowest integer; the
-            # read time is not. This can result in cases where, if we built a module and
-            # then quickly modified and wrote it, the read time can appear to be after the
-            # modification time. To prevent this, we give the modification time a "boost"
-            # by adding one to it.
-            should_reload = t_m + 1 >= t_r
+            if isinstance(t_m, int):
+                # At one time (I think I was using a MacBook Pro, in summer 2019, with up-to-date
+                # OS -- not sure which Python version, probably 3.5 - 3.7?), I seem to have observed
+                # that the Unix mtime timestamps were being truncated to next lowest integer.
+                # At any rate, now (230624, macOS 10.14.6, Python 3.8) they seem to be floats, with
+                # microsecond accuracy. *In case* we get an integer, we give the mod time a +1
+                # boost, to be on the safe side. ("Safe" meaning: err on the side of reloading
+                # the module even if unnecessary.)
+                t_m += 1
+            should_reload = t_m >= t_r
         # If it was an on-disk cache hit, and we're going to use it, then elevate
         # it to the in-mem cache.
         if unpickled_module and not should_reload:
