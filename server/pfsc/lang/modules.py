@@ -1526,7 +1526,10 @@ def load_module(
         if is_rst:
             from pfsc.build import Builder
             b = Builder(repopath, version=pfsc.constants.WIP_TAG, recursive=True)
-            b.build(force_reread_rst_paths=[path_info.abs_fs_path_to_file])
+            b.build(
+                force_reread_rst_paths=[path_info.abs_fs_path_to_file],
+                no_sphinx_write=True
+            )
             module = b.module_cache[verspath]
         else:
             # We need an instance of TimestampedText.

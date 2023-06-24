@@ -528,13 +528,15 @@ class Builder:
         self.write_all()
         self.monitor.declare_complete()
 
-    def build(self, force=False, force_reread_rst_paths=None):
+    def build(self, force=False, force_reread_rst_paths=None, no_sphinx_write=False):
         """
         Here is where we do the actual building operations.
         :param force: Must set True if you want to build again, after already building once.
         :param force_reread_rst_paths: optional list of filesystem paths to rst files
             which you want Sphinx to re-read (even if they have not been modified
             since last build)
+        :param no_sphinx_write: set True if you want Sphinx to read rst files,
+            form, pickle, and resolve doctrees, but not write any output files.
         :return: nothing
         """
         # Build only if have not yet built, or if forcing.
@@ -551,7 +553,11 @@ class Builder:
                 # If you want a Sphinx build to take place, you have to have an `index.rst` file
                 # in the repo root dir.
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc(do_clean=self.clean_sphinx, force_reread_rst_paths=force_reread_rst_paths)
+                    self.build_sphinx_doc(
+                        do_clean=self.clean_sphinx,
+                        force_reread_rst_paths=force_reread_rst_paths,
+                        just_read_no_write=no_sphinx_write
+                    )
                 else:
                     self.read_and_resolve()
 
@@ -602,7 +608,8 @@ class Builder:
         self.merge_manifests()
 
     def build_sphinx_doc(self, do_clean=False, force_all=False, filenames=None,
-                         force_reread_rst_paths=None):
+                         force_reread_rst_paths=None,
+                         just_read_no_write=False):
         """
         :param do_clean: Set True to do a `make clean` before building
         :param force_all: write all files, instead of just for new or changed source
@@ -612,6 +619,8 @@ class Builder:
         :param force_reread_rst_paths: optional list of filesystem paths to rst files
             which you want Sphinx to re-read (even if they have not been modified
             since last build)
+        :param just_read_no_write: set True if you want Sphinx to read rst files,
+            form, pickle, and resolve doctrees, but not write any output files.
 
         See:
             https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-a
@@ -700,10 +709,11 @@ class Builder:
 
             self.read_and_resolve()
 
+        buildername = 'dummy' if just_read_no_write else 'html'
         try:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
-                             'html', confoverrides=confoverrides)
+                             buildername, confoverrides=confoverrides)
                 app.connect('env-before-read-docs', add_rereads)
                 app.connect('env-updated', env_updated_handler)
                 app.build(force_all=force_all, filenames=filenames)
