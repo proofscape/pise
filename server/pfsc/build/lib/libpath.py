@@ -213,7 +213,7 @@ class PathInfo:
         # If there is a module file, get its modification time.
         src_fs_path = self.get_src_fs_path()
         if src_fs_path is not None:
-            self.src_file_modification_time = os.stat(src_fs_path).st_mtime
+            self.src_file_modification_time = os.path.getmtime(src_fs_path)
 
     def get_formal_parent_path(self):
         """
