@@ -951,14 +951,15 @@ class Builder:
             prog_count_per_item = remaining_count / num_items
 
         annos = []
-        sphinx_pages = []
+        sphinx_page = None
         defns = {}
         asgns = {}
         for name, item in all_items.items():
             if isinstance(item, Annotation):
                 annos.append(item)
             elif isinstance(item, SphinxPage):
-                sphinx_pages.append(item)
+                # A module can define at most one SphinxPage.
+                sphinx_page = item
             elif isinstance(item, PfscDefn):
                 defns[name] = item
             elif isinstance(item, Deduction):
@@ -995,7 +996,8 @@ class Builder:
             )
             self.monitor.inc_count(prog_count_per_item)
 
-        for page in sphinx_pages:
+        if sphinx_page:
+            page = sphinx_page
             self.mii.add_sphinx_page(module, page)
             pagepath = page.getLibpath()
             self.sphinx_pages[pagepath] = page
