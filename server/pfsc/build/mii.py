@@ -718,15 +718,25 @@ class ModuleIndexInfo:
         self.add_kNode(itype, libpath, modpath)
         self.add_under_reln(itype, libpath, IndexType.MODULE, modpath, modpath)
 
-    def add_anno(self, module, anno):
+    def add_widgets_from_generic_page(self, module, page):
         modpath = module.getLibpath()
-        annopath = anno.getLibpath()
-        self.add_enrichment(module, anno)
-        widgets = anno.get_proper_widgets()
+        pagepath = page.getLibpath()
+        pagetype = page.get_index_type()
+        widgets = page.get_proper_widgets()
         for widget in widgets:
             widgetpath = widget.getLibpath()
             self.add_kNode(IndexType.WIDGET, widgetpath, modpath, extra_props={IndexType.EP_WTYPE: widget.get_type()})
-            self.add_under_reln(IndexType.WIDGET, widgetpath, IndexType.ANNO, annopath, modpath)
+            self.add_under_reln(IndexType.WIDGET, widgetpath, pagetype, pagepath, modpath)
+
+    def add_anno(self, module, anno):
+        self.add_enrichment(module, anno)
+        self.add_widgets_from_generic_page(module, anno)
+
+    def add_sphinx_page(self, module, page):
+        # TODO: Should sphinx pages be `Enrichment`s (like annos and deducs)?
+        pagepath = page.getLibpath()
+        self.add_generic(IndexType.SPHINX, pagepath, module)
+        self.add_widgets_from_generic_page(module, page)
 
     def add_deduc(self, module, deduc):
         """

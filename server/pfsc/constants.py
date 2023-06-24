@@ -123,6 +123,10 @@ DEFAULT_USER_EMAIL = 'pfsc_default_user@localhost'
 PROGRAMMATIC_COMMIT_USER_NAME = 'Pfsc Bot'
 PROGRAMMATIC_COMMIT_USER_EMAIL = 'pfsc_bot@localhost'
 
+PFSC_EXT = '.pfsc'
+RST_EXT = '.rst'
+
+
 class IndexType:
 
     # -----------------------------------------------------
@@ -133,6 +137,7 @@ class IndexType:
     DEDUC = 'Deduc'
     EXAMP = 'Examp'
     ANNO  = 'Anno'
+    SPHINX = 'Sphinx'
 
     DEFN = 'Defn'
     ASGN = 'Asgn'

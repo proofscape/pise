@@ -152,7 +152,7 @@ def test_manifest(app):
         # Should have exactly one node of type "SPHINX", and it should be the
         # second model element, as the first child of the root node.
         sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
-        assert sphinx_indices == [1]
+        assert sphinx_indices == [1, 4, 6, 8, 10, 12]
 
 
 def test_spx_doc1(app):

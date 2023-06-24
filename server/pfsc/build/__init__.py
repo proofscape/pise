@@ -70,13 +70,17 @@ from pfsc.build.products import get_dashgraph_dir_and_filename, get_annotation_d
 from pfsc.build.repo import RepoInfo, checkout, get_repo_info
 from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
-from pfsc.constants import IndexType
+from pfsc.constants import IndexType, PFSC_EXT, RST_EXT
 from pfsc.lang.modules import (
-    CachePolicy, load_module, PfscDefn, PfscAssignment, pickle_module,
+    CachePolicy, load_module, PfscDefn, PfscAssignment,
+    pickle_module, unpickle_module,
 )
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
 from pfsc.lang.widgets import GoalWidget
+from pfsc.sphinx.sphinx_proofscape.pages import (
+    build_libpath_for_rst, SphinxPage,
+)
 
 import pfsc.util
 import pfsc.constants
@@ -460,6 +464,8 @@ class Builder:
         self.deductions = {}
         # a lookup of Annotations by their libpaths
         self.annotations = {}
+        # a lookup of SphinxPages by their libpaths
+        self.sphinx_pages = {}
         # a lookup of PfscModules by their libpaths
         self.modules = {}
         # a manifest
@@ -547,10 +553,13 @@ class Builder:
                 if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
                     self.build_sphinx_doc(do_clean=self.clean_sphinx, force_reread_rst_paths=force_reread_rst_paths)
                 else:
-                    self.reading_phase()
-                    self.resolving_phase()
+                    self.read_and_resolve()
 
                 self.have_built = True
+
+    def read_and_resolve(self):
+        self.reading_phase()
+        self.resolving_phase()
 
     def reading_phase(self):
         """
@@ -644,10 +653,23 @@ class Builder:
         logger = logging.getLogger('sphinx.sphinx.util')
         logger.addHandler(handler)
 
-        force_reread_rst_paths = force_reread_rst_paths or []
+        def add_rereads(app, env, docnames):
+            # Sphinx is unaware of our pickle files, so it's up to us to ensure
+            # they stay up to date.
+            # Consider existing docs that Sphinx is not already planning to re-read:
+            for docname in env.found_docs - set(docnames):
+                modpath = build_libpath_for_rst(app.config, docname, within_page=False)
+                u = unpickle_module(modpath, self.version, self.version)
+                if not u:
+                    docnames.append(docname)
+                else:
+                    t_r = u.read_time
+                    t_m = os.path.getmtime(env.doc2path(docname))
+                    if t_m >= t_r:
+                        docnames.append(docname)
 
-        def force_reread(app, env, docnames):
-            for path in force_reread_rst_paths:
+            # Any others specifically noted for re-reading?
+            for path in force_reread_rst_paths or []:
                 docname = env.path2doc(path)
                 if docname not in docnames:
                     docnames.append(docname)
@@ -659,8 +681,6 @@ class Builder:
             and RESOLVING, and we also in a sense begin the Sphinx RESOLVING
             phase, by resolving all pfsc modules formed from rst files.
             """
-            self.reading_phase()
-
             pfsc_env = env.proofscape
             for rst_module in pfsc_env.get_modules().values():
                 # .pfsc modules get pickled when constructed by `load_module()`;
@@ -678,15 +698,14 @@ class Builder:
                 lpv = rst_module.getLibpathV()
                 self.module_cache[lpv] = rst_module
 
-            self.resolving_phase()
+            self.read_and_resolve()
 
         try:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              'html', confoverrides=confoverrides)
+                app.connect('env-before-read-docs', add_rereads)
                 app.connect('env-updated', env_updated_handler)
-                if force_reread_rst_paths:
-                    app.connect('env-before-read-docs', force_reread)
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             traceback.print_exc()
@@ -824,14 +843,20 @@ class Builder:
             # Right now we only do this within each module. The result is that if you define expansions in a
             # separate module from literature deducs, say, then the expans are all shown at level 0, instead of
             # being nicely nested under the deducs they target, as we'd like.
-            num_pfsc_modules_in_this_dir = 0
+            num_modules_in_this_dir = 0
             for f in F:
                 # Skip?
                 if f[0] == '.' or f in skip_files: continue
-                # Is it a pfsc module?
-                if f[-5:] == '.pfsc':
-                    name = f[:-5]
-                    if (pathlib.Path(P) / f'{name}.rst').exists():
+                # Is it a module?
+                name, ext, other_ext = None, None, None
+                if f.endswith(PFSC_EXT):
+                    name = f[:-len(PFSC_EXT)]
+                    ext, other_ext = PFSC_EXT, RST_EXT
+                elif f.endswith(RST_EXT):
+                    name = f[:-len(RST_EXT)]
+                    ext, other_ext = RST_EXT, PFSC_EXT
+                if name:
+                    if (pathlib.Path(P) / f'{name}{other_ext}').exists():
                         msg = (
                             f'Module name `{name}` occurs with both .pfsc and'
                             f' .rst extension in dir `{P}`.'
@@ -850,7 +875,7 @@ class Builder:
                     # Record the job.
                     jobs.append((modpath, mod_node))
                     # Count it.
-                    num_pfsc_modules_in_this_dir += 1
+                    num_modules_in_this_dir += 1
 
             # Sort child nodes, then add to parent node.
             child_nodes.sort(key=lambda n: pfsc.util.NumberedName(n.data.get('name', '')))
@@ -858,7 +883,7 @@ class Builder:
                 parent_node.add_child(n)
 
             # Mark dir as useless if there were no pfsc modules in it.
-            if num_pfsc_modules_in_this_dir == 0: self.useless_dirs.append(P)
+            if num_modules_in_this_dir == 0: self.useless_dirs.append(P)
 
         self.monitor.begin_phase(self.prog_count_per_module * len(jobs), 'Building...')
         for modpath, mod_node in jobs:
@@ -926,11 +951,14 @@ class Builder:
             prog_count_per_item = remaining_count / num_items
 
         annos = []
+        sphinx_pages = []
         defns = {}
         asgns = {}
         for name, item in all_items.items():
             if isinstance(item, Annotation):
                 annos.append(item)
+            elif isinstance(item, SphinxPage):
+                sphinx_pages.append(item)
             elif isinstance(item, PfscDefn):
                 defns[name] = item
             elif isinstance(item, Deduction):
@@ -942,6 +970,7 @@ class Builder:
         # list the deducs in a nice order for the tree view.
         deducs = module.getAllNativeDeductions(toposort=True, numberednames=True)
 
+        # Lookup for ManifestTreeNodes we will build
         mtns_by_name = {}
 
         for anno in annos:
@@ -963,6 +992,21 @@ class Builder:
                 annopath, type="NOTES", name=name,
                 modpath=module_path, sourceRow=anno.getFirstRowNum(),
                 docRefs=doc_info['refs']
+            )
+            self.monitor.inc_count(prog_count_per_item)
+
+        for page in sphinx_pages:
+            self.mii.add_sphinx_page(module, page)
+            pagepath = page.getLibpath()
+            self.sphinx_pages[pagepath] = page
+
+            # Doc refs?  (TODO)
+
+            name = page.getName()
+            mtns_by_name[name] = ManifestTreeNode(
+                pagepath, type="SPHINX", name=name,
+                modpath=module_path, sourceRow=1,
+                #docRefs=doc_info['refs']  #(TODO)
             )
             self.monitor.inc_count(prog_count_per_item)
 

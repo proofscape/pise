@@ -22,6 +22,8 @@ from pfsc.lang.annotations import format_page_data
 from pfsc.lang.objects import PfscObj
 from pfsc.lang.modules import PfscModule, make_timestamp_for_module
 
+import pfsc.constants
+
 
 # Since it seems most natural that rst files should correspond to modules,
 # we need there to be an abstract entity *inside* the module, defined at the
@@ -46,6 +48,12 @@ class SphinxPage(PfscObj):
         self.libpath = libpath
         self.name = FIXED_PAGE_NAME
         self.widgets = []
+
+    def get_index_type(self):
+        return pfsc.constants.IndexType.SPHINX
+
+    def get_proper_widgets(self):
+        return self.widgets
 
     def add_widget(self, w):
         self.widgets.append(w)
@@ -139,6 +147,7 @@ def form_pfsc_module_for_rst_file(app, docname, source):
 
     module = PfscModule(modpath, read_time=read_time)
     module.setRepresentedVersion(version)
+    module._rst_src = source[0]
 
     page = SphinxPage(module, pagepath)
     module[FIXED_PAGE_NAME] = page

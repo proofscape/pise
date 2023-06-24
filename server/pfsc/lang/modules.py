@@ -255,6 +255,8 @@ class PfscModule(PfscObj):
         return pi.get_build_dir_and_filename(version=version)
 
     def getBuiltVersion(self):
+        if rst_src := getattr(self, '_rst_src', None):
+            return rst_src
         return self._bc.write_module_text()
 
     def writeBuiltVersionToDisk(self, writeOnlyIfDifferent=True, makeTildeBackup=True):
