@@ -242,12 +242,12 @@ class Widget(PfscObj):
         self.repos = self.resolve_libpaths_in_data(self.libpath_datapaths)
         PfscObj.resolveLibpathsRec(self)
 
-    def getRequiredRepoVersions(self, loading_time=True):
+    def getRequiredRepoVersions(self):
         # Get ahold of the desired version for each repo implicated by libpaths
         # in this widget's data.
         extra_msg = f' Required by widget `{self.libpath}`.'
         return {
-            r: self.getRequiredVersionOfObject(r, extra_err_msg=extra_msg, loading_time=loading_time)
+            r: self.getRequiredVersionOfObject(r, extra_err_msg=extra_msg)
             for r in self.repos
         }
 
@@ -490,7 +490,7 @@ class ChartWidget(Widget):
     def enrich_data(self):
         super().enrich_data()
         self.set_pane_group()
-        self.data['versions'] = self.getRequiredRepoVersions(loading_time=False)
+        self.data['versions'] = self.getRequiredRepoVersions()
         self.data['title_libpath'] = self.parent.libpath
         self.data['icon_type'] = 'nav'
         self.set_up_hovercolor()
@@ -716,7 +716,7 @@ class LinkWidget(Widget):
         target_annopath = get_formal_moditempath(target_libpath)
         target_type = "ANNO" if target_libpath == target_annopath else "WIDG"
         self.data["annopath"] = target_annopath
-        target_version = self.getRequiredVersionOfObject(target_annopath, loading_time=False)
+        target_version = self.getRequiredVersionOfObject(target_annopath)
         self.data["target_version"] = target_version
         self.data['target_type'] = target_type
         if target_type == "WIDG":

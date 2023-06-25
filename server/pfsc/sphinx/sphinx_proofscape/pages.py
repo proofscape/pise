@@ -145,8 +145,7 @@ def form_pfsc_module_for_rst_file(app, docname, source):
     pagepath = build_libpath_for_rst(config, docname, within_page=True)
     version = config.pfsc_repovers
 
-    module = PfscModule(modpath, read_time=read_time)
-    module.setRepresentedVersion(version)
+    module = PfscModule(modpath, version=version, read_time=read_time)
     module._rst_src = source[0]
 
     page = SphinxPage(module, pagepath)

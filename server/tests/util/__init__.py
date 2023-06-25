@@ -231,10 +231,6 @@ def clear_and_build_releases_with_deps_depth_first(
         stack.extend([(rp, v) for v in versions])
 
     with app.app_context():
-        # Note: Setting ALLOW_WIP to False makes this serve as a test of the
-        # `pfsc.lang.modules.inherit_release_build_signal()` function.
-        app.config["ALLOW_WIP"] = False
-
         for repopath, version in repopath_version_pairs:
             request_version(repopath, version)
             while stack:

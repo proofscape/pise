@@ -238,31 +238,35 @@ class PathInfo:
         """
         return self.is_file or (self.is_dir and (self.dir_has_default_module or not strict))
 
-    def get_build_dir_and_filename(self, version=pfsc.constants.WIP_TAG):
+    def get_build_dir_src_code_path(self, version=pfsc.constants.WIP_TAG):
         """
-        Get the directory to which this module's source code should be saved
-        when building, and the filename to use.
+        Get the path where this module's source code should be saved
+        when building.
 
         :param version: which version we are building.
-        :return: Pair (build_dir, filename) giving the absolute filesystem path
-            to the build dir for this module, and the filename to use.
+        :return: pathlib.Path
         """
-        parts = self.libpath.split('.')
+        lp_parts = self.libpath.split('.')
         build_root = check_config("PFSC_BUILD_ROOT")
-        fs_dir_parts = [build_root] + parts[:3] + [version] + parts[3:]
-        filename = '__.src'
-        return os.path.join(*fs_dir_parts), filename
+        fs_parts = (
+            [build_root] + lp_parts[:3] + [version] +
+            lp_parts[3:] + [f'module{self.fs_suffix}']
+        )
+        return pathlib.Path(*fs_parts)
 
     def get_pickle_path(self, version=pfsc.constants.WIP_TAG):
         """
         Get the path for this module's pickle file.
 
         :param version: which version we are building.
-        :return: The absolute filesystem path to the pickle file for this
-            module.
+        :return: pathlib.Path
         """
-        build_dir, _ = self.get_build_dir_and_filename(version=version)
-        return os.path.join(build_dir, 'module.pickle')
+        src_path = self.get_build_dir_src_code_path(version=version)
+        return src_path.parent / 'module.pickle'
+
+    @property
+    def fs_suffix(self):
+        return pfsc.constants.RST_EXT if self.is_rst_file() else pfsc.constants.PFSC_EXT
 
     def is_rst_file(self):
         """
@@ -372,8 +376,7 @@ class PathInfo:
         elif building_in_gdb():
             return get_graph_reader().load_module_src(self.libpath, version)
         else:
-            build_dir, filename = self.get_build_dir_and_filename(version=version)
-            fs_path = os.path.join(build_dir, filename)
+            fs_path = self.get_build_dir_src_code_path(version=version)
         if cache_control_code is None:
             return read_file_with_cache.__wrapped__(fs_path, None)
         else:

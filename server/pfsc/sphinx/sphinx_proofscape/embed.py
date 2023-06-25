@@ -47,7 +47,7 @@ class PfscEmbedDirective(SphinxDirective):
         modpath = build_libpath_for_rst(config, docname, within_page=False)
         pfsc_env = get_pfsc_env(env)
         module = pfsc_env.get_module(modpath)
-        version = module.represented_version
+        version = module.getVersion()
 
         # self.content is an instance of `docutils.statemachine.StringList`.
         # It presents the lines of the content as a list, with left indent stripped.

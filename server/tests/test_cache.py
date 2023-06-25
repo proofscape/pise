@@ -36,13 +36,13 @@ def test_purge(app):
         version = pfsc_constants.WIP_TAG
 
         remove_modules_from_disk_cache([modpath], version=version)
-        u = unpickle_module(modpath, version, version)
+        u = unpickle_module(modpath, version)
         assert u is None
 
         load_module(modpath, version=version)
-        u = unpickle_module(modpath, version, version)
+        u = unpickle_module(modpath, version)
         assert u is not None
 
         remove_modules_from_disk_cache([modpath], version=version)
-        u = unpickle_module(modpath, version, version)
+        u = unpickle_module(modpath, version)
         assert u is None

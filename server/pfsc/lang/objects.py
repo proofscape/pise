@@ -294,9 +294,9 @@ class PfscObj:
     def getDependencies(self):
         return self.getModule().getDependencies()
 
-    def getRequiredVersionOfObject(self, libpath, extra_err_msg='', loading_time=True):
+    def getRequiredVersionOfObject(self, libpath, extra_err_msg=''):
         mod = self.getModule()
-        return mod.getRequiredVersionOfObject(libpath, extra_err_msg=extra_err_msg, loading_time=loading_time)
+        return mod.getRequiredVersionOfObject(libpath, extra_err_msg=extra_err_msg)
 
     def getDeduction(self):
         """

@@ -479,7 +479,10 @@ class Builder:
             node.add_child(child_node)
             node = child_node
         self.root_node = node
-        
+
+        # A "reading job" is a pair (modpath, ManifestTreeNode), representing
+        # a module that is to be loaded.
+        self.reading_jobs = None
         # A "scan job" is a pair (PfscModule, ManifestTreeNode), representing
         # a module that we have loaded from disk, but have not yet analyzed its
         # contents.
@@ -500,13 +503,6 @@ class Builder:
 
     def is_release_build(self):
         return self.version != pfsc.constants.WIP_TAG
-
-    def building_a_release_of(self):
-        """
-        Report the repopath of the repo of which we are building a release, or
-        None if we are not doing a release build.
-        """
-        return self.repo_info.libpath if self.is_release_build() else None
 
     def has_sphinx_doc(self):
         p = pathlib.Path(self.repo_info.abs_fs_path_to_dir) / 'index.rst'
@@ -539,29 +535,45 @@ class Builder:
             form, pickle, and resolve doctrees, but not write any output files.
         :return: nothing
         """
+        if self.verbose:
+            print(f"Building {self.module_path}@{self.version}...")
+
         # Build only if have not yet built, or if forcing.
         if force or not self.have_built:
             self.monitor.set_message('Starting...')
             with checkout(self.repo_info, self.version):
-                # Set signal visible below this frame by inspecting the stack.
-                building_a_release_of = self.building_a_release_of()
-
                 self.check_root_declarations()
                 self.mii.compute_mm_closure(self.graph_writer.reader)
 
-                # Sphinx build.
-                # If you want a Sphinx build to take place, you have to have an `index.rst` file
-                # in the repo root dir.
-                if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                    self.build_sphinx_doc(
-                        do_clean=self.clean_sphinx,
-                        force_reread_rst_paths=force_reread_rst_paths,
-                        just_read_no_write=no_sphinx_write
-                    )
-                else:
-                    self.read_and_resolve()
+                path_info = PathInfo(self.module_path)
+                self.reading_jobs = self.walk(path_info.abs_fs_path_to_dir)
 
-                self.have_built = True
+                # Copy the source files to the build dir.
+                # These are needed by our own build, if building at a numbered version.
+                # They are also needed for imports during other builds, and
+                # so that non-owning users can browse the source.
+                for modpath, _ in self.reading_jobs:
+                    pi = PathInfo(modpath)
+                    path = pi.get_build_dir_src_code_path(version=self.version)
+                    if not path.parent.exists():
+                        path.parent.mkdir(parents=True)
+                    # Read @WIP, since we want the currently checked-out version.
+                    src = pi.read_module(version=pfsc.constants.WIP_TAG)
+                    path.write_text(src)
+
+            # Sphinx build.
+            # If you want a Sphinx build to take place, you have to have an `index.rst` file
+            # in the repo root dir.
+            if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
+                self.build_sphinx_doc(
+                    do_clean=self.clean_sphinx,
+                    force_reread_rst_paths=force_reread_rst_paths,
+                    just_read_no_write=no_sphinx_write
+                )
+            else:
+                self.read_and_resolve()
+
+            self.have_built = True
 
     def read_and_resolve(self):
         self.reading_phase()
@@ -575,17 +587,11 @@ class Builder:
         should be carried out after the Sphinx build has
         finished its READING phase, but before it begins its RESOLVING phase.
         """
-        # Note: It is critical that this method be invoked only within the
-        # context provided by the `checkout()` context manager, which is invoked
-        # in our `build()` method. In particular,
-        # it was not until we checked out the intended version that we could construct
-        # our PathInfo object, and examine the filesystem structures representing our root module.
-        # It's easy to think some of this stuff may belong in our __init__ method, but for
-        # this reason it has to wait until now.
-        path_info = PathInfo(self.module_path)
-        if self.verbose:
-            print(f"Building {self.module_path}@{self.version}...")
-        self.walk(path_info.abs_fs_path_to_dir)
+        self.monitor.begin_phase(self.prog_count_per_module * len(self.reading_jobs), 'Reading...')
+        for modpath, mod_node in self.reading_jobs:
+            module = self.read_pfsc_module(modpath)
+            self.scan_jobs.append((module, mod_node))
+            self.modules[module.libpath] = module
 
     def resolving_phase(self):
         """
@@ -668,7 +674,7 @@ class Builder:
             # Consider existing docs that Sphinx is not already planning to re-read:
             for docname in env.found_docs - set(docnames):
                 modpath = build_libpath_for_rst(app.config, docname, within_page=False)
-                u = unpickle_module(modpath, self.version, self.version)
+                u = unpickle_module(modpath, self.version)
                 if not u:
                     docnames.append(docname)
                 else:
@@ -794,10 +800,9 @@ class Builder:
         """
         When building recursively, this method manages the walking of the filesystem hierarchy.
         :param root_fs_path: The filesystem path to the directory we want to walk.
-        :return: nothing
+        :return: list of "jobs," being pairs (modpath, tree_node), to be passed to
+            our `read_pfsc_module` method.
         """
-        # We will build a list of "jobs," being pairs (modpath, tree_node), to be passed to
-        # our `read_pfsc_module` method.
         jobs = []
         walk_list = list(os.walk(root_fs_path))
         self.monitor.begin_phase(len(walk_list), 'Scanning...')
@@ -893,11 +898,7 @@ class Builder:
             # Mark dir as useless if there were no pfsc modules in it.
             if num_modules_in_this_dir == 0: self.useless_dirs.append(P)
 
-        self.monitor.begin_phase(self.prog_count_per_module * len(jobs), 'Building...')
-        for modpath, mod_node in jobs:
-            module = self.read_pfsc_module(modpath)
-            self.scan_jobs.append((module, mod_node))
-            self.modules[module.libpath] = module
+        return jobs
 
     def read_pfsc_module(self, module_path):
         """
@@ -909,16 +910,8 @@ class Builder:
         if self.verbose: print("  ", module_path)
 
         try:
-            # We are currently working in a context where the
-            # desired version of the repo being built has been checked out. So we can get
-            # the module source code we need from the WIP version, i.e. from the lib dir;
-            # in fact, we can _only_ get it from there, since it's not yet available in the
-            # build dir, as we are right now in the process of making that very build. So
-            # we must pass WIP as *loading* version to the load_module function. However,
-            # we can pass the represented version as well, so that that will be set in the
-            # module after it is loaded.
             module = load_module(
-                module_path, version=pfsc.constants.WIP_TAG, represented_version=self.version,
+                module_path, version=self.version,
                 fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
             )
         except PfscExcep as e:
@@ -1070,23 +1063,14 @@ class Builder:
                 manifest_node.add_child(mtn)
 
     def write_all(self):
-        # Some operations during the write-phase do require that the desired version
-        # of the repo be checked out. For example, the call to `module.getBuildDirAndFilename`
-        # in `clear_build_dirs`. Since we still have some places in the code base where we
-        # invoke Builder.build outside of Builder.write_build_index, we cannot just put a
-        # single checkout context in the latter. So we keep one checkout in Builder.build,
-        # and put another one here.
-        with checkout(self.repo_info, self.version):
-            # Set signal visible below this frame by inspecting the stack.
-            building_a_release_of = self.building_a_release_of()
-            # How many writes do we have to do?
-            n = len(self.modules) + len(self.deductions) + len(self.annotations)
-            self.monitor.begin_phase(n, 'Writing...')
-            self.clear_build_dirs()
-            self.write_built_modules_to_build_dir()
-            self.write_manifest()
-            self.write_dashgraphs()
-            self.write_notespages()
+        n = len(self.modules) + len(self.deductions) + len(self.annotations)
+        self.monitor.begin_phase(n, 'Writing...')
+        self.clear_build_dirs()
+        if self.build_in_gdb:
+            self.copy_src_into_gdb()
+        self.write_manifest()
+        self.write_dashgraphs()
+        self.write_notespages()
 
     def write_manifest(self):
         d = self.manifest.build_dict()
@@ -1100,25 +1084,16 @@ class Builder:
             with open(manifest_json_path, 'w') as f:
                 f.write(j)
 
-    def write_built_modules_to_build_dir(self):
+    def copy_src_into_gdb(self):
         """
-        We need copies of the pfsc modules in the build dir for each built release.
-        These are needed so that another repo can import them during its own build.
-        They are also needed so that non-owning users can browse the source at a
-        given release.
+        If storing builds in GDB, we copy of module source code in there too.
         """
-        for module in self.modules.values():
-            text = module.getBuiltVersion()
-            if self.build_in_gdb:
+        if self.build_in_gdb:
+            for module in self.modules.values():
+                text = module.getBuiltVersion()
                 modpath = module.getLibpath()
                 self.graph_writer.record_module_source(modpath, self.version, text)
-            else:
-                build_dir, filename = module.getBuildDirAndFilename(version=self.version)
-                os.makedirs(build_dir, exist_ok=True)
-                path = os.path.join(build_dir, filename)
-                with open(path, 'w') as f:
-                    f.write(text)
-            self.monitor.inc_count()
+                self.monitor.inc_count()
 
     def clear_build_dirs(self):
         """
@@ -1131,12 +1106,11 @@ class Builder:
                 modpath = module.getLibpath()
                 self.graph_writer.delete_builds_under_module(modpath, self.version)
             else:
-                build_dir, _ = module.getBuildDirAndFilename(version=self.version)
-                build_dir = pathlib.Path(build_dir)
+                src_path = module.get_build_dir_src_code_path(version=self.version)
+                build_dir = src_path.parent
                 if build_dir.exists():
                     for path in build_dir.iterdir():
                         if path.is_file() and path.suffixes in [
-                            ['.src'],
                             ['.anno', '.html'],
                             ['.anno', '.json'],
                             ['.dg', '.json'],

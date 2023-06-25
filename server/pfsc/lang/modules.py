@@ -55,13 +55,12 @@ class PfscModule(PfscObj):
     """
 
     def __init__(
-            self, libpath, loading_version=pfsc.constants.WIP_TAG,
+            self, libpath, version=pfsc.constants.WIP_TAG,
             given_dependencies=None, read_time=None
     ):
         """
         :param libpath: the libpath of this module.
-        :param loading_version: the version of this module that we are using
-          at the time that we are loading it.
+        :param version: the version of this module.
         :param given_dependencies: a dependencies lookup which, if given, will
           override that which we obtain from our root module.
         """
@@ -69,15 +68,7 @@ class PfscModule(PfscObj):
         self.libpath = libpath
         self.read_time = read_time
         self.repopath = get_repo_part(libpath)
-        self.loading_version = loading_version
-        # This module may represent a different version than that named by
-        # the loading version. This is because when we are building, all modules
-        # from the repo being built are always loaded at WIP version (with a possible
-        # checkout of a tagged release prior to this); however, if it is a release
-        # build, then they represent not WIP but their release number.
-        # We initialize the represented version to the same value, but it can be
-        # changed later.
-        self.represented_version = loading_version
+        self.version = version
         self._modtext = None  # place to stash the original text of the module
         self._bc = None  # place to stash the BlockChunker that processed this module's text
         self.dependencies = None
@@ -126,9 +117,6 @@ class PfscModule(PfscObj):
     def isTerminal(self):
         pi = PathInfo(self.libpath)
         return pi.is_file
-
-    def setRepresentedVersion(self, vers):
-        self.represented_version = vers
 
     def getDependencies(self):
         return self.dependencies or {}
@@ -186,7 +174,7 @@ class PfscModule(PfscObj):
             deps = {}
             if not self.isSpecial():
                 root_module = self if self.isRepo() else load_module(
-                    self.repopath, version=self.loading_version, fail_gracefully=True, history=[]
+                    self.repopath, version=self.version, fail_gracefully=True, history=[]
                 )
                 if root_module:
                     # No need to call root_module.resolve(), since we are only interested in
@@ -211,7 +199,7 @@ class PfscModule(PfscObj):
 
             self.dependencies = checked_deps
 
-    def getRequiredVersionOfObject(self, libpath, extra_err_msg='', loading_time=True):
+    def getRequiredVersionOfObject(self, libpath, extra_err_msg=''):
         """
         Determine, according to the dependencies declaration for the repo to which
         this module belongs, what is the required version of a given object.
@@ -220,15 +208,12 @@ class PfscModule(PfscObj):
         :param extra_err_msg: extra string to be added onto the error message, in
             case the version number is unavailable. This can provide helpful info
             about where/why the version number is needed.
-        :param loading_time: Is this request happening during module loading? This
-            controls whether we use our loading version or represented version, when
-            the object in question belongs to the same repo as us.
         :return: the required version string.
         """
         self.load_and_validate_dependency_info()
         repopath = get_repo_part(libpath)
         if repopath == self.repopath:
-            return self.loading_version if loading_time else self.represented_version
+            return self.version
         if repopath not in self.dependencies:
             msg = f'Repo `{self.repopath}` failed to define required version of `{repopath}`.'
             msg += extra_err_msg
@@ -236,7 +221,7 @@ class PfscModule(PfscObj):
         return self.dependencies[repopath]
 
     def getVersion(self):
-        return self.represented_version
+        return self.version
 
     def setBlockChunker(self, bc):
         self._bc = bc
@@ -250,9 +235,9 @@ class PfscModule(PfscObj):
         else:
             self._modtext = args[0]
 
-    def getBuildDirAndFilename(self, version=pfsc.constants.WIP_TAG):
+    def get_build_dir_src_code_path(self, version=pfsc.constants.WIP_TAG):
         pi = PathInfo(self.libpath)
-        return pi.get_build_dir_and_filename(version=version)
+        return pi.get_build_dir_src_code_path(version=version)
 
     def getBuiltVersion(self):
         if rst_src := getattr(self, '_rst_src', None):
@@ -288,7 +273,7 @@ class PfscModule(PfscObj):
         @return: the loaded submodule, if found, else None
         """
         possible_submodule_path = '.'.join([self.libpath, name])
-        sub = load_module(possible_submodule_path, version=self.loading_version, fail_gracefully=True)
+        sub = load_module(possible_submodule_path, version=self.version, fail_gracefully=True)
         if sub is not None:
             sub.resolve()
             self[name] = sub
@@ -1026,7 +1011,7 @@ class ModuleLoader(PfscJsonTransformer):
         self.modpath = modpath
         self.version = version
         self._module = existing_module or PfscModule(
-            modpath, loading_version=version, given_dependencies=dependencies,
+            modpath, version=version, given_dependencies=dependencies,
             read_time=read_time
         )
 
@@ -1292,30 +1277,11 @@ def remove_modules_from_disk_cache(modpaths, version=pfsc.constants.WIP_TAG):
     """
     for modpath in modpaths:
         path_info = PathInfo(modpath)
-        pickle_path = pathlib.Path(path_info.get_pickle_path(version=version))
+        pickle_path = path_info.get_pickle_path(version=version)
         if pickle_path.exists():
             # Double check:
-            if pickle_path.name.endswith('.pickle'):
+            if pickle_path.suffix == '.pickle':
                 pickle_path.unlink()
-
-
-def inherit_release_build_signal():
-    signal = None
-    p = pathlib.Path(__file__)
-    target_filename = str(p.parent.parent / 'build' / '__init__.py')
-    stack = inspect.stack()
-    for fi in stack:
-        if fi.filename == target_filename and fi.function in ['build', 'write_all']:
-            # See https://docs.python.org/3.8/library/inspect.html#the-interpreter-stack
-            # on why the try-finally with del frame is recommended for avoiding mem leak.
-            try:
-                frame = fi.frame
-                signal = frame.f_locals.get('building_a_release_of')
-                if signal is not None:
-                    break
-            finally:
-                del frame
-    return signal
 
 
 def pickle_module(module, path_info=None):
@@ -1330,7 +1296,7 @@ def pickle_module(module, path_info=None):
     """
     if path_info is None:
         path_info = PathInfo(module.libpath)
-    pickle_path = pathlib.Path(path_info.get_pickle_path(version=module.represented_version))
+    pickle_path = path_info.get_pickle_path(version=module.version)
     if not pickle_path.parent.exists():
         pickle_path.parent.mkdir(parents=True)
     with open(pickle_path, 'wb') as f:
@@ -1338,20 +1304,17 @@ def pickle_module(module, path_info=None):
     return pickle_path
 
 
-def unpickle_module(path_spec, loading_version, represented_version):
+def unpickle_module(path_spec, version):
     """
     Try to load a module from its pickle file.
 
     :param path_spec: libpath (str), or PathInfo object for the module
-    :param loading_version: the version at which you are trying to load the
-        module
-    :param represented_version: indicates the build directory in which the
-        right pickle file would be found
+    :param version: the version at which you are trying to load the module
     :return: PfscModule, or None if pickle file doesn't exist or is malformed
     """
     module = None
     path_info = path_spec if isinstance(path_spec, PathInfo) else PathInfo(path_spec)
-    pickle_path = pathlib.Path(path_info.get_pickle_path(version=represented_version))
+    pickle_path = path_info.get_pickle_path(version=version)
     if pickle_path.exists():
         with open(pickle_path, 'rb') as f:
             try:
@@ -1359,15 +1322,12 @@ def unpickle_module(path_spec, loading_version, represented_version):
             except Exception as e:
                 # TODO: log the exception
                 pass
-            else:
-                module.loading_version = loading_version
     return module
 
 
 def load_module(
         path_spec, version=pfsc.constants.WIP_TAG,
-        represented_version=None, text=None,
-        fail_gracefully=False, history=None,
+        text=None, fail_gracefully=False, history=None,
         caching=CachePolicy.TIME, cache=None
 ):
     """
@@ -1380,11 +1340,6 @@ def load_module(
                       just going to start by constructing the PathInfo on it.
 
     @param version: The version of this module that you wish to load.
-
-    @param represented_version: optional version that the module represents. In some
-        cases (such as when building a numbered release), this may differ from the
-        loading version. If given, will be set in the `PfscModule` after construction,
-        but only if the module was constructed, not if it was loaded from cache.
 
     @param text: If you happen to already have the text of the module, you can pass it here.
                  Note that when you provide the text we will definitely bypass the cache _for this module_;
@@ -1423,14 +1378,12 @@ def load_module(
     repopath = get_repo_part(modpath)
     verspath = f'{modpath}@{version}'
 
-    if version == pfsc.constants.WIP_TAG:
-        if inherit_release_build_signal() != repopath and not have_repo_permission(
-            ActionType.READ, repopath, pfsc.constants.WIP_TAG
-        ):
-            msg = f'Insufficient permission to load `{modpath}` at WIP.'
-            raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
+    if version == pfsc.constants.WIP_TAG and not have_repo_permission(
+        ActionType.READ, repopath, pfsc.constants.WIP_TAG
+    ):
+        msg = f'Insufficient permission to load `{modpath}` at WIP.'
+        raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
 
-    # Function for the case where the libpath fails to point to a .pfsc file:
     def fail(force_excep=False):
         if fail_gracefully and not force_excep:
             return None
@@ -1442,6 +1395,7 @@ def load_module(
         cache = {}
 
     # Now we decide whether to *reload* the module (i.e. *not* use the cache).
+    should_reload = False
     text_given = (text is not None)
     mem_cache_hit = (verspath in cache)
     never_use_disk_cache = (caching == CachePolicy.NEVER)
@@ -1462,7 +1416,7 @@ def load_module(
         # In this case, we *want* to use the on-disk cache, provided it is both
         # *possible* (module is available) and *appropriate* (i.e. time stamps
         # check out, if using time-based policy).
-        unpickled_module = unpickle_module(path_info, version, represented_version or version)
+        unpickled_module = unpickle_module(path_info, version)
         if not unpickled_module:
             should_reload = True
         elif caching == CachePolicy.ALWAYS:
@@ -1509,6 +1463,8 @@ def load_module(
         history.append(modpath)
 
         is_rst = path_info.is_rst_file()
+
+        # FIXME
         if version != pfsc.constants.WIP_TAG and (is_rst or not text_given):
             # If it's not a WIP module, and we need to load from disk, then
             # we need the desired version to have already been built and indexed.
@@ -1558,8 +1514,6 @@ def load_module(
                 caching=caching, read_time=ts_text.read_time
             )
 
-        if represented_version is not None:
-            module.setRepresentedVersion(represented_version)
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()

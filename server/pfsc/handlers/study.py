@@ -309,7 +309,7 @@ class StudyPageBuilder(GoalDataHandler):
         # IDs and pane group IDs. This helps keep things distinct if the user
         # simultaneously loads the study page for a given entity at two or
         # more different versions.
-        module.setRepresentedVersion(vers.full)
+        module.version = vers.full
         page = module[pagename]
         html = page.get_escaped_html()
         data = page.get_anno_data()
@@ -421,8 +421,8 @@ class GoalDataLoader:
             built = get_graph_reader().module_is_built(self.modpath, self.version.full)
         else:
             pi = PathInfo(self.modpath)
-            build_dir, fn = pi.get_build_dir_and_filename(version=self.version.full)
-            built = os.path.exists(build_dir)
+            path = pi.get_build_dir_src_code_path(version=self.version.full)
+            built = path.parent.exists()
         if not built:
             msg = f'Cannot load study data for `{self.libpath}@{self.version.full}`'
             msg += ' since it has not been built yet.'
@@ -535,7 +535,7 @@ class BuildDir_GoalDataLoader(GoalDataLoader):
             # We load directly from the build dir, since the `load_annotation`
             # function does extra work by loading the HTML file.
             pi = PathInfo(self.modpath)
-            build_dir, fn = pi.get_build_dir_and_filename(version=self.version.full)
+            src_path = pi.get_build_dir_src_code_path(version=self.version.full)
             anno_suffix = '.anno.json'
             dg_suffix = '.dg.json'
             for node in contents:
@@ -549,8 +549,7 @@ class BuildDir_GoalDataLoader(GoalDataLoader):
                         suffix = anno_suffix
                         reader = self.read_info_from_anno_data_json
                     name = data["name"]
-                    with open(os.path.join(build_dir, f'{name}{suffix}')) as f:
-                        j = f.read()
+                    j = (src_path.parent / f'{name}{suffix}').read_text()
                     infos.append(reader(name, j))
         return infos
 
