@@ -229,14 +229,19 @@ class PathInfo:
         assert k > 0
         return self.libpath[:k]
 
-    def is_module(self, strict=False):
+    def is_module(self, version=pfsc.constants.WIP_TAG, strict=False):
         """
         Say whether this path points to a module.
+
+        :param version: the version in which you are interested.
         :param strict: set True if you require directories to contain a `__.pfsc` file in order
                    to be considered a module.
         :return: boolean
         """
-        return self.is_file or (self.is_dir and (self.dir_has_default_module or not strict))
+        if version == pfsc.constants.WIP_TAG:
+            return self.is_file or (self.is_dir and (self.dir_has_default_module or not strict))
+        else:
+            return self.get_build_dir_src_code_path(version=version).parent.exists()
 
     def get_build_dir_src_code_path(self, version=pfsc.constants.WIP_TAG):
         """
@@ -392,12 +397,6 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
                    to be considered a module.
     :return: the longest initial segment of this path that points to a module
     """
-    if version != pfsc.constants.WIP_TAG:
-        modpath = get_graph_reader().get_modpath(libpath, version)
-        if modpath is None:
-            msg = f'Cannot find module for `{libpath}` at version `{version}`.'
-            raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
-        return modpath
     parts = libpath.split('.')
     if len(parts) < 3:
         msg = 'Libpath too short: %s' % libpath
@@ -407,7 +406,7 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
         p.append(part)
         lp = '.'.join(p)
         pi = PathInfo(lp)
-        if not pi.is_module(strict=strict):
+        if not pi.is_module(version=version, strict=strict):
             p.pop()
             break
     if len(p) < 3:

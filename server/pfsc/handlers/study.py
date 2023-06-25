@@ -386,7 +386,7 @@ class GoalDataLoader:
         self.determine_type()
 
     def determine_modpath(self):
-        self.modpath = get_modpath(self.libpath, version=self.version.major)
+        self.modpath = get_modpath(self.libpath, version=self.version.full)
 
     def determine_type(self):
         gr = get_graph_reader()
