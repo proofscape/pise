@@ -895,15 +895,15 @@ class Builder:
 
         self.monitor.begin_phase(self.prog_count_per_module * len(jobs), 'Building...')
         for modpath, mod_node in jobs:
-            self.read_pfsc_module(modpath, mod_node)
+            module = self.read_pfsc_module(modpath)
+            self.scan_jobs.append((module, mod_node))
+            self.modules[module.libpath] = module
 
-    def read_pfsc_module(self, module_path, manifest_node):
+    def read_pfsc_module(self, module_path):
         """
         Read a proofscape module, and record it as a scan job.
 
         :param module_path: the libpath of the module to be processed
-        :param manifest_node: a ManifestTreeNode representing this module, and to which
-                              nodes representing its items are to be added
         """
         self.monitor.set_message('Reading %s...' % module_path)
         if self.verbose: print("  ", module_path)
@@ -931,8 +931,7 @@ class Builder:
                 raise e
 
         self.monitor.inc_count(self.prog_count_for_parsing)
-        self.scan_jobs.append((module, manifest_node))
-        self.modules[module.libpath] = module
+        return module
 
     def scan_pfsc_module(self, module, manifest_node):
         """
