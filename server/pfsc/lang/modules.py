@@ -1366,13 +1366,7 @@ def load_module(
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
              be returned, as a `PfscException` will be raised instead.
     """
-    if isinstance(path_spec, PathInfo):
-        # You already gave us a PathInfo object.
-        path_info = path_spec
-    else:
-        assert isinstance(path_spec, str)
-        # You gave a libpath. Construct a PathInfo on it.
-        path_info = PathInfo(path_spec)
+    path_info = path_spec if isinstance(path_spec, PathInfo) else PathInfo(path_spec)
 
     modpath = path_info.libpath
     repopath = get_repo_part(modpath)
@@ -1394,38 +1388,36 @@ def load_module(
     if cache is None:
         cache = {}
 
-    # Now we decide whether to *reload* the module (i.e. *not* use the cache).
-    should_reload = False
+    # Decide whether we will rebuild the module (i.e. *not* use the cache).
+    will_rebuild = False
     text_given = (text is not None)
     mem_cache_hit = (verspath in cache)
     never_use_disk_cache = (caching == CachePolicy.NEVER)
     if text_given:
-        # If module text was passed, this is always to be used to construct
-        # the module.
-        should_reload = True
+        # If module text was passed, this is always to be used to construct the module.
+        will_rebuild = True
     elif mem_cache_hit:
         # The cache policy only controls how we use the on-disk cache (i.e.
-        # pickle files). If we have a cache hit in the in-mem cache, we always
-        # use it.
-        should_reload = False
+        # pickle files). If we have a cache hit in the in-mem cache, we always use it.
+        will_rebuild = False
     elif never_use_disk_cache:
         # At this point, it's at best an on-disk cache hit. If we're told not
-        # to use that, then we should reload.
-        should_reload = True
+        # to use that, then we should rebuild.
+        will_rebuild = True
     else:
         # In this case, we *want* to use the on-disk cache, provided it is both
         # *possible* (module is available) and *appropriate* (i.e. time stamps
         # check out, if using time-based policy).
         unpickled_module = unpickle_module(path_info, version)
         if not unpickled_module:
-            should_reload = True
+            will_rebuild = True
         elif caching == CachePolicy.ALWAYS:
-            should_reload = False
+            will_rebuild = False
         # Otherwise, the module was found in the on-disk cache, and we're using time-based policy.
         # If we want a numbered release version, then there's no question of it having
         # changed since last load, since numbered releases, by definition, do not change!
         elif version != pfsc.constants.WIP_TAG:
-            should_reload = False
+            will_rebuild = False
         else:
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
@@ -1433,7 +1425,7 @@ def load_module(
             t_m = path_info.src_file_modification_time
             if t_m is None:
                 return fail()
-            # We should reload the module if it has been modified since it was last read.
+            # We should rebuild the module if it has been modified since it was last read.
             if isinstance(t_m, int):
                 # At one time (I think I was using a MacBook Pro, in summer 2019, with up-to-date
                 # OS -- not sure which Python version, probably 3.5 - 3.7?), I seem to have observed
@@ -1443,15 +1435,17 @@ def load_module(
                 # boost, to be on the safe side. ("Safe" meaning: err on the side of reloading
                 # the module even if unnecessary.)
                 t_m += 1
-            should_reload = t_m >= t_r
+            will_rebuild = t_m >= t_r
         # If it was an on-disk cache hit, and we're going to use it, then elevate
         # it to the in-mem cache.
-        if unpickled_module and not should_reload:
+        if unpickled_module and not will_rebuild:
             cache[verspath] = unpickled_module
 
-    if should_reload:
-        # Only when we have to reload does history become relevant, so we deal with it now.
-        # If history is None, we actually want an empty list.
+    if not will_rebuild:
+        module = cache[verspath]
+        return module
+    else:
+        # Only when we have to rebuild does history become relevant, so we deal with it now.
         if history is None:
             history = []
         # If the module we're trying to build is already in the history of imports that have
@@ -1501,12 +1495,12 @@ def load_module(
             else:
                 # To be on the safe side, make timestamp just _before_ performing the read operation.
                 # (This is "safe" in the sense that the read operation looks older, so we will be more
-                # likely to reload in the future, i.e. to catch updates.)
+                # likely to rebuild in the future, i.e. to catch updates.)
                 read_time = make_timestamp_for_module()
                 try:
                     module_contents = path_info.read_module(version=version)
                 except FileNotFoundError:
-                    return fail(force_excep=(version!=pfsc.constants.WIP_TAG))
+                    return fail(force_excep=(version != pfsc.constants.WIP_TAG))
                 ts_text = TimestampedText(read_time, module_contents)
             # Construct a PfscModule.
             module = build_module_from_text(
@@ -1518,16 +1512,11 @@ def load_module(
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
         assert to_forget == modpath
-        # If the module has a timestamp, then save the module in the cache
-        # and pickle it.
+
         if module.read_time is not None:
             cache[verspath] = module
             pickle_module(module, path_info)
-        # Finally, we can return the module.
-        return module
-    else:
-        # We are not reloading, i.e. we are using the cache.
-        module = cache[verspath]
+
         return module
 
 
