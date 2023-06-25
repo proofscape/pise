@@ -71,9 +71,6 @@ def build_manifest_from_dict(d):
     manifest = build_manifest_tree_from_dict(d["tree_model"])
     manifest.set_build_info_dict(d["build"])
     manifest.set_doc_infos_dict(d.get("doc_info", {}))
-    if d.get("sphinx"):
-        # Node is already in tree model, so don't add again.
-        manifest.set_has_sphinx_doc(add_node=False)
     return manifest
 
 
@@ -131,7 +128,6 @@ class Manifest:
         self.add_node(root_node)
         self.build_info = {}
         self.doc_infos = {}
-        self.has_sphinx_doc = False
 
     def get_build_info(self):
         return self.build_info
@@ -180,16 +176,6 @@ class Manifest:
     def set_doc_infos_dict(self, d):
         self.doc_infos = d
 
-    def set_has_sphinx_doc(self, add_node=True):
-        self.has_sphinx_doc = True
-        if add_node:
-            sphinx_node = ManifestTreeNode(
-                f'{self.root_node.id}.index',
-                type="SPHINX",
-                name="Sphinx",
-            )
-            self.root_node.add_child(sphinx_node, prepend=True)
-
     def build_dict(self):
         """
         :return: A dictionary representation of this object, suitable for writing as JSON.
@@ -200,8 +186,6 @@ class Manifest:
             d["build"] = self.build_info
 
         d["doc_info"] = self.doc_infos
-
-        d["sphinx"] = self.has_sphinx_doc
 
         t = self.root_node.build_dict()
         d["tree_model"] = t

@@ -34,7 +34,6 @@ manifest_00 = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -60,7 +59,6 @@ manifest_01 = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -93,7 +91,6 @@ manifest_01_c1 = {
         },
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -127,7 +124,6 @@ manifest_01r = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -151,7 +147,6 @@ manifest_02_c_CAT = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -183,7 +178,6 @@ manifest_02_c_MOD = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",
@@ -215,7 +209,6 @@ manifest_03 = {
         }
     },
     "doc_info": {},
-    "sphinx": False,
     "tree_model": {
         "id": "a",
         "libpath": "a",

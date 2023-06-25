@@ -721,8 +721,6 @@ class Builder:
             traceback.print_exc()
             raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
 
-        self.manifest.set_has_sphinx_doc()
-
     def inject_origins(self):
         visitor = OriginInjectionVisitor(self.mii.origins)
         for module in self.modules.values():

@@ -212,10 +212,11 @@ class RepoLoader(RepoTaskHandler):
         repopath = self.repo_info.libpath
         manifest = load_manifest(repopath, cache_control_code=ccc, version=self.version)
         root = manifest.get_root_node()
+
         # Since only the tree model is sent to the client, we load certain
         # extra information from the manifest into the root node.
         root.update_data({'docInfo': manifest.doc_infos})
-        root.update_data({'sphinx': manifest.has_sphinx_doc})
+
         model = []
         root.build_relational_model(model)
         return model
