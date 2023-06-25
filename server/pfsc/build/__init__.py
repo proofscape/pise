@@ -542,12 +542,8 @@ class Builder:
         if force or not self.have_built:
             self.monitor.set_message('Starting...')
             with checkout(self.repo_info, self.version):
-                self.check_root_declarations()
-                self.mii.compute_mm_closure(self.graph_writer.reader)
-
                 path_info = PathInfo(self.module_path)
                 self.reading_jobs = self.walk(path_info.abs_fs_path_to_dir)
-
                 # Copy the source files to the build dir.
                 # These are needed by our own build, if building at a numbered version.
                 # They are also needed for imports during other builds, and
@@ -561,17 +557,28 @@ class Builder:
                     src = pi.read_module(version=pfsc.constants.WIP_TAG)
                     path.write_text(src)
 
-            # Sphinx build.
-            # If you want a Sphinx build to take place, you have to have an `index.rst` file
-            # in the repo root dir.
-            if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
-                self.build_sphinx_doc(
-                    do_clean=self.clean_sphinx,
-                    force_reread_rst_paths=force_reread_rst_paths,
-                    just_read_no_write=no_sphinx_write
-                )
-            else:
-                self.read_and_resolve()
+                self.check_root_declarations()
+                self.mii.compute_mm_closure(self.graph_writer.reader)
+
+                # For the sake of any Sphinx build we might do, we stay inside the
+                # checkout() context. Sphinx needs the version being built to still
+                # be checked out.
+
+                # If you want a Sphinx build to take place, you have to have an `index.rst` file
+                # in the repo root dir.
+                if self.build_target_is_whole_repo and self.has_sphinx_doc() and not self.build_in_gdb:
+                    # In this case, our own `self.read_and_resolve()` is called during our
+                    # handler for the Sphinx 'env-updated' event. This results in the following
+                    # order of events:
+                    #   Sphinx READ -> Proofscape READ -> Proofscape RESOLVE -> Sphinx RESOLVE
+                    # In particular, all modules have been read before any module tries to resolve.
+                    self.build_sphinx_doc(
+                        do_clean=self.clean_sphinx,
+                        force_reread_rst_paths=force_reread_rst_paths,
+                        just_read_no_write=no_sphinx_write
+                    )
+                else:
+                    self.read_and_resolve()
 
             self.have_built = True
 
@@ -765,7 +772,7 @@ class Builder:
             else:
                 return
         module = load_module(
-            self.repo_info.libpath, version=pfsc.constants.WIP_TAG,
+            self.repo_info.libpath, version=self.version,
             fail_gracefully=False, caching=self.caching, cache=self.module_cache
         )
         # No need to call module.resolve(), since we are only interested in

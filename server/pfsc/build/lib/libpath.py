@@ -269,16 +269,34 @@ class PathInfo:
         src_path = self.get_build_dir_src_code_path(version=version)
         return src_path.parent / 'module.pickle'
 
+    def get_src_file_modification_time(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the modification time for the source file.
+        """
+        if version == pfsc.constants.WIP_TAG:
+            return self.src_file_modification_time
+        else:
+            src_path = self.get_build_dir_src_code_path(version=version)
+            if not src_path.exists():
+                return None
+            return src_path.stat().st_mtime
+
     @property
     def fs_suffix(self):
         return pfsc.constants.RST_EXT if self.is_rst_file() else pfsc.constants.PFSC_EXT
 
-    def is_rst_file(self):
+    def is_rst_file(self, version=pfsc.constants.WIP_TAG):
         """
         Say whether the file representing this module is an `.rst` file.
         """
-        p = self.abs_fs_path_to_file
-        return p and p.endswith('.rst')
+        if version == pfsc.constants.WIP_TAG:
+            p = self.abs_fs_path_to_file
+            return p and p.endswith('.rst')
+        else:
+            src_path = self.get_build_dir_src_code_path(version=version)
+            if not src_path.exists():
+                return None
+            return src_path.suffix == pfsc.constants.RST_EXT
 
     def name_is_available(self, proposed_name):
         """

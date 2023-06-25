@@ -1378,8 +1378,8 @@ def load_module(
         msg = f'Insufficient permission to load `{modpath}` at WIP.'
         raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
 
-    def fail(force_excep=False):
-        if fail_gracefully and not force_excep:
+    def fail():
+        if fail_gracefully:
             return None
         else:
             msg = f'Could not find source code for module `{modpath}` at version `{version}`.'
@@ -1414,15 +1414,11 @@ def load_module(
         elif caching == CachePolicy.ALWAYS:
             will_rebuild = False
         # Otherwise, the module was found in the on-disk cache, and we're using time-based policy.
-        # If we want a numbered release version, then there's no question of it having
-        # changed since last load, since numbered releases, by definition, do not change!
-        elif version != pfsc.constants.WIP_TAG:
-            will_rebuild = False
         else:
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
             t_r = unpickled_module.read_time
-            t_m = path_info.src_file_modification_time
+            t_m = path_info.get_src_file_modification_time(version=version)
             if t_m is None:
                 return fail()
             # We should rebuild the module if it has been modified since it was last read.
@@ -1456,15 +1452,13 @@ def load_module(
         # Otherwise, add this modpath to the history.
         history.append(modpath)
 
-        is_rst = path_info.is_rst_file()
-
-        # FIXME
-        if version != pfsc.constants.WIP_TAG and (is_rst or not text_given):
-            # If it's not a WIP module, and we need to load from disk, then
-            # we need the desired version to have already been built and indexed.
-            if not get_graph_reader().version_is_already_indexed(repopath, version):
-                msg = f'Trying to load `{modpath}` at release `{version}`'
-                msg += ', but that version has not been built yet on this server.'
+        is_rst = path_info.is_rst_file(version=version)
+        if is_rst:
+            if version != pfsc.constants.WIP_TAG:
+                msg = (
+                    f'Cannot build rst module `{modpath}` at version `{version}`.'
+                    ' May need to build its repo at that version first.'
+                )
                 e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
                 e.extra_data({
                     'repopath': repopath,
@@ -1473,7 +1467,6 @@ def load_module(
                 })
                 raise e
 
-        if is_rst:
             from pfsc.build import Builder
             b = Builder(repopath, version=pfsc.constants.WIP_TAG, recursive=True)
             b.build(
@@ -1500,7 +1493,7 @@ def load_module(
                 try:
                     module_contents = path_info.read_module(version=version)
                 except FileNotFoundError:
-                    return fail(force_excep=(version != pfsc.constants.WIP_TAG))
+                    return fail()
                 ts_text = TimestampedText(read_time, module_contents)
             # Construct a PfscModule.
             module = build_module_from_text(
