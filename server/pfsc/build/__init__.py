@@ -1131,13 +1131,17 @@ class Builder:
                 modpath = module.getLibpath()
                 self.graph_writer.delete_builds_under_module(modpath, self.version)
             else:
-                build_dir, filename = module.getBuildDirAndFilename(version=self.version)
-                if os.path.exists(build_dir):
-                    for ext in [
-                        'src', 'anno.html', 'anno.json', 'dg.json'
-                    ]:
-                        cmd = f'rm {build_dir}/*.{ext} 2> /dev/null'
-                        os.system(cmd)
+                build_dir, _ = module.getBuildDirAndFilename(version=self.version)
+                build_dir = pathlib.Path(build_dir)
+                if build_dir.exists():
+                    for path in build_dir.iterdir():
+                        if path.is_file() and path.suffixes in [
+                            ['.src'],
+                            ['.anno', '.html'],
+                            ['.anno', '.json'],
+                            ['.dg', '.json'],
+                        ]:
+                            path.unlink()
 
     def write_dashgraphs(self):
         """
