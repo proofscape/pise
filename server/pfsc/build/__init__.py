@@ -103,7 +103,8 @@ def build_repo(
         or a Builder instance representing that repo.
     :param version: the version to be built
     :param caching: as for the Builder class.
-    :param verbose: as for the Builder class.
+    :param verbose: as for the Builder class, except may also be set to the
+        integer 2 in order to add performance output.
     :param progress: as for the Builder class.
     :param make_clean: as for the Builder class.
 
@@ -117,7 +118,7 @@ def build_repo(
         )
     else:
         b = target
-    if verbose:
+    if verbose == 2:
         profile_build_write_index(b)
     else:
         b.build_write_index()
