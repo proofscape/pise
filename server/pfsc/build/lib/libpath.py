@@ -420,16 +420,24 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
         msg = 'Libpath too short: %s' % libpath
         raise PfscExcep(msg, PECode.LIBPATH_TOO_SHORT)
     p = parts[:2]
+    repopath = None
     for part in parts[2:]:
         p.append(part)
         lp = '.'.join(p)
+        if repopath is None:
+            repopath = lp
         pi = PathInfo(lp)
         if not pi.is_module(version=version, strict=strict):
             p.pop()
             break
     if len(p) < 3:
         msg = 'Module does not exist: %s' % libpath
-        raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+        e = PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+        e.extra_data({
+            'repopath': repopath,
+            'version': version,
+        })
+        raise e
     modpath = '.'.join(p)
     return modpath
 

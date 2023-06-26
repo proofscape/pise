@@ -141,7 +141,11 @@ def auto_deps_build(repopath, tag, clean, verbose=False):
                 clone(repopath, verbose=verbose)
                 # Retry
                 jobs.append(job)
-            elif code == PECode.VERSION_NOT_BUILT_YET:
+            elif code in [
+                PECode.VERSION_NOT_BUILT_YET,
+                PECode.MODULE_DOES_NOT_EXIST,
+                PECode.MODULE_HAS_NO_CONTENTS,
+            ]:
                 # We have a dependency that hasn't been built yet. Try to build it.
                 repopath = data["repopath"]
                 version = data["version"]
