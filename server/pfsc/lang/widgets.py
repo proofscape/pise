@@ -713,10 +713,10 @@ class LinkWidget(Widget):
         # Determine the type of thing the ref points to.
         # It should be either an annotation or a widget.
         target_libpath = self.data['ref']
-        target_annopath = get_formal_moditempath(target_libpath)
+        target_version = self.getRequiredVersionOfObject(target_libpath)
+        target_annopath = get_formal_moditempath(target_libpath, version=target_version)
         target_type = "ANNO" if target_libpath == target_annopath else "WIDG"
         self.data["annopath"] = target_annopath
-        target_version = self.getRequiredVersionOfObject(target_annopath)
         self.data["target_version"] = target_version
         self.data['target_type'] = target_type
         if target_type == "WIDG":

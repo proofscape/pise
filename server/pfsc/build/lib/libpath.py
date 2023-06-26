@@ -410,7 +410,7 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
     Compute the libpath of the deepest module named in a given libpath.
 
     :param libpath: any valid absolute libpath
-    :param version: the version at which this relation should obtain.
+    :param version: the version of interest
     :param strict: set True if you require directories to contain a `__.pfsc` file in order
                    to be considered a module.
     :return: the longest initial segment of this path that points to a module
@@ -433,7 +433,7 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
     modpath = '.'.join(p)
     return modpath
 
-def get_formal_moditempath(libpath, strict=False):
+def get_formal_moditempath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
     """
     Like `get_modpath`, only we try to extend the modpath one segment more, to
     a libpath denoting a "module item" (i.e. an item defined at the top level of a
@@ -443,12 +443,13 @@ def get_formal_moditempath(libpath, strict=False):
     of this function.
 
     :param libpath: any valid absolute libpath
+    :param version: the version of interest
     :param strict: see `get_modpath` function.
 
     :raises: PfscExcep if the given libpath is too short to point to a module item, i.e. if it
              points to a module.
     """
-    modpath = get_modpath(libpath, strict=strict)
+    modpath = get_modpath(libpath, version=version, strict=strict)
     remainder = libpath[len(modpath)+1:]
     rem_parts = remainder.split('.')
     next_seg = rem_parts[0]
@@ -458,17 +459,19 @@ def get_formal_moditempath(libpath, strict=False):
     moditempath = modpath + '.' + next_seg
     return moditempath
 
-def get_deduction_closure(libpaths):
+def get_deduction_closure(libpaths, version=pfsc.constants.WIP_TAG):
     """
     Given an iterable of libpaths of deducs and/or nodes, compute the "deduction closure"
-    thereof. This is the smallest set of deductions that contains all the items named.
+    thereof. This is the smallest set of deductions that contains all the items named,
+    at the indicated version.
 
     :param libpaths: list of libpaths of deducs and/or nodes.
+    :param version: the version of interest
     :return: set of libpaths of the deduction closure thereof
     """
     closure = set()
     for libpath in libpaths:
-        closure.add(get_formal_moditempath(libpath))
+        closure.add(get_formal_moditempath(libpath, version=version))
     return closure
 
 def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_label="DISK"):
