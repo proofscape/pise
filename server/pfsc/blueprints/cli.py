@@ -20,6 +20,8 @@ CLI commands
 
 import json
 import pathlib
+import sys
+import traceback
 
 import click
 from flask.cli import with_appcontext
@@ -65,22 +67,29 @@ activated your virtual environment.
 @click.option('-v', '--verbose', is_flag=True, default=False)
 @click.option('--auto-deps', is_flag=True, default=False,
               help='Automatically clone and build missing dependencies, recursively.')
+@click.option('--debug', is_flag=True, default=False, help='Print debugging traceback on error.')
 @with_appcontext
-def build(repopath, tag, clean, verbose=False, auto_deps=False):
+def build(repopath, tag, clean, verbose=False, auto_deps=False, debug=False):
     """
     Build the proofscape repo at REPOPATH.
     """
-    # By invoking the `make_app` function with no arguments, we allow it to
-    # determine the configuration based on the FLASK_CONFIG environment variable.
-    app = make_app()
-    # However we force PSM, since when you are working from the CLI you should
-    # be able to do whatever you want.
-    app.config["PERSONAL_SERVER_MODE"] = True
-    with app.app_context():
-        if auto_deps:
-            auto_deps_build(repopath, tag, clean, verbose=verbose)
-        else:
-            failfast_build(repopath, tag, clean, verbose=verbose)
+    try:
+        # By invoking the `make_app` function with no arguments, we allow it to
+        # determine the configuration based on the FLASK_CONFIG environment variable.
+        app = make_app()
+        # However we force PSM, since when you are working from the CLI you should
+        # be able to do whatever you want.
+        app.config["PERSONAL_SERVER_MODE"] = True
+        with app.app_context():
+            if auto_deps:
+                auto_deps_build(repopath, tag, clean, verbose=verbose)
+            else:
+                failfast_build(repopath, tag, clean, verbose=verbose)
+    except PfscExcep as e:
+        if debug:
+            traceback.print_exc()
+        print(e)
+        sys.exit(1)
 
 
 def failfast_build(repopath, tag, clean, verbose=False):
