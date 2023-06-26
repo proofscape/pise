@@ -26,7 +26,7 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler
 from pfsc.checkinput import IType
 from pfsc.checkinput.version import check_full_version
-from pfsc.build import build_repo, build_release
+from pfsc.build import build_repo
 from pfsc.build.manifest import has_manifest, load_manifest
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (
@@ -330,7 +330,7 @@ class RepoLoader(RepoTaskHandler):
                 self.fetch()
                 self.action = ''
             self.check_hash()
-            return build_release(self.repo_info.libpath, self.version, progress=self.update)
+            return build_repo(self.repo_info.libpath, version=self.version, progress=self.update)
 
     def make_demo_repo(self):
         self.action = 'Make demo repo...'

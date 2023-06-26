@@ -20,7 +20,7 @@ import tempfile
 
 from pfsc import make_app
 from pfsc.constants import TEST_RESOURCE_DIR
-from pfsc.build import build_release, build_repo
+from pfsc.build import build_repo
 from pfsc.build.versions import VersionTag
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer
@@ -203,7 +203,7 @@ def build_big(verbose=True):
     # Ensure we are able to build:
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
-        build_release(
+        build_repo(
             repopath, version=version, verbose=verbose, make_clean=True
         )
 
@@ -249,7 +249,7 @@ def clear_and_build_releases_with_deps_depth_first(
                     for k, v in prereqs:
                         request_version(k, v)
                 else:
-                    build_release(rp, version=vers, verbose=verbose, make_clean=True)
+                    build_repo(rp, version=vers, verbose=verbose, make_clean=True)
                     repos_built.add(f'{rp}@{vers}')
 
 

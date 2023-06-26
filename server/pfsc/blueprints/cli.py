@@ -28,8 +28,7 @@ from pygit2 import clone_repository, GitError, RemoteCallbacks
 import pfsc.constants
 from pfsc.constants import UserProps
 from pfsc import pfsc_cli, make_app
-from pfsc.build.lib.libpath import get_modpath
-from pfsc.build import build_repo, build_release
+from pfsc.build import build_repo
 from pfsc.build.repo import RepoInfo
 from pfsc.checkinput import check_type, IType
 from pfsc.gdb import get_gdb, get_graph_writer, get_graph_reader
@@ -80,10 +79,7 @@ def failfast_build(repopath, tag, clean, verbose=False):
     present, or has a dependency that has not yet been built.
     """
     try:
-        if tag != pfsc.constants.WIP_TAG:
-            build_release(repopath, tag, verbose=verbose)
-        else:
-            build_repo(repopath, make_clean=clean, verbose=verbose)
+        build_repo(repopath, version=tag, make_clean=clean, verbose=verbose)
     except PfscExcep as e:
         code = e.code()
         data = e.extra_data()
@@ -113,10 +109,7 @@ def auto_deps_build(repopath, tag, clean, verbose=False):
         print('-'*80)
         print(f'Building {repopath}@{tag}...')
         try:
-            if tag != pfsc.constants.WIP_TAG:
-                build_release(repopath, tag, verbose=verbose)
-            else:
-                build_repo(repopath, make_clean=clean, verbose=verbose)
+            build_repo(repopath, version=tag, make_clean=clean, verbose=verbose)
         except PfscExcep as e:
             code = e.code()
             data = e.extra_data()

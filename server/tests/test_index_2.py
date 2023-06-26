@@ -18,7 +18,7 @@ import json
 import pytest
 
 import pfsc.constants
-from pfsc.build import build_repo, build_release
+from pfsc.build import build_repo
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_reader, get_graph_writer
 from pfsc.excep import PfscExcep, PECode
@@ -66,7 +66,7 @@ def test_various_errors(app, version, err_code):
     with app.app_context():
         repopath = 'test.moo.err'
         with pytest.raises(PfscExcep) as ei:
-            build_release(repopath, version)
+            build_repo(repopath, version=version)
         pe = ei.value
         print('\n', pe)
         assert pe.code() == err_code
@@ -89,10 +89,10 @@ def test_more_errors(app, version, err_code):
         repopath = 'test.moo.err2'
         # Ensure the initial (correct) version is built.
         if not gr.version_is_already_indexed(repopath, 'v1.0.0'):
-            build_release(repopath, 'v1.0.0')
+            build_repo(repopath, version='v1.0.0')
         # Now trigger errors with subsequent versions.
         with pytest.raises(PfscExcep) as ei:
-            build_release(repopath, version)
+            build_repo(repopath, version=version)
         pe = ei.value
         print('\n', pe)
         assert pe.code() == err_code
@@ -145,7 +145,7 @@ def test_moo_bar(app):
         v = 'v1.0.0'
         print('=' * 50)
         print(v)
-        build_release(repopath, v)
+        build_repo(repopath, version=v)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)

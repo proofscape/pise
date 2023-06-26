@@ -92,55 +92,31 @@ import pfsc.constants
 
 
 def build_repo(
-        target, caching=CachePolicy.TIME,
-        verbose=False, progress=None,
+        target, version=pfsc.constants.WIP_TAG,
+        caching=CachePolicy.TIME, verbose=False, progress=None,
         make_clean=False
 ):
     """
-    Build a module.
+    Build a Proofscape repo.
 
     :param target: Either the libpath (str) of the repo that is to be built,
-                      or a Builder instance representing that repo.
+        or a Builder instance representing that repo.
+    :param version: the version to be built
     :param caching: as for the Builder class.
     :param verbose: as for the Builder class.
     :param progress: as for the Builder class.
     :param make_clean: as for the Builder class.
-    :return: the Builder instance that built the module.
+
+    :return: the Builder instance that performed the build.
     """
     if not isinstance(target, Builder):
         b = Builder(
-            target, version=pfsc.constants.WIP_TAG,
+            target, version=version,
             caching=caching, verbose=verbose, progress=progress,
             make_clean=make_clean
         )
     else:
         b = target
-    if verbose:
-        profile_build_write_index(b)
-    else:
-        b.build_write_index()
-    return b
-
-
-def build_release(
-        repopath, version, caching=CachePolicy.TIME, verbose=False,
-        progress=None, make_clean=False
-):
-    """
-    Build a release.
-
-    :param repopath: the libpath of the repo for which you wish to build a release.
-    :param version: the number of the release to be built.
-    :param caching: as for the Builder class.
-    :param verbose: as for the Builder class.
-    :param progress: as for the Builder class.
-    :param make_clean: as for the Builder class.
-    :return: the Builder instance we use to do the build.
-    """
-    b = Builder(
-        repopath, version=version, caching=caching,
-        verbose=verbose, progress=progress, make_clean=make_clean
-    )
     if verbose:
         profile_build_write_index(b)
     else:

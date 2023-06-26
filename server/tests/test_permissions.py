@@ -341,7 +341,7 @@ def test_repo_permission_209(client, repos_ready):
 
 ###############################################################################
 
-from pfsc.build import build_repo, build_release
+from pfsc.build import build_repo
 
 @pytest.mark.psm
 def test_load_module_at_wip_fail(app, repos_ready):
@@ -351,7 +351,7 @@ def test_load_module_at_wip_fail(app, repos_ready):
     """
     with app.app_context():
         with pytest.raises(PfscExcep) as ei:
-            build_release('test.moo.err3', 'v1.0.0')
+            build_repo('test.moo.err3', version='v1.0.0')
         print(ei.value)
         assert ei.value.code() == PECode.NO_WIP_IMPORTS_IN_NUMBERED_RELEASES
 
