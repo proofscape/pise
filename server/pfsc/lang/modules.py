@@ -21,7 +21,6 @@ they declare, using the classes in the deductions and annotations (python) modul
 
 from collections import deque
 import datetime
-import inspect
 import pathlib
 import pickle
 import re
@@ -40,7 +39,7 @@ from pfsc.lang.objects import PfscDefn
 from pfsc.lang.widgets import Widget
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
-from pfsc.build.repo import get_repo_part
+from pfsc.build.repo import get_repo_part, get_repo_info
 from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_reader
 from pfsc.permissions import have_repo_permission, ActionType
@@ -1284,6 +1283,29 @@ def remove_modules_from_disk_cache(modpaths, version=pfsc.constants.WIP_TAG):
                 pickle_path.unlink()
 
 
+def remove_all_pickles_from_dir(dir_path, recursive=False):
+    """
+    Purge any and all pickle files in (and optionally under) a directory.
+
+    :param dir_path: pathlib.Path
+    :param recursive: set True if you want to recurse on all nested directories
+    """
+    for path in dir_path.iterdir():
+        if recursive and path.is_dir():
+            remove_all_pickles_from_dir(path, recursive=True)
+        if path.is_file() and path.suffix == '.pickle':
+            path.unlink()
+
+
+def remove_all_pickles_for_repo(repopath, version=pfsc.constants.WIP_TAG):
+    """
+    Purge any and all pickle files for a given repo, at a given version.
+    """
+    ri = get_repo_info(repopath)
+    dir_path = pathlib.Path(ri.get_build_dir(version=version))
+    remove_all_pickles_from_dir(dir_path, recursive=True)
+
+
 def pickle_module(module, path_info=None):
     """
     Save a pickled representation of a `PfscModule` at its correct location in
@@ -1378,12 +1400,20 @@ def load_module(
         msg = f'Insufficient permission to load `{modpath}` at WIP.'
         raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
 
-    def fail():
+    def fail(msg=None, pe_code=None):
         if fail_gracefully:
             return None
         else:
-            msg = f'Could not find source code for module `{modpath}` at version `{version}`.'
-            raise PfscExcep(msg, PECode.MODULE_HAS_NO_CONTENTS)
+            msg = msg or f'Could not find source code for module `{modpath}` at version `{version}`.'
+            if pe_code is None:
+                pe_code = PECode.MODULE_HAS_NO_CONTENTS
+            e = PfscExcep(msg, pe_code)
+            e.extra_data({
+                'repopath': repopath,
+                'version': version,
+                'modpath': modpath,
+            })
+            raise e
 
     if cache is None:
         cache = {}
@@ -1459,16 +1489,10 @@ def load_module(
                     f'Cannot build rst module `{modpath}` at version `{version}`.'
                     ' May need to build its repo at that version first.'
                 )
-                e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
-                e.extra_data({
-                    'repopath': repopath,
-                    'version': version,
-                    'modpath': modpath,
-                })
-                raise e
+                fail(msg=msg, pe_code=PECode.VERSION_NOT_BUILT_YET)
 
             from pfsc.build import Builder
-            b = Builder(repopath, version=pfsc.constants.WIP_TAG, recursive=True)
+            b = Builder(repopath, version=pfsc.constants.WIP_TAG)
             b.build(
                 force_reread_rst_paths=[path_info.abs_fs_path_to_file],
                 no_sphinx_write=True

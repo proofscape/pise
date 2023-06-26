@@ -20,7 +20,7 @@ import tempfile
 
 from pfsc import make_app
 from pfsc.constants import TEST_RESOURCE_DIR
-from pfsc.build import build_release, build_module
+from pfsc.build import build_release, build_repo
 from pfsc.build.versions import VersionTag
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer
@@ -204,7 +204,7 @@ def build_big(verbose=True):
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
         build_release(
-            repopath, version=version, verbose=verbose, clean_sphinx=True
+            repopath, version=version, verbose=verbose, make_clean=True
         )
 
 
@@ -249,7 +249,7 @@ def clear_and_build_releases_with_deps_depth_first(
                     for k, v in prereqs:
                         request_version(k, v)
                 else:
-                    build_release(rp, version=vers, verbose=verbose, clean_sphinx=True)
+                    build_release(rp, version=vers, verbose=verbose, make_clean=True)
                     repos_built.add(f'{rp}@{vers}')
 
 
@@ -286,8 +286,8 @@ def build_at_wip(verbose=True):
         for repopath, tag in tags_to_build_as_wip:
             ri = get_repo_info(repopath)
             ri.checkout(tag)
-            build_module(
-                repopath, recursive=True, caching=0, verbose=verbose,
-                clean_sphinx=True
+            build_repo(
+                repopath, caching=0, verbose=verbose,
+                make_clean=True
             )
             ri.clean()

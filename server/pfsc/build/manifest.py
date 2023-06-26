@@ -160,13 +160,12 @@ class Manifest:
         t = self.root_node.build_dict()
         return json.dumps(t)
 
-    def set_build_info(self, libpath, version, commit, time, recursive):
+    def set_build_info(self, libpath, version, commit, time):
         self.build_info = {
             libpath: {
                 "version": version,
                 "commit": commit,
                 "time": str(time),
-                "recursive": recursive
             }
         }
 
@@ -214,16 +213,15 @@ class Manifest:
 
         sb, ob = self.build_info, other.build_info
         built_libpath, build_info = list(ob.items())[0]
-        recursive = build_info['recursive']
 
-        # If recursive, then remove any keys from sb of which k is a segmentwise prefix.
-        if recursive:
-            n = len(built_libpath)
-            remove_keys = [
-                k1 for k1 in sb if k1[:n] == built_libpath and k1[n:n+1] in ['', '.']
-            ]
-            for k1 in remove_keys:
-                del sb[k1]
+        # Since all builds are recursive, remove any keys from sb of which k
+        # is a segmentwise prefix.
+        n = len(built_libpath)
+        remove_keys = [
+            k1 for k1 in sb if k1[:n] == built_libpath and k1[n:n+1] in ['', '.']
+        ]
+        for k1 in remove_keys:
+            del sb[k1]
 
         sb[built_libpath] = build_info
 
@@ -249,11 +247,12 @@ class Manifest:
                 self.root_node = B
             else:
                 A.parent.replace(A, B)
-            # If the incoming build was not recursive, then we want to save
-            # any pre-existing submodules.
-            if not recursive:
-                submodules = A.get_submodules()
-                B.add_children(submodules)
+            # We used to support cases where the incoming build was not recursive.
+            # In those cases we would want to save any pre-existing submodules.
+            # Saving this here (for now), but commenting it out.
+            #if not recursive:
+            #    submodules = A.get_submodules()
+            #    B.add_children(submodules)
         # But if our first matching node matched some proper ancestor of the
         # newly built module, then we can just add the new node as a child.
         else:

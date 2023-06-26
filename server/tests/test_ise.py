@@ -23,24 +23,13 @@ import pytest
 
 from tests import handleAsJson, login_context
 from pfsc.constants import WEBSOCKET_NAMESPACE, ISE_PREFIX, UserProps
-from pfsc.build import build_module
-from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer, get_graph_reader
-from pfsc.lang.modules import get_modpath
 from pfsc.excep import PECode
 
 """
 For now, skipping all tests involving sockets.
 Have not yet figured out how to get the socketio test client working.
 """
-
-def ensure_built(app, libpath, version):
-    with app.app_context():
-        ri = get_repo_info(libpath)
-        ri.checkout(version)
-        modpath = get_modpath(libpath)
-        build_module(modpath, caching=0)
-
 
 ###############################################################################
 # UPDATE: Currently, the sio_client does say it's connected, but we still can't

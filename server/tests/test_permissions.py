@@ -341,7 +341,7 @@ def test_repo_permission_209(client, repos_ready):
 
 ###############################################################################
 
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo, build_release
 
 @pytest.mark.psm
 def test_load_module_at_wip_fail(app, repos_ready):
@@ -363,6 +363,6 @@ def test_load_module_at_wip_succeed(app, repos_ready):
     So there should be no error here.
     """
     with app.app_context():
-        build_module('test.moo.err3', recursive=True)
+        build_repo('test.moo.err3')
         # Clean up
         get_graph_writer().delete_everything_under_repo('test.moo.err3')

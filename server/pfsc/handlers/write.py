@@ -21,7 +21,7 @@ from flask import has_request_context
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler, SocketHandler, Handler
-from pfsc.build import build_module
+from pfsc.build import build_repo
 from pfsc.lang.modules import remove_modules_from_disk_cache, load_module
 from pfsc.checkinput import IType, EntityType
 from pfsc.build.shadow import shadow_save_and_commit
@@ -45,18 +45,18 @@ class TestHandler(SocketHandler):
 
 class AutoWriter(RepoTaskHandler):
 
-    def __init__(self, request_info, room, writepaths, buildpaths, recursives):
+    def __init__(self, request_info, room, writepaths, buildpaths, makecleans):
         """
         @param request_info: dict defining the task, as in the Handler class
         @param writepaths: list to which we MUST append any modpaths to which we write
         @param buildpaths: list to which we MUST append any modpaths that need to be built
-        @param recursives: list to which we MUST append booleans saying which corresp.
-                            builds should be recursive
+        @param makecleans: list to which we MUST append booleans saying which corresp.
+                            builds should be made clean first
         """
         RepoTaskHandler.__init__(self, request_info, room)
         self.writepaths = writepaths
         self.buildpaths = buildpaths
-        self.recursives = recursives
+        self.makecleans = makecleans
 
     def compute_implicated_repopaths(self):
         raise NotImplementedError
@@ -66,7 +66,7 @@ class AutoWriter(RepoTaskHandler):
 
     def addBuildJob(self, modpath, recursive):
         self.buildpaths.append(modpath)
-        self.recursives.append(recursive)
+        self.makecleans.append(recursive)
 
 class WidgetDataWriter(AutoWriter):
     """
@@ -139,8 +139,8 @@ class WriteHandler(RepoTaskHandler):
             writepaths: list of libpaths of modules to be written to disk before any building occurs
             writetexts: list of texts of modules to be written, corresp. to the writepaths
             shadowonly: boolean, saying whether writes should be shadow only; default False
-            buildpaths: list of libpaths of modules to be built
-            recursives: list of booleans, saying whether corresp. builds should be recursive
+            buildpaths: list of libpaths of repo to be built
+            makecleans: list of booleans, saying whether corresp. builds should be cleaned first
             autowrites: list of dictionaries, each describing an "autowrite" that is to be performed
 				after writing all the writetexts to disk, but before doing the build
 
@@ -186,7 +186,7 @@ class WriteHandler(RepoTaskHandler):
                     },
                     'default_cooked': []
                 },
-                'recursives': {
+                'makecleans': {
                     'type': IType.LIST,
                     'itemtype': {
                         'type': IType.BOOLEAN
@@ -214,16 +214,16 @@ class WriteHandler(RepoTaskHandler):
         self.writerepos = writerepos
         self.buildrepos = buildrepos
 
-    def confirm(self, writepaths, writetexts, shadowonly, buildpaths, recursives, autowrites):
+    def confirm(self, writepaths, writetexts, shadowonly, buildpaths, makecleans, autowrites):
         n_p = len(writepaths)
         n_t = len(writetexts)
         if not n_p == n_t:
             msg = 'Matching lists of writepaths and texts not provided.'
             raise PfscExcep(msg, PECode.MISMATCHED_PATHS_AND_TEXTS)
         n_b = len(buildpaths)
-        n_r = len(recursives)
+        n_r = len(makecleans)
         if not n_b == n_r:
-            msg = 'Matching lists of buildpaths and recursives not provided.'
+            msg = 'Matching lists of buildpaths and makecleans not provided.'
             raise PfscExcep(msg, PECode.MISMATCHED_BUILDS_AND_RECS)
         for aw in autowrites:
             t = aw.get('type')
@@ -231,12 +231,12 @@ class WriteHandler(RepoTaskHandler):
                 msg = 'Unknown autowrite type: %s' % t
                 raise PfscExcep(msg, PECode.UNKNOWN_AUTOWRITE_TYPE)
 
-    def prepare_autowriters(self, autowrites, writepaths, buildpaths, recursives):
+    def prepare_autowriters(self, autowrites, writepaths, buildpaths, makecleans):
         self.autowriters = []
         for i, req in enumerate(autowrites):
             t = req['type']
             cls = AUTOWRITE_HANDLERS[t]
-            aw = cls(req, self.room, writepaths, buildpaths, recursives)
+            aw = cls(req, self.room, writepaths, buildpaths, makecleans)
             assert isinstance(aw, AutoWriter)
             aw.do_require_csrf = False
             aw.prepare(raise_anticipated=True)
@@ -255,7 +255,7 @@ class WriteHandler(RepoTaskHandler):
             )
         self.implicated_repopaths = ir
 
-    def go_ahead(self, writepaths, writetexts, shadowonly, buildpaths, recursives, autowrites):
+    def go_ahead(self, writepaths, writetexts, shadowonly, buildpaths, makecleans, autowrites):
         # Replace CheckedLibpaths with their values.
         writepaths = [p.value for p in writepaths]
         buildpaths = [p.value for p in buildpaths]
@@ -283,7 +283,7 @@ class WriteHandler(RepoTaskHandler):
                 "libpathsWritten": writepaths,
             })
         # Process any build jobs.
-        self.step_build(buildpaths, recursives)
+        self.step_build(buildpaths, makecleans)
         if buildpaths:
             # Let the client know that the builds are done.
             self.emit('listenable', {
@@ -317,15 +317,15 @@ class WriteHandler(RepoTaskHandler):
             k = 'autowrite_%2d' % i
             self.set_response_field(k, aw.generate_response())
 
-    def step_build(self, buildpaths, recursives):
+    def step_build(self, buildpaths, makecleans):
         results = []
-        for buildpath, recursive in zip(buildpaths, recursives):
-            build_module(buildpath, recursive=recursive, progress=self.update)
+        for buildpath, makeclean in zip(buildpaths, makecleans):
+            build_repo(buildpath, make_clean=makeclean, progress=self.update)
             results.append(f'Built {buildpath}')
             self.emit('listenable', {
                 'type': 'moduleBuilt',
                 'modpath': buildpath,
-                'recursive': recursive,
+                'clean': makeclean,
                 'timestamp': time.time(),
             }, groupcast=True)
         self.set_response_field('build', results)

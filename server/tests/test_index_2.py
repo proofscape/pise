@@ -18,7 +18,7 @@ import json
 import pytest
 
 import pfsc.constants
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo, build_release
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_reader, get_graph_writer
 from pfsc.excep import PfscExcep, PECode
@@ -130,7 +130,7 @@ def test_moo_bar(app):
         print(v)
         ri.checkout(v)
         v034_hash = ri.get_current_commit_hash()
-        build_module(repopath, recursive=True)
+        build_repo(repopath)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)
@@ -166,7 +166,7 @@ def test_moo_bar(app):
         print('=' * 50)
         print(v)
         ri.checkout(v)
-        build_module(repopath, recursive=True)
+        build_repo(repopath)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)

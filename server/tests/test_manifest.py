@@ -30,7 +30,6 @@ manifest_00 = {
             "version": "WIP",
             "commit": "123412341234",
             "time": "Monday",
-            "recursive": False,
         }
     },
     "doc_info": {},
@@ -55,7 +54,6 @@ manifest_01 = {
             "version": "WIP",
             "commit": "abcdabcdabcd",
             "time": "Tuesday",
-            "recursive": False,
         }
     },
     "doc_info": {},
@@ -81,13 +79,11 @@ manifest_01_c1 = {
             "version": "WIP",
             "commit": "abcdabcdabcd",
             "time": "Tuesday",
-            "recursive": False,
         },
         "a.b1.c1": {
             "version": "WIP",
             "commit": "a1b2c3d4",
             "time": "Wednesday",
-            "recursive": False,
         },
     },
     "doc_info": {},
@@ -120,7 +116,6 @@ manifest_01r = {
             "version": "WIP",
             "commit": "abcdabcdabcd",
             "time": "Tuesday",
-            "recursive": True,
         }
     },
     "doc_info": {},
@@ -143,7 +138,6 @@ manifest_01r = {
 manifest_02_c_CAT = {
     "build": {
         "a.b1.c": {
-            "recursive": False,
         }
     },
     "doc_info": {},
@@ -174,7 +168,6 @@ manifest_02_c_CAT = {
 manifest_02_c_MOD = {
     "build": {
         "a.b1.c": {
-            "recursive": False,
         }
     },
     "doc_info": {},
@@ -205,7 +198,6 @@ manifest_02_c_MOD = {
 manifest_03 = {
     "build": {
         "a.b1.c.d": {
-            "recursive": False,
         }
     },
     "doc_info": {},
@@ -260,7 +252,7 @@ def test_manifest_1():
     manifest = Manifest(root_node)
     node1 = ManifestTreeNode('a.b0', name="b0")
     manifest.get('a').add_child(node1)
-    manifest.set_build_info('a.b0', 'WIP', '123412341234', 'Monday', False)
+    manifest.set_build_info('a.b0', 'WIP', '123412341234', 'Monday')
     d = manifest.build_dict()
     j = json.dumps(d, indent=4)
     print(j)
@@ -279,20 +271,7 @@ def test_merge_01():
 
 def test_merge_02():
     """Merge a new build of a parent module. """
-    m01 = make(manifest_01)
     m01r = make(manifest_01r)
-
-    # We merge a non-recursive build of our parent module.
-    # We have a child of type "CAT". Only children of type
-    # "MODULE" are preserved in such a case, so this child
-    # vanishes.
-    m02_cat = make(manifest_02_c_CAT)
-    m02_cat.merge(m01)
-    d = show(m02_cat)
-    assert "a.b1.c" in d["build"]
-    a_b1 = d["tree_model"]["children"][0]
-    assert a_b1["type"] == "BAR"
-    assert "children" not in a_b1
 
     # We merge a recursive build of our parent module.
     # Everything we had before is replaced completely.
@@ -300,18 +279,6 @@ def test_merge_02():
     m02_cat.merge(m01r)
     d = show(m02_cat)
     assert d == manifest_01r
-
-    # We merge a non-recursive build of our parent module.
-    # This time we have a child that is of type "MODULE",
-    # so it is preserved.
-    m02_mod = make(manifest_02_c_MOD)
-    m02_mod.merge(m01)
-    d = show(m02_mod)
-    a_b1 = d["tree_model"]["children"][0]
-    assert a_b1["type"] == "BAR"
-    a_b1_c = a_b1["children"][0]
-    assert a_b1_c["id"] == "a.b1.c"
-    assert a_b1_c["type"] == "MODULE"
 
 
 def test_merge_03():

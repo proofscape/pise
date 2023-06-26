@@ -18,55 +18,11 @@ import json
 
 import pytest
 
-from pfsc.build import Builder, build_module, build_release
-from pfsc.build.manifest import load_manifest
+from pfsc.build import Builder, build_repo
 from pfsc.build.products import load_annotation
 from pfsc.build.repo import get_repo_info
-from pfsc.gdb import get_graph_writer
 
 from tests.util import clear_and_build_releases_with_deps_depth_first, make_repos
-
-
-# FIXME: How do we skip a test based on the app's configuration?
-#   Want to skip this one if not app.config["BUILD_IN_GDB"].
-@pytest.mark.parametrize('rec', [
-    False,
-    True,
-])
-@pytest.mark.psm
-def test_partial_builds(app, rec):
-    """
-    Try building just test.moo.study.results@WIP, and then
-    building test.moo.study.expansions@WIP. We want to check that the
-    manifest for the repo _grows_ (i.e. the results of the first build
-    are _not_ simply overwritten by the results of the second build).
-    """
-    with app.app_context():
-        if not app.config["BUILD_IN_GDB"]:
-            return
-        repopath = 'test.moo.study'
-        ri = get_repo_info(repopath)
-        ri.checkout('v1.1.0')
-        gw = get_graph_writer()
-        modpath1 = f'{repopath}.results'
-        modpath2 = f'{repopath}.expansions'
-
-        gw.delete_full_wip_build(repopath)
-
-        build_module(modpath1)
-        m1 = load_manifest(repopath)
-        print()
-        print(json.dumps(m1.build_dict(), indent=4))
-
-        build_module(modpath2, recursive=rec)
-        m2 = load_manifest(repopath)
-        d2 = m2.build_dict()
-        print()
-        print(json.dumps(d2, indent=4))
-
-        ch = d2["tree_model"]["children"]
-        assert len(ch) == 2
-        assert {c["libpath"] for c in ch} == {modpath1, modpath2}
 
 
 def test_chart_widget_versions_dict_in_release(app, repos_ready):
@@ -90,14 +46,14 @@ def test_chart_widget_versions_dict_in_release(app, repos_ready):
 
 # Try calling Builder.build()
 @pytest.mark.skip(reason="just for manual testing")
-@pytest.mark.parametrize("libpath, rec", (
+@pytest.mark.parametrize("libpath, clean", (
     ("test.foo.bar", False),
     #("test.foo.bar.expansions", False),
     #("test.hist.lit", False),
     #("test.hist.lit.H.ilbert.ZB.Thm168.notes", False),
 ))
-def test_build(libpath, rec):
-    b = Builder(libpath, recursive=rec)
+def test_build(libpath, clean):
+    b = Builder(libpath, make_clean=clean)
     b.build()
     print(json.dumps(b.manifest.build_dict(), indent=4))
     print()
@@ -106,46 +62,46 @@ def test_build(libpath, rec):
     print(j)
 
 # Try full build, index, & write
-# Here we use `build_module()`, hence build @WIP.
+# Here we use `build_repo()`, hence build @WIP.
 # To build at a numbered release, see `test_build_release()` below.
 @pytest.mark.skip(reason="just for manual testing")
-@pytest.mark.parametrize("libpath, rec", (
+@pytest.mark.parametrize("libpath, clean", (
     #("test.spx.doc0", True),
     ("test.spx.doc1", True),
     #("test.moo.bar", True),
-    #("test.foo.bar.expansions", False),
+    #("test.foo.bar.expansions", True),
     #("test.hist.lit", True),
     #("test.hist.lit.G.alois", True),
-    #("test.hist.lit.H.ilbert.ZB.rdefs", False),
-    #("test.hist.lit.H.ilbert.ZB", False),
-    #("test.hist.lit.H.ilbert.ZB.Thm168.notes", False),
-    #("test.hist.lit.H.ilbert.ZB.Pg180L1", False),
+    #("test.hist.lit.H.ilbert.ZB.rdefs", True),
+    #("test.hist.lit.H.ilbert.ZB", True),
+    #("test.hist.lit.H.ilbert.ZB.Thm168.notes", True),
+    #("test.hist.lit.H.ilbert.ZB.Pg180L1", True),
     #("test.hist.lit.H.ilbert.ZB.Thm117", True),
-    #("test.wid.get.notes", False),
-    #("test.moo.study.expansions", False),
-    #("test.moo.links.deducs1", False),
-    #("test.comment.notes.H.ilbert.ZB.Thm17", False),
+    #("test.wid.get.notes", True),
+    #("test.moo.study.expansions", True),
+    #("test.moo.links.deducs1", True),
+    #("test.comment.notes.H.ilbert.ZB.Thm17", True),
 ))
 @pytest.mark.psm
-def test_full_build(app, libpath, rec):
+def test_full_build(app, libpath, clean):
     with app.app_context():
-        cb = Builder(libpath, recursive=rec, verbose=False, clean_sphinx=True)
-        build_module(cb)
+        cb = Builder(libpath, verbose=False, make_clean=clean)
+        build_repo(cb)
 
 
 # Try full build on different branches.
 @pytest.mark.skip(reason="just for manual testing")
-@pytest.mark.parametrize("libpath, branch, rec", (
-    ("test.foo.bar.results", "v16", False),
+@pytest.mark.parametrize("libpath, branch, clean", (
+    ("test.foo.bar.results", "v16", True),
     #("test.foo.bar.expansions", "v2", True),
 ))
 @pytest.mark.psm
-def test_full_build_at_version(app, libpath, branch, rec):
+def test_full_build_at_version(app, libpath, branch, clean):
     with app.app_context():
         ri = get_repo_info(libpath)
         ri.checkout(branch)
-        cb = Builder(libpath, recursive=rec, verbose=False)
-        build_module(cb)
+        cb = Builder(libpath, make_clean=clean, verbose=False)
+        build_repo(cb)
 
 
 # Handy for manually remaking a single test repo, when developing.

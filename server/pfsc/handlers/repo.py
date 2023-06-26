@@ -26,7 +26,7 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler
 from pfsc.checkinput import IType
 from pfsc.checkinput.version import check_full_version
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo, build_release
 from pfsc.build.manifest import has_manifest, load_manifest
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (
@@ -324,7 +324,7 @@ class RepoLoader(RepoTaskHandler):
     def rebuild(self):
         self.action = ''
         if self.version == pfsc.constants.WIP_TAG:
-            return build_module(self.repo_info.libpath, recursive=True, progress=self.update)
+            return build_repo(self.repo_info.libpath, progress=self.update)
         else:
             if not self.repo_info.has_version_tag(self.version):
                 self.fetch()
