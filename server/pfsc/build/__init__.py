@@ -484,9 +484,6 @@ class Builder:
             form, pickle, and resolve doctrees, but not write any output files.
         :return: nothing
         """
-        if self.verbose:
-            print(f"Building {self.repopath}@{self.version}...")
-
         if self.make_clean:
             remove_all_pickles_for_repo(self.repo_info.libpath, version=self.version)
 
