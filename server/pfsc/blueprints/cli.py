@@ -35,6 +35,27 @@ from pfsc.gdb import get_gdb, get_graph_writer, get_graph_reader
 from pfsc.excep import PfscExcep, PECode
 
 
+"""
+Note: To build requires a configuration, since we need to know where are the
+`lib` and `build` dirs, and what is our graph database URI.
+To set the configuration, set the FLASK_CONFIG environment variable.
+
+So, for example, you might use
+
+    $ export FLASK_APP=web
+    $ export FLASK_CONFIG=localdev
+
+before attempting to build from the commandline.
+
+HOWEVER, we currently have both of these settings in our `.flaskenv`, so
+
+    $ flask pfsc build
+
+should work, out of the box, provided you've installed all the Python reqs and
+activated your virtual environment.
+"""
+
+
 @pfsc_cli.command('build')
 @click.argument('repopath')
 @click.option('-t', '--tag', default="WIP",
@@ -48,17 +69,6 @@ from pfsc.excep import PfscExcep, PECode
 def build(repopath, tag, clean, verbose=False, auto_deps=False):
     """
     Build the proofscape repo at REPOPATH.
-
-    Note: To build requires a configuration, since we need to know where are the
-    `lib` and `build` dirs, and what is our graph database URI.
-    To set the configuration, set the FLASK_CONFIG environment variable.
-
-    So, for example, you might use
-
-        $ export FLASK_APP=web
-        $ export FLASK_CONFIG=localdev
-
-    before attempting to build from the commandline.
     """
     # By invoking the `make_app` function with no arguments, we allow it to
     # determine the configuration based on the FLASK_CONFIG environment variable.
