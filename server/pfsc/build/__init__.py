@@ -93,7 +93,7 @@ import pfsc.constants
 
 def build_repo(
         target, version=pfsc.constants.WIP_TAG,
-        caching=CachePolicy.TIME, verbose=False, progress=None,
+        verbose=False, progress=None,
         make_clean=False
 ):
     """
@@ -102,7 +102,6 @@ def build_repo(
     :param target: Either the libpath (str) of the repo that is to be built,
         or a Builder instance representing that repo.
     :param version: the version to be built
-    :param caching: as for the Builder class.
     :param verbose: as for the Builder class, except may also be set to the
         integer 2 in order to add performance output.
     :param progress: as for the Builder class.
@@ -113,7 +112,7 @@ def build_repo(
     if not isinstance(target, Builder):
         b = Builder(
             target, version=version,
-            caching=caching, verbose=verbose, progress=progress,
+            verbose=verbose, progress=progress,
             make_clean=make_clean
         )
     else:
@@ -376,14 +375,13 @@ class Builder:
 
     def __init__(
             self, repopath, version=pfsc.constants.WIP_TAG,
-            caching=CachePolicy.TIME, verbose=False, progress=None,
+            verbose=False, progress=None,
             make_clean=False
     ):
         """
         :param repopath: libpath of the repo to be built.
         :param version: the version we are building. Must be either "WIP", meaning we want
           to build our work-in-progress, or else a valid release tag `vM.m.p`.
-        :param caching: set the cache policy
         :param verbose: control printing
         :param progress: a function to which to pass progress updates
         :param make_clean: set True to erase any and all existing pickle files
@@ -392,7 +390,6 @@ class Builder:
         """
         self.repopath = repopath
         self.version = version
-        self.caching = caching
         self.verbose = verbose
         self.make_clean = make_clean
         self.monitor = BuildMonitor(progress)
@@ -716,7 +713,7 @@ class Builder:
                 return
         module = load_module(
             self.repo_info.libpath, version=self.version,
-            fail_gracefully=False, caching=self.caching, cache=self.module_cache
+            fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
         )
         # No need to call module.resolve(), since we are only interested in
         # a couple of assignments made in this module (which need no resolution).
@@ -1106,7 +1103,7 @@ class Builder:
         self.graph_writer.index_module(self.mii)
 
 
-def index(obj, caching=CachePolicy.TIME):
+def index(obj):
     """
     Convenience function to accept a variety of arguments, and perform just the indexing operation
     on the appropriate module.
@@ -1117,14 +1114,12 @@ def index(obj, caching=CachePolicy.TIME):
                 RepoInfo: we construct a Builder on this RepoInfo's libpath, and ask it to index.
                 Builder: we ask it to index.
 
-    :param caching: same as in Builder.__init__; we just forward it.
-
     :return: The report from the indexing operation.
     """
     if isinstance(obj, str):
-        b = Builder(obj, caching=caching)
+        b = Builder(obj)
     elif isinstance(obj, RepoInfo):
-        b = Builder(obj.libpath, caching=caching)
+        b = Builder(obj.libpath)
     elif isinstance(obj, Builder):
         b = obj
     else:

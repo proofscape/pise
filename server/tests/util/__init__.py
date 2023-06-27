@@ -286,8 +286,5 @@ def build_at_wip(verbose=True):
         for repopath, tag in tags_to_build_as_wip:
             ri = get_repo_info(repopath)
             ri.checkout(tag)
-            build_repo(
-                repopath, caching=0, verbose=verbose,
-                make_clean=True
-            )
+            build_repo(repopath, verbose=verbose, make_clean=True)
             ri.clean()
