@@ -25,6 +25,7 @@ import pytest
 
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
+from pfsc.build.products import load_annotation
 from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
@@ -144,7 +145,7 @@ def test_manifest(app):
         model = []
         root.build_relational_model(model)
         sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
-        assert sphinx_indices == [3, 5, 7, 9, 11]
+        assert sphinx_indices == [5, 7, 9, 11, 13]
 
 
 def test_spx_doc1(app):
@@ -358,3 +359,17 @@ PAGE_C_PAGE_DATA = {
     },
     "docInfo": None
 }
+
+
+def test_import_rst_into_pfsc(app):
+    """
+    Check that we can import from an rst module into a pfsc module.
+    """
+    with app.app_context():
+        _, j = load_annotation('test.spx.doc1.anno.Notes', version='v0.1.0')
+        d = json.loads(j)
+        #print(json.dumps(d, indent=4))
+        W = d['widgets']
+        link_w1 = W["test-spx-doc1-anno-Notes-w1_v0-1-0"]
+        assert link_w1["type"] == "LINK"
+        assert link_w1["ref"] == "test.spx.doc1.foo.pageC._page.w000"
