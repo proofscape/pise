@@ -25,7 +25,7 @@ import pytest
 
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
-from pfsc.build.products import load_annotation
+from pfsc.build.products import load_annotation, load_dashgraph
 from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
@@ -145,7 +145,7 @@ def test_manifest(app):
         model = []
         root.build_relational_model(model)
         sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
-        assert sphinx_indices == [5, 7, 9, 11, 13]
+        assert sphinx_indices == [5, 7, 11, 13, 15]
 
 
 def test_spx_doc1(app):
@@ -373,3 +373,21 @@ def test_import_rst_into_pfsc(app):
         link_w1 = W["test-spx-doc1-anno-Notes-w1_v0-1-0"]
         assert link_w1["type"] == "LINK"
         assert link_w1["ref"] == "test.spx.doc1.foo.pageC._page.w000"
+
+
+def test_repeated_pfsc_directives(app):
+    """
+    Check that, in an rst module with two or more `pfsc::` directives,
+    the entities defined therein accumulate. I.e., we wind up with built
+    products for everything defined in all of these directives.
+    """
+    with app.app_context():
+        _, j_a = load_annotation('test.spx.doc1.foo.pageD.Notes1', version='v0.1.0')
+        d_a = json.loads(j_a)
+        #print(json.dumps(d_a, indent=4))
+        assert d_a['libpath'] == 'test.spx.doc1.foo.pageD.Notes1'
+
+        j_d = load_dashgraph('test.spx.doc1.foo.pageD.Thm', version='v0.1.0')
+        d_d = json.loads(j_d)
+        #print(json.dumps(d_d, indent=4))
+        assert d_d['libpath'] == 'test.spx.doc1.foo.pageD.Thm'
