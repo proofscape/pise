@@ -28,6 +28,7 @@ from pfsc.build.shadow import shadow_save_and_commit
 from pfsc.build.lib.libpath import git_style_merge_conflict_file, PathInfo, get_modpath
 from pfsc.build.repo import get_repo_part
 
+
 class TestHandler(SocketHandler):
 
     def check_permissions(self):
@@ -42,6 +43,7 @@ class TestHandler(SocketHandler):
         self.success_response = {
             'did': 'something useful'
         }
+
 
 class AutoWriter(RepoTaskHandler):
 
@@ -67,6 +69,7 @@ class AutoWriter(RepoTaskHandler):
     def addBuildJob(self, modpath, recursive):
         self.buildpaths.append(modpath)
         self.makecleans.append(recursive)
+
 
 class WidgetDataWriter(AutoWriter):
     """
@@ -120,15 +123,18 @@ class WidgetDataWriter(AutoWriter):
         self.addWritepath(modpath)
         self.addBuildJob(modpath, False)
 
+
 class AutowriteType:
     WIDGET_DATA='widget_data'
 
     all_types = [WIDGET_DATA]
 
+
 # Lookup mapping AutowriteTypes to handler classes:
 AUTOWRITE_HANDLERS = {
     AutowriteType.WIDGET_DATA: WidgetDataWriter
 }
+
 
 class WriteHandler(RepoTaskHandler):
     """
@@ -142,11 +148,11 @@ class WriteHandler(RepoTaskHandler):
             buildpaths: list of libpaths of repo to be built
             makecleans: list of booleans, saying whether corresp. builds should be cleaned first
             autowrites: list of dictionaries, each describing an "autowrite" that is to be performed
-				after writing all the writetexts to disk, but before doing the build
+                after writing all the writetexts to disk, but before doing the build
 
-				The format of an autowrite dictionary may be quite variable, with the one fixed
-				requirement being that it feature a `type` field, whose value is taken from the
-				AutowriteType enum class.
+                The format of an autowrite dictionary may be quite variable, with the one fixed
+                requirement being that it feature a `type` field, whose value is taken from the
+                AutowriteType enum class.
     """
 
     def __init__(self, request_info, room):
