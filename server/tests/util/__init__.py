@@ -249,8 +249,10 @@ def clear_and_build_releases_with_deps_depth_first(
                     for k, v in prereqs:
                         request_version(k, v)
                 else:
+                    verspath = f'{rp}@{vers}'
+                    print(f'\nBuilding {verspath}...')
                     build_repo(rp, version=vers, verbose=verbose, make_clean=True)
-                    repos_built.add(f'{rp}@{vers}')
+                    repos_built.add(verspath)
 
 
 def build_all(verbose=True):
@@ -286,5 +288,6 @@ def build_at_wip(verbose=True):
         for repopath, tag in tags_to_build_as_wip:
             ri = get_repo_info(repopath)
             ri.checkout(tag)
+            print(f'\nBuilding {repopath}@WIP...')
             build_repo(repopath, verbose=verbose, make_clean=True)
             ri.clean()
