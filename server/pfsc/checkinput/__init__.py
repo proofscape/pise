@@ -59,6 +59,9 @@ from pfsc.checkinput.ise import (
     check_ise_active,
     check_ise_widget_link,
 )
+from pfsc.checkinput.repo import (
+    check_repo_dependencies_format,
+)
 
 def check_cdlist(key, raw, typedef):
     """

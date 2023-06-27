@@ -21,9 +21,9 @@ from flask import has_request_context
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler, SocketHandler, Handler
-from pfsc.build import build_repo
+from pfsc.build import build_repo, Builder
 from pfsc.lang.modules import remove_modules_from_disk_cache, load_module
-from pfsc.checkinput import IType, EntityType
+from pfsc.checkinput import IType, EntityType, check_repo_dependencies_format
 from pfsc.build.shadow import shadow_save_and_commit
 from pfsc.build.lib.libpath import git_style_merge_conflict_file, PathInfo, get_modpath
 from pfsc.build.repo import get_repo_part
@@ -158,8 +158,16 @@ class WriteHandler(RepoTaskHandler):
     def __init__(self, request_info, room):
         RepoTaskHandler.__init__(self, request_info, room)
         self.post_preparation_hooks.insert(0, self.prepare_autowriters)
+
+        # Repopaths to which we want to write:
         self.writerepos = set()
+        # Repopaths we want to build:
         self.buildrepos = set()
+        # Repopaths for which cache i.e. pickle files may be written (and source
+        # files may be copied to the build dir too), since these repos are
+        # imported @WIP in one or more repos we want to build:
+        self.cacherepos = set()
+
         self.autowriters = None
 
     def check_input(self):
@@ -211,14 +219,27 @@ class WriteHandler(RepoTaskHandler):
         })
 
     def check_permissions(self, writepaths, buildpaths):
-        writerepos = set([get_repo_part(lp.value) for lp in writepaths])
-        buildrepos = set([get_repo_part(lp.value) for lp in buildpaths])
-        for rp in writerepos:
+        self.writerepos = set([get_repo_part(lp.value) for lp in writepaths])
+        self.buildrepos = set([get_repo_part(lp.value) for lp in buildpaths])
+
+        for rp in self.writerepos:
             self.check_repo_write_permission(rp, action='write to')
-        for rp in buildrepos:
+
+        for rp in self.buildrepos:
             self.check_repo_build_permission(rp, pfsc.constants.WIP_TAG, action='build')
-        self.writerepos = writerepos
-        self.buildrepos = buildrepos
+
+            # Populate `self.cacherepos`, and check permissions there too.
+            builder = Builder(rp, version=pfsc.constants.WIP_TAG)
+            builder.check_root_declarations()
+            deps = builder.get_repo_deps()
+            checked_deps = check_repo_dependencies_format(deps, rp)
+            for external_rp, external_vers in checked_deps.items():
+                assert isinstance(external_vers, str)
+                if external_vers == pfsc.constants.WIP_TAG:
+                    self.cacherepos.add(external_rp)
+                    self.check_repo_build_permission(
+                        external_rp, pfsc.constants.WIP_TAG, action='import from'
+                    )
 
     def confirm(self, writepaths, writetexts, shadowonly, buildpaths, makecleans, autowrites):
         n_p = len(writepaths)
@@ -250,7 +271,7 @@ class WriteHandler(RepoTaskHandler):
             self.autowriters.append(aw)
 
     def compute_implicated_repopaths(self):
-        ir = self.writerepos | self.buildrepos
+        ir = self.writerepos | self.buildrepos | self.cacherepos
         for aw in self.autowriters:
             ir |= aw.get_implicated_repopaths()
         if ir and has_request_context():

@@ -451,6 +451,9 @@ class Builder:
         self.skip_items = {
         }
 
+    def get_repo_deps(self):
+        return self.repo_dependencies
+
     def is_release_build(self):
         return self.version != pfsc.constants.WIP_TAG
 
