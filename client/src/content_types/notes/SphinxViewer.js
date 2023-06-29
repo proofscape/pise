@@ -125,10 +125,13 @@ export class SphinxViewer extends BasePageViewer {
     makeUrlFromCdo(cdo) {
         let url = cdo.url;
         if (cdo.libpath && cdo.version) {
-            // Libpath goes: host, owner, repo, '_sphinx', remainder...
-            // For the URL we need the version tag in place of '_sphinx'.
+            // Libpath goes: host, owner, repo, remainder, '_page'
+            // For the URL we need to:
+            //  - insert the version tag as the 4th segment
+            //  - chop off the '_page' segment
             const parts = cdo.libpath.split('.');
-            parts[3] = cdo.version;
+            parts.splice(3, 0, cdo.version);
+            parts.pop()
             const hash = cdo.hash || '';
             url = `static/sphinx/${parts.join("/")}.html${hash}`
         }
