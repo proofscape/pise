@@ -523,6 +523,10 @@ h6.labelWidget:hover .labellink {
     background-image: url(../img/icons/circle3_dark.png);
 }
 
+.noContentsModuleIcon {
+    filter: grayscale(1);
+}
+
 .sphinxIcon16 {
     background-image: url(../img/icons/sphinx_16.png);
     background-repeat: no-repeat;

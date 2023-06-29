@@ -169,8 +169,12 @@ export class BuildTreeManager extends TreeManager {
                     'menuIcon',
                     mgr.makeTreeIconLibpathClass(item.libpath, version),
                 ];
-                if (this.model.mayHaveChildren(item)) {
+                if (item.type === "MODULE") {
                     classes.push('ringIcon');
+                    if (item.hasSubmodules && !item.hasContents) {
+                        // Non-terminal module without contents.
+                        classes.push('noContentsModuleIcon')
+                    }
                 } else if (item.type === hub.contentManager.crType.SPHINX) {
                     classes.push('sphinxIcon16');
                 } else {
@@ -210,6 +214,12 @@ export class BuildTreeManager extends TreeManager {
      *               rather than opening/viewing its content.
      */
     openItem({item, version, source}) {
+        if (item.type === "MODULE" && item.hasSubmodules && !item.hasContents) {
+            // This case arises for non-terminal modules having no `__.pfsc` file.
+            // For these, there is nothing to open.
+            return;
+        }
+
         const itemCopy = JSON.parse(JSON.stringify(item));
         // Given `item` might already contain `version`, in which case `version`
         // arg to this method need not be given. But if it is given, it overrides.

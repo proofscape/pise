@@ -826,6 +826,7 @@ class Builder:
                     if name == "__":
                         # Contents of "dunder module" will be added directly to the parent node.
                         mod_node = parent_node
+                        mod_node.set_data_property('hasContents', True)
                     else:
                         # For "terminal modules", add a manifest node to represent the module itself.
                         mod_node = ManifestTreeNode(modpath, type="MODULE", name=name, is_rst=(ext == RST_EXT))

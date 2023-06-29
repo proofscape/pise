@@ -277,6 +277,12 @@ class ManifestTreeNode:
         self.children = []
         self.data['libpath'] = id_
 
+    def set_data_property(self, k, v):
+        """
+        Set a single pair in this node's data.
+        """
+        self.data[k] = v
+
     def update_data(self, d):
         """
         Pass a dictionary of pairs with which to update this node's data.
