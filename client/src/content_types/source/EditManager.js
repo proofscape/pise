@@ -785,7 +785,8 @@ var EditManager = declare(AbstractContentManager, {
      * optional fields:
      *
      *   buildpaths: list of libpaths of modules to be built
-     *   recursives: list of booleans saying whether corresp. builds are to be recursive
+     *   makecleans: list of booleans saying whether corresp. builds should be made clean
+     *      first, i.e. whether all pickle files should be erased first.
      *   autowrites: list of autowrite dictionaries. See doctext for `WriteHandler`
      *               class at the back-end in `handlers/write.py`.
      *
@@ -827,7 +828,7 @@ var EditManager = declare(AbstractContentManager, {
      *     method call.
      *
      * @param args: the message for the server's WriteHandler.
-     *   NOTE: The writepaths and buildpaths (and corresponding args, writetexts and recursives,
+     *   NOTE: The writepaths and buildpaths (and corresponding args, writetexts and makecleans,
      *   resp.) will be filtered first. We will reject any paths that do not appear to belong
      *   to the current user.
      * @return: promise that resolves with the initial http response. This does not contain
@@ -911,9 +912,9 @@ var EditManager = declare(AbstractContentManager, {
             args.writetexts || []
         );
 
-        const [buildpaths, recursives] = this.filterMatchedArraysByUserAccess(
+        const [buildpaths, makecleans] = this.filterMatchedArraysByUserAccess(
             args.buildpaths || [],
-            args.recursives || []
+            args.makecleans || []
         );
 
         // TODO:
@@ -926,7 +927,7 @@ var EditManager = declare(AbstractContentManager, {
             writetexts: writetexts,
             shadowonly: args.shadowonly,
             buildpaths: buildpaths,
-            recursives: recursives,
+            makecleans: makecleans,
             autowrites: args.autowrites,
         };
     },
@@ -946,7 +947,7 @@ var EditManager = declare(AbstractContentManager, {
         var buildpath = this.modpaths[paneId];
         return this.build({
             buildpaths: [buildpath],
-            recursives: [false]
+            makecleans: [false]
         });
     },
 

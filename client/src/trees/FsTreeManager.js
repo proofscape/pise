@@ -188,17 +188,19 @@ export class FsTreeManager extends TreeManager {
             label: "Build",
             onClick: function(evt){
                 mgr.hub.editManager.build({
-                    buildpaths: [item.libpath],
-                    recursives: [false]
+                    // Q: Should a build request on a module other than root add this module
+                    // as a "forced re-read"?
+                    buildpaths: [repopath],
+                    makecleans: [false]
                 });
             }
         }));
         cm.addChild(new dojo.MenuItem({
-            label: "Build Recursive",
+            label: "Build Clean",
             onClick: function(evt){
                 mgr.hub.editManager.build({
-                    buildpaths: [item.libpath],
-                    recursives: [true]
+                    buildpaths: [repopath],
+                    makecleans: [true]
                 });
             }
         }));
