@@ -828,7 +828,7 @@ class Builder:
                         mod_node = parent_node
                     else:
                         # For "terminal modules", add a manifest node to represent the module itself.
-                        mod_node = ManifestTreeNode(modpath, type="MODULE", name=name)
+                        mod_node = ManifestTreeNode(modpath, type="MODULE", name=name, is_rst=(ext == RST_EXT))
                         child_nodes.append(mod_node)
                         self.mii.add_submodule(modpath, parent_node_id)
                     # Record the job.

@@ -218,7 +218,7 @@ class RepoLoader(RepoTaskHandler):
         root.update_data({'docInfo': manifest.doc_infos})
 
         model = []
-        root.build_relational_model(model)
+        root.build_relational_model(model, lift_sphinx_pages=True)
         return model
 
     def emit_repo_built_event(self):
