@@ -169,12 +169,12 @@ def get_sphinx_page(env, docname=None) -> SphinxPage:
 SCRIPT_INTRO = 'window.pfsc_page_data = '
 
 
-def write_page_data(app, pagename, templatename, context, event_arg):
+def inject_page_data(app, pagename, templatename, context, event_arg):
     """
     Handler for Sphinx 'html-page-context' event.
 
-    Inject the necessary <script> tag into a document, recording the data for
-    any pfsc widgets defined on the page.
+    Inject the necessary <script> tag into a document, recording the page data
+    for that page (incl libpath, version, widget data, doc infos, etc.)
     """
     if app.builder.format != 'html':
         return

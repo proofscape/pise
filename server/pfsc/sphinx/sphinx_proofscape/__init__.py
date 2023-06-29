@@ -21,7 +21,7 @@ from config import PISE_VERSION
 from pfsc.sphinx.sphinx_proofscape.pages import (
     form_pfsc_module_for_rst_file,
     setup_pfsc_env, purge_pfsc_env, merge_pfsc_env,
-    write_page_data,
+    inject_page_data,
 )
 from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
     navwidget, visit_navwidget_html, depart_navwidget_html,
@@ -54,7 +54,7 @@ def setup(app):
     app.connect('env-purge-doc', purge_pfsc_env)
     app.connect('env-merge-info', merge_pfsc_env)
     app.connect('source-read', form_pfsc_module_for_rst_file)
-    app.connect('html-page-context', write_page_data)
+    app.connect('html-page-context', inject_page_data)
 
     return {
         'version': PISE_VERSION,
