@@ -500,7 +500,7 @@ var ChartManager = declare(AbstractContentManager, {
         const params = {
             transition: info.transition || false,
             view: info.view || {
-                objects: 'all',
+                objects: '<all>',
                 pan_policy: moose.head.autopanPolicy_CenterAlways
             }
         };
