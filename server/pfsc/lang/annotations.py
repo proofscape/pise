@@ -16,7 +16,7 @@
 
 import json
 
-from pfsc.lang.objects import PfscObj, Enrichment
+from pfsc.lang.objects import EnrichmentPage, EnrichmentType
 from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.excep import PfscExcep, PECode
 from pfsc.constants import IndexType
@@ -28,7 +28,8 @@ from pfsc.lang.widgets import (
     WIDGET_TYPE_TO_CLASS, replace_data
 )
 
-class Annotation(Enrichment):
+
+class Annotation(EnrichmentPage):
     """
     This class represents Proofscape annotations, as defined using the `anno`
     keyword in pfsc modules.
@@ -59,7 +60,7 @@ class Annotation(Enrichment):
     """
 
     def __init__(self, name, target_paths, text, module):
-        Enrichment.__init__(self, 'annotation')
+        EnrichmentPage.__init__(self, EnrichmentType.annotation)
         self.parent = module
         self.name = name
         self.text = text
@@ -239,48 +240,13 @@ class Annotation(Enrichment):
             if caching: self.escaped_html = escaped_html
         return escaped_html
 
-    def get_anno_data(self, caching=True):
-        """
-        Get the data for the notespage.
-
-        :param caching: If True, the data will only be computed once, and stored.
-        :return: The data.
-        """
-        anno_data = self.anno_data
-        if anno_data is None or not caching:
-            widget_data = {}
-            for widget in self.widget_seq:
-                if isinstance(widget, MalformedWidget):
-                    continue
-                widget.enrich_data()
-                uid = widget.writeUID()
-                data = widget.writeData()
-                widget_data[uid] = data
-            anno_data = format_page_data(
-                self.getLibpath(), self.getVersion(),
-                widget_data,
-                self.gather_doc_info(caching=caching)
-            )
-            if caching:
-                self.anno_data = anno_data
-        return anno_data
-
     def get_notespage_data(self, caching=True):
         """
         Get all the info for a notespage, bundled into one dict.
         """
         html = self.get_escaped_html(caching=caching)
-        data = self.get_anno_data(caching=caching)
+        data = self.get_page_data(caching=caching)
         return {
             "html": html,
             "data": data
         }
-
-
-def format_page_data(libpath, version, widgets, docInfo):
-    return {
-        'libpath': libpath,
-        'version': version,
-        'widgets': widgets,
-        'docInfo': docInfo,
-    }

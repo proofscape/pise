@@ -19,6 +19,7 @@ from collections import defaultdict
 from pfsc.build.versions import get_major_version_part
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.doc import DocReference
+from pfsc.constants import ContentDescriptorType
 
 
 class PfscObj:
@@ -535,6 +536,21 @@ class PfscDefn(PfscObj):
         self.lhs = lhs
         self.rhs = rhs
 
+
+class EnrichmentType:
+    annotation = 'annotation'
+    deduction = 'deduction'
+    sphinxpage = 'sphinxpage'
+
+    @classmethod
+    def to_content_descriptor_type(cls, enrichment_type):
+        return {
+            cls.annotation: ContentDescriptorType.NOTES,
+            cls.deduction: ContentDescriptorType.CHART,
+            cls.sphinxpage: ContentDescriptorType.SPHINX,
+        }.get(enrichment_type)
+
+
 class Enrichment(PfscObj):
     """
     A PfscObj that provides enrichment. Such objects can have "targets", and the top-level
@@ -594,10 +610,7 @@ class Enrichment(PfscObj):
                 'docs': {},
                 'refs': {},
             }
-            stype = {
-                'deduction': 'CHART',
-                'annotation': 'NOTES',
-            }.get(self.typename)
+            stype = EnrichmentType.to_content_descriptor_type(self.typename)
 
             def grabHighlights(obj):
                 ref = obj.getDocRef()
@@ -698,3 +711,45 @@ class Enrichment(PfscObj):
             all_nodes=all_nodes, common_deduc=common_deduc,
             typename=self.typename, name=self.name
         )
+
+
+class EnrichmentPage(Enrichment):
+    """
+    Essentially, an EnrichmentPage is something that contains Widgets.
+    Annotations and SphinxPages are our existing examples.
+    """
+
+    def __init__(self, typename):
+        Enrichment.__init__(self, typename)
+        self.page_data = None
+
+    def get_proper_widgets(self):
+        raise NotImplementedError
+
+    def get_page_data(self, caching=True):
+        """
+        Get the data dictionary for the page.
+
+        :param caching: If True, the data will only be computed once, and stored.
+        :return: dict
+        """
+        page_data = self.page_data
+        if page_data is None or not caching:
+            libpath = self.getLibpath()
+            version = self.getVersion()
+            widgets = {}
+            for widget in self.get_proper_widgets():
+                widget.enrich_data()
+                uid = widget.writeUID()
+                data = widget.writeData()
+                widgets[uid] = data
+            doc_info = self.gather_doc_info(caching=caching)
+            page_data = {
+                'libpath': libpath,
+                'version': version,
+                'widgets': widgets,
+                'docInfo': doc_info,
+            }
+            if caching:
+                self.page_data = page_data
+        return page_data

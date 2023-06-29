@@ -105,7 +105,7 @@ expected_widget_data_spx_doc0 = json.loads("""
             "version": "v0.1.0"
         }
     },
-    "docInfo": null
+    "docInfo": {"docs": {}, "refs": {}}
 }
 """)
 
@@ -216,6 +216,22 @@ def test_spx_doc1(app):
         #print('\n', json.dumps(page_data, indent=4))
         assert page_data == PAGE_C_PAGE_DATA
 
+        # Page D
+        # ======
+        html = (build_dir / 'foo/pageD.html').read_text()
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # Get the expected anchor tags:
+        A = get_chart_widget_anchors(soup)
+        for a, expected_name, expected_label in zip(A, PAGE_D_WIDGET_NAMES, PAGE_D_WIDGET_LABELS):
+            assert f'test-spx-doc1-foo-pageD-_page-{expected_name}_v0-1-0' in a.get('class')
+            assert a.text == expected_label
+
+        # Get the expected pfsc_page_data:
+        page_data = get_page_data_from_script_tag(soup)
+        # print('\n', json.dumps(page_data, indent=4))
+        assert page_data == PAGE_D_PAGE_DATA
+
 
 PAGE_C_WIDGET_NAMES = [
     '_w0', '_w1', 'w000', '_w2', 'w001', 'w002'
@@ -229,7 +245,6 @@ PAGE_C_WIDGET_LABELS = [
     'one-line color definition',
     'color defn with: repeated LHS, plus use of update',
 ]
-
 
 PAGE_C_PAGE_DATA = {
     "libpath": "test.spx.doc1.foo.pageC._page",
@@ -357,7 +372,72 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         }
     },
-    "docInfo": None
+    "docInfo": {'docs': {}, 'refs': {}}
+}
+
+PAGE_D_WIDGET_NAMES = [
+    '_w0', 'wDirPdf1',
+]
+
+PAGE_D_WIDGET_LABELS = [
+    'an inline PDF widget',
+    'a directive PDF widget',
+]
+
+PAGE_D_PAGE_DATA = {
+    "libpath": "test.spx.doc1.foo.pageD._page",
+    "version": "v0.1.0",
+    "widgets": {
+        "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0": {
+            "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+            "type": "PDF",
+            "src_line": 35,
+            "widget_libpath": "test.spx.doc1.foo.pageD._page._w0",
+            "uid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+            "docId": "pdffp:fedcba9876543210",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:PDF:pdffp:fedcba9876543210:",
+            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+            "url": "https://example.org/pdf/foo1.pdf",
+            "version": "v0.1.0"
+        },
+        "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0": {
+            "alt": "wDirPdf1: a directive PDF widget",
+            "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+            "type": "PDF",
+            "src_line": 40,
+            "widget_libpath": "test.spx.doc1.foo.pageD._page.wDirPdf1",
+            "uid": "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+            "docId": "pdffp:fedcba9876543210",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:PDF:pdffp:fedcba9876543210:",
+            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+            "url": "https://example.org/pdf/foo1.pdf",
+            "version": "v0.1.0"
+        }
+    },
+    "docInfo": {
+        "docs": {
+            "pdffp:fedcba9876543210": {
+                "url": "https://example.org/pdf/foo1.pdf",
+                "docId": "pdffp:fedcba9876543210"
+            }
+        },
+        "refs": {
+            "pdffp:fedcba9876543210": [
+                {
+                    "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+                    "siid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+                    "slp": "test.spx.doc1.foo.pageD._page",
+                    "stype": "SPHINX"
+                },
+                {
+                    "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+                    "siid": "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+                    "slp": "test.spx.doc1.foo.pageD._page",
+                    "stype": "SPHINX"
+                }
+            ]
+        }
+    }
 }
 
 

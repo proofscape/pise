@@ -69,7 +69,7 @@ def test_dup_names(app):
         mod.resolve()
         anno = mod['Notes1']
         html = anno.get_escaped_html()
-        wd = anno.get_anno_data()["widgets"]
+        wd = anno.get_page_data()["widgets"]
         j = json.dumps(wd, indent=4)
         print(html)
         print(j)
@@ -210,12 +210,12 @@ def test_param_widget_1(app):
         # In Notes1, the widgets try to import each other, cyclically.
         with pytest.raises(PfscExcep) as ei:
             anno = mod['Notes1']
-            anno.get_anno_data()
+            anno.get_page_data()
         assert ei.value.code() == PECode.DAG_HAS_CYCLE
 
         # In Notes2, the widgets build okay.
         anno = mod['Notes2']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         assert len(data['widgets']) == 2
 
 
@@ -231,7 +231,7 @@ def test_param_widget_2(app):
         mod.resolve()
         anno = mod['Notes']
         html = anno.get_escaped_html()
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         #print()
         #print(html)
         #print(json.dumps(data, indent=4))
@@ -268,7 +268,7 @@ def test_disp_widget_1(app):
         mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         widget_data = data["widgets"]
         info = [
             ("disp1", 3),

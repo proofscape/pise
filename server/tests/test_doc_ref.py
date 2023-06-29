@@ -139,7 +139,7 @@ def test_doc_ref_formats_1(app):
         print()
         dg = mod['Pf'].buildDashgraph()
         pf_doc_info = dg['deducInfo']['docInfo']
-        anno = mod['Discussion'].get_anno_data()
+        anno = mod['Discussion'].get_page_data()
 
         verbose = False
         if verbose:

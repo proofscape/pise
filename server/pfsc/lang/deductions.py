@@ -31,7 +31,7 @@ from pfsc.lang import meson as meson
 from pfsc.build.repo import get_repo_part
 from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.gdb import get_graph_reader
-from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn
+from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn, EnrichmentType
 from pfsc import util
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
@@ -148,7 +148,7 @@ class Deduction(Enrichment, NodeLikeObj):
         rdef_paths:      list(str)   rdef paths from deduc preamble
         module:          PfscModule object to which this deduc belongs
         """
-        Enrichment.__init__(self, 'deduction')
+        Enrichment.__init__(self, EnrichmentType.deduction)
         NodeLikeObj.__init__(self)
         self.parent = module
         self.name = name

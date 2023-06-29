@@ -733,9 +733,7 @@ class ModuleIndexInfo:
         self.add_widgets_from_generic_page(module, anno)
 
     def add_sphinx_page(self, module, page):
-        # TODO: Should sphinx pages be `Enrichment`s (like annos and deducs)?
-        pagepath = page.getLibpath()
-        self.add_generic(IndexType.SPHINX, pagepath, module)
+        self.add_enrichment(module, page)
         self.add_widgets_from_generic_page(module, page)
 
     def add_deduc(self, module, deduc):

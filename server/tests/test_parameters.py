@@ -29,7 +29,7 @@ def test_string_arg_escape(app):
         mod = load_module('test.foo.eg.notes', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         import json
         print(json.dumps(data, indent=4))
@@ -67,7 +67,7 @@ def test_params_01(app):
         anno = mod['Notes']
         #html = anno.get_escaped_html()
         # print(html)
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         #import json
         #print(json.dumps(data, indent=4))
@@ -114,7 +114,7 @@ def test_params_02(app):
         mod = load_module('test.foo.eg.notes', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         #import json
         #print(json.dumps(data, indent=4))
@@ -157,7 +157,7 @@ def test_params_03(app):
         mod = load_module('test.foo.eg.notes', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         #import json
         #print(json.dumps(data, indent=4))
@@ -197,7 +197,7 @@ def test_params_04(app):
         mod = load_module('test.foo.eg.notes', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         W = data["widgets"]
 
@@ -238,7 +238,7 @@ def test_params_05(app):
         mod = load_module('test.foo.eg.notes', caching=0)
         mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         wl = anno.get_widget_lookup()
         W = data["widgets"]
 

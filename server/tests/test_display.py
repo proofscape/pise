@@ -51,7 +51,7 @@ def test_disps_01(app):
         mod = load_module(modpath, caching=0)
         mod.resolve()
         anno = mod['Notes']
-        anno.get_anno_data()
+        anno.get_page_data()
         wl = anno.get_widget_lookup()
 
         cases = [

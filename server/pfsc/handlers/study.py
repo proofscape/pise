@@ -312,7 +312,7 @@ class StudyPageBuilder(GoalDataHandler):
         module.version = vers.full
         page = module[pagename]
         html = page.get_escaped_html()
-        data = page.get_anno_data()
+        data = page.get_page_data()
         data_json = json.dumps(data)
         self.set_response_field('html', html)
         self.set_response_field('data_json', data_json)

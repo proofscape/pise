@@ -127,8 +127,21 @@ PFSC_EXT = '.pfsc'
 RST_EXT = '.rst'
 
 
-class IndexType:
+class ContentDescriptorType:
+    """
+    Type names for manifest tree nodes, and content descriptor
+    dictionaries. Matches content type names used on the client side.
+    """
+    CHART = 'CHART'
+    MODULE = 'MODULE'
+    NOTES = 'NOTES'
+    SPHINX = 'SPHINX'
 
+
+class IndexType:
+    """
+    Labels and type names for nodes and edges in the GDB.
+    """
     # -----------------------------------------------------
     # j-node types
     VERSION = 'Version'

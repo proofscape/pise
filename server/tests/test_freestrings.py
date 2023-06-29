@@ -402,7 +402,7 @@ def test_full_compile_1(app):
         mod.resolve()
         anno = mod['Notes1']
         html = anno.get_escaped_html()
-        wd = anno.get_anno_data()['widgets']
+        wd = anno.get_page_data()['widgets']
         j = json.dumps(wd, indent=4)
         print(j)
         print(html)

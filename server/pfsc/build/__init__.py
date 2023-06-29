@@ -924,9 +924,9 @@ class Builder:
             # Doc refs
             # Note: It's not enough to call `anno.gather_doc_info()` here, since
             # it's not until `enrich_data()` has been called on each widget that
-            # doc infos will be available. But `anno.get_anno_data()` is caching,
+            # doc infos will be available. But `anno.get_page_data()` is caching,
             # so this is not wasted effort.
-            doc_info = anno.get_anno_data()['docInfo']
+            doc_info = anno.get_page_data()['docInfo']
             self.manifest.update_doc_info(doc_info['docs'])
             # Add a tree node.
             name = anno.getName()
@@ -943,13 +943,14 @@ class Builder:
             pagepath = page.getLibpath()
             self.sphinx_pages[pagepath] = page
 
-            # Doc refs?  (TODO)
+            doc_info = page.get_page_data()['docInfo']
+            self.manifest.update_doc_info(doc_info['docs'])
 
             name = page.getName()
             mtns_by_name[name] = ManifestTreeNode(
                 pagepath, type="SPHINX", name=name,
                 modpath=modpath, sourceRow=1,
-                #docRefs=doc_info['refs']  #(TODO)
+                docRefs=doc_info['refs']
             )
             self.monitor.inc_count(prog_count_per_item)
 
@@ -1081,7 +1082,7 @@ class Builder:
         """
         for annopath, annotation in self.annotations.items():
             anno_html = annotation.get_escaped_html()
-            anno_json = json.dumps(annotation.get_anno_data(), indent=4)
+            anno_json = json.dumps(annotation.get_page_data(), indent=4)
             if self.build_in_gdb:
                 self.graph_writer.record_annobuild(annopath, self.version, anno_html, anno_json)
             else:

@@ -18,8 +18,7 @@
 
 import json
 
-from pfsc.lang.annotations import format_page_data
-from pfsc.lang.objects import PfscObj
+from pfsc.lang.objects import EnrichmentPage, EnrichmentType
 from pfsc.lang.modules import PfscModule, make_timestamp_for_module
 
 import pfsc.constants
@@ -40,10 +39,16 @@ import pfsc.constants
 FIXED_PAGE_NAME = '_page'
 
 
-class SphinxPage(PfscObj):
+class SphinxPage(EnrichmentPage):
+    """
+    A SphinxPage does not have any "targets," like other Enrichments, but it
+    does share the "page" behavior of Annotations, and it does need the
+    `gather_doc_info()` method of the Enrichment class. It is therefore an
+    EnrichmentPage.
+    """
 
     def __init__(self, module, libpath):
-        super().__init__()
+        super().__init__(EnrichmentType.sphinxpage)
         self.parent = module
         self.libpath = libpath
         self.name = FIXED_PAGE_NAME
@@ -62,17 +67,6 @@ class SphinxPage(PfscObj):
 
     def resolve(self):
         self.resolveLibpathsRec()
-
-    def write_page_data(self):
-        libpath = self.libpath
-        version = self.getVersion()
-        docInfo = None  # TODO
-        widgets = {}
-        for w in self.widgets:
-            w.enrich_data()
-            uid = w.writeUID()
-            widgets[uid] = w.writeData()
-        return format_page_data(libpath, version, widgets, docInfo)
 
 
 def build_libpath_for_rst(
@@ -187,7 +181,7 @@ def write_page_data(app, pagename, templatename, context, event_arg):
     page = get_sphinx_page(app.env, pagename)
     if not page:
         return
-    page_data = page.write_page_data()
+    page_data = page.get_page_data()
     body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
     app.add_js_file(None, body=body, id='pfsc-page-data')
 
