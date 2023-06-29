@@ -109,10 +109,10 @@ class PfscNavWidgetRole(SphinxRole):
             for chart widgets).
 
     Subclasses must override:
-        widget_class (e.g. ChartWidget)
-        html_class (e.g. 'chartWidget')
-        widget_type_name (e.g. 'chart')
-        target_field_name (e.g. 'view')
+        widget_class (e.g. ChartWidget -- which class from pfsc.lang.widgets to use)
+        html_class (e.g. 'chartWidget' -- appears as class in generated HTML)
+        widget_type_name (e.g. 'chart' -- appears in error messages)
+        target_field_name (e.g. 'view' -- key under which target will be passed onto widget instance)
     """
     widget_class = None
     html_class = ''
@@ -163,11 +163,11 @@ class PfscNavWidgetDirective(SphinxDirective):
     pattern.
 
     Subclasses must override:
-        widget_class (e.g. ChartWidget)
-        html_class (e.g. 'chartWidget')
+        widget_class (e.g. ChartWidget -- which class from pfsc.lang.widgets to use)
+        html_class (e.g. 'chartWidget' -- appears as class in generated HTML)
 
     Subclasses should extend:
-        option_spec
+        option_spec (defines the fields to be passed onto the widget instance)
             For example:
                 option_spec = {
                     **PfscNavWidgetDirective.option_spec,
