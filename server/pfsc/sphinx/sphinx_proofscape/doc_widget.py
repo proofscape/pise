@@ -24,7 +24,7 @@ from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
 )
 
 
-class PfscDocRole(PfscNavWidgetRole):
+class PfscPdfWidgetRole(PfscNavWidgetRole):
     """
     Role syntax for doc widgets.
 
@@ -40,14 +40,14 @@ class PfscDocRole(PfscNavWidgetRole):
         Compare :pfsc-doc:`the original proof <doc1#v2;s3;(1:1758:2666:400:200:100:50)>`.
     """
     widget_class = PdfWidget
-    html_class = 'docWidget'
-    widget_type_name = 'doc'
+    html_class = 'pdfWidget'
+    widget_type_name = 'pdf'
     target_field_name = 'sel'
 
 
-class PfscDocDirective(PfscNavWidgetDirective):
+class PfscPdfWidgetDirective(PfscNavWidgetDirective):
     """
-    Directive syntax for doc widgets.
+    Directive syntax for PDF widgets.
 
     Fields
     ======
@@ -70,7 +70,7 @@ class PfscDocDirective(PfscNavWidgetDirective):
 
     """
     widget_class = PdfWidget
-    html_class = 'docWidget'
+    html_class = 'pdfWidget'
     option_spec = {
         **PfscNavWidgetDirective.option_spec,
         "doc": unchanged,

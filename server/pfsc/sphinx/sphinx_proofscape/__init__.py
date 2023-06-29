@@ -30,7 +30,7 @@ from pfsc.sphinx.sphinx_proofscape.chart_widget import (
     PfscChartRole, PfscChartDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.doc_widget import (
-    PfscDocRole, PfscDocDirective,
+    PfscPdfWidgetRole, PfscPdfWidgetDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 
@@ -47,8 +47,8 @@ def setup(app):
     app.add_role('pfsc-chart', PfscChartRole())
     app.add_directive('pfsc-chart', PfscChartDirective)
 
-    app.add_role('pfsc-doc', PfscDocRole())
-    app.add_directive('pfsc-doc', PfscDocDirective)
+    app.add_role('pfsc-pdf', PfscPdfWidgetRole())
+    app.add_directive('pfsc-pdf', PfscPdfWidgetDirective)
 
     app.connect('builder-inited', setup_pfsc_env)
     app.connect('env-purge-doc', purge_pfsc_env)
