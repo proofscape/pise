@@ -120,8 +120,6 @@ var EditManager = declare(AbstractContentManager, {
                 }
             }
         });
-
-        this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
     },
 
     resolvePendingWrites: function(libpaths, info=null) {
@@ -139,25 +137,6 @@ var EditManager = declare(AbstractContentManager, {
                 this.pendingBuilds.get(lp).resolve(info);
                 this.pendingBuilds.delete(lp);
             }
-        }
-    },
-
-    /* Respond to iseEvent of type 'moduleBuilt' by requesting module fulltext if that module
-     * is currently open in any editors, and _carefully_ overwriting (i.e. with shadow commit)
-     * current editor contents.
-     */
-    handleModuleBuiltEvent: function({ modpath, timestamp }) {
-        const doc = this.docsByModpath[modpath];
-        if (doc) {
-            this.hub.xhrFor('loadSource', {
-                query: { libpaths: modpath, versions: "WIP", cache_code: `${timestamp}` },
-                handleAs: 'json',
-            }).then(resp => {
-                //console.log(resp);
-                if (this.hub.errAlert3(resp)) return;
-                const newText = resp.text;
-                this.carefullyOverwriteOpenModule(modpath, newText);
-            });
         }
     },
 
