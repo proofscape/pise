@@ -99,7 +99,7 @@ def build_repo(
     """
     Build a Proofscape repo.
 
-    :param target: Either the libpath (str) of the repo that is to be built,
+    :param target: libpath (str) pointing at or into the repo to be built,
         or a Builder instance representing that repo.
     :param version: the version to be built
     :param verbose: as for the Builder class, except may also be set to the
@@ -374,12 +374,12 @@ class Builder:
     """
 
     def __init__(
-            self, repopath, version=pfsc.constants.WIP_TAG,
+            self, libpath, version=pfsc.constants.WIP_TAG,
             verbose=False, progress=None,
             make_clean=False
     ):
         """
-        :param repopath: libpath of the repo to be built.
+        :param libpath: libpath pointing at or into the repo to be built.
         :param version: the version we are building. Must be either "WIP", meaning we want
           to build our work-in-progress, or else a valid release tag `vM.m.p`.
         :param verbose: control printing
@@ -388,7 +388,8 @@ class Builder:
             for the modules in this repo@version, as well as to `make clean`
             with Sphinx (if a part of the build), all before beginning this build
         """
-        self.repopath = repopath
+        self.repo_info = get_repo_info(libpath)
+        self.repopath = self.repo_info.libpath
         self.version = version
         self.verbose = verbose
         self.make_clean = make_clean
@@ -405,7 +406,6 @@ class Builder:
 
         self.timestamp = None
 
-        self.repo_info = get_repo_info(self.repopath)
         self.commit_hash = self.repo_info.get_current_commit_hash()
 
         self.module_cache = {}
