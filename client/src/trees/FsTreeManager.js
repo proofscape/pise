@@ -118,6 +118,7 @@ export class FsTreeManager extends TreeManager {
             type: "MODULE",
             version: "WIP",
             libpath: item.libpath,
+            is_rst: item.name.endsWith('.rst'),
         }
     }
 

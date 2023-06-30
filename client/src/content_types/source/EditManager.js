@@ -18,6 +18,7 @@ const ace = require("ace-builds/src-noconflict/ace.js");
 require("src/content_types/source/mode-proofscape.js");
 require("ace-builds/src-noconflict/mode-markdown.js");
 require("ace-builds/src-noconflict/mode-python.js");
+require("ace-builds/src-noconflict/mode-rst");
 require("ace-builds/src-noconflict/theme-tomorrow.js");
 require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
@@ -1091,19 +1092,20 @@ var EditManager = declare(AbstractContentManager, {
                 this.modpaths[paneId] = modpath;
                 this.setContent(modpath, paneId, text, fvr, cpos);
             }
-            this.configureSession(editor);
-            this.configureSession(editor.pfscIseOverviewEditor);
+            this.configureSession(editor, info.is_rst);
+            this.configureSession(editor.pfscIseOverviewEditor, info.is_rst);
             if (sbProps.visible) {
                 this.showOverviewSidebar(paneId, true);
             }
         });
     },
 
-    configureSession: function(editor) {
+    configureSession: function(editor, is_rst) {
         const sesh = editor.getSession();
-        // Set to Proofscape mode.
-        sesh.setMode("ace/mode/proofscape");
-        // Tabs
+
+        const mode = is_rst ? 'rst' : 'proofscape';
+        sesh.setMode("ace/mode/" + mode);
+
         sesh.setTabSize(4);
         sesh.setUseSoftTabs(true);
     },

@@ -228,8 +228,40 @@ export class BuildTreeManager extends TreeManager {
         }
         if (source || item.type === "MODULE") {
             this.hub.contentManager.markInfoForLoadingSource(itemCopy);
+            if (itemCopy.is_rst === undefined) {
+                itemCopy.is_rst = this.itemIsRst(item);
+            }
         }
         this.hub.contentManager.openContentInActiveTC(itemCopy);
+    }
+
+    /* Determine whether a tree item represents an rst module, or an object
+     * defined in an rst module.
+     *
+     * param item: tree item
+     * return: boolean, or null if we couldn't determine the answer
+     */
+    itemIsRst(item) {
+        if (item.type === "SPHINX") {
+            return true;
+        }
+        if (item.type === "MODULE") {
+            return !!item.is_rst;
+        }
+        const moduleItem = this.getItemByLibpathAndVersion(item.modpath, item.version);
+        if (moduleItem) {
+            return !!moduleItem.is_rst;
+        }
+        // If we could not locate a module item, this should mean that the given item is
+        // defined in an rst module, while those modules have been omitted from the tree model
+        // due to "sphinx page lifting," i.e. the practice of listing sphinx pages instead
+        // of the rst modules that define them. We try to confirm that this is the case.
+        const pagepath = item.modpath + '._page';
+        const pageItem = this.getItemByLibpathAndVersion(pagepath, item.version);
+        if (pageItem?.type === "SPHINX") {
+            return true;
+        }
+        return null;
     }
 
     rebuildContextMenu(treeNode) {

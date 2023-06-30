@@ -169,6 +169,9 @@ class Manifest:
             }
         }
 
+    def get_version(self):
+        return list(self.build_info.values())[0]["version"]
+
     def set_build_info_dict(self, d):
         self.build_info = d
 
@@ -333,6 +336,7 @@ class ManifestTreeNode:
             "id": self.id,
             "sibling": siblingOrder,
             "parent": parent.id if parent else None,
+            "version": self.manifest.get_version(),
         }
         d.update(self.data)
 
