@@ -410,10 +410,12 @@ class FilesystemNode:
         with os.scandir(fspath) as it:
             for entry in it:
                 name = entry.name
-                if entry.is_file() and name.endswith('.pfsc'):
-                    libpath = self.libpath if name == '__.pfsc' else f'{self.libpath}.{name[:-5]}'
-                    node = FilesystemNode(name, f'{self.id}/{name}', libpath, FilesystemNode.FILE)
-                    self.add_child(node)
+                if entry.is_file():
+                    stem, _, _ = parse_module_filename(name)
+                    if stem:
+                        libpath = self.libpath if name == '__.pfsc' else f'{self.libpath}.{stem}'
+                        node = FilesystemNode(name, f'{self.id}/{name}', libpath, FilesystemNode.FILE)
+                        self.add_child(node)
                 # For dirs, definitely want to skip `.git`. We'll skip all hidden dirs.
                 elif entry.is_dir() and not name.startswith('.'):
                     node = FilesystemNode(name, f'{self.id}/{name}', f'{self.libpath}.{name}', FilesystemNode.DIR)
