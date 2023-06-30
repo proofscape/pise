@@ -378,6 +378,7 @@ class FilesystemNode:
         if cur_depth > pfsc.constants.MAX_REPO_DIR_DEPTH:
             raise PfscExcep('Exceeded max repo directory depth.', PECode.REPO_DIR_NESTING_DEPTH_EXCEEDED)
         child_dirs = []
+
         with os.scandir(fspath) as it:
             for entry in it:
                 name = entry.name
@@ -390,11 +391,15 @@ class FilesystemNode:
                     node = FilesystemNode(name, f'{self.id}/{name}', f'{self.libpath}.{name}', FilesystemNode.DIR)
                     self.add_child(node)
                     path = os.path.join(fspath, name)
-                    #node.explore(path)
                     child_dirs.append((node, path))
+
+        # Arrange alphabetically
+        self.children.sort(key=lambda u: u.name)
+
         if omit_fileless_dirs and self.num_files == 0:
             # Don't bother recursing.
             return
+
         for node, path in child_dirs:
             node.explore(path, cur_depth=cur_depth + 1)
 
@@ -426,9 +431,9 @@ class FilesystemNode:
             "type": self.kind,
             "sibling": siblingOrder,
         })
-        self.children.sort(key=lambda u: u.name)
         for i, child in enumerate(self.children):
-            if omit_fileless_dirs and child.kind == FilesystemNode.DIR and child.num_files == 0: continue
+            if omit_fileless_dirs and child.kind == FilesystemNode.DIR and child.num_files == 0:
+                continue
             child.build_relational_model(items, siblingOrder=i)
 
 
