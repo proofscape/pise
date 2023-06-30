@@ -64,7 +64,7 @@ export class SubscriptionManager {
         this.libpathsToSubscribedPaneIds = new dojo.iseUtil.LibpathSetMapping();
         this.modpathsToLibpathsHavingSubscribers = new dojo.iseUtil.LibpathSetMapping();
 
-        this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
+        this.hub.socketManager.on('repoBuilt', this.handleRepoBuiltEvent.bind(this));
     }
 
     /* Subscribe or unsubscribe a pane to/from a libpath.
@@ -116,10 +116,8 @@ export class SubscriptionManager {
 
     /* Handle the fact that a module has been (re)built, by refreshing all subscribers.
      */
-    handleModuleBuiltEvent({ modpath, recursive, timestamp }) {
-        const libpaths = recursive ?
-            this.modpathsToLibpathsHavingSubscribers.getUnionOverLibpathPrefix(modpath) :
-            this.modpathsToLibpathsHavingSubscribers.mapping.get(modpath) || [];
+    handleRepoBuiltEvent({ repopath, clean, timestamp }) {
+        const libpaths = this.modpathsToLibpathsHavingSubscribers.getUnionOverLibpathPrefix(repopath) || [];
         for (const libpath of libpaths) {
             const fetchArgs = this.fetchArgBuilder(libpath, timestamp);
             this.hub.xhrFor(this.fetchName, fetchArgs).then(resp => {

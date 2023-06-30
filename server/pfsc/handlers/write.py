@@ -145,8 +145,9 @@ class WriteHandler(RepoTaskHandler):
             writepaths: list of libpaths of modules to be written to disk before any building occurs
             writetexts: list of texts of modules to be written, corresp. to the writepaths
             shadowonly: boolean, saying whether writes should be shadow only; default False
-            buildpaths: list of libpaths of repo to be built
-            makecleans: list of booleans, saying whether corresp. builds should be cleaned first
+            buildpaths: list of libpaths pointing at or into the repos to be built
+            makecleans: list of booleans, saying whether corresp. builds should be cleaned first.
+                If multiple buildpaths point to the same repo, the *last* makeclean controls.
             autowrites: list of dictionaries, each describing an "autowrite" that is to be performed
                 after writing all the writetexts to disk, but before doing the build
 
@@ -346,12 +347,19 @@ class WriteHandler(RepoTaskHandler):
 
     def step_build(self, buildpaths, makecleans):
         results = []
+
+        unique_build_jobs = {}
         for buildpath, makeclean in zip(buildpaths, makecleans):
-            build_repo(buildpath, make_clean=makeclean, progress=self.update)
-            results.append(f'Built {buildpath}')
+            repopath = get_repo_part(buildpath)
+            # If a repopath occurs more than once, *last* makeclean controls.
+            unique_build_jobs[repopath] = makeclean
+
+        for repopath, makeclean in unique_build_jobs.items():
+            build_repo(repopath, make_clean=makeclean, progress=self.update)
+            results.append(f'Built {repopath}')
             self.emit('listenable', {
-                'type': 'moduleBuilt',
-                'modpath': buildpath,
+                'type': 'repoBuilt',
+                'repopath': repopath,
                 'clean': makeclean,
                 'timestamp': time.time(),
             }, groupcast=True)
