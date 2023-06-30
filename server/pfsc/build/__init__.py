@@ -72,7 +72,7 @@ from pfsc.build.manifest import (
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo
 from pfsc.build.products import get_dashgraph_dir_and_filename, get_annotation_dir_and_filenames
-from pfsc.build.repo import RepoInfo, checkout, get_repo_info
+from pfsc.build.repo import RepoInfo, checkout, get_repo_info, parse_module_filename
 from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType, PFSC_EXT, RST_EXT
@@ -807,13 +807,7 @@ class Builder:
                 # Skip?
                 if f[0] == '.' or f in skip_files: continue
                 # Is it a module?
-                name, ext, other_ext = None, None, None
-                if f.endswith(PFSC_EXT):
-                    name = f[:-len(PFSC_EXT)]
-                    ext, other_ext = PFSC_EXT, RST_EXT
-                elif f.endswith(RST_EXT):
-                    name = f[:-len(RST_EXT)]
-                    ext, other_ext = RST_EXT, PFSC_EXT
+                name, ext, other_ext = parse_module_filename(f)
                 if name:
                     if (pathlib.Path(P) / f'{name}{other_ext}').exists():
                         msg = (

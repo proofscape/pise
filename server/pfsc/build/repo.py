@@ -24,6 +24,7 @@ from pygit2 import (
 )
 
 import pfsc.constants
+from pfsc.constants import PFSC_EXT, RST_EXT
 from pfsc import check_config
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
@@ -359,6 +360,33 @@ class RepoInfo:
         items = []
         root_node.build_relational_model(items)
         return items
+
+
+def parse_module_filename(filename):
+    """
+    Determine whether a filename (just name, not path) appears to name a
+    Proofscape module (of pfsc or rst type), and if so, split it into stem
+    and extension.
+
+    Examples:
+
+        >>> parse_module_filename('foo.pfsc')
+        ('foo', '.pfsc', '.rst')
+
+    :param filename: string, supposedly of the form `stem.extension`
+
+    :return: triple (stem, ext, other_ext) giving the stem, the (dotted) extension,
+        and the (dotted) extension that wasn't used. All three are `None` if the
+        filename did not appear to have an acceptable extension.
+    """
+    stem, ext, other_ext = None, None, None
+    if filename.endswith(PFSC_EXT):
+        stem = filename[:-len(PFSC_EXT)]
+        ext, other_ext = PFSC_EXT, RST_EXT
+    elif filename.endswith(RST_EXT):
+        stem = filename[:-len(RST_EXT)]
+        ext, other_ext = RST_EXT, PFSC_EXT
+    return stem, ext, other_ext
 
 
 class FilesystemNode:
