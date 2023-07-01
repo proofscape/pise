@@ -177,7 +177,7 @@ export class FsTreeManager extends TreeManager {
 
         cm.addChild(new dojo.MenuSeparator());
 
-        if (item.name !== '__.pfsc') {
+        if (item.name !== '__.pfsc' && !item.name.endsWith('.rst')) {
             cm.addChild(new dojo.MenuItem({
                 label: "New Submodule",
                 onClick: function (evt) {
