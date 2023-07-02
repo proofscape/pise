@@ -20,6 +20,7 @@ import re
 import lark.exceptions
 
 import pfsc.constants
+from pfsc.constants import PFSC_EXT, RST_EXT
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.addresses import VersionedLibpathNode
 from pfsc.build.lib.libpath import expand_multipath, PathInfo, get_modpath
@@ -203,7 +204,13 @@ def check_libseg(key, raw, typedef):
     """
     Check a single segment in (or for) a libpath
 
-    :param typedef: no special options
+    :param typedef:
+        opt:
+            user_supplied: boolean, saying whether this name was supplied
+                by a user. If so, it is not allowed to begin with underscore,
+                exclamation point, or question mark.
+                Default: False
+
     :return: a CheckedLibseg object
     """
     checked = CheckedLibseg()
@@ -220,8 +227,74 @@ def check_libseg(key, raw, typedef):
     if M is None or M.group() != raw:
         msg = 'Segment %s is of bad format.' % raw
         raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
+    if typedef.get('user_supplied'):
+        if raw[0] in '_!?':
+            msg = f'User supplied libpath segment `{raw}` cannot begin with `{raw[0]}`.'
+            raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
     checked.valid_format = True
     return checked
+
+
+class CheckedModuleFilename:
+
+    def __init__(self, stem_segment, extension):
+        """
+        :param stem_segment: CheckedLibseg
+        :param extension: string
+        """
+        self.checked_stem_segment = stem_segment
+        self.extension = extension
+
+    def __str__(self):
+        return f'{self.checked_stem_segment.value}.{self.extension}'
+
+
+def check_module_filename(key, raw, typedef):
+    """
+    :param raw: str, giving a proposed full filename for a module file.
+        Should be of the form STEM.EXTENSION.
+    :param typedef:
+        opt:
+            segment: a typedef dict that will be forwarded to the `check_libseg()`
+                function, for checking the stem.
+            allow_pfsc: boolean, saying whether the `pfsc` extension is allowed.
+                Default: True.
+            allow_rst: boolean, saying whether the `rst` extension is allowed.
+                Default: True.
+
+    :return: CheckedModuleFilename
+    """
+
+    allow_pfsc = typedef.get('allow_pfsc', True)
+    allow_rst = typedef.get('allow_rst', True)
+    allowed_exts = []
+    if allow_pfsc:
+        allowed_exts.append(PFSC_EXT)
+    if allow_rst:
+        allowed_exts.append(RST_EXT)
+    expected_ext = ' or '.join([f'"{ext}"' for ext in allowed_exts])
+
+    parts = raw.split('.')
+    if len(parts) != 2:
+        msg = f'Bad filename "{raw}".'
+        if expected_ext:
+            msg += f' Should have extension {expected_ext}.'
+        raise PfscExcep(msg, PECode.BAD_MODULE_FILENAME, bad_field=key)
+
+    stem, pure_ext = parts
+
+    dotted_ext = f'.{pure_ext}'
+    if dotted_ext not in allowed_exts:
+        msg = f'File name "{raw}" has bad extension.'
+        if expected_ext:
+            msg += f' Expected {expected_ext}.'
+        raise PfscExcep(msg, PECode.BAD_MODULE_FILENAME, bad_field=key)
+
+    segment_typedef = typedef.get('segment', {})
+    checked_stem = check_libseg(key, stem, segment_typedef)
+
+    return CheckedModuleFilename(checked_stem, pure_ext)
+
 
 class EntityType:
     REPO = 'repo'

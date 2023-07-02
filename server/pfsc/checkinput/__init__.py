@@ -31,10 +31,12 @@ from pfsc.checkinput.url import (
 )
 from pfsc.checkinput.libpath import (
     CheckedLibseg,
+    CheckedModuleFilename,
     EntityType,
     CheckedLibpath,
     check_boxlisting,
     check_libseg,
+    check_module_filename,
     check_content_forest,
     check_goal_id,
     check_versioned_libpath,
@@ -178,6 +180,7 @@ class IType:
     BOXLISTING = 'boxlisting'
     LIBSEG = 'libseg'
     LIBPATH = 'libpath'
+    MOD_FN = 'module_filename'
     CONTENT_FOREST = 'content_forest'
     GOAL_ID = 'goal_id'
     VERSIONED_LIBPATH = 'versioned_libpath'
@@ -232,6 +235,7 @@ TYPE_HANDLERS = {
     IType.BOXLISTING: check_boxlisting,
     IType.LIBSEG: check_libseg,
     IType.LIBPATH: check_libpath,
+    IType.MOD_FN: check_module_filename,
     IType.CONTENT_FOREST: check_content_forest,
     IType.GOAL_ID: check_goal_id,
     IType.VERSIONED_LIBPATH: check_versioned_libpath,
@@ -426,7 +430,7 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
             raw = raw_dict[varname]
             stash[stashname] = check_type(varname, raw, typedef)
             # Store an instance of UndefinedInput for all the other alternatives.
-            unchosen = alt_key_set - set([varname])
+            unchosen = alt_key_set - {varname}
             for u in unchosen:
                 typedef = alt_set[u]
                 stashname = typedef.get('rename', u)

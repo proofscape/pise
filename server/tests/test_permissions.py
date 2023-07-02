@@ -168,7 +168,7 @@ def test_repo_permission_11(app, repos_ready):
 def test_repo_permission_12(client, repos_ready):
     """WRITE, WIP, allowed, PSM = ok"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
         'parentpath': parentpath,
         'name': name,
@@ -195,7 +195,7 @@ def test_repo_permission_13(app, client, repos_ready, username, ok):
     """WRITE, WIP, allowed, not PSM, logged in. Result depends on identity. """
     app.config["ADMIN_USERS"] = ['test.admin']
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     with login_context(client, username):
         resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
             'parentpath': parentpath,
@@ -215,7 +215,7 @@ def test_repo_permission_13(app, client, repos_ready, username, ok):
 def test_repo_permission_14(app, client, repos_ready):
     """WRITE, WIP, allowed, neither PSM nor logged in = rejected"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
         'parentpath': parentpath,
         'name': name,
@@ -230,7 +230,7 @@ def test_repo_permission_14(app, client, repos_ready):
 def test_repo_permission_15(app, client, repos_ready):
     """WRITE, WIP, not allowed = rejected (despite PSM and owner)"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     with login_context(client, 'moo'):
         resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
             'parentpath': parentpath,

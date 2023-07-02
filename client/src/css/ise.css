@@ -1357,6 +1357,10 @@ p.warning {
     padding-left: 20px;
 }
 
+p.warningIndent {
+    padding-left: 20px;
+}
+
 .sympyStatusMenuItem {
     min-width: 150px;
 }

@@ -256,14 +256,16 @@ export class FsTreeManager extends TreeManager {
         const mgr = this;
         let name_input;
         const warning = item.type === "FILE" ?
-            `<p class="warning">The existing module will be converted from a file into a directory.</p>` : '';
+            (`<p class="warning">The existing module will be converted from a file into a directory.</p>` +
+             `<p class="warningIndent">Its contents will move to a <span class="monospace">__.pfsc</span> file.</p>`) : '';
         const dlg = new dojo.ConfirmDialog({
             title: `Add new submodule under <code>${parentpath}</code>`,
             content: `
                 <div class="newSubmoduleDialog">
                     ${warning}
-                    <p>Choose a name for the new submodule:</p>
-                    <input type="text" size="48" placeholder="name"/>
+                    <p>Choose a filename for the new submodule.</p>
+                    <p>Filename must end with either <span class="monospace">.pfsc</span> &nbsp; or <span class="monospace">.rst</span></p>
+                    <input type="text" size="48" placeholder="name.ext"/>
                 </div>
             `,
             onExecute: function() {
@@ -317,21 +319,12 @@ export class FsTreeManager extends TreeManager {
     renameTreeItem(item, treeNode) {
         const labelQuery = dojo.query(treeNode.domNode).children('.dijitTreeRow').query('.dijitTreeLabel');
         const existingLabel = treeNode.label;
-        let existingName, extension;
-        if (existingLabel.endsWith('.pfsc')) {
-            existingName = existingLabel.slice(0, -5);
-            extension = '.pfsc';
-        } else {
-            existingName = existingLabel;
-            extension = '';
-        }
         const inputBox = dojo.domConstruct.create("input", {
             type: "text",
-            value: existingName,
+            value: existingLabel,
             spellcheck: false,
             placeholder: "Enter a name"
         });
-        const extensionBox = dojo.domConstruct.toDom(`<span class="fsTreeExtensionBox">${extension}</span>`);
         let revert = false;
         // Stop propagation on click, so tree element doesn't open/close, stealing the focus!
         dojo.on(inputBox, "click", function(e){e.stopPropagation();});
@@ -355,20 +348,22 @@ export class FsTreeManager extends TreeManager {
             if (!revert) {
                 // Accept value.
                 let newName = e.target.value;
-                if (newName.endsWith('.pfsc')) {
-                    newName = newName.slice(0, -5);
-                }
-                if (newName === existingName) {
+                if (newName === existingLabel) {
                     // Revert.
                     labelQuery.innerHTML(existingLabel);
                 } else {
+                    const args = {
+                        libpath: item.libpath,
+                    };
+                    if (item.type === "FILE") {
+                        args.newFilename = newName;
+                    } else if (item.type === "DIR") {
+                        args.newDirname = newName;
+                    }
                     this.hub.socketManager.splitXhrFor('renameModule', {
                         method: "PATCH",
                         handleAs: "json",
-                        form: {
-                            libpath: item.libpath,
-                            newName: newName
-                        }
+                        form: args,
                     }).then(resp => {
                         if (this.hub.errAlert3(resp.immediate) || !resp.delayed) {
                             // Revert.
@@ -376,7 +371,7 @@ export class FsTreeManager extends TreeManager {
                         } else {
                             this.markTreeNodeAsWaiting({
                                 treeNode: treeNode,
-                                text: `${newName}${extension}`,
+                                text: newName,
                                 revertTo: existingLabel,
                             });
                             resp.delayed.then(msg => {
@@ -406,7 +401,6 @@ export class FsTreeManager extends TreeManager {
         });
         // Replace the existing label with the input box, then focus and select all.
         labelQuery.innerHTML(inputBox);
-        labelQuery[0].appendChild(extensionBox);
         inputBox.select();
         inputBox.focus();
     }

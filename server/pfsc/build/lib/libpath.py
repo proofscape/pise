@@ -163,8 +163,7 @@ class PathInfo:
 
         # What libpath do we represent?
         self.libpath = libpath
-
-        # Before populating our info fields, we define them all here:
+        self.segments = []
 
         # Does the path refer to an existing file?
         self.is_file = None
@@ -192,6 +191,8 @@ class PathInfo:
         """
         fs_path = libpathToAbsFSPath(self.libpath)
 
+        self.segments = self.libpath.split('.')
+
         # Is there a .pfsc or .rst file under this name?
         for ext in ['.pfsc', '.rst']:
             modpath = fs_path + ext
@@ -214,6 +215,10 @@ class PathInfo:
         src_fs_path = self.get_src_fs_path()
         if src_fs_path is not None:
             self.src_file_modification_time = os.path.getmtime(src_fs_path)
+
+    @property
+    def segment_length(self):
+        return len(self.segments)
 
     def get_formal_parent_path(self):
         """
@@ -339,6 +344,13 @@ class PathInfo:
         else:
             fs_path = None
         return fs_path
+
+    def get_src_filename(self):
+        filename = None
+        fs_path_str = self.get_src_fs_path()
+        if fs_path_str:
+            filename = pathlib.Path(fs_path_str).name
+        return filename
 
     def make_tilde_backup(self):
         """
