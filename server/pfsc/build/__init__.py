@@ -460,9 +460,14 @@ class Builder:
     def is_release_build(self):
         return self.version != pfsc.constants.WIP_TAG
 
-    def has_sphinx_doc(self):
-        p = pathlib.Path(self.repo_info.abs_fs_path_to_dir) / 'index.rst'
-        return p.exists()
+    def list_missing_required_sphinx_files(self):
+        missing = []
+        names = ['conf.py', 'index.rst']
+        for name in names:
+            p = pathlib.Path(self.repo_info.abs_fs_path_to_dir) / name
+            if not p.exists():
+                missing.append(name)
+        return missing
 
     def raise_missing_change_log_excep(self):
         msg = f'Repo `{self.repopath}` failed to declare a change log for release `{self.version}`'
@@ -497,6 +502,7 @@ class Builder:
         self.monitor.set_message('Starting...')
         with checkout(self.repo_info, self.version):
             self.reading_jobs = self.walk(self.repo_info.abs_fs_path_to_dir)
+            has_rst_files = False
             # Copy the source files to the build dir.
             # If building at a numbered version, these are needed both by our
             # own build process (so `load_module()` can find them), and so that
@@ -504,6 +510,8 @@ class Builder:
             # They are also needed for imports during other builds.
             for modpath, _ in self.reading_jobs:
                 pi = PathInfo(modpath)
+                if pi.is_rst_file():
+                    has_rst_files = True
                 path = pi.get_build_dir_src_code_path(version=self.version)
                 if not path.parent.exists():
                     path.parent.mkdir(parents=True)
@@ -521,9 +529,17 @@ class Builder:
             # accordingly. For now we don't do that. (The copies we just placed
             # in the `build` dir are not structured correctly to be used in this way.)
 
-            # If you want a Sphinx build to take place, you have to have an `index.rst` file
-            # in the repo root dir.
-            if self.has_sphinx_doc():
+            if has_rst_files:
+                missing = self.list_missing_required_sphinx_files()
+                if missing:
+                    missing_files = " and ".join(missing)
+                    verb = 'is' if len(missing) == 1 else 'are'
+                    msg = (
+                        f'Repo {self.repopath} contains one or more rst files,'
+                        f' but fails to define {missing_files} at the root level,'
+                        f' which {verb} required for a Sphinx build.'
+                    )
+                    raise PfscExcep(msg, PECode.SPHINX_ERROR)
                 if self.build_in_gdb:
                     msg = (
                         'rst modules are not yet supported with `build_in_gdb` option.'
