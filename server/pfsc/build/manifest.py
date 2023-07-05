@@ -343,6 +343,8 @@ class ManifestTreeNode:
         if lift_sphinx_pages and self.is_sphinx_page():
             d["name"] = self.parent.data["name"]
             d["hasChildren"] = len(self.parent.children) > 1
+        else:
+            d["hasChildren"] = len(self.children) > 0
 
         do_lift = False
         sphinx_page = None

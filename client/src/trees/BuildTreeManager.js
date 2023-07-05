@@ -162,7 +162,7 @@ export class BuildTreeManager extends TreeManager {
             },
             initialQuery: {id: repopath},
             mayHaveChildren: function(item) {
-                return item.type === "MODULE" || (item.type === "SPHINX" && item.hasChildren);
+                return (item.type === "MODULE" || item.type === "SPHINX") && item.hasChildren;
             },
             getIconClass: function(/*dojo.store.Item*/ item, /*Boolean*/ opened){
                 const classes = [
