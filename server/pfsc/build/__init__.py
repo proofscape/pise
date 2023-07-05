@@ -521,7 +521,7 @@ class Builder:
                 if self.build_in_gdb:
                     msg = (
                         'rst modules are not yet supported with `build_in_gdb` option.'
-                        ' Please contact your system admin, or report this as a bug.'
+                        ' Please contact your system admin.'
                     )
                     raise PfscExcep(msg, PECode.OPTION_NOT_SUPPORTED_WITH_BUILD_IN_GDB)
                 # Our own `self.read_and_resolve()` will be called during our
