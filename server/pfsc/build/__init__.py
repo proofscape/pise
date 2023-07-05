@@ -376,7 +376,7 @@ class Builder:
     def __init__(
             self, libpath, version=pfsc.constants.WIP_TAG,
             verbose=False, progress=None,
-            make_clean=False
+            make_clean=False, current_builds=None,
     ):
         """
         :param libpath: libpath pointing at or into the repo to be built.
@@ -387,6 +387,8 @@ class Builder:
         :param make_clean: set True to erase any and all existing pickle files
             for the modules in this repo@version, as well as to `make clean`
             with Sphinx (if a part of the build), all before beginning this build
+        :param current_builds: serves to catch cyclic build errors.
+            See `load_module()` function.
         """
         self.repo_info = get_repo_info(libpath)
         self.repopath = self.repo_info.libpath
@@ -396,6 +398,10 @@ class Builder:
         self.monitor = BuildMonitor(progress)
         self.graph_writer = get_graph_writer()
         self.build_in_gdb = building_in_gdb()
+
+        if current_builds is None:
+            current_builds = set()
+        self.current_builds = current_builds
 
         if not version_string_is_valid(version, allow_WIP=True):
             raise PfscExcep(f'Invalid version string: {version}', PECode.MALFORMED_VERSION_TAG)
@@ -848,7 +854,8 @@ class Builder:
         try:
             module = load_module(
                 modpath, version=self.version,
-                fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
+                fail_gracefully=False, caching=CachePolicy.TIME,
+                cache=self.module_cache, current_builds=self.current_builds
             )
         except PfscExcep as e:
             if e.code() == PECode.PARSING_ERROR:

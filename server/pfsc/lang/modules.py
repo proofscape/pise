@@ -1350,7 +1350,8 @@ def unpickle_module(path_spec, version):
 def load_module(
         path_spec, version=pfsc.constants.WIP_TAG,
         text=None, fail_gracefully=False, history=None,
-        caching=CachePolicy.TIME, cache=None
+        caching=CachePolicy.TIME, cache=None,
+        current_builds=None
 ):
     """
     This is how you get a PfscModule object, i.e. an internal representation of a pfsc module.
@@ -1383,6 +1384,12 @@ def load_module(
         See `CachePolicy` enum class. Note that we always use the in-mem cache, when it's a hit.
 
     @param cache: The in-mem module cache.
+
+    @param current_builds: Like the `history` kwarg, this is here to catch cyclic errors, in this case
+        cyclic builds. These *shouldn't* arise anyway, but we have this kwarg as an extra safety net,
+        to prevent infinite recursion. This pertains only to the special case where an rst module is loaded
+        @WIP, and is *not* already in the mem cache. In a build scenario, this should only happen when the
+        module belongs to another repo than the one(s) already being built.
 
     @return: If successful, the loaded PfscModule instance is returned. If unsuccessful, then behavior depends
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
@@ -1491,8 +1498,21 @@ def load_module(
                 )
                 fail(msg=msg, pe_code=PECode.VERSION_NOT_BUILT_YET)
 
+            if current_builds is None:
+                current_builds = set()
+            if repopath in current_builds:
+                msg = f'Cyclic build error. Trying to build rst module {modpath}@WIP'
+                msg += ' while already building:\n'
+                for rp in current_builds:
+                    msg += f'  {rp}\n'
+                fail(msg=msg, pe_code=PECode.CYCLIC_IMPORT_ERROR)
+            current_builds.add(repopath)
+
             from pfsc.build import Builder
-            b = Builder(repopath, version=pfsc.constants.WIP_TAG)
+            b = Builder(
+                repopath, version=pfsc.constants.WIP_TAG,
+                current_builds=current_builds
+            )
             b.build(
                 force_reread_rst_paths=[path_info.abs_fs_path_to_file],
                 no_sphinx_write=True
