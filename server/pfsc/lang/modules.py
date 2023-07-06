@@ -81,7 +81,7 @@ class PfscModule(PfscObj):
     def add_pending_import(self, pi):
         self.pending_imports.append(pi)
 
-    def resolve(self, cache=None):
+    def resolve(self, cache=None, prog_mon=None):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
@@ -94,7 +94,10 @@ class PfscModule(PfscObj):
 
             while self.pending_imports:
                 pi = self.pending_imports.popleft()
-                pi.resolve(cache=cache)
+                pi.resolve(cache=cache, prog_mon=prog_mon)
+
+            if prog_mon:
+                prog_mon.set_message(f'Resolving {self.libpath}...')
 
             self.resolve_libpaths_to_rhses()
 
@@ -858,7 +861,7 @@ class PendingImport:
         extra_msg = f' Required for import in module `{self.homepath}`.'
         return self.home_module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
 
-    def resolve(self, cache=None):
+    def resolve(self, cache=None, prog_mon=None):
         """
         Resolve this import, and store the result in the "home module," i.e.
         the module where this import statement occurred.
@@ -866,11 +869,11 @@ class PendingImport:
         if cache is None:
             cache = {}
         if self.format == self.PLAIN_IMPORT_FORMAT:
-            self.resolve_plainimport(cache=cache)
+            self.resolve_plainimport(cache=cache, prog_mon=prog_mon)
         elif self.format == self.FROM_IMPORT_FORMAT:
-            self.resolve_fromimport(cache=cache)
+            self.resolve_fromimport(cache=cache, prog_mon=prog_mon)
 
-    def resolve_plainimport(self, cache=None):
+    def resolve_plainimport(self, cache=None, prog_mon=None):
         """
         Carry out (delayed) resolution of a PLAIN-IMPORT.
         """
@@ -886,10 +889,10 @@ class PendingImport:
             caching=CachePolicy.TIME, cache=cache
         )
         # Depth-first resolution:
-        module.resolve(cache=cache)
+        module.resolve(cache=cache, prog_mon=prog_mon)
         self.home_module[self.local_path] = module
 
-    def resolve_fromimport(self, cache=None):
+    def resolve_fromimport(self, cache=None, prog_mon=None):
         """
         Carry out (delayed) resolution of a FROM-IMPORT.
         """
@@ -924,7 +927,7 @@ class PendingImport:
             )
             if src_module:
                 # Depth-first resolution:
-                src_module.resolve(cache=cache)
+                src_module.resolve(cache=cache, prog_mon=prog_mon)
 
         object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
@@ -973,7 +976,7 @@ class PendingImport:
                     )
                     if obj:
                         # Depth-first resolution:
-                        obj.resolve(cache=cache)
+                        obj.resolve(cache=cache, prog_mon=prog_mon)
                 # If that failed too, it's an error.
                 if obj is None:
                     msg = 'Could not import %s from %s' % (object_name, modpath)

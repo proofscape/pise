@@ -582,8 +582,9 @@ class Builder:
         RESOLVE the pfsc modules formed in the READING phase.
         """
         modules = list(self.module_cache.values())
+        self.monitor.begin_phase(self.prog_count_per_module * len(modules), 'Resolving...')
         for module in modules:
-            module.resolve(cache=self.module_cache)
+            module.resolve(cache=self.module_cache, prog_mon=self.monitor)
 
         while self.scan_jobs:
             module, manifest_node = self.scan_jobs.popleft()
