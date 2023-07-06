@@ -1463,10 +1463,13 @@ def load_module(
                 # At one time (I think I was using a MacBook Pro, in summer 2019, with up-to-date
                 # OS -- not sure which Python version, probably 3.5 - 3.7?), I seem to have observed
                 # that the Unix mtime timestamps were being truncated to next lowest integer.
+                # It's also possible I was working on an Ubuntu server at the time.
                 # At any rate, now (230624, macOS 10.14.6, Python 3.8) they seem to be floats, with
                 # microsecond accuracy. *In case* we get an integer, we give the mod time a +1
                 # boost, to be on the safe side. ("Safe" meaning: err on the side of reloading
                 # the module even if unnecessary.)
+                # I note that coarse filesystem time resolution is a phenomenon acknowledged e.g. by Sphinx:
+                # https://github.com/sphinx-doc/sphinx/blob/d3c91f951255c6729a53e38c895ddc0af036b5b9/sphinx/builders/__init__.py#L498-L501
                 t_m += 1
             will_rebuild = t_m >= t_r
         # If it was an on-disk cache hit, and we're going to use it, then elevate
