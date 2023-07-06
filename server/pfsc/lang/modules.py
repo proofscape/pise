@@ -41,7 +41,6 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
 from pfsc.build.repo import get_repo_part, get_repo_info
 from pfsc.build.versions import version_string_is_valid
-from pfsc.gdb import get_graph_reader
 from pfsc.permissions import have_repo_permission, ActionType
 from pfsc_util.scan import PfscModuleStringAwareScanner
 import pfsc.util as util
