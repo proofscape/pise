@@ -81,6 +81,9 @@ class PfscModule(PfscObj):
     def add_pending_import(self, pi):
         self.pending_imports.append(pi)
 
+    def list_modules_imported_from(self):
+        return [pi.src_modpath for pi in self.pending_imports]
+
     def resolve(self, cache=None, prog_mon=None):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
@@ -1349,11 +1352,17 @@ def unpickle_module(path_spec, version):
     return module
 
 
+class LoadingResult:
+
+    def __init__(self, rebuilt):
+        self.rebuilt = rebuilt
+
+
 def load_module(
         path_spec, version=pfsc.constants.WIP_TAG,
         text=None, fail_gracefully=False, history=None,
         caching=CachePolicy.TIME, cache=None,
-        current_builds=None
+        current_builds=None, loading_results=None,
 ):
     """
     This is how you get a PfscModule object, i.e. an internal representation of a pfsc module.
@@ -1392,6 +1401,10 @@ def load_module(
         to prevent infinite recursion. This pertains only to the special case where an rst module is loaded
         @WIP, and is *not* already in the mem cache. In a build scenario, this should only happen when the
         module belongs to another repo than the one(s) already being built.
+
+    @param loading_results: Optional dict in which information about the loading process will be recorded.
+        Info will be recorded as an instance of the `LoadingResult` class, under the
+        tail-versioned modpath as key, but not if that key is already present in the dict.
 
     @return: If successful, the loaded PfscModule instance is returned. If unsuccessful, then behavior depends
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
@@ -1478,6 +1491,9 @@ def load_module(
         # it to the in-mem cache.
         if unpickled_module and not will_rebuild:
             cache[verspath] = unpickled_module
+
+    if isinstance(loading_results, dict) and verspath not in loading_results:
+        loading_results[verspath] = LoadingResult(will_rebuild)
 
     if not will_rebuild:
         module = cache[verspath]

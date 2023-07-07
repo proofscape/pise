@@ -49,6 +49,7 @@ the slowest part of the process, this should save considerable time on rebuilds.
 """
 
 import os, json, math, re
+from collections import defaultdict
 from datetime import datetime
 import logging
 import pathlib
@@ -409,9 +410,8 @@ class Builder:
         self.prog_count_per_module_when_scanning = 100
 
         self.timestamp = None
-
         self.commit_hash = self.repo_info.get_current_commit_hash()
-
+        self.loading_results = {}
         self.module_cache = {}
 
         self.mii = ModuleIndexInfo(
@@ -438,6 +438,13 @@ class Builder:
         # a module that we have loaded from disk, but have not yet analyzed its
         # contents.
         self.scan_jobs = []
+
+        self.modpaths_reread_by_sphinx = []
+        # Modules that were updated (i.e. not loaded from a pickle file), by libpath:
+        self.updated_modules = {}
+        # Modules are said to be "affected" if they were updated, or if there is
+        # an updated module among their import ancestors.
+        self.affected_modules = {}
 
         # A place to store a copy of the dependencies declared by the repo being built:
         self.repo_dependencies = {}
@@ -572,6 +579,9 @@ class Builder:
         self.reading_phase()
         self.resolving_phase()
 
+    def was_updated(self, modpath):
+        return self.loading_results[f'{modpath}@{self.version}'].rebuilt
+
     def reading_phase(self):
         """
         Form modules by READING pfsc files, but do not yet RESOLVE them.
@@ -592,20 +602,45 @@ class Builder:
             self.scan_jobs.append((module, mod_node))
             self.modules[module.libpath] = module
 
+            if self.was_updated(modpath):
+                self.updated_modules[modpath] = module
+
+        self.determine_affected_modules()
+
+    def determine_affected_modules(self):
+        # Build import DAG as dict, where modpath A points to list of modpaths B
+        # that import from A.
+        dag = defaultdict(list)
+        for importer_path, module in self.modules.items():
+            for imported_path in module.list_modules_imported_from():
+                dag[imported_path].append(importer_path)
+        # The affected modules are all those reachable from the updated modules,
+        # in this DAG.
+        stack = list(self.updated_modules.keys())
+        while stack:
+            a = stack.pop()
+            if a not in self.affected_modules:
+                self.affected_modules[a] = self.modules[a]
+                stack.extend(dag[a])
+
     def resolving_phase(self):
         """
         RESOLVE the pfsc modules formed in the READING phase.
         """
-        modules = list(self.module_cache.values())
-        self.monitor.begin_phase(len(modules), 'Resolving...')
-        for module in modules:
+        n = len(self.affected_modules)
+
+        self.monitor.begin_phase(n, 'Resolving...')
+        for module in self.affected_modules.values():
             module.resolve(cache=self.module_cache, prog_mon=self.monitor)
             self.monitor.inc_count()
 
-        self.monitor.begin_phase(len(self.scan_jobs) * self.prog_count_per_module_when_scanning, 'Scanning...')
+        self.monitor.begin_phase(n * self.prog_count_per_module_when_scanning, 'Scanning...')
         for module, manifest_node in self.scan_jobs:
-            self.scan_pfsc_module(module, manifest_node)
+            if module.libpath in self.affected_modules:
+                self.scan_pfsc_module(module, manifest_node)
 
+        # TODO:
+        #  (How) do we limit these steps to the affected modules?
         self.mii.cut_add_validate()
         self.mii.here_elsewhere_nowhere()
         self.mii.compute_origins(self.graph_writer.reader)
@@ -667,7 +702,7 @@ class Builder:
         logger = logging.getLogger('sphinx.sphinx.util')
         logger.addHandler(handler)
 
-        def add_rereads(app, env, docnames):
+        def add_and_record_rereads(app, env, docnames):
             # Sphinx is unaware of our pickle files, so it's up to us to ensure
             # they stay up to date.
             # Consider existing docs that Sphinx is not already planning to re-read:
@@ -688,6 +723,13 @@ class Builder:
                 if docname not in docnames:
                     docnames.append(docname)
 
+            # Record the modpath for every doc that Sphinx will re-read, so
+            # that we can note updated modules later.
+            self.modpaths_reread_by_sphinx.extend([
+                build_libpath_for_rst(app.config, docname, within_page=False)
+                for docname in docnames
+            ])
+
         def env_updated_handler(app, env):
             """
             This handler is called when Sphinx has finished its READING phase,
@@ -706,11 +748,17 @@ class Builder:
                 # they are still needed during Sphinx's WRITE phase (in particular,
                 # for our handler for the Sphinx 'html-page-context' event).
                 pickle_module(rst_module)
+
                 # *Could* just pickle, and then `load_module()` would find these
                 # modules that way. But we manually store them in the cache now,
                 # so that they needn't be read from disk in order to get in there.
                 lpv = rst_module.getLibpathV()
                 self.module_cache[lpv] = rst_module
+
+                # Note updated modules.
+                modpath = rst_module.libpath
+                if modpath in self.modpaths_reread_by_sphinx:
+                    self.updated_modules[modpath] = rst_module
 
             self.read_and_resolve()
 
@@ -719,7 +767,7 @@ class Builder:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              buildername, confoverrides=confoverrides)
-                app.connect('env-before-read-docs', add_rereads)
+                app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
@@ -752,7 +800,8 @@ class Builder:
                 return
         module = load_module(
             self.repo_info.libpath, version=self.version,
-            fail_gracefully=False, caching=CachePolicy.TIME, cache=self.module_cache
+            fail_gracefully=False, caching=CachePolicy.TIME,
+            cache=self.module_cache, loading_results=self.loading_results
         )
         # No need to call module.resolve(), since we are only interested in
         # a couple of assignments made in this module (which need no resolution).
@@ -885,7 +934,8 @@ class Builder:
             module = load_module(
                 modpath, version=self.version,
                 fail_gracefully=False, caching=CachePolicy.TIME,
-                cache=self.module_cache, current_builds=self.current_builds
+                cache=self.module_cache, current_builds=self.current_builds,
+                loading_results=self.loading_results
             )
         except PfscExcep as e:
             if e.code() == PECode.PARSING_ERROR:
@@ -1035,9 +1085,9 @@ class Builder:
                 manifest_node.add_child(mtn)
 
     def write_all(self):
-        n = len(self.modules) + len(self.deductions) + len(self.annotations)
+        n = len(self.affected_modules) + len(self.deductions) + len(self.annotations)
         if self.build_in_gdb:
-            n += len(self.modules)
+            n += len(self.affected_modules)
         self.monitor.begin_phase(n, 'Writing...')
         self.clear_build_dirs()
         if self.build_in_gdb:
@@ -1063,7 +1113,7 @@ class Builder:
         If storing builds in GDB, we copy of module source code in there too.
         """
         if self.build_in_gdb:
-            for module in self.modules.values():
+            for module in self.affected_modules.values():
                 text = module.getBuiltVersion()
                 modpath = module.getLibpath()
                 self.graph_writer.record_module_source(modpath, self.version, text)
@@ -1075,7 +1125,7 @@ class Builder:
         products for any entities that used to be defined in these modules, but no
         longer are.
         """
-        for module in self.modules.values():
+        for module in self.affected_modules.values():
             if self.build_in_gdb:
                 modpath = module.getLibpath()
                 self.graph_writer.delete_builds_under_module(modpath, self.version)
