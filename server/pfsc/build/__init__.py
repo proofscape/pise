@@ -513,6 +513,14 @@ class Builder:
                 if pi.is_rst_file():
                     has_rst_files = True
                 path = pi.get_build_dir_src_code_path(version=self.version)
+
+                # If not cleaning, and if we already have an up to date copy, don't copy again.
+                if (not self.make_clean) and path.exists():
+                    mod_time = pi.get_src_file_modification_time(version=pfsc.constants.WIP_TAG)
+                    copy_time = path.stat().st_mtime
+                    if copy_time > mod_time:
+                        continue
+
                 if not path.parent.exists():
                     path.parent.mkdir(parents=True)
                 # Read @WIP, since we want the currently checked-out version.
