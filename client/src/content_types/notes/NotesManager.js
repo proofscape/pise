@@ -16,7 +16,7 @@
 
 import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
-import { SubscriptionManager } from "../SubscriptionManager";
+import { DynamicSubscriptionManager, StaticSubscriptionManager } from "../SubscriptionManager";
 import { SphinxViewer } from "./SphinxViewer";
 
 define([
@@ -95,7 +95,8 @@ var NotesManager = declare(AbstractContentManager, {
 
     navEnableHandlers: null,
 
-    subscriptionManager: null,
+    annoSubscriptionManager: null,
+    sphinxSubscriptionManager: null,
 
     wvuCallback: null,
 
@@ -128,7 +129,8 @@ var NotesManager = declare(AbstractContentManager, {
 
     initSubscrips: function() {
         const viewers = this.viewers;
-        this.subscriptionManager = new SubscriptionManager(this.hub, {
+        const nm = this;
+        this.annoSubscriptionManager = new DynamicSubscriptionManager(this.hub, {
             fetchName: 'loadAnnotation',
             fetchArgBuilder: (libpath, timestamp) => {
                 return {
@@ -161,6 +163,42 @@ var NotesManager = declare(AbstractContentManager, {
                 }
             },
         });
+        this.sphinxSubscriptionManager = new StaticSubscriptionManager(this.hub, {
+            staticUrlBuilder: libpath => {
+                return nm.makeSphinxUrl(libpath, "WIP");
+            },
+            fetchContent: false,
+            missingObjHandler: (libpath, paneIds, status) => {
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    // FIXME: Maybe better than closing the whole pane would be to
+                    //  first ask the viewer to remove the current page from its history,
+                    //  and move to an adjacent history entry, if possible. Only if there
+                    //  was no other history entry would we close the pane.
+                    viewer.pane.onClose();
+                }
+            },
+            reloader: (libpath, paneIds, url) => {
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    viewer.refresh(url);
+                }
+            },
+        });
+    },
+
+    /* Build the static url for a Sphinx page.
+     */
+    makeSphinxUrl: function(libpath, version, hash) {
+        // Libpath goes: host, owner, repo, remainder, '_page'
+        // For the URL we need to:
+        //  - insert the version tag as the 4th segment
+        //  - chop off the '_page' segment
+        const parts = libpath.split('.');
+        parts.splice(3, 0, version);
+        parts.pop()
+        hash = hash || '';
+        return `static/sphinx/${parts.join("/")}.html${hash}`
     },
 
     getSuppliedDocHighlights: function(paneId) {
@@ -393,7 +431,7 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     /* This is our listener for the "pageReload" event of each of
-     * our PageViewer instances. That event is fired after the viewer has
+     * our viewer instances. That event is fired after the viewer has
      * finished reloading a page that was just rebuilt.
      */
     notePageReload: async function({uuid, libpath, oldPageData, newPageData}) {

@@ -18,12 +18,19 @@ import { Listenable } from "browser-peers/src/util";
 
 export class BasePageViewer extends Listenable {
 
-    constructor() {
+    constructor(notesManager) {
         super({});
+        this.mgr = notesManager;
         this.navEnableHandlers = [];
         this.history = [];
         this.ptr = null;
         this.currentPageData = null;
+        this.subscribedLibpath = null;
+        this.subscriptionManager = null;
+    }
+
+    destroy() {
+        this.unsubscribe();
     }
 
     markWidgetElementAsSelected(elt) {
@@ -130,21 +137,75 @@ export class BasePageViewer extends Listenable {
     beforeNavigate() {
     }
 
+    /* Reload the page, and dispatch an event announcing the reload.
+     *
+     * param loc: location object, to help reload the page.
+     */
+    async reloadPage(loc) {
+        const oldPageData = this.currentPageData;
+        await this.updatePage(loc);
+        const event = {
+            type: 'pageReload',
+            uuid: this.uuid,
+            libpath: loc.libpath,
+            oldPageData: oldPageData,
+            newPageData: this.currentPageData,
+        }
+        this.dispatch(event);
+    }
+
     async updatePage(loc) {
     }
 
     describeLocationUpdate(loc) {
+        const cur = this.getCurrentLoc() || {};
+        const libpathChange = cur.libpath !== loc.libpath;
+        const versionChange = cur.version !== loc.version;
+        const scrollSelChange = cur.scrollSel !== loc.scrollSel;
+        return {
+            libpathChange: libpathChange,
+            versionChange: versionChange,
+            scrollSelChange: scrollSelChange,
+            pageChange: libpathChange || versionChange,
+            locationChange: libpathChange || versionChange || scrollSelChange,
+        };
     }
 
     announcePageChange(update, loc, oldPageData) {
+        if (update.pageChange) {
+            //...
+        }
     }
 
     updateSubscription(update, loc) {
+        if (update.pageChange) {
+            this.unsubscribe();
+            if (loc.version === "WIP") {
+                this.subscribe(loc.libpath);
+            }
+        }
+    }
+
+    unsubscribe() {
+        if (this.subscribedLibpath !== null) {
+            this.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, false);
+        }
+    }
+
+    subscribe(libpath) {
+        // Do not subscribe to special libpaths.
+        if (libpath.startsWith('special.')) libpath = null;
+        this.subscribedLibpath = libpath;
+        if (libpath !== null) {
+            this.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, true);
+        }
     }
 
     async goTo(loc) {
-        await this.go(loc);
-        this.recordNewHistory(loc);
+        const update = await this.go(loc);
+        if (update.locationChange) {
+            this.recordNewHistory(loc);
+        }
     }
 
     /* Navigate to the next location forward in the history, if any.
@@ -173,5 +234,6 @@ export class BasePageViewer extends Listenable {
         const update = this.describeLocationUpdate(loc);
         this.announcePageChange(update, loc, oldPageData);
         this.updateSubscription(update, loc);
+        return update;
     }
 }

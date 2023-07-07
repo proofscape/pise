@@ -28,11 +28,12 @@ export class AnnoViewer extends BasePageViewer {
      * }
      */
     constructor(nm, parent, pane, uuid, options) {
-        super();
+        super(nm);
         options = options || {};
         this.overviewScale = options.overviewScale || this.overviewScale;
         this.nm = nm;
         this.uuid = uuid;
+        this.subscriptionManager = nm.annoSubscriptionManager;
 
         this.elt = document.createElement('div');
         this.sidebar = document.createElement('div');
@@ -75,20 +76,6 @@ export class AnnoViewer extends BasePageViewer {
         return loc;
     }
 
-    describeLocationUpdate(loc) {
-        const cur = this.getCurrentLoc() || {};
-        const libpathChange = cur.libpath !== loc.libpath;
-        const versionChange = cur.version !== loc.version;
-        const scrollSelChange = cur.scrollSel !== loc.scrollSel;
-        return {
-            libpathChange: libpathChange,
-            versionChange: versionChange,
-            scrollSelChange: scrollSelChange,
-            annotationChange: libpathChange || versionChange,
-            locationChange: libpathChange || versionChange || scrollSelChange,
-        };
-    }
-
     announcePageChange(update, loc, oldPageData) {
         if (update.annotationChange) {
             const event = {
@@ -103,30 +90,6 @@ export class AnnoViewer extends BasePageViewer {
                 event.oldLibpathv = `${cur.libpath}@${cur.version}`;
             }
             this.dispatch(event);
-        }
-    }
-
-    updateSubscription(update, loc) {
-        if (update.annotationChange) {
-            this.unsubscribe();
-            if (loc.version === "WIP") {
-                this.subscribe(loc.libpath);
-            }
-        }
-    }
-
-    unsubscribe() {
-        if (this.subscribedLibpath !== null) {
-            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, false);
-        }
-    }
-
-    subscribe(libpath) {
-        // Do not subscribe to special libpaths.
-        if (libpath.startsWith('special.')) libpath = null;
-        this.subscribedLibpath = libpath;
-        if (libpath !== null) {
-            this.nm.subscriptionManager.setSubscription(this.pane.id, this.subscribedLibpath, true);
         }
     }
 
@@ -151,6 +114,19 @@ export class AnnoViewer extends BasePageViewer {
     /* Set the zoom level on a single sphinx content window.
      */
     setZoom(level) {
+    }
+
+    /* Receive updated page contents.
+     *
+     * param contents: object with `html` and `data` (widget JSON) properties.
+     */
+    async receivePublication(contents) {
+        // We can use a description of our current location to get the
+        // scroll fraction. Then setting the contents directly in the location
+        // object will get what we want from our updatePage method.
+        const loc = this.describeCurrentLocation();
+        loc.contents = contents;
+        await super.reloadPage(loc);
     }
 
 }

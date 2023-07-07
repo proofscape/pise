@@ -38,11 +38,10 @@ export class SphinxViewer extends BasePageViewer {
      * }
      */
     constructor(nm, parent, pane, uuid, options) {
-        super();
+        super(nm);
 
         // overviewScale option not (yet?) supported
 
-        this.mgr = nm;
         this.pane = pane;
         this.uuid = uuid;
 
@@ -57,6 +56,7 @@ export class SphinxViewer extends BasePageViewer {
         });
 
         this.resolvePageUpdate = null;
+        this.subscriptionManager = nm.sphinxSubscriptionManager;
     }
 
     /* When the frame navigates to a new page, we get a new content window.
@@ -125,21 +125,19 @@ export class SphinxViewer extends BasePageViewer {
     makeUrlFromCdo(cdo) {
         let url = cdo.url;
         if (cdo.libpath && cdo.version) {
-            // Libpath goes: host, owner, repo, remainder, '_page'
-            // For the URL we need to:
-            //  - insert the version tag as the 4th segment
-            //  - chop off the '_page' segment
-            const parts = cdo.libpath.split('.');
-            parts.splice(3, 0, cdo.version);
-            parts.pop()
-            const hash = cdo.hash || '';
-            url = `static/sphinx/${parts.join("/")}.html${hash}`
+            url = this.mgr.makeSphinxUrl(cdo.libpath, cdo.version, cdo.hash);
         }
         return url;
     }
 
     showOverviewSidebar(doShow) {
         // Not supported (yet)
+    }
+
+    async refresh(url) {
+        const loc = {url};
+        // TODO: add scroll frac / scroll sel to loc?
+        await super.reloadPage(loc);
     }
 
     async updatePage(loc) {
