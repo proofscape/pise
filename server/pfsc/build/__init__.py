@@ -49,7 +49,6 @@ the slowest part of the process, this should save considerable time on rebuilds.
 """
 
 import os, json, math, re
-from collections import deque
 from datetime import datetime
 import logging
 import pathlib
@@ -406,9 +405,8 @@ class Builder:
         if not version_string_is_valid(version, allow_WIP=True):
             raise PfscExcep(f'Invalid version string: {version}', PECode.MALFORMED_VERSION_TAG)
 
-        # We set a couple of arbitrary counts for progress monitoring.
-        self.prog_count_per_module = 100
-        self.prog_count_for_parsing = 10
+        # Arbitrary count for progress monitoring:
+        self.prog_count_per_module_when_scanning = 100
 
         self.timestamp = None
 
@@ -439,7 +437,7 @@ class Builder:
         # A "scan job" is a pair (PfscModule, ManifestTreeNode), representing
         # a module that we have loaded from disk, but have not yet analyzed its
         # contents.
-        self.scan_jobs = deque()
+        self.scan_jobs = []
 
         # A place to store a copy of the dependencies declared by the repo being built:
         self.repo_dependencies = {}
@@ -508,7 +506,9 @@ class Builder:
             # own build process (so `load_module()` can find them), and so that
             # non-owning users can browse the source.
             # They are also needed for imports during other builds.
+            self.monitor.begin_phase(len(self.reading_jobs), 'Copying...')
             for modpath, _ in self.reading_jobs:
+                self.monitor.inc_count()
                 pi = PathInfo(modpath)
                 if pi.is_rst_file():
                     has_rst_files = True
@@ -527,7 +527,9 @@ class Builder:
                 src = pi.read_module(version=pfsc.constants.WIP_TAG)
                 path.write_text(src)
 
+            self.monitor.set_message('Checking root declarations...')
             self.check_root_declarations()
+            self.monitor.set_message('Computing move map closure...')
             self.mii.compute_mm_closure(self.graph_writer.reader)
 
             # For the sake of any Sphinx build we might do, we stay inside the
@@ -578,10 +580,15 @@ class Builder:
         should be carried out after the Sphinx build has
         finished its READING phase, but before it begins its RESOLVING phase.
         """
-        self.monitor.begin_phase(self.prog_count_per_module * len(self.reading_jobs), 'Reading...')
-
+        self.monitor.begin_phase(len(self.reading_jobs), 'Reading...')
         for modpath, mod_node in self.reading_jobs:
+            if self.verbose:
+                print("  ", modpath)
+
+            self.monitor.set_message('Reading %s...' % modpath)
             module = self.read_pfsc_module(modpath)
+            self.monitor.inc_count()
+
             self.scan_jobs.append((module, mod_node))
             self.modules[module.libpath] = module
 
@@ -590,12 +597,13 @@ class Builder:
         RESOLVE the pfsc modules formed in the READING phase.
         """
         modules = list(self.module_cache.values())
-        self.monitor.begin_phase(self.prog_count_per_module * len(modules), 'Resolving...')
+        self.monitor.begin_phase(len(modules), 'Resolving...')
         for module in modules:
             module.resolve(cache=self.module_cache, prog_mon=self.monitor)
+            self.monitor.inc_count()
 
-        while self.scan_jobs:
-            module, manifest_node = self.scan_jobs.popleft()
+        self.monitor.begin_phase(len(self.scan_jobs) * self.prog_count_per_module_when_scanning, 'Scanning...')
+        for module, manifest_node in self.scan_jobs:
             self.scan_pfsc_module(module, manifest_node)
 
         self.mii.cut_add_validate()
@@ -783,7 +791,7 @@ class Builder:
         """
         jobs = []
         walk_list = list(os.walk(root_fs_path))
-        self.monitor.begin_phase(len(walk_list), 'Scanning...')
+        self.monitor.begin_phase(len(walk_list), 'Finding modules...')
         for P, D, F in walk_list:
             self.monitor.inc_count()
 
@@ -873,9 +881,6 @@ class Builder:
 
         :param modpath: the libpath of the module to be processed
         """
-        self.monitor.set_message('Reading %s...' % modpath)
-        if self.verbose: print("  ", modpath)
-
         try:
             module = load_module(
                 modpath, version=self.version,
@@ -890,8 +895,6 @@ class Builder:
             else:
                 e.msg = f'While loading module `{modpath}`:\n\n' + e.msg
                 raise e
-
-        self.monitor.inc_count(self.prog_count_for_parsing)
         return module
 
     def scan_pfsc_module(self, module, manifest_node):
@@ -911,12 +914,12 @@ class Builder:
         # Grab all the items.
         all_items = module.getNativeItemsInDefOrder(hoist_expansions=True)
         num_items = len(all_items)
-        remaining_count = self.prog_count_per_module - self.prog_count_for_parsing
+        total_count = self.prog_count_per_module_when_scanning
         prog_count_per_item = 0
         if num_items == 0:
-            self.monitor.inc_count(remaining_count)
+            self.monitor.inc_count(total_count)
         else:
-            prog_count_per_item = remaining_count / num_items
+            prog_count_per_item = total_count / num_items
 
         annos = []
         sphinx_page = None
@@ -1033,6 +1036,8 @@ class Builder:
 
     def write_all(self):
         n = len(self.modules) + len(self.deductions) + len(self.annotations)
+        if self.build_in_gdb:
+            n += len(self.modules)
         self.monitor.begin_phase(n, 'Writing...')
         self.clear_build_dirs()
         if self.build_in_gdb:
@@ -1085,12 +1090,14 @@ class Builder:
                             ['.dg', '.json'],
                         ]:
                             path.unlink()
+            self.monitor.inc_count()
 
     def write_dashgraphs(self):
         """
         Write the dashgraphs to disk.
         """
         for deducpath, deduc in self.deductions.items():
+            self.monitor.set_message(f'Writing {deducpath}...')
             dashgraph = deduc.buildDashgraph()
             dg_json = json.dumps(dashgraph, indent=4)
             if self.build_in_gdb:
@@ -1108,6 +1115,7 @@ class Builder:
         Write the annotations to disk.
         """
         for annopath, annotation in self.annotations.items():
+            self.monitor.set_message(f'Writing {annopath}...')
             anno_html = annotation.get_escaped_html()
             anno_json = json.dumps(annotation.get_page_data(), indent=4)
             if self.build_in_gdb:
