@@ -137,7 +137,7 @@ def test_work_when_wip_not_allowed(client, repos_ready):
         'writepaths': [repopath],
         'writetexts': [src + '\n# Foo!\n'],
         'buildpaths': [repopath],
-        'recursives': [False],
+        'makecleans': [False],
     }
     j = json.dumps(r)
     resp = client.post(f'{ISE_PREFIX}/writeAndBuild', data={

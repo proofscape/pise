@@ -27,6 +27,22 @@ from pfsc.gdb.k import kNode, kReln
 from pfsc.excep import PfscExcep, PECode
 
 
+class IndexingMode:
+    # In differential mode, the version being indexed builds off of the "current
+    # major version," i.e. most recently indexed major version, if any. This
+    # means nodes are reused to the extent possible, while `cut` properties are
+    # set, MOVE relns are added, and origins are computed.
+    DIFFERENTIAL = "DIFFERENTIAL"
+    # In standalone mode, nodes and relns are not shared, i.e. the version being
+    # indexed gets its own complete set of nodes and relns in the GDB.
+    # However, MOVE relns are still added, and origins are computed.
+    STANDALONE = "STANDALONE"
+    # In isolated mode, the version being indexed bears no relation to anything
+    # already in the index. Every entity gets its own node or reln, the move
+    # mapping (if given) is ignored, and no origins are computed.
+    ISOLATED = "ISOLATED"
+
+
 class ModuleIndexInfo:
     """
     Keeps track of all the necessary info about things defined in
@@ -56,8 +72,16 @@ class ModuleIndexInfo:
         self.exceptional_libpaths = self.prepare_exceptional_libpaths()
         self.node_lookup = {}
         self.reln_lookup = {}
-        self.submodules = []
-        self.add_kNode(IndexType.MODULE, self.modpath, self.modpath)
+        self.added_modpaths = []
+        self.deleted_modpaths = []
+
+        # For now, the indexing mode is entirely a function of the version being
+        # indexed. Also, there is not yet any support for STANDALONE mode. All
+        # of this may change in future development.
+        self.indexing_mode = (
+            IndexingMode.ISOLATED if self.version == pfsc.constants.WIP_TAG
+            else IndexingMode.DIFFERENTIAL
+        )
 
         # Slots:
         self.current_maj_vers = None
@@ -83,10 +107,6 @@ class ModuleIndexInfo:
         self.monitor_task_weights = {
             # one call to writer._drop_wip_nodes_under_module():
             111: 40,
-            # call to writer._undo_wip_cut_nodes() PER NODE:
-            112: 10,
-            # call to writer._undo_wip_cut_relns() PER RELN:
-            113: 10,
             # cut one vertex:
             220: 5,
             # cut one edge:
@@ -109,9 +129,7 @@ class ModuleIndexInfo:
         # 100
         n100 = 0
         if self.is_WIP():
-            n100 += w[111] * len(self.all_modules())
-            n100 += w[112] * len(self.existing_k_nodes)
-            n100 += w[113] * len(self.existing_k_relns)
+            n100 += w[111] * len(self.all_modpaths_with_changes())
 
         # 200
         n200 = 0
@@ -148,8 +166,18 @@ class ModuleIndexInfo:
         n = w * count
         self.monitor.inc_count(n)
 
-    def all_modules(self):
-        return [self.modpath] + self.submodules
+    def add_deleted_modpaths(self, modpaths):
+        """
+        When doing a rebuild @WIP, some modules may have gone away. Note them
+        here. This is important for cleaning up existing indexing.
+        """
+        self.deleted_modpaths.extend(modpaths)
+
+    def all_modpaths_with_changes(self):
+        """
+        Get a list of all the modpaths that have changes.
+        """
+        return self.added_modpaths + self.deleted_modpaths
 
     def prepare_exceptional_libpaths(self):
         return {
@@ -248,9 +276,19 @@ class ModuleIndexInfo:
 
     def compute_mm_closure(self, graph_reader):
         current_maj_vers = self.get_padded_current_major_version(graph_reader)
-        existing_k_nodes, existing_k_relns = graph_reader.get_existing_objects(
-            self.modpath, current_maj_vers, self.recursive)
-        move_mapping = self.change_log.get(pfsc.constants.MOVE_MAPPING_NAME, {})
+
+        existing_k_nodes, existing_k_relns = (
+            ({}, {}) if self.indexing_mode == IndexingMode.ISOLATED else
+            graph_reader.get_existing_objects(
+                self.modpath, current_maj_vers, self.recursive
+            )
+        )
+
+        move_mapping = (
+            {} if self.indexing_mode == IndexingMode.ISOLATED else
+            self.change_log.get(pfsc.constants.MOVE_MAPPING_NAME, {})
+        )
+
         # In the change log, all libpaths are to be relative to the repo.
         # Now we make them absolute, by prefixing the repopath.
         # We also validate libpath format here.
@@ -283,6 +321,11 @@ class ModuleIndexInfo:
         self.existing_k_relns = existing_k_relns
         self.move_mapping = mm
         self.mm_closure = compute_movemapping_closure(mm, set(existing_k_nodes.keys()))
+
+    def do_post_scanning_steps(self, graph_reader):
+        self.cut_add_validate()
+        self.here_elsewhere_nowhere()
+        self.compute_origins(graph_reader)
 
     def cut_add_validate(self):
         """
@@ -574,7 +617,12 @@ class ModuleIndexInfo:
             libpaths_by_node_type[k.node_type].append(a)
         M0 = int(self.current_maj_vers)
         M1 = collapse_major_string(self.major)
-        existing_origins = graph_reader.get_origins(libpaths_by_node_type, M0)
+
+        existing_origins = (
+            {} if self.indexing_mode == IndexingMode.ISOLATED else
+            graph_reader.get_origins(libpaths_by_node_type, M0)
+        )
+
         # Now we can build a lookup giving the origin for every libpath in M.
         new_origins = {}
         # E:
@@ -613,6 +661,18 @@ class ModuleIndexInfo:
     # Low-level methods.
     #   Use these methods to add kNodes and kRelns directly.
 
+    def initial_cut(self):
+        # Now that indexing @WIP is in ISOLATED mode, we want to preserve the
+        # property that, for any given libpath + major version, there is a
+        # unique node that matches, i.e that has this libpath, and that covers
+        # the given major in its clopen interval. To achieve this, we now use
+        # capital "INF" as cut for numbered versions, but still use lowercase
+        # "inf" as cut for WIP version.
+        return (
+            pfsc.constants.INF_TAG if self.major == pfsc.constants.WIP_TAG
+            else pfsc.constants.INF_TAG.upper()
+        )
+
     def add_kNode(self, node_type, libpath, modpath, extra_props=None):
         """
         Add a kNode.
@@ -620,7 +680,8 @@ class ModuleIndexInfo:
         Args are the same as those to the kNode initializer.
         """
         k = kNode(node_type, libpath, modpath,
-                  self.repopath, self.major, self.minor, self.patch, extra_props=extra_props)
+                  self.repopath, self.major, self.minor, self.patch,
+                  cut=self.initial_cut(), extra_props=extra_props)
         self.node_lookup[k.uid] = k
         return k
 
@@ -640,7 +701,7 @@ class ModuleIndexInfo:
             head_type, head_libpath, head_major,
             modpath,
             self.repopath, self.major, self.minor, self.patch,
-            extra_props=extra_props
+            cut=self.initial_cut(), extra_props=extra_props
         )
         self.reln_lookup[k.uid] = k
         return k
@@ -656,8 +717,12 @@ class ModuleIndexInfo:
         self.add_kReln(child_type, childpath, self.major, IndexType.UNDER, parent_type, parentpath, self.major, modpath,
                        extra_props={"segment": segment})
 
+    def add_root_module(self):
+        self.added_modpaths.append(self.modpath)
+        self.add_kNode(IndexType.MODULE, self.modpath, self.modpath)
+
     def add_submodule(self, modpath, parentpath):
-        self.submodules.append(modpath)
+        self.added_modpaths.append(modpath)
         self.add_kNode(IndexType.MODULE, modpath, modpath)
         self.add_under_reln(IndexType.MODULE, modpath, IndexType.MODULE, parentpath, modpath)
 

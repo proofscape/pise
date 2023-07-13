@@ -296,14 +296,6 @@ class Deduction(Enrichment, NodeLikeObj):
         # is the one we now want to return.
         return G
 
-    def getXpansAvailPresentationInfo(self, major, filter_by_repo_permission=True):
-        infos = get_graph_reader().get_enrichment(
-            self.getLibpath(),
-            major,
-            filter_by_repo_permission=filter_by_repo_permission
-        )
-        return infos
-
     def getNodeType(self):
         return 'deduc'
 

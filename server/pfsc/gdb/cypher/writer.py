@@ -16,6 +16,7 @@
 
 import pfsc.constants
 from pfsc.constants import IndexType
+from pfsc.gdb.k import make_kNode_from_jNode, make_kReln_from_jReln
 from pfsc.gdb.writer import GraphWriter
 import pfsc.gdb.cypher.indexing as indexing
 from pfsc.excep import PfscExcep
@@ -43,16 +44,6 @@ class CypherGraphWriter(GraphWriter):
         OPTIONAL MATCH (u)-[:{IndexType.BUILD}]->(b)
         DETACH DELETE u, b
         """, modpath=modpath, WIP=pfsc.constants.WIP_TAG)
-
-    def _undo_wip_cut_nodes(self, node_db_ids, tx):
-        tx.run("""
-        MATCH (u {cut: $WIP}) WHERE id(u) IN $ids SET u.cut = $inf
-        """, ids=node_db_ids, WIP=pfsc.constants.WIP_TAG, inf=pfsc.constants.INF_TAG)
-
-    def _undo_wip_cut_relns(self, reln_db_ids, tx):
-        tx.run("""
-        MATCH ()-[r {cut: $WIP}]->() WHERE id(r) IN $ids SET r.cut = $inf
-        """, ids=reln_db_ids, WIP=pfsc.constants.WIP_TAG, inf=pfsc.constants.INF_TAG)
 
     def ix0200(self, mii, tx):
         indexing.ix00220(mii, tx)
@@ -102,16 +93,17 @@ class CypherGraphWriter(GraphWriter):
             mcs = self.reader.find_move_conjugate_chain(k.head_libpath, k.head_major)
             if mcs:
                 retarget_counter += len(mcs)
+                prop = k.get_structured_property_dict()
                 tx.run(
                     f"""
-                    MATCH (e {{libpath: $tail_libpath}}) WHERE e.major <= $tail_major < e.cut
+                    MATCH (e {{libpath: $prop.tail.libpath}}) WHERE e.major <= $prop.tail.major < e.cut
                     WITH e
                     UNWIND $mc_ids as mc_id
                     MATCH (mc) WHERE id(mc) = mc_id
-                    CREATE (e)-[:{IndexType.RETARGETS}]->(mc)
+                    CREATE (e)-[r:{IndexType.RETARGETS}]->(mc)
+                    SET r = $prop.reln
                     """,
-                    tail_libpath=k.tail_libpath, tail_major=k.tail_major,
-                    mc_ids=[mc.db_uid for mc in mcs]
+                    prop=prop, mc_ids=[mc.db_uid for mc in mcs],
                 )
             mii.note_task_element_completed(361)
 
@@ -120,20 +112,28 @@ class CypherGraphWriter(GraphWriter):
                mii.mm_closure.items() if b is not None]
         res = tx.run(
             f"""
-            MATCH (e)-[:{IndexType.TARGETS}|{IndexType.RETARGETS}]->(t) WHERE id(t) IN $ids
-            RETURN id(e), t.libpath
+            MATCH (e)-[r:{IndexType.TARGETS}|{IndexType.RETARGETS}]->(t) WHERE id(t) IN $ids
+            RETURN e, r, t
             """,
             ids=ids
         )
-        pairs = [[eid, mii.mm_closure[tlp]] for eid, tlp in res]
-        retarget_counter += len(pairs)
+        triples = [
+            [
+                make_kNode_from_jNode(e).db_uid,
+                make_kReln_from_jReln((e, r, t)).get_structured_property_dict(),
+                mii.mm_closure[make_kNode_from_jNode(t).libpath]
+            ]
+            for e, r, t in res
+        ]
+        retarget_counter += len(triples)
         tx.run(
             f"""
-            UNWIND $pairs AS pair
-            MATCH (e), (r {{libpath: pair[1]}}) WHERE id(e) = pair[0] AND r.major <= $major < r.cut
-            CREATE (e)-[:{IndexType.RETARGETS}]->(r)
+            UNWIND $triples AS trip
+            MATCH (e), (t {{libpath: trip[2]}}) WHERE id(e) = trip[0] AND t.major <= $major < t.cut
+            CREATE (e)-[r:{IndexType.RETARGETS}]->(t)
+            SET r = trip[1].reln
             """,
-            pairs=pairs, major=mii.major
+            triples=triples, major=mii.major
         )
         mii.note_task_element_completed(362, len(ids))
         if verbose:

@@ -452,112 +452,156 @@ var MooseContextMenuPlugin = declare(null, {
             // Add a separator, and then the expansion(s).
             menu.addChild(new MenuSeparator());
             if (gp) {
-                menu.addChild(new MenuItem({
-                    label: 'Open:<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="mooseMonospace">'+gp+'</span>',
-                    onClick: function(){
-                        var doTransition = true;
+                menu.addChild(makeEnrichmentMenuItem({
+                    heading: 'Open',
+                    subtitle: gp,
+                    onClickCustom: function(){
+                        const doTransition = true;
                         theNode.viewGhostedNode(doTransition);
-                    }
+                    },
                 }));
             }
             for (let info of dd) {
                 const xpanpath = info.libpath;
-                const versions = [];
-                if (info.latest) versions.push(info.latest);
-                if (info.WIP) versions.push("WIP");
+                const versions = selectEnrichmentVersions(info);
                 for (let version of versions) {
-                    // Need closure for path and version
-                    (function (xpanpath, version) {
-                        menu.addChild(new MenuItem({
-                            //label: "Open " + xpanpath,
-                            label: `Expansion:<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="mooseMonospace">${xpanpath}@${version}</span>`,
-                            title: "Click to open. Alt-Click to open in new tab.",
-                            onClick: function (event) {
-                                const state = {
-                                    view: {
-                                        objects: [theUID, xpanpath]
-                                    },
-                                    versions: {
-                                        [xpanpath]: version,
-                                    },
-                                    select: theUID,
-                                };
-                                if (event.altKey) {
-                                    state.type = "CHART";
-                                    state.versions[theUID] = theVersion;
-                                    chartManager.openExternalContent(state);
-                                } else {
-                                    state.transition = true;
-                                    forest.requestState(state);
-                                }
-                            }
-                        }));
-                    })(xpanpath, version);
+                    menu.addChild(makeEnrichmentMenuItem({
+                        heading: 'Expansion',
+                        subtitle: `${xpanpath}@${version}`,
+                        onClickChartOpen: {
+                            view: {
+                                objects: [theUID, xpanpath]
+                            },
+                            versions: {
+                                [xpanpath]: version,
+                                [theUID]: theVersion,
+                            },
+                            select: theUID,
+                        },
+                        chartManager, forest,
+                    }));
                 }
             }
             for (let info of aa) {
                 const annopath = info.libpath;
-                const versions = [];
-                if (info.latest) versions.push(info.latest);
-                if (info.WIP) versions.push("WIP");
+                const versions = selectEnrichmentVersions(info);
                 for (let version of versions) {
-                    // Need closure for path and version
-                    (function (annopath, version) {
-                        menu.addChild(new MenuItem({
-                            label: `Notes:<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="mooseMonospace">${annopath}@${version}</span>`,
-                            onClick: function () {
-                                //console.log(annopath);
-                                chartManager.openExternalContent({
-                                    type: "NOTES",
-                                    libpath: annopath,
-                                    version: version,
-                                });
-                            }
-                        }));
-                    })(annopath, version);
+                    menu.addChild(makeEnrichmentMenuItem({
+                        heading: 'Notes',
+                        subtitle: `${annopath}@${version}`,
+                        onClickOEC: {
+                            type: "NOTES",
+                            libpath: annopath,
+                            version: version,
+                        },
+                        chartManager,
+                    }));
                 }
             }
             for (let info of cc) {
                 const nodepath = info.libpath;
-                const versions = [];
-                // Comparisons OUT have a 'version' field:
-                if (info.version) versions.push(info.version);
-                // Comparisons IN have potentially the 'latest' and/or 'WIP'
-                // fields that all enrichments have:
-                if (info.latest) versions.push(info.latest);
-                if (info.WIP) versions.push("WIP");
+                const versions = selectEnrichmentVersions(info);
                 for (let version of versions) {
-                    // Need closure for path and version
-                    (function (nodepath, version) {
-                        menu.addChild(new MenuItem({
-                            label: `Compare:<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="mooseMonospace">${nodepath}@${version}</span>`,
-                            title: "Click to open. Alt-Click to open in new tab.",
-                            onClick: function (event) {
-                                const state = {
-                                    view: {
-                                        objects: [nodepath]
-                                    },
-                                    versions: {
-                                        [nodepath]: version,
-                                    },
-                                    select: nodepath,
-                                };
-                                if (event.altKey) {
-                                    state.type = "CHART";
-                                    chartManager.openExternalContent(state);
-                                } else {
-                                    state.transition = true;
-                                    forest.requestState(state);
-                                }
-                            }
-                        }));
-                    })(nodepath, version);
+                    menu.addChild(makeEnrichmentMenuItem({
+                        heading: 'Compare',
+                        subtitle: `${nodepath}@${version}`,
+                        onClickChartOpen: {
+                            view: {
+                                objects: [nodepath]
+                            },
+                            versions: {
+                                [nodepath]: version,
+                            },
+                            select: nodepath,
+                        },
+                        chartManager, forest,
+                    }));
                 }
             }
         }
     },
 
 });
+
+/* Given the object describing an enrichment, extract from it the array of
+ * versions we want to list. For now, we're keeping this simple:
+ *   * If available at one or more numbered versions, we will list only the
+ *     latest of these.
+ *   * If available at WIP, we will list this.
+ *   * If available both at a numbered version and at WIP, we will list the
+ *     numbered version first.
+ * In the future, we may want to provide the user with a more complete listing,
+ * or at least a way to load a more complete listing.
+ */
+function selectEnrichmentVersions(enr) {
+    const selectedVersions = [];
+    let givenVersions = enr.versions;
+    // Some enrichment descriptors (such as comparisons OUT, i.e. the value of a
+    // node's `.cfOut` property) have only a `.version` field, instead of `.versions`.
+    if (givenVersions === undefined && enr.version) {
+        givenVersions = [enr.version];
+    }
+    if (givenVersions !== undefined) {
+        // We assume the given versions list is sorted so that:
+        //  * If WIP is present, it comes last.
+        //  * Any numerical versions are sorted in increasing order.
+        const n = givenVersions.length;
+        if (n === 1) {
+            selectedVersions.push(givenVersions[0]);
+        } else if (n >= 2) {
+            const m = givenVersions.slice(-1)[0] === "WIP" ? 2 : 1;
+            selectedVersions.push(...givenVersions.slice(-m));
+        }
+    }
+    return selectedVersions;
+}
+
+/* Construct the MenuItem for an enrichment available on a given node.
+ *
+ * :param heading: Text for first line in menu item.
+ * :param subtitle: Text for second, indented line in menu item.
+ * :param onClickCustom: One alternative for defining the click handler for the menu item.
+ *      Here you can pass any function you want.
+ * :param onClickOEC: One alternative for defining the click handler for the menu item.
+ *      Pass a content descriptor object you want forwarded to `ChartManager.openExternalContent()`.
+ * :param onClickChartOpen: One alternative for defining the click handler for the menu item.
+ *      Pass a content descriptor object that could serve to define a whole new chart panel, OR could
+ *      serve to update the existing one. The user will be informed (via hover title) that clicking
+ *      opens in this tab, while Alt-click opens in a new tab. You can omit the `type: "CHART"` field.
+ * :param chartManager: for (onClickOEC, onClickChartOpen), we need a reference to the ChartManager.
+ * :param forest: for (onClickChartOpen), we need a ref to the Forest where the node lives.
+ */
+function makeEnrichmentMenuItem(
+    {
+        heading, subtitle,
+        onClickCustom, onClickOEC, onClickChartOpen,
+        chartManager, forest,
+    }) {
+    const label = `${heading}:<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="mooseMonospace">${subtitle}</span>`;
+    let onClick;
+    if (onClickCustom) {
+        onClick = onClickCustom;
+    } else if (onClickOEC) {
+        onClick = function() {
+            chartManager.openExternalContent(onClickOEC);
+        }
+    } else if (onClickChartOpen) {
+        onClick = function(event) {
+            if (event.altKey) {
+                onClickChartOpen.type = "CHART";
+                chartManager.openExternalContent(onClickChartOpen);
+            } else {
+                onClickChartOpen.transition = true;
+                forest.requestState(onClickChartOpen);
+            }
+        }
+    }
+    const menuItemFields = {label, onClick};
+    if (onClickChartOpen) {
+        menuItemFields.title = "Click to open. Alt-Click to open in new tab.";
+    }
+    return new MenuItem(menuItemFields);
+}
 
 return MooseContextMenuPlugin;
 });

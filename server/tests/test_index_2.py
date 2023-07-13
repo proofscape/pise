@@ -252,7 +252,7 @@ def test_get_enrichment_no_wip(app, repos_ready):
         gr = get_graph_reader()
         E = gr.get_enrichment('test.moo.bar.results.Thm', 1)
         print(json.dumps(E, indent=4))
-        assert E['test.moo.bar.results.Thm.C']["Deduc"][0][pfsc.constants.WIP_TAG] == False
+        assert pfsc.constants.WIP_TAG not in E['test.moo.bar.results.Thm.C']["Deduc"][0]["versions"]
 
 def test_moo_comment_1(app, repos_ready):
     """
@@ -270,10 +270,10 @@ def test_moo_comment_1(app, repos_ready):
             a = e["Anno"]
             assert len(d) == 1 and d[0]["libpath"] == f"test.moo.comment.bar.xpan_{name}"
             assert len(a) == 1 and a[0]["libpath"] == f"test.moo.comment.bar.Notes{name}"
-            assert d[0]["latest"] == "v0.2.0"
-            assert d[0][pfsc.constants.WIP_TAG] == True
-            assert a[0]["latest"] == "v0.2.0"
-            assert a[0][pfsc.constants.WIP_TAG] == True
+            assert d[0]['versions'][-2] == "v0.2.0"
+            assert d[0]['versions'][-1] == pfsc.constants.WIP_TAG
+            assert a[0]['versions'][-2] == "v0.2.0"
+            assert a[0]['versions'][-1] == pfsc.constants.WIP_TAG
 
 def test_moo_comment_2a(app, repos_ready):
     """
@@ -340,10 +340,13 @@ def test_retarget_for_moves(app, repos_ready):
         lp7C = lp7 + ".C"
         lp8C = lp8 + ".C"
 
+        def latest(i):
+            return list(filter(lambda v: v != "WIP", i['versions']))[-1]
+
         def scan(E, lp):
             d = {}
             for i in E[lp]["Deduc"]:
-                d[i["latest"]] = i["libpath"]
+                d[latest(i)] = i["libpath"]
             return d
 
         assert scan(E1, lp7C) == {

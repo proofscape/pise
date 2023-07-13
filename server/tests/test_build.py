@@ -67,7 +67,7 @@ def test_build(libpath, clean):
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, clean", (
     #("test.spx.doc0", True),
-    ("test.spx.doc1", True),
+    #("test.spx.doc1", True),
     #("test.moo.bar", True),
     #("test.foo.bar.expansions", True),
     #("test.hist.lit", True),
@@ -81,6 +81,7 @@ def test_build(libpath, clean):
     #("test.moo.study.expansions", True),
     #("test.moo.links.deducs1", True),
     #("test.comment.notes.H.ilbert.ZB.Thm17", True),
+    ("gh.skieffer.notes", False),
 ))
 @pytest.mark.psm
 def test_full_build(app, libpath, clean):
@@ -124,14 +125,14 @@ def test_make_repos(app, only):
     #['test.brook.math', 'v0.0.0'],
     #['test.moo.bar', 'v2.1.0'],
     #['test.moo.links', 'v0.1.0'],
-    #['test.moo.bar', 'v0.3.4'],
+    ['test.moo.bar', 'v0.3.4'],
     #['test.moo.study', 'v1.1.0'],
     #['test.hist.lit', 'v0.0.0'],
     #['test.comment.notes', 'v0.1.0'],
     #['test.wid.get', 'v0.1.0'],
     #['test.moo.beta', 'v0.1.1'],
     #['test.spx.doc0', 'v0.1.0'],
-    ['test.spx.doc1', 'v0.1.0'],
+    #['test.spx.doc1', 'v0.1.0'],
 ])
 @pytest.mark.psm
 def test_build_release(app, repopath, version):

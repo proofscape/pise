@@ -20,7 +20,7 @@ from itertools import count
 from gremlin_python.process.graph_traversal import __
 
 from pfsc.constants import IndexType
-from pfsc.gdb.gremlin.util import lp_covers
+from pfsc.gdb.gremlin.util import lp_covers, set_kReln_reln_props
 
 
 def ix002682(mii, gtx, N=12):
@@ -99,8 +99,7 @@ def ix002682(mii, gtx, N=12):
                 else:
                     tr = tr.V(tail_id)
                 tr = tr.add_e(r.reln_type).to('head')
-                for k, v in r.get_structured_property_dict()['reln'].items():
-                    tr = tr.property(k, v)
+                tr = set_kReln_reln_props(r, tr)
                 mii.note_task_element_completed(280)
             tr.iterate()
     return new_targeting_relns
@@ -142,8 +141,7 @@ def ix002681(mii, gtx):
             else:
                 tr = tr.V(tail_id)
             tr = tr.add_e(r.reln_type).to('head')
-            for k, v in r.get_structured_property_dict()['reln'].items():
-                tr = tr.property(k, v)
+            tr = set_kReln_reln_props(r, tr)
             tr.iterate()
             mii.note_task_element_completed(280)
     return new_targeting_relns
@@ -194,8 +192,7 @@ def ix002680(mii, gtx):
             else:
                 tr = tr.add_e(r.reln_type).from_(tail_name)
             tr = tr.to(head_name)
-            for k, v in r.get_structured_property_dict()['reln'].items():
-                tr = tr.property(k, v)
+            tr = set_kReln_reln_props(r, tr)
         new_targeting_relns = [k for k in kRelns if
                                k.reln_type == IndexType.TARGETS]
     if tr:

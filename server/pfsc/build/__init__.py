@@ -63,8 +63,7 @@ from sphinx.util.docutils import patch_docutils, docutils_namespace
 
 from pfsc.build.mii import ModuleIndexInfo
 from pfsc.build.manifest import (
-    build_manifest_tree_from_dict,
-    build_manifest_from_dict,
+    has_manifest,
     load_manifest,
     Manifest,
     ManifestTreeNode
@@ -431,20 +430,19 @@ class Builder:
         self.repo_node = ManifestTreeNode(self.repopath, type="MODULE", name=self.repopath)
         self.manifest = Manifest(self.repo_node)
 
-        # A "reading job" is a pair (modpath, ManifestTreeNode), representing
-        # a module that is to be loaded.
-        self.reading_jobs = None
-        # A "scan job" is a pair (PfscModule, ManifestTreeNode), representing
-        # a module that we have loaded from disk, but have not yet analyzed its
-        # contents.
-        self.scan_jobs = []
+        self.preexisting_manifest_lookup = {}
+        if has_manifest(self.repopath, self.version):
+            m = load_manifest(self.repopath, version=self.version)
+            self.preexisting_manifest_lookup = m.lookup
 
+        self.modpaths_having_files = []
         self.modpaths_reread_by_sphinx = []
         # Modules that were updated (i.e. not loaded from a pickle file), by libpath:
         self.updated_modules = {}
         # Modules are said to be "affected" if they were updated, or if there is
         # an updated module among their import ancestors.
         self.affected_modules = {}
+        self.modules_to_scan = {}
 
         # A place to store a copy of the dependencies declared by the repo being built:
         self.repo_dependencies = {}
@@ -506,15 +504,15 @@ class Builder:
 
         self.monitor.set_message('Starting...')
         with checkout(self.repo_info, self.version):
-            self.reading_jobs = self.walk(self.repo_info.abs_fs_path_to_dir)
+            self.walk(self.repo_info.abs_fs_path_to_dir)
             has_rst_files = False
             # Copy the source files to the build dir.
             # If building at a numbered version, these are needed both by our
             # own build process (so `load_module()` can find them), and so that
             # non-owning users can browse the source.
             # They are also needed for imports during other builds.
-            self.monitor.begin_phase(len(self.reading_jobs), 'Copying...')
-            for modpath, _ in self.reading_jobs:
+            self.monitor.begin_phase(len(self.modpaths_having_files), 'Copying...')
+            for modpath in self.modpaths_having_files:
                 self.monitor.inc_count()
                 pi = PathInfo(modpath)
                 if pi.is_rst_file():
@@ -590,8 +588,8 @@ class Builder:
         should be carried out after the Sphinx build has
         finished its READING phase, but before it begins its RESOLVING phase.
         """
-        self.monitor.begin_phase(len(self.reading_jobs), 'Reading...')
-        for modpath, mod_node in self.reading_jobs:
+        self.monitor.begin_phase(len(self.modpaths_having_files), 'Reading...')
+        for modpath in self.modpaths_having_files:
             if self.verbose:
                 print("  ", modpath)
 
@@ -599,13 +597,14 @@ class Builder:
             module = self.read_pfsc_module(modpath)
             self.monitor.inc_count()
 
-            self.scan_jobs.append((module, mod_node))
-            self.modules[module.libpath] = module
+            self.modules[modpath] = module
 
             if self.was_updated(modpath):
                 self.updated_modules[modpath] = module
 
         self.determine_affected_modules()
+        self.determine_modules_to_scan()
+        self.determine_deleted_modules()
 
     def determine_affected_modules(self):
         # Build import DAG as dict, where modpath A points to list of modpaths B
@@ -623,27 +622,51 @@ class Builder:
                 self.affected_modules[a] = self.modules[a]
                 stack.extend(dag[a])
 
+    def determine_modules_to_scan(self):
+        # Every module must be scanned unless (a) it was not affected, AND
+        # (b) we have a scan for it from a pre-existing manifest.
+        for modpath, module in self.modules.items():
+            if modpath in self.affected_modules or modpath not in self.preexisting_manifest_lookup:
+                self.modules_to_scan[modpath] = module
+
+    def determine_deleted_modules(self):
+        # On a rebuild @WIP, there may be modules that went away. These will
+        # be modpaths present in the pre-existing manifest, but absent now.
+        old_modpaths = set(
+            libpath for libpath, node in self.preexisting_manifest_lookup.items()
+            if node.is_module()
+        )
+        # Note: must consult self.manifest.lookup for current modules, not
+        # self.modules.keys(). The latter will miss modules that are represented
+        # by directories lacking dunder files.
+        current_modpaths = set(
+            libpath for libpath, node in self.manifest.lookup.items()
+            if node.is_module()
+        )
+        deleted_modpaths = old_modpaths - current_modpaths
+        self.mii.add_deleted_modpaths(deleted_modpaths)
+
     def resolving_phase(self):
         """
         RESOLVE the pfsc modules formed in the READING phase.
         """
-        n = len(self.affected_modules)
+        n = len(self.modules_to_scan)
 
         self.monitor.begin_phase(n, 'Resolving...')
-        for module in self.affected_modules.values():
+        for module in self.modules_to_scan.values():
             module.resolve(cache=self.module_cache, prog_mon=self.monitor)
             self.monitor.inc_count()
 
         self.monitor.begin_phase(n * self.prog_count_per_module_when_scanning, 'Scanning...')
-        for module, manifest_node in self.scan_jobs:
-            if module.libpath in self.affected_modules:
+        for modpath, module in self.modules.items():
+            manifest_node = self.manifest.get(modpath)
+            if modpath in self.modules_to_scan:
                 self.scan_pfsc_module(module, manifest_node)
+            else:
+                preexisting_node = self.preexisting_manifest_lookup[modpath]
+                manifest_node.add_children(preexisting_node.get_contents())
 
-        # TODO:
-        #  (How) do we limit these steps to the affected modules?
-        self.mii.cut_add_validate()
-        self.mii.here_elsewhere_nowhere()
-        self.mii.compute_origins(self.graph_writer.reader)
+        self.mii.do_post_scanning_steps(self.graph_writer.reader)
         self.inject_origins()
         self.timestamp = datetime.now()
         self.manifest.set_build_info(self.repopath, self.version, self.repo_info.git_hash, self.timestamp)
@@ -833,12 +856,10 @@ class Builder:
 
     def walk(self, root_fs_path):
         """
-        When building recursively, this method manages the walking of the filesystem hierarchy.
+        Walk the filesystem hierarchy and discover module files.
+
         :param root_fs_path: The filesystem path to the directory we want to walk.
-        :return: list of "jobs," being pairs (modpath, tree_node), to be passed to
-            our `read_pfsc_module` method.
         """
-        jobs = []
         walk_list = list(os.walk(root_fs_path))
         self.monitor.begin_phase(len(walk_list), 'Finding modules...')
         for P, D, F in walk_list:
@@ -884,7 +905,6 @@ class Builder:
                 dir_node = ManifestTreeNode(dir_id, type="MODULE", name=d)
                 # Record this directory's tree node as one of the parent's children
                 child_nodes.append(dir_node)
-                self.mii.add_submodule(dir_id, parent_node_id)
 
             # Now scan the files under this path.
             # FIXME: it would be cool if we could do local depths for _all_ deducs defined in a whole directory.
@@ -905,24 +925,19 @@ class Builder:
                         raise PfscExcep(msg, PECode.MODULE_NAME_USED_WITH_MULTIPLE_EXTENSIONS)
                     # Reconstruct the module's abs libpath.
                     modpath = parent_node_id if name == "__" else parent_node_id + '.' + name
+                    self.modpaths_having_files.append(modpath)
                     if name == "__":
                         # Contents of "dunder module" will be added directly to the parent node.
-                        mod_node = parent_node
-                        mod_node.set_data_property('hasContents', True)
+                        parent_node.set_data_property('hasContents', True)
                     else:
                         # For "terminal modules", add a manifest node to represent the module itself.
                         mod_node = ManifestTreeNode(modpath, type="MODULE", name=name, is_rst=(ext == RST_EXT))
                         child_nodes.append(mod_node)
-                        self.mii.add_submodule(modpath, parent_node_id)
-                    # Record the job.
-                    jobs.append((modpath, mod_node))
 
             # Sort child nodes, then add to parent node.
             child_nodes.sort(key=lambda n: pfsc.util.NumberedName(n.data.get('name', '')))
             for n in child_nodes:
                 parent_node.add_child(n)
-
-        return jobs
 
     def read_pfsc_module(self, modpath):
         """
@@ -960,6 +975,11 @@ class Builder:
         self.monitor.set_message('Scanning %s...' % modpath)
 
         manifest_node.update_data({'isTerminal': module.isTerminal()})
+
+        if manifest_node.parent:
+            self.mii.add_submodule(manifest_node.id, manifest_node.parent.id)
+        else:
+            self.mii.add_root_module()
 
         # Grab all the items.
         all_items = module.getNativeItemsInDefOrder(hoist_expansions=True)

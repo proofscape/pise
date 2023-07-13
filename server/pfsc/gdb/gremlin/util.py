@@ -52,6 +52,12 @@ def edge_info(tr):
                 by(__.in_v().element_map())
 
 
+def set_kReln_reln_props(k_reln, tr):
+    for k, v in k_reln.get_structured_property_dict()['reln'].items():
+        tr = tr.property(k, v)
+    return tr
+
+
 def merge_node(tr, label, ip, op=None, label_order=0):
     """
     Extend a traversal with a "merge" operation for a node.
