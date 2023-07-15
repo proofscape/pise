@@ -18,7 +18,26 @@
 Clear all indexing of test repos.
 """
 
-from tests.util import clear_all_indexing
+import argparse
+
+from tests.util import clear_indexing
+
+from pfsc.excep import PfscExcep
+
+descrip="""
+Clear existing indexing.
+
+If no args are passed: clear all test indexing (i.e. under host segment `test`).
+If -r/--repo is given: clear indexing just for this repo (need not be under `test`).
+If -v/--vers is given: clear the named repo at this version (else under WIP).
+"""
 
 if __name__ == "__main__":
-    clear_all_indexing()
+    try:
+        parser = argparse.ArgumentParser(description=descrip)
+        parser.add_argument('-r', '--repo', help='repopath')
+        parser.add_argument('-v', '--vers', help='version')
+        args = parser.parse_args()
+        clear_indexing(repopath=args.repo, version=args.vers)
+    except PfscExcep as e:
+        print(e)

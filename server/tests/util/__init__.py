@@ -18,6 +18,7 @@ import os
 import re
 import tempfile
 
+import pfsc.constants
 from pfsc import make_app
 from pfsc.constants import TEST_RESOURCE_DIR
 from pfsc.build import build_repo
@@ -188,15 +189,28 @@ def get_basic_repos():
     ))
 
 
-def clear_all_indexing():
+def clear_indexing(repopath=None, version=None):
+    """
+    if repopath is None:
+        Clear all indexing under `test` host segment.
+    else:
+        if version is None:
+            Clear indexing for repopath@WIP
+        else:
+            Clear indexing for repopath@version
+    """
     app = make_app(ConfigName.LOCALDEV)
     with app.app_context():
         gw = get_graph_writer()
-        gw.clear_test_indexing()
+        if repopath is None:
+            gw.clear_test_indexing()
+        else:
+            version = version or pfsc.constants.WIP_TAG
+            gw.delete_full_build_at_version(repopath, version)
 
 
 def build_big(verbose=True):
-    clear_all_indexing()
+    clear_indexing()
     repopath = 'test.hist.lit'
     version = 'v0.0.0'
     app = make_app(ConfigName.LOCALDEV)
@@ -219,7 +233,7 @@ def clear_and_build_releases_with_deps_depth_first(
     :param repopath_version_pairs: iterable of pairs (repopath, version)
     """
     repos_built = set()
-    clear_all_indexing()
+    clear_indexing()
     repos = get_basic_repos()
     repos = {r.libpath: r for r in repos}
     stack = []

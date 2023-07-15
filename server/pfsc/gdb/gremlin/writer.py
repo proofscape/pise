@@ -25,6 +25,7 @@ from pfsc.gdb.gremlin.util import (
     GTX, lp_covers, merge_node, is_user, lp_maj,
     set_kReln_reln_props,
 )
+from pfsc.build.versions import get_padded_components
 from pfsc.excep import PfscExcep
 
 
@@ -167,10 +168,13 @@ class GremlinGraphWriter(GraphWriter):
             __.out(IndexType.BUILD),
         ).barrier().drop().iterate()
 
-    def delete_full_wip_build(self, repopath):
+    def delete_full_build_at_version(self, repopath, version=WIP_TAG):
+        M, m, p = get_padded_components(version)
         self.g.V().has('repopath', repopath).or_(
-            __.has('major', WIP_TAG),
-            __.has('version', WIP_TAG)
+            __.has('version', version),
+            __.and_(
+                __.has('major', M), __.has('minor', m), __.has('patch', p),
+            )
         ).union(
             __.identity(),
             __.out(IndexType.BUILD),

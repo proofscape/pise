@@ -16,6 +16,7 @@
 
 import json
 
+import pfsc.constants
 from pfsc.constants import UserProps
 from pfsc.excep import PfscExcep, PECode
 from pfsc.gdb.reader import GraphReader
@@ -183,6 +184,16 @@ class GraphWriter:
     def delete_full_wip_build(self, repopath):
         """
         Delete everything for a given repo @WIP.
+        """
+        self.delete_full_build_at_version(repopath, version=pfsc.constants.WIP_TAG)
+
+    def delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
+        """
+        Delete everything for a given repo at a given version.
+
+        WARNING: If numbered versions have been built under DIFFERENTIAL indexing
+        mode, then deleting any but the latest numbered version for a given
+        repo will result in an inconsistent state in the index.
         """
         raise NotImplementedError
 

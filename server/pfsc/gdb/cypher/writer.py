@@ -19,6 +19,7 @@ from pfsc.constants import IndexType
 from pfsc.gdb.k import make_kNode_from_jNode, make_kReln_from_jReln
 from pfsc.gdb.writer import GraphWriter
 import pfsc.gdb.cypher.indexing as indexing
+from pfsc.build.versions import get_padded_components
 from pfsc.excep import PfscExcep
 
 
@@ -163,13 +164,14 @@ class CypherGraphWriter(GraphWriter):
         DETACH DELETE u, b
         """, repopath=repopath)
 
-    def delete_full_wip_build(self, repopath):
+    def delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
+        M, m, p = get_padded_components(version)
         self.session.run(f"""
         MATCH (u {{repopath: $repopath}})
-        WHERE u.major = $WIP OR u.version = $WIP
+        WHERE u.version = $version OR (u.major = $M AND u.minor = $m AND u.patch = $p)
         OPTIONAL MATCH (u)-[:{IndexType.BUILD}]->(b)
         DETACH DELETE u, b
-        """, repopath=repopath, WIP=pfsc.constants.WIP_TAG)
+        """, repopath=repopath, version=version, M=M, m=m, p=p)
 
     # ----------------------------------------------------------------------
 
