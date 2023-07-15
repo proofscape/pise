@@ -25,7 +25,7 @@ const moose = {
 import { MooseNodeLabelPlugin } from "../../plugins/MooseNodeLabelPlugin";
 import { NoGroupError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
-import { SubscriptionManager } from "../SubscriptionManager";
+import { DynamicSubscriptionManager } from "../SubscriptionManager";
 
 define([
     "dojo/_base/declare",
@@ -94,7 +94,7 @@ var ChartManager = declare(AbstractContentManager, {
 
     initSubscrips: function() {
         const forestsByPaneId = this.forestsByPaneId;
-        this.subscriptionManager = new SubscriptionManager(this.hub, {
+        this.subscriptionManager = new DynamicSubscriptionManager(this.hub, {
             fetchName: 'loadDashgraph',
             fetchArgBuilder: (libpath, timestamp) => {
                 return {
