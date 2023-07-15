@@ -20,7 +20,9 @@ from time import time as unixtime
 import pfsc.constants
 from pfsc.build.repo import get_repo_info
 from pfsc.build.lib.prefix import LibpathPrefixMapping
-from pfsc.build.versions import VersionTag, collapse_major_string
+from pfsc.build.versions import (
+    VersionTag, collapse_major_string, get_padded_components,
+)
 from pfsc.checkinput import check_libpath
 from pfsc.constants import IndexType
 from pfsc.gdb.k import kNode, kReln
@@ -66,7 +68,7 @@ class ModuleIndexInfo:
         self.repopath = self.repo_info.libpath
         self.version = version
         self.commit_hash = commit_hash
-        self.major, self.minor, self.patch = self.compute_major_minor_patch(version)
+        self.major, self.minor, self.patch = get_padded_components(version)
         self.recursive = recursive
         self.change_log = {}
         self.exceptional_libpaths = self.prepare_exceptional_libpaths()
@@ -233,17 +235,9 @@ class ModuleIndexInfo:
             'time': unixtime(),
         }
 
-    @staticmethod
-    def compute_major_minor_patch(version):
-        f = pfsc.constants.PADDED_VERSION_COMPONENT_FORMAT
-        if version == pfsc.constants.WIP_TAG:
-            return version, f % 0, f % 0
-        vt = VersionTag(version)
-        return map(lambda n: f % n, vt.get_components())
-
     def get_padded_major_from_pfsc_obj(self, obj):
         version = obj.getVersion()
-        M, m, p = self.compute_major_minor_patch(version)
+        M, m, p = get_padded_components(version)
         return M
 
     def get_padded_current_major_version(self, graph_reader):
