@@ -62,8 +62,6 @@ def test_build(libpath, clean):
     print(j)
 
 # Try full build, index, & write
-# Here we use `build_repo()`, hence build @WIP.
-# To build at a numbered release, see `test_build_release()` below.
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, clean", (
     #("test.spx.doc0", True),
@@ -81,7 +79,8 @@ def test_build(libpath, clean):
     #("test.moo.study.expansions", True),
     #("test.moo.links.deducs1", True),
     #("test.comment.notes.H.ilbert.ZB.Thm17", True),
-    ("gh.skieffer.notes", False),
+    #("gh.skieffer.notes", False),
+    ("gh.toepproj.lit", True),
 ))
 @pytest.mark.psm
 def test_full_build(app, libpath, clean):
@@ -92,16 +91,16 @@ def test_full_build(app, libpath, clean):
 
 # Try full build on different branches.
 @pytest.mark.skip(reason="just for manual testing")
-@pytest.mark.parametrize("libpath, branch, clean", (
-    ("test.foo.bar.results", "v16", True),
+@pytest.mark.parametrize("libpath, version, clean", (
+    #('gh.toepproj.lit', 'WIP', True),
+    ('gh.toepproj.lit', 'v0.23.1', True),
+    #("test.foo.bar.results", "v16", True),
     #("test.foo.bar.expansions", "v2", True),
 ))
 @pytest.mark.psm
-def test_full_build_at_version(app, libpath, branch, clean):
+def test_full_build_at_version(app, libpath, version, clean):
     with app.app_context():
-        ri = get_repo_info(libpath)
-        ri.checkout(branch)
-        cb = Builder(libpath, make_clean=clean, verbose=False)
+        cb = Builder(libpath, version=version, make_clean=clean, verbose=False)
         build_repo(cb)
 
 
