@@ -268,12 +268,12 @@ def test_moo_comment_1(app, repos_ready):
             e = E[f"test.moo.bar.results.Pf.{name}"]
             d = e["Deduc"]
             a = e["Anno"]
-            assert len(d) == 1 and d[0]["libpath"] == f"test.moo.comment.bar.xpan_{name}"
-            assert len(a) == 1 and a[0]["libpath"] == f"test.moo.comment.bar.Notes{name}"
-            assert d[0]['versions'][-2] == "v0.2.0"
-            assert d[0]['versions'][-1] == pfsc.constants.WIP_TAG
-            assert a[0]['versions'][-2] == "v0.2.0"
-            assert a[0]['versions'][-1] == pfsc.constants.WIP_TAG
+            assert len(d) == 2 and d[0]["libpath"] == f"test.moo.comment.bar.xpan_{name}"
+            assert len(a) == 2 and a[0]["libpath"] == f"test.moo.comment.bar.Notes{name}"
+            assert d[0]['versions'][-1] == "v0.2.0"
+            assert d[1]['versions'][-1] == pfsc.constants.WIP_TAG
+            assert a[0]['versions'][-1] == "v0.2.0"
+            assert a[1]['versions'][-1] == pfsc.constants.WIP_TAG
 
 def test_moo_comment_2a(app, repos_ready):
     """
@@ -292,8 +292,8 @@ def test_moo_comment_2a(app, repos_ready):
         e = E["test.moo.bar.results.Pf.U"]
         d = e["Deduc"]
         a = e["Anno"]
-        assert len(d) == 2 and "test.moo.comment.bar.xpan_T" in [d[i]["libpath"] for i in range(2)]
-        assert len(a) == 1 and a[0]["libpath"] == "test.moo.comment.bar.NotesT"
+        assert len(d) == 4 and "test.moo.comment.bar.xpan_T" in [d[i]["libpath"] for i in range(2)]
+        assert len(a) == 2 and a[0]["libpath"] == "test.moo.comment.bar.NotesT"
 
 @pytest.mark.skip("""This no longer does anything different from the last test.
 We need to carefully design our set of test repos so that we can test generation

@@ -80,8 +80,8 @@ def test_load_dashgraph(app, client, repos_ready):
             e = d["dashgraph"]["children"]["test.moo.bar.results.Pf.U"]["enrichment"]
             deducs = e["Deduc"]
             annos = e["Anno"]
-            assert len(deducs) == 2 and "test.moo.comment.bar.xpan_T" in [deducs[i]["libpath"] for i in range(2)]
-            assert len(annos) == 1 and annos[0]["libpath"] == "test.moo.comment.bar.NotesT"
+            assert len(deducs) == 3 and "test.moo.comment.bar.xpan_T" in [deducs[i]["libpath"] for i in range(2)]
+            assert len(annos) == 2 and annos[0]["libpath"] == "test.moo.comment.bar.NotesT"
 
             u = d["dashgraph"]["children"]["test.moo.bar.results.Pf.R"]["user_notes"]
             assert u == {

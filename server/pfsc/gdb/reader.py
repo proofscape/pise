@@ -58,8 +58,21 @@ class EnrichmentRecord:
             padded_full_versions = set()
         self.padded_full_versions = set(padded_full_versions)
 
+        self._max_pfv = None
+
     def add_padded_full_versions(self, pfvs):
         self.padded_full_versions.update(set(pfvs))
+
+    @property
+    def max_pfv(self):
+        if self._max_pfv is None:
+            self._max_pfv = max(self.padded_full_versions)
+        return self._max_pfv
+
+    def __lt__(self, other):
+        if self.libpath != other.libpath:
+            return self.libpath < other.libpath
+        return self.max_pfv < other.max_pfv
 
 
 class GraphReader:
@@ -281,7 +294,10 @@ class GraphReader:
     def _get_origins_internal(self, label, libpaths, major0):
         raise NotImplementedError
 
-    def get_enrichment(self, deducpath, major, filter_by_repo_permission=True):
+    def get_enrichment(
+            self, deducpath, major, filter_by_repo_permission=True,
+            do_consolidate=False, do_sort=True,
+    ):
         """
         List available enrichment (expansions, annotations, comparisons) for
         any nodes in a given deduction, or for the deduction itself.
@@ -292,6 +308,12 @@ class GraphReader:
         :param filter_by_repo_permission: if True, we will not report any
             enrichments as available at WIP unless we have permission for the
             repo where they are defined.
+        :param do_consolidate: if True, all enrichments having a given libpath
+            are put together as if one enrichment, and their version sets
+            combined.
+        :param do_sort: if True, each list of enrichments (see return format
+            below) is sorted, primarily by libpath, secondarily by latest
+            version.
         :return: dict of the form:
 
             {
@@ -332,20 +354,23 @@ class GraphReader:
             for reln, vs in versions.items()
         ]
 
-        # Consolidate
-        #  TODO: Should we skip this step?
-        #   Mostly, different enrichment records with the same libpath represent
-        #   different entities, as indicated by move mappings. The possible
-        #   exception is an enrichment @WIP. Since move mappings are ignored
-        #   for indexing @WIP, it's ambiguous.
-        ers_by_libpath = {}
-        for er in ers:
-            er0 = ers_by_libpath.get(er.libpath)
-            if er0:
-                er0.add_padded_full_versions(er.padded_full_versions)
-            else:
-                ers_by_libpath[er.libpath] = er
-        ers = list(ers_by_libpath.values())
+        # By default, we do not consolidate. This is because, for the most
+        # part, different enrichment records with the same libpath represent
+        # different entities, as indicated by move mappings. The possible
+        # exception is an enrichment @WIP. Since move mappings are ignored
+        # for indexing @WIP, it's ambiguous.
+        if do_consolidate:
+            ers_by_libpath = {}
+            for er in ers:
+                er0 = ers_by_libpath.get(er.libpath)
+                if er0:
+                    er0.add_padded_full_versions(er.padded_full_versions)
+                else:
+                    ers_by_libpath[er.libpath] = er
+            ers = list(ers_by_libpath.values())
+
+        if do_sort:
+            ers.sort()
 
         for rec in ers:
             # If config says not to show demo enrichments on non-demo objects, and
