@@ -443,7 +443,7 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
             p.pop()
             break
     if len(p) < 3:
-        msg = 'Module does not exist: %s' % libpath
+        msg = f'Cannot find source file for module {libpath}@{version}'
         e = PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
         e.extra_data({
             'repopath': repopath,
