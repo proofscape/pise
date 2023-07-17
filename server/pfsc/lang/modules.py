@@ -1399,7 +1399,7 @@ def load_module(
     @param current_builds: Like the `history` kwarg, this is here to catch cyclic errors, in this case
         cyclic builds. These *shouldn't* arise anyway, but we have this kwarg as an extra safety net,
         to prevent infinite recursion. This pertains only to the special case where an rst module is loaded
-        @WIP, and is *not* already in the mem cache. In a build scenario, this should only happen when the
+        @WIP, and is *not* being loaded from cache. In a build scenario, this should only happen when the
         module belongs to another repo than the one(s) already being built.
 
     @param loading_results: Optional dict in which information about the loading process will be recorded.
