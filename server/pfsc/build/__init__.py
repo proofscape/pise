@@ -1150,16 +1150,9 @@ class Builder:
                 modpath = module.getLibpath()
                 self.graph_writer.delete_builds_under_module(modpath, self.version)
             else:
-                src_path = module.get_build_dir_src_code_path(version=self.version)
-                build_dir = src_path.parent
-                if build_dir.exists():
-                    for path in build_dir.iterdir():
-                        if path.is_file() and path.suffixes in [
-                            ['.anno', '.html'],
-                            ['.anno', '.json'],
-                            ['.dg', '.json'],
-                        ]:
-                            path.unlink()
+                paths = module.list_existing_built_product_paths(version=self.version)
+                for path in paths:
+                    path.unlink()
             self.monitor.inc_count()
 
     def write_dashgraphs(self):

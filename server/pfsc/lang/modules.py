@@ -243,6 +243,10 @@ class PfscModule(PfscObj):
         pi = PathInfo(self.libpath)
         return pi.get_build_dir_src_code_path(version=version)
 
+    def list_existing_built_product_paths(self, version=pfsc.constants.WIP_TAG):
+        pi = PathInfo(self.libpath)
+        return pi.list_existing_built_product_paths(version=version)
+                
     def getBuiltVersion(self):
         if rst_src := getattr(self, '_rst_src', None):
             return rst_src

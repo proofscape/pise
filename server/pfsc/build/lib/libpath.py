@@ -264,6 +264,39 @@ class PathInfo:
         )
         return pathlib.Path(*fs_parts)
 
+    def list_existing_built_product_paths(
+            self, version=pfsc.constants.WIP_TAG, include_sphinx_html=False):
+        """
+        Get list of pathlib.Path pointing to *existing* built product files for
+        this module, at a given version.
+        
+        :param version: the version of interest
+        :param include_sphinx_html: if True, include in the list the path to
+            this module's Sphinx html file, if it has one. Otherwise, list only
+            the product files in the ordinary build dir.
+        :return: list of existing pathlib.Path. Possibly empty.
+        """
+        paths = []
+        
+        src_path = self.get_build_dir_src_code_path(version=version)
+        build_dir = src_path.parent
+        if build_dir.exists():
+            paths = [
+                path for path in build_dir.iterdir()
+                if path.is_file() and path.suffixes in [
+                    ['.anno', '.html'],
+                    ['.anno', '.json'],
+                    ['.dg', '.json'],
+                ]
+            ]
+        
+        if include_sphinx_html:
+            sphinx_html_path = self.get_sphinx_html_file_path(version=version)
+            if sphinx_html_path is not None and sphinx_html_path.exists():
+                paths.append(sphinx_html_path)
+        
+        return paths
+
     def get_pickle_path(self, version=pfsc.constants.WIP_TAG):
         """
         Get the path for this module's pickle file.
@@ -273,6 +306,25 @@ class PathInfo:
         """
         src_path = self.get_build_dir_src_code_path(version=version)
         return src_path.parent / 'module.pickle'
+
+    def get_sphinx_html_file_path(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the path for this module's Sphinx html file, if this is an rst
+        module.
+
+        :param version: the version of interest
+        :return: pathlib.Path if this is an rst module, None otherwise.
+            Note: the path need *not* actually exist.
+        """
+        if self.is_rst_file(version=version):
+            lp_parts = self.libpath.split('.')
+            build_root = check_config("PFSC_BUILD_ROOT")
+            fs_parts = (
+                    [build_root, '_sphinx'] + lp_parts[:3] + [version] +
+                    lp_parts[3:-1] + [f'{lp_parts[-1]}.html']
+            )
+            return pathlib.Path(*fs_parts)
+        return None
 
     def get_src_file_modification_time(self, version=pfsc.constants.WIP_TAG):
         """
