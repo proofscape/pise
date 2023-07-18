@@ -858,6 +858,13 @@ class PendingImport:
         self.object_names = object_names
         self.local_path = local_path
         self.homepath = self.home_module.libpath
+        self._src_version = None
+
+    @property
+    def src_version(self):
+        if self._src_version is None:
+            self._src_version = self.get_desired_version_for_target(self.src_modpath)
+        return self._src_version
 
     def get_desired_version_for_target(self, targetpath):
         """
@@ -890,7 +897,7 @@ class PendingImport:
         if modpath == self.homepath:
             msg = 'Module %s is attempting to import itself.' % self.homepath
             raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
-        version = self.get_desired_version_for_target(modpath)
+        version = self.src_version
         module = load_module(
             modpath, version=version, fail_gracefully=False,
             caching=CachePolicy.TIME, cache=cache
@@ -906,7 +913,7 @@ class PendingImport:
         if cache is None:
             cache = {}
         modpath = self.src_modpath
-        version = self.get_desired_version_for_target(modpath)
+        version = self.src_version
 
         # Now we have the module libpath and version from which we are attempting to import something.
         # What we're allowed to do depends on whether the modpath we've constructed is the
