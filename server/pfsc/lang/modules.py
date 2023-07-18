@@ -88,7 +88,11 @@ class PfscModule(PfscObj):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
+
+        :return: the latest read time (Unix time stamp) of this module, or any
+            module imported under it, recursively.
         """
+        latest_read_time = self.read_time or 0
         if not self.resolved and not self.resolving:
             self.resolving = True
 
@@ -97,7 +101,8 @@ class PfscModule(PfscObj):
 
             while self.pending_imports:
                 pi = self.pending_imports.popleft()
-                pi.resolve(cache=cache, prog_mon=prog_mon)
+                lrt = pi.resolve(cache=cache, prog_mon=prog_mon)
+                latest_read_time = max(latest_read_time, lrt)
 
             if prog_mon:
                 prog_mon.set_message(f'Resolving {self.libpath}...')
@@ -111,6 +116,8 @@ class PfscModule(PfscObj):
 
             self.resolving = False
             self.resolved = True
+
+        return latest_read_time
 
     def isRepo(self):
         return self.libpath == self.repopath
@@ -883,9 +890,9 @@ class PendingImport:
         if cache is None:
             cache = {}
         if self.format == self.PLAIN_IMPORT_FORMAT:
-            self.resolve_plainimport(cache=cache, prog_mon=prog_mon)
+            return self.resolve_plainimport(cache=cache, prog_mon=prog_mon)
         elif self.format == self.FROM_IMPORT_FORMAT:
-            self.resolve_fromimport(cache=cache, prog_mon=prog_mon)
+            return self.resolve_fromimport(cache=cache, prog_mon=prog_mon)
 
     def resolve_plainimport(self, cache=None, prog_mon=None):
         """
@@ -902,14 +909,15 @@ class PendingImport:
             modpath, version=version, fail_gracefully=False,
             caching=CachePolicy.TIME, cache=cache
         )
-        # Depth-first resolution:
-        module.resolve(cache=cache, prog_mon=prog_mon)
         self.home_module[self.local_path] = module
+        # Depth-first resolution:
+        return module.resolve(cache=cache, prog_mon=prog_mon)
 
     def resolve_fromimport(self, cache=None, prog_mon=None):
         """
         Carry out (delayed) resolution of a FROM-IMPORT.
         """
+        lrt = 0
         if cache is None:
             cache = {}
         modpath = self.src_modpath
@@ -941,7 +949,7 @@ class PendingImport:
             )
             if src_module:
                 # Depth-first resolution:
-                src_module.resolve(cache=cache, prog_mon=prog_mon)
+                lrt = src_module.resolve(cache=cache, prog_mon=prog_mon)
 
         object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
@@ -990,7 +998,7 @@ class PendingImport:
                     )
                     if obj:
                         # Depth-first resolution:
-                        obj.resolve(cache=cache, prog_mon=prog_mon)
+                        lrt = obj.resolve(cache=cache, prog_mon=prog_mon)
                 # If that failed too, it's an error.
                 if obj is None:
                     msg = 'Could not import %s from %s' % (object_name, modpath)
@@ -998,6 +1006,8 @@ class PendingImport:
                     # Otherwise, record the object.
                 else:
                     self.home_module[local_name] = obj
+
+        return lrt
 
 
 class ModuleLoader(PfscJsonTransformer):
