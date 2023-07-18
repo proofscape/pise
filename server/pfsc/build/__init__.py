@@ -603,15 +603,31 @@ class Builder:
                 self.updated_modules[modpath] = module
 
     def determine_affected_modules(self):
-        # Build import DAG as dict, where modpath A points to list of modpaths B
-        # that import from A.
+        # Build internal import DAG as dict, where modpath A points to list
+        # of modpaths B that import from A.
         dag = defaultdict(list)
         for importer_path, module in self.modules.items():
             for imported_path in module.list_modules_imported_from():
                 dag[imported_path].append(importer_path)
-        # The affected modules are all those reachable from the updated modules,
-        # in this DAG.
-        stack = list(self.updated_modules.keys())
+
+        # Determine modules *directly* affected by *external* updates.
+        externally_affected_modpaths = []
+        n = len(list(self.modules.keys()))
+        self.monitor.begin_phase(n, 'Loading external...')
+        for modpath, module in self.modules.items():
+            t1 = module.partial_resolve_external_at_wip(
+                cache=self.module_cache, prog_mon=self.monitor
+            )
+            t0 = module.get_oldest_built_product_timestamp()
+            if t1 > t0:
+                externally_affected_modpaths.append(modpath)
+            self.monitor.inc_count()
+
+        # The "affected modules" are all those reachable in the import DAG from
+        # two starting sets of internal modules:
+        #  - those that have been updated
+        #  - those that are directly affected by external updates
+        stack = list(self.updated_modules.keys()) + externally_affected_modpaths
         while stack:
             a = stack.pop()
             if a not in self.affected_modules:

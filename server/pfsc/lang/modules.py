@@ -74,7 +74,7 @@ class PfscModule(PfscObj):
             self.load_and_validate_dependency_info()
             assert isinstance(self.dependencies, dict)
             self.dependencies.update(given_dependencies)
-        self.pending_imports = deque()
+        self.pending_imports = []
         self.resolving = False
         self.resolved = False
 
@@ -84,7 +84,31 @@ class PfscModule(PfscObj):
     def list_modules_imported_from(self):
         return [pi.src_modpath for pi in self.pending_imports]
 
-    def resolve(self, cache=None, prog_mon=None):
+    def get_oldest_built_product_timestamp(self):
+        """
+        Get the oldest timestamp on any of this module's existing built
+        products in the build dir, if any, else -1.
+        """
+        pi = PathInfo(self.libpath)
+        times = pi.get_built_product_modification_times(version=self.version)
+        return max([-1] + list(times.values()))
+
+    def partial_resolve_external_at_wip(self, cache=None, prog_mon=None):
+        """
+        If this module has any imports of external modules @WIP, do a partial
+        resolution on them now, i.e. just load all the modules, recursively.
+
+        :return: the latest timestamp for the resolved modules, or any modules
+            resolved recursively under them, else -1 if no such modules.
+        """
+        latest_read_time = -1
+        for pi in self.pending_imports:
+            if pi.is_external_at_wip():
+                lrt = pi.resolve(cache=cache, prog_mon=prog_mon, load_only=True)
+                latest_read_time = max(latest_read_time, lrt)
+        return latest_read_time
+
+    def resolve(self, cache=None, prog_mon=None, load_only=False):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
         when initially building modules.
@@ -99,23 +123,27 @@ class PfscModule(PfscObj):
             if cache is None:
                 cache = {}
 
-            while self.pending_imports:
-                pi = self.pending_imports.popleft()
-                lrt = pi.resolve(cache=cache, prog_mon=prog_mon)
+            if prog_mon:
+                prog_mon.set_message(f'Reolving imports from {self.libpath}...')
+
+            for pi in self.pending_imports:
+                lrt = pi.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
                 latest_read_time = max(latest_read_time, lrt)
 
-            if prog_mon:
-                prog_mon.set_message(f'Resolving {self.libpath}...')
+            if not load_only:
+                if prog_mon:
+                    prog_mon.set_message(f'Resolving {self.libpath}...')
 
-            self.resolve_libpaths_to_rhses()
+                self.resolve_libpaths_to_rhses()
 
-            native = self.getNativeItemsInDefOrder()
-            for item in native.values():
-                if isinstance(item, PfscObj):
-                    item.resolve()
+                native = self.getNativeItemsInDefOrder()
+                for item in native.values():
+                    if isinstance(item, PfscObj):
+                        item.resolve()
+
+                self.resolved = True
 
             self.resolving = False
-            self.resolved = True
 
         return latest_read_time
 
@@ -873,6 +901,17 @@ class PendingImport:
             self._src_version = self.get_desired_version_for_target(self.src_modpath)
         return self._src_version
 
+    def is_external_at_wip(self):
+        """
+        Say whether this is an external import (the source module belongs to a
+        different repo than the one where the import happened) of a module
+        taken @WIP version.
+        """
+        return (
+            get_repo_part(self.src_modpath) != get_repo_part(self.homepath)
+            and self.src_version == pfsc.constants.WIP_TAG
+        )
+
     def get_desired_version_for_target(self, targetpath):
         """
         :param targetpath: The libpath of the target object.
@@ -882,7 +921,7 @@ class PendingImport:
         extra_msg = f' Required for import in module `{self.homepath}`.'
         return self.home_module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
 
-    def resolve(self, cache=None, prog_mon=None):
+    def resolve(self, cache=None, prog_mon=None, load_only=False):
         """
         Resolve this import, and store the result in the "home module," i.e.
         the module where this import statement occurred.
@@ -890,11 +929,11 @@ class PendingImport:
         if cache is None:
             cache = {}
         if self.format == self.PLAIN_IMPORT_FORMAT:
-            return self.resolve_plainimport(cache=cache, prog_mon=prog_mon)
+            return self.resolve_plainimport(cache=cache, prog_mon=prog_mon, load_only=load_only)
         elif self.format == self.FROM_IMPORT_FORMAT:
-            return self.resolve_fromimport(cache=cache, prog_mon=prog_mon)
+            return self.resolve_fromimport(cache=cache, prog_mon=prog_mon, load_only=load_only)
 
-    def resolve_plainimport(self, cache=None, prog_mon=None):
+    def resolve_plainimport(self, cache=None, prog_mon=None, load_only=False):
         """
         Carry out (delayed) resolution of a PLAIN-IMPORT.
         """
@@ -909,11 +948,12 @@ class PendingImport:
             modpath, version=version, fail_gracefully=False,
             caching=CachePolicy.TIME, cache=cache
         )
-        self.home_module[self.local_path] = module
+        if not load_only:
+            self.home_module[self.local_path] = module
         # Depth-first resolution:
-        return module.resolve(cache=cache, prog_mon=prog_mon)
+        return module.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
 
-    def resolve_fromimport(self, cache=None, prog_mon=None):
+    def resolve_fromimport(self, cache=None, prog_mon=None, load_only=False):
         """
         Carry out (delayed) resolution of a FROM-IMPORT.
         """
@@ -949,7 +989,7 @@ class PendingImport:
             )
             if src_module:
                 # Depth-first resolution:
-                lrt = src_module.resolve(cache=cache, prog_mon=prog_mon)
+                lrt = src_module.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
 
         object_names = self.object_names
         # Next behavior depends on whether we wanted to import "all", or named individual object(s).
@@ -964,9 +1004,10 @@ class PendingImport:
             if src_module is None:
                 msg = 'Attempting to import * from non-existent module: %s' % modpath
                 raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
-            all_names = src_module.listAllItems()
-            for name in all_names:
-                self.home_module[name] = src_module[name]
+            if not load_only:
+                all_names = src_module.listAllItems()
+                for name in all_names:
+                    self.home_module[name] = src_module[name]
         else:
             # Importing individual name(s).
             N = len(object_names)
@@ -998,13 +1039,13 @@ class PendingImport:
                     )
                     if obj:
                         # Depth-first resolution:
-                        lrt = obj.resolve(cache=cache, prog_mon=prog_mon)
+                        lrt = obj.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
                 # If that failed too, it's an error.
                 if obj is None:
                     msg = 'Could not import %s from %s' % (object_name, modpath)
                     raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
                     # Otherwise, record the object.
-                else:
+                elif not load_only:
                     self.home_module[local_name] = obj
 
         return lrt

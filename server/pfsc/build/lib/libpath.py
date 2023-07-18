@@ -338,6 +338,18 @@ class PathInfo:
                 return None
             return src_path.stat().st_mtime
 
+    def get_built_product_modification_times(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the modification times for all existing built products for this module.
+
+        :return: dict in which keys are absolute filesystem paths to built products,
+            and values are modification times of these files.
+        """
+        products = self.list_existing_built_product_paths(version=version, include_sphinx_html=True)
+        return {
+            path: path.stat().st_mtime for path in products
+        }
+
     @property
     def fs_suffix(self):
         return pfsc.constants.RST_EXT if self.is_rst_file() else pfsc.constants.PFSC_EXT
