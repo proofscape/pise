@@ -296,7 +296,7 @@ class PathInfo:
         """
         if version == pfsc.constants.WIP_TAG:
             p = self.abs_fs_path_to_file
-            return p and p.endswith('.rst')
+            return p and p.endswith(pfsc.constants.RST_EXT)
         else:
             src_path = self.get_build_dir_src_code_path(version=version)
             if not src_path.exists():
