@@ -602,10 +602,6 @@ class Builder:
             if self.was_updated(modpath):
                 self.updated_modules[modpath] = module
 
-        self.determine_affected_modules()
-        self.determine_modules_to_scan()
-        self.determine_deleted_modules()
-
     def determine_affected_modules(self):
         # Build import DAG as dict, where modpath A points to list of modpaths B
         # that import from A.
@@ -650,6 +646,10 @@ class Builder:
         """
         RESOLVE the pfsc modules formed in the READING phase.
         """
+        self.determine_affected_modules()
+        self.determine_modules_to_scan()
+        self.determine_deleted_modules()
+
         n = len(self.modules_to_scan)
 
         self.monitor.begin_phase(n, 'Resolving...')
