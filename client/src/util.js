@@ -45,9 +45,11 @@ util.assign = function(target, props, sources) {
 };
 
 util.copyTextToClipboard = function(text) {
-    var box = document.createElement("textarea");
+    const box = document.createElement("textarea");
     box.value = text;
     box.style.opacity = 0;
+    box.style.position = 'fixed';
+    box.style.zIndex = -1;
     document.body.appendChild(box);
     box.focus();
     box.select();
