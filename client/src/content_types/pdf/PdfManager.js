@@ -854,7 +854,7 @@ var PdfManager = declare(AbstractContentManager, {
 
     },
 
-    /* Handle a mouse event on a highlight, in our of our panels.
+    /* Handle a mouse event on a highlight, in one of our panels.
      *
      * param uuid: the uuid of the panel where the event happened
      * param event: the browser-native mouse event object itself

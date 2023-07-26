@@ -703,6 +703,7 @@ var PageViewer = declare(null, {
      *   MAY include scrollFrac (see `scrollToFraction` method)
      *   MAY include scrollSel  (see `scrollToSelector` method)
      *   MAY include scrollOpts (see `scrollToSelector` method)
+     *   MAY include select (see `doSelection` method)
      *   MAY include contents = {html: ..., data: ...}
      *
      * return: a promise that resolves after the page has been updated.
@@ -854,10 +855,10 @@ var PageViewer = declare(null, {
      * param sel: the CSS selector. If null, scroll to top.
      * param options: {
      *  padPx: pixels of padding at each of top and bottom of view area.
-     *      Default 0. Adds to pad from padPct.
+     *      Default 0. Adds to pad from padFrac.
      *  padFrac: padding at each of top and bottom of view area, as fraction
      *      of total height of panel. Should be a float between 0.0 and 1.0.
-     *      Default 0.0 Adds to pad from padPx.
+     *      Default 0.0. Adds to pad from padPx.
      *  pos: ['top', 'mid'], default 'top'. Scroll the object to
      *      this position, vertically.
      *  policy: ['pos', 'min', 'distant'], default 'pos'.

@@ -187,7 +187,7 @@ var NotesManager = declare(AbstractContentManager, {
         });
     },
 
-    /* Build the static url for a Sphinx page.
+    /* Build the RELATIVE static url for a Sphinx page.
      */
     makeSphinxUrl: function(libpath, version, hash) {
         // Libpath goes: host, owner, repo, remainder, '_page'

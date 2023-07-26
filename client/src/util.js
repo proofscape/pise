@@ -616,10 +616,10 @@ util.extractOriginalHlidFromHlDescriptor = function(hld) {
  *  Need not be the immediate parent of element.
  * param options: {
  *  padPx: pixels of padding at each of top and bottom of view area.
- *      Default 0. Adds to pad from padPct.
+ *      Default 0. Adds to pad from padFrac.
  *  padFrac: padding at each of top and bottom of view area, as fraction
  *      of total height of panel. Should be a float between 0.0 and 1.0.
- *      Default 0.0 Adds to pad from padPx.
+ *      Default 0.0. Adds to pad from padPx.
  *  pos: ['top', 'mid'], default 'top'. Scroll the object to
  *      this position, vertically.
  *  policy: ['pos', 'min', 'distant'], default 'pos'.
