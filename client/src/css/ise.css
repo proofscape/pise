@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+@import url("pages.css");
+
 /*
  * This ensures that when tabs are clicked in tab containers,
  * their titles do not become highlighted with a blue border.
@@ -791,12 +793,6 @@ a.widget {
 
 .themeDark a.widget {
     color: rgb(113, 184, 239);
-}
-
-.themeDark a.widget.selected,
-a.widget.selected {
-    background: #dd0;
-    color: blue;
 }
 
 a.external {

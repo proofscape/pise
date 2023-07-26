@@ -90,6 +90,13 @@ export class SphinxViewer extends BasePageViewer {
                 btn.remove();
             });
 
+            // Add custom CSS
+            var link = this.cw.document.createElement("link");
+            link.href = this.mgr.hub.urlFor('staticISE') + "/pages.css";
+            link.type = "text/css";
+            link.rel = "stylesheet";
+            this.cw.document.querySelector('head').appendChild(link);
+
             this.activateWidgets();
         }
 

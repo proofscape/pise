@@ -110,6 +110,11 @@ module.exports = env => {
                     },
                     {
                         context: "src",
+                        from: "css/pages.css",
+                        to: "ise/pages.css"
+                    },
+                    {
+                        context: "src",
                         from: "img/icons/loading-icon.gif",
                         to: "ise/loading-icon.gif"
                     },
