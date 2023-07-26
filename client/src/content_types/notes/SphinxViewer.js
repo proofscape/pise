@@ -234,17 +234,10 @@ export class SphinxViewer extends BasePageViewer {
             if (!prefix.endsWith('/')) {
                 prefix += '/';
             }
-            prefix += 'static/sphinx/';
             const framePath = frameLoc.pathname;
-            if (framePath.startsWith(prefix) && framePath.endsWith('.html')) {
-                const frameTail = framePath.slice(prefix.length, -5);
-                const parts = frameTail.split('/');
-                // Parts go: host, owner, repo, version, remainder...
-                const version = parts[3];
-                parts[3] = "_sphinx";
-                const libpath = parts.join('.');
-                const hash = frameLoc.hash;
-                result = {libpath, version, hash};
+            if (framePath.startsWith(prefix)) {
+                const frameTail = framePath.slice(prefix.length);
+                result = this.mgr.decomposeSphinxUrl(frameTail);
             }
         }
         return result;
