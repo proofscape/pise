@@ -67,6 +67,14 @@ export class SphinxViewer extends BasePageViewer {
         return this.iframe.contentWindow;
     }
 
+    get contentElement() {
+        return this.cw.document;
+    }
+
+    get scrollNode() {
+        return this.cw.document;
+    }
+
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {
@@ -143,18 +151,29 @@ export class SphinxViewer extends BasePageViewer {
 
     async refresh(url) {
         const loc = {url};
-        // TODO: add scroll frac / scroll sel to loc?
+        // TODO: add scroll frac / scroll sel to loc
         await super.reloadPage(loc);
     }
 
-    async updatePage(loc) {
-        return new Promise(resolve => {
-            // Store the resolution function to be called later, from `observeLocationChange()`,
-            // after the page has finished loading.
-            this.resolvePageUpdate = resolve;
-            const url = this.makeUrlFromCdo(loc);
-            this.iframe.src = url;
-        });
+    async pageContentsUpdateStep(loc) {
+        const url = this.makeUrlFromCdo(loc);
+        return !url ? Promise.resolve() : new Promise(resolve => {
+                // Store the resolution function to be called later, from `observeLocationChange()`,
+                // after the page has finished loading.
+                this.resolvePageUpdate = resolve;
+                this.iframe.src = url;
+            });
+    }
+
+    locIsAtWip(loc) {
+        let version = '';
+        if (loc.version) {
+            version = loc.version;
+        } else if (loc.url) {
+            const parts = this.mgr.decomposeSphinxUrl(loc.url);
+            version = parts.version;
+        }
+        return version === "WIP";
     }
 
     writeContentDescriptor(serialOnly) {

@@ -16,6 +16,16 @@
 
 import { Listenable } from "browser-peers/src/util";
 
+const ise = {};
+
+define([
+    "ise/util",
+], function(
+    util
+) {
+    ise.util = util;
+});
+
 export class BasePageViewer extends Listenable {
 
     constructor(notesManager) {
@@ -28,6 +38,23 @@ export class BasePageViewer extends Listenable {
         this.subscribedLibpath = null;
         this.subscriptionManager = null;
     }
+
+    // ---------------------------------------------------------------------------
+    // SUBCLASSES MUST OVERRIDE
+
+    /* Get the element where content is displayed.
+     */
+    get contentElement() {
+        return null;
+    }
+
+    /* Get the element whose `scrollTop` should be adjusted, to scroll the page.
+     */
+    get scrollNode() {
+        return null;
+    }
+
+    // ---------------------------------------------------------------------------
 
     destroy() {
         this.unsubscribe();
@@ -154,7 +181,132 @@ export class BasePageViewer extends Listenable {
         this.dispatch(event);
     }
 
+    /* Update the page, according to a location descriptor.
+     * Here we do not touch the history. We only work with the actual contents of the page.
+     *
+     * Note: It is important that you NOT update the history before calling this method.
+     *  The abstract `pageContentsUpdateStep()` method is allowed to assume
+     *  that the history pointer still points at a descriptor of what
+     *  is currently loaded in the page. If you are planning to update the history, you
+     *  should do that AFTER this method's promise resolves.
+     *
+     * param loc: a location descriptor:
+     *   MAY include scrollFrac (see `scrollToFraction` method)
+     *   MAY include scrollSel  (see `scrollToSelector` method)
+     *   MAY include scrollOpts (see `scrollToSelector` method)
+     *   MAY include select (see `doSelection` method)
+     *   MAY include other fields, specific to the subclass, which in some way define
+     *       the contents that are to be loaded in the page.
+     *
+     * return: a promise that resolves after the page has been updated.
+     */
     async updatePage(loc) {
+        await this.pageContentsUpdateStep(loc);
+        this.updateContextMenu(loc);
+        this.doScrolling(loc);
+        this.doSelection(loc);
+        this.updateOverview(loc);
+    }
+
+    // SUBCLASSES MUST OVERRIDE
+    /* This is where subclasses implement the part of the `updatePage()` operation that
+     * is responsible for (possibly) loading content.
+     */
+    async pageContentsUpdateStep(loc) {
+    }
+
+    updateContextMenu(loc) {
+        if (this.contextMenu) {
+            this.contextMenu.pfsc_ise_editSrcItem.set(
+                'label', `${this.locIsAtWip(loc) ? "Edit" : "View"} Source`
+            );
+        }
+    }
+
+    // SUBCLASSES SHOULD OVERRIDE
+    locIsAtWip(loc) {
+        return false;
+    }
+
+    /* Presuming the page data for a location is already loaded, do the scrolling
+     * that the location requests.
+     *
+     * scrollFrac controls, if defined.
+     */
+    doScrolling(loc) {
+        if (loc.scrollFrac) {
+            this.scrollToFraction(loc.scrollFrac);
+        } else if (loc.scrollSel || loc.scrollSel === null) {
+            this.scrollToSelector(loc.scrollSel, loc.scrollOpts);
+        }
+    }
+
+    /* Mark any selection requested by the location descriptor.
+     */
+    doSelection(loc) {
+        if (loc.select) {
+            const selectedElt = this.contentElement.querySelector(loc.select);
+            if (selectedElt) {
+                this.markWidgetElementAsSelected(selectedElt);
+            }
+        }
+    }
+
+    /* If the page viewer has an overview panel of some kind, that may need some special
+     * update steps, whenever the page is updated. Subclasses can perform such steps here.
+     */
+    updateOverview(loc) {
+    }
+
+    /* Scroll a fraction of the way down the page.
+     *
+     * param frac: a number between 0 and 1
+     */
+    scrollToFraction(frac) {
+        if (frac < 0 || frac > 1) {
+            throw new Error('Scroll fraction out of bounds.');
+        }
+        const h = this.scrollNode.scrollHeight;
+        this.scrollNode.scrollTop = frac * h;
+    }
+
+    /* Scroll to the first element matching the given CSS selector.
+     *
+     * param sel: the CSS selector. If null, scroll to top.
+     * param options: {
+     *  padPx: pixels of padding at each of top and bottom of view area.
+     *      Default 0. Adds to pad from padFrac.
+     *  padFrac: padding at each of top and bottom of view area, as fraction
+     *      of total height of panel. Should be a float between 0.0 and 1.0.
+     *      Default 0.0. Adds to pad from padPx.
+     *  pos: ['top', 'mid'], default 'top'. Scroll the object to
+     *      this position, vertically.
+     *  policy: ['pos', 'min', 'distant'], default 'pos'.
+     *      'pos': scroll object to pos, no matter what.
+     *      'min': scroll just enough to put object in padded view area.
+     *          (Under this setting, value of pos is irrelevant.)
+     *      'distant': scroll to pos if object "is distant", else min.
+     *          If the min scroll to bring object into padded view area
+     *          preserves at least one pad width of context, do that;
+     *          else scroll to pos.
+     * }
+     * return: boolean: true iff we found an element to scroll to.
+     */
+    scrollToSelector(sel, options) {
+        const display = this.scrollNode;
+
+        if (sel === null) {
+            display.scrollTop = 0;
+            return false;
+        }
+
+        const elt = display.querySelector(sel);
+        if (!elt) {
+            return false;
+        }
+
+        ise.util.scrollIntoView(elt, display, options);
+        return true;
     }
 
     describeLocationUpdate(loc) {

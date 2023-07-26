@@ -201,6 +201,27 @@ var NotesManager = declare(AbstractContentManager, {
         return `static/sphinx/${parts.join("/")}.html${hash}`
     },
 
+    /* Given the RELATIVE static url for a Sphinx page, return the
+     * libpath, version, and hash.
+     */
+    decomposeSphinxUrl: function(url) {
+        const h = url.split("#");
+        const hash = h.length === 2 ? h[1] : null;
+
+        const prefix = 'static/sphinx/'
+        const suffix = '.html'
+        const p = h[0].slice(prefix.length, -suffix.length);
+        const parts = p.split('/');
+
+        // parts go: host, owner, repo, version, remainder
+        const version = parts.splice(3, 1)[0];
+
+        parts.push('_page');
+        const libpath = parts.join('.');
+
+        return {libpath, version, hash};
+    },
+
     getSuppliedDocHighlights: function(paneId) {
         const viewer = this.viewers[paneId];
         const docInfoObj = viewer?.currentPageData?.docInfo;

@@ -16,6 +16,21 @@
 
 import { BasePageViewer } from "./BasePageViewer";
 
+const dojo = {};
+const ise = {};
+
+define([
+    "dojo/query",
+    "ise/util",
+], function(
+    query,
+    util
+) {
+    dojo.query = query;
+    ise.util = util;
+});
+
+
 export class AnnoViewer extends BasePageViewer {
 
     /*
@@ -51,11 +66,19 @@ export class AnnoViewer extends BasePageViewer {
         this.attachSidebarContextMenu();
 
         this.pane = pane;
-        this.scrollNode = main;
+        this._scrollNode = main;
         this.history = [];
         this.navEnableHandlers = [];
         this.listeners = {};
         this.on('pageChange', this.updateOverview.bind(this));
+    }
+
+    get contentElement() {
+        return this.elt;
+    }
+
+    get scrollNode() {
+        return this._scrollNode;
     }
 
     beforeNavigate() {
@@ -63,8 +86,87 @@ export class AnnoViewer extends BasePageViewer {
         return this.currentPageData;
     }
 
-    async updatePage(loc) {
-        // TODO
+    async pageContentsUpdateStep(loc) {
+        const currentLoc = this.getCurrentLoc();
+        const currentPath = (currentLoc === null) ? null : currentLoc.libpath;
+        const currentVers = (currentLoc === null) ? null : currentLoc.version;
+        // If page contents were provided directly, just use them.
+        if (loc.contents) {
+            this.setPageContents(loc.contents.html, loc.contents.data);
+        }
+        // If not, then retrieve page contents from server if we want
+        // a different libpath or version than the current one.
+        else if (loc.libpath !== currentPath || loc.version !== currentVers) {
+            const contents = await this.loadPageContents(loc);
+            this.setPageContents(contents.html, contents.data);
+        }
+        // Otherwise we don't need to change the page contents.
+    }
+
+    /* Given the actual HTML and widget data that define the page we wish to
+     * show, set these contents into the page.
+     * This means setting the HTML into our page element,
+     * requesting MathJax typesetting, and setting up the widgets.
+     */
+    setPageContents(html, data) {
+        const elt = this.contentElement;
+        dojo.query(elt).innerHTML(html);
+        ise.util.typeset([elt]);
+        this.currentPageData = data;
+        this.nm.setupWidgets(data, this.elt, this.pane);
+    }
+
+    /* Load page data from back-end.
+     *
+     * return: a promise that resolves with the page contents.
+     */
+    async loadPageContents({libpath, version}) {
+        const data = await this.prepareDataForPageLoad({libpath, version});
+        const resp = await this.nm.hub.xhrFor('loadAnnotation', {
+            method: "POST",
+            query: {libpath: libpath, vers: version},
+            form: data,
+            handleAs: "json",
+        });
+        if (resp.err_lvl > 0) {
+            throw new Error(resp.err_msg);
+        }
+        const data_json = resp.data_json;
+        return {
+            html: resp.html,
+            data: JSON.parse(data_json)
+        };
+    }
+
+    async prepareDataForPageLoad({libpath, version}) {
+        const data = {};
+
+        const ssnrMode = this.nm.hub.studyManager.inSsnrMode();
+        const studyPagePrefix = 'special.studypage.';
+        const studyPageSuffix = '.studyPage';
+
+        if (libpath.startsWith(studyPagePrefix)) {
+            data.special = 'studypage';
+            if (!ssnrMode) {
+                const studypath = libpath.slice(studyPagePrefix.length, -studyPageSuffix.length);
+                const resp = await this.nm.hub.xhrFor('lookupGoals', {
+                    query: { libpath: studypath, vers: version },
+                    handleAs: 'json',
+                });
+                if (resp.err_lvl > 0) {
+                    throw new Error(resp.err_msg);
+                }
+                const origins = resp.origins;
+                const studyData = this.nm.hub.studyManager.buildGoalLookupByList(origins);
+                data.studyData = JSON.stringify(studyData)
+            }
+        }
+
+        return data;
+    }
+
+    locIsAtWip(loc) {
+        return loc.version === "WIP";
     }
 
     describeCurrentLocation() {
