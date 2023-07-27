@@ -740,19 +740,13 @@ class EnrichmentPage(Enrichment):
         """
         page_data = self.page_data
         if page_data is None or not caching:
-            libpath = self.getLibpath()
-            version = self.getVersion()
-            widgets = {}
-            for widget in self.get_proper_widgets():
-                uid = widget.writeUID()
-                data = widget.writeData()
-                widgets[uid] = data
-            doc_info = self.gather_doc_info(caching=caching)
             page_data = {
-                'libpath': libpath,
-                'version': version,
-                'widgets': widgets,
-                'docInfo': doc_info,
+                'libpath': self.getLibpath(),
+                'version': self.getVersion(),
+                'widgets': {
+                    w.writeUID(): w.writeData() for w in self.get_proper_widgets()
+                },
+                'docInfo': self.gather_doc_info(caching=caching),
             }
             if caching:
                 self.page_data = page_data
