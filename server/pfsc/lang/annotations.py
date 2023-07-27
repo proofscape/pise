@@ -81,7 +81,7 @@ class Annotation(EnrichmentPage):
         when initially building modules.
         """
         self.find_and_store_targets(self.target_paths, self.parent)
-        self.resolveLibpathsRec()
+        EnrichmentPage.resolve(self)
 
     @property
     def trusted(self):

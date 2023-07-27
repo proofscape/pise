@@ -205,16 +205,16 @@ def test_param_widget_1(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v0')
         mod = load_module('test.foo.eg.notes', caching=0)
-        mod.resolve()
 
         # In Notes1, the widgets try to import each other, cyclically.
         with pytest.raises(PfscExcep) as ei:
             anno = mod['Notes1']
-            anno.get_page_data()
+            anno.resolve()
         assert ei.value.code() == PECode.DAG_HAS_CYCLE
 
         # In Notes2, the widgets build okay.
         anno = mod['Notes2']
+        anno.resolve()
         data = anno.get_page_data()
         assert len(data['widgets']) == 2
 

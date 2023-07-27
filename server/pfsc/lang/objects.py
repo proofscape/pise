@@ -726,6 +726,11 @@ class EnrichmentPage(Enrichment):
     def get_proper_widgets(self):
         raise NotImplementedError
 
+    def resolve(self):
+        self.resolveLibpathsRec()
+        for widget in self.get_proper_widgets():
+            widget.enrich_data()
+
     def get_page_data(self, caching=True):
         """
         Get the data dictionary for the page.
@@ -739,7 +744,6 @@ class EnrichmentPage(Enrichment):
             version = self.getVersion()
             widgets = {}
             for widget in self.get_proper_widgets():
-                widget.enrich_data()
                 uid = widget.writeUID()
                 data = widget.writeData()
                 widgets[uid] = data

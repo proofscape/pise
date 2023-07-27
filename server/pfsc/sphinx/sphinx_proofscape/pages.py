@@ -65,9 +65,6 @@ class SphinxPage(EnrichmentPage):
         self[w.name] = w
         w.cascadeLibpaths()
 
-    def resolve(self):
-        self.resolveLibpathsRec()
-
 
 def build_libpath_for_rst(
     config, sphinx_provided_pagename, within_page=False,
