@@ -150,7 +150,11 @@ export class SphinxViewer extends BasePageViewer {
 
     async refresh(url) {
         const loc = {url};
-        // TODO: add scroll frac / scroll sel to loc
+        const current = this.describeCurrentLocation();
+        if (current) {
+            loc.scrollFrac = current.scrollFrac;
+            loc.scrollSel = current.scrollSel;
+        }
         await super.reloadPage(loc);
     }
 
@@ -254,6 +258,33 @@ export class SphinxViewer extends BasePageViewer {
         cdo.type = this.mgr.hub.contentManager.crType.SPHINX;
         cdo.url = this.cw.location.href;
         return cdo;
+    }
+
+    /* If the content descriptor has a url, ensure that it is a relative one, starting
+     * with 'static/sphinx/'.
+     *
+     * If there is a url, but missing either libpath or version, then derive the latter
+     * from the url.
+     */
+    normalizeHistoryRecord(rec) {
+        super.normalizeHistoryRecord(rec);
+        if (rec.url) {
+            let url = rec.url;
+            const pageUrl = window.location.href;
+            if (url.startsWith(pageUrl)) {
+                url = url.slice(pageUrl.length);
+            }
+            if (url.startsWith('static/sphinx/')) {
+                rec.url = url;
+                if (rec.libpath === undefined || rec.version === undefined) {
+                    const decomp = this.mgr.decomposeSphinxUrl(url);
+                    rec.libpath = decomp.libpath;
+                    rec.version = decomp.version;
+                }
+            } else {
+                this.mgr.hub.errAlert(`Bad Sphinx URL: ${rec.url}`);
+            }
+        }
     }
 
 }

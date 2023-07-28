@@ -82,12 +82,23 @@ export class BasePageViewer extends Listenable {
         return this.ptr > 0;
     }
 
-    enrichHistoryRecord(rec, loc) {
+    // Subclasses may wish to override.
+    //
+    // The purpose is to ensure that locations being recorded in our history
+    // contain complete and well-formed information.
+    //
+    // rec: the content descriptor to be normalized. Should be modified in
+    //  place. This object will be recorded in our history.
+    // return: nothing. `rec` should be modified in-place.
+    normalizeHistoryRecord(rec) {
+        if (rec.scrollSel === undefined) {
+            rec.scrollSel = null;
+        }
     }
 
     recordNewHistory(loc) {
         const rec = Object.assign({}, loc);
-        this.enrichHistoryRecord(rec, loc);
+        this.normalizeHistoryRecord(rec);
         if (this.ptr === null) {
             this.history = [rec];
             this.ptr = 0;
@@ -111,6 +122,12 @@ export class BasePageViewer extends Listenable {
     forceHistory(history, ptr) {
         this.history = history;
         this.ptr = ptr;
+    }
+
+    /* If there is a current history frame, record the current scroll frac in it.
+     */
+    recordScrollFrac() {
+        if (this.ptr !== null) this.history[this.ptr].scrollFrac = this.computeScrollFrac();
     }
 
     incrPtr() {
@@ -162,6 +179,8 @@ export class BasePageViewer extends Listenable {
      * Subclasses may wish to override.
      */
     beforeNavigate() {
+        this.recordScrollFrac();
+        return this.currentPageData;
     }
 
     /* Reload the page, and dispatch an event announcing the reload.
@@ -270,6 +289,12 @@ export class BasePageViewer extends Listenable {
         this.scrollNode.scrollTop = frac * h;
     }
 
+    computeScrollFrac() {
+        const h = this.scrollNode.scrollHeight;
+        const t = this.scrollNode.scrollTop;
+        return t/h;
+    }
+
     /* Scroll to the first element matching the given CSS selector.
      *
      * param sel: the CSS selector. If null, scroll to top.
@@ -325,7 +350,18 @@ export class BasePageViewer extends Listenable {
 
     announcePageChange(update, loc, oldPageData) {
         if (update.pageChange) {
-            //...
+            const event = {
+                type: 'pageChange',
+                uuid: this.uuid,
+                oldLibpathv: null,
+                oldPageData: oldPageData,
+                newLibpathv: `${loc.libpath}@${loc.version}`,
+            }
+            const cur = this.getCurrentLoc();
+            if (cur) {
+                event.oldLibpathv = `${cur.libpath}@${cur.version}`;
+            }
+            this.dispatch(event);
         }
     }
 

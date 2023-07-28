@@ -81,11 +81,6 @@ export class AnnoViewer extends BasePageViewer {
         return this._scrollNode;
     }
 
-    beforeNavigate() {
-        this.recordScrollFrac();
-        return this.currentPageData;
-    }
-
     async pageContentsUpdateStep(loc) {
         const currentLoc = this.getCurrentLoc();
         const currentPath = (currentLoc === null) ? null : currentLoc.libpath;
