@@ -36,6 +36,12 @@ from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 from pfsc.sphinx.sphinx_proofscape.links import ExternalLinks
 
 
+widgets = (
+    ('chart', PfscChartRole, PfscChartDirective),
+    ('pdf', PfscPdfWidgetRole, PfscPdfWidgetDirective),
+)
+
+
 def setup(app):
     app.add_config_value('pfsc_repopath', None, 'html')
     app.add_config_value('pfsc_repovers', None, 'html')
@@ -43,14 +49,15 @@ def setup(app):
     app.add_node(navwidget,
                  html=(visit_navwidget_html, depart_navwidget_html))
 
-    app.add_directive('pfsc', PfscEmbedDirective)
     app.add_post_transform(ExternalLinks)
 
-    app.add_role('pfsc-chart', PfscChartRole())
-    app.add_directive('pfsc-chart', PfscChartDirective)
+    app.add_directive('pfsc', PfscEmbedDirective)
 
-    app.add_role('pfsc-pdf', PfscPdfWidgetRole())
-    app.add_directive('pfsc-pdf', PfscPdfWidgetDirective)
+    for name, role_class, directive_class in widgets:
+        full_name = f'pfsc-{name}'
+        role_instance = role_class()
+        app.add_role(full_name, role_instance)
+        app.add_directive(full_name, directive_class)
 
     app.connect('builder-inited', setup_pfsc_env)
     app.connect('env-purge-doc', purge_pfsc_env)
