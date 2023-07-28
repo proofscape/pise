@@ -38,6 +38,13 @@ def get_chart_widget_anchors(soup):
     return list(soup.find_all('a', class_='chartWidget'))
 
 
+def get_external_anchors(soup):
+    """
+    Get the list of any and all <a> tags having class `external`.
+    """
+    return list(soup.find_all('a', class_='external'))
+
+
 def get_page_data_from_script_tag(soup):
     """
     If the HTML contains a <script id=""pfsc-page-data"> tag, then parse
@@ -145,7 +152,7 @@ def test_manifest(app):
         model = []
         root.build_relational_model(model)
         sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
-        assert sphinx_indices == [5, 7, 11, 13, 15]
+        assert sphinx_indices == [5, 7, 11, 13, 15, 17]
 
 
 def test_spx_doc1(app):
@@ -231,6 +238,15 @@ def test_spx_doc1(app):
         page_data = get_page_data_from_script_tag(soup)
         # print('\n', json.dumps(page_data, indent=4))
         assert page_data == PAGE_D_PAGE_DATA
+
+        # Page E
+        # ======
+        html = (build_dir / 'foo/pageE.html').read_text()
+        soup = BeautifulSoup(html, 'html.parser')
+        A = get_external_anchors(soup)
+        assert len(A) == 2
+        for a in A:
+            assert a['target'] == '_blank'
 
 
 PAGE_C_WIDGET_NAMES = [

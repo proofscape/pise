@@ -33,6 +33,7 @@ from pfsc.sphinx.sphinx_proofscape.doc_widget import (
     PfscPdfWidgetRole, PfscPdfWidgetDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
+from pfsc.sphinx.sphinx_proofscape.links import ExternalLinks
 
 
 def setup(app):
@@ -43,6 +44,7 @@ def setup(app):
                  html=(visit_navwidget_html, depart_navwidget_html))
 
     app.add_directive('pfsc', PfscEmbedDirective)
+    app.add_post_transform(ExternalLinks)
 
     app.add_role('pfsc-chart', PfscChartRole())
     app.add_directive('pfsc-chart', PfscChartDirective)

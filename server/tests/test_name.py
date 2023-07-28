@@ -58,8 +58,8 @@ def test_new_submodule_fail(
 
 @pytest.mark.parametrize('parentpath, name', [
     # Parent is already a directory:
-    ['test.spx.doc1.foo', 'pageE.rst'],
-    ['test.spx.doc1.foo', 'pageE.pfsc'],
+    ['test.spx.doc1.foo', 'pageOmega.rst'],
+    ['test.spx.doc1.foo', 'pageOmega.pfsc'],
 ])
 @pytest.mark.psm(True)
 @pytest.mark.wip(True)

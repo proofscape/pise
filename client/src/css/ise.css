@@ -797,15 +797,10 @@ a.widget {
 
 a.external {
     color: blue;
-    background-position: center right;
-    background-repeat: no-repeat;
-    background-image: url(../img/icons/ext_link.png);
-    padding-right: 14px;
 }
 
 .themeDark a.external {
     color: rgb(113, 184, 239);
-    background-image: url(../img/icons/ext_link_dark.png);
 }
 
 a {

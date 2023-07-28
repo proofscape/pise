@@ -9,3 +9,4 @@ sphinx-proofscape test doc
    pageB
    foo/pageC
    foo/pageD
+   foo/pageE

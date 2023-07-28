@@ -29,9 +29,16 @@ module.exports = env => {
         entry: {
             ise: './src/main.js',
             mathworker: './src/mathworker.js',
+            pagesCss: './src/css/pages.css',
         },
         output: {
-            filename: `ise/[name].bundle${devmode ? '.' : '.min.'}js`,
+            filename: (pathData) => {
+                if (pathData.chunk.name === 'pagesCss') {
+                    return 'ise/pagesCss.js';
+                } else {
+                    return `ise/[name].bundle${devmode ? '.' : '.min.'}js`;
+                }
+            },
         },
         mode: devmode ? 'development' : 'production',
         devtool: devmode ? 'eval-cheap-source-map' : undefined,
@@ -107,11 +114,6 @@ module.exports = env => {
                         context: "src",
                         from: "content_types/pdf/pdf.css",
                         to: "ise/pdf.css"
-                    },
-                    {
-                        context: "src",
-                        from: "css/pages.css",
-                        to: "ise/pages.css"
                     },
                     {
                         context: "src",

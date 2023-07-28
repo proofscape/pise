@@ -23,3 +23,14 @@ a.widget.selected {
     background: #dd0;
     color: blue;
 }
+
+a.external {
+    background-position: center right;
+    background-repeat: no-repeat;
+    background-image: url(../img/icons/ext_link.png);
+    padding-right: 14px;
+}
+
+.themeDark a.external {
+    background-image: url(../img/icons/ext_link_dark.png);
+}

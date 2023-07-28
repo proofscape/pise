@@ -99,11 +99,10 @@ export class SphinxViewer extends BasePageViewer {
             });
 
             // Add custom CSS
-            var link = this.cw.document.createElement("link");
-            link.href = this.mgr.hub.urlFor('staticISE') + "/pages.css";
-            link.type = "text/css";
-            link.rel = "stylesheet";
-            this.cw.document.querySelector('head').appendChild(link);
+            const styleScript = this.cw.document.createElement("script");
+            styleScript.type = "text/javascript";
+            styleScript.src = this.mgr.hub.urlFor('staticISE') + "/pagesCss.js";
+            this.cw.document.querySelector('body').appendChild(styleScript);
 
             this.activateWidgets();
         }
@@ -203,6 +202,13 @@ export class SphinxViewer extends BasePageViewer {
         if (this.spi) {
             // Note: This implementation relies on our use of the Furo theme.
             this.cw.document.body.dataset.theme = theme;
+            // We also use some of the same CSS that we apply to anno pages, so we
+            // need to set the same theme classes.
+            if (theme === 'dark') {
+                this.cw.document.body.classList.add('themeDark');
+            } else {
+                this.cw.document.body.classList.remove('themeDark');
+            }
         }
     }
 
