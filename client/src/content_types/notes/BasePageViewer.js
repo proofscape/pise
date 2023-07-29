@@ -152,6 +152,12 @@ export class BasePageViewer extends Listenable {
         return this.history[this.ptr];
     }
 
+    // SUBCLASSES MUST OVERRIDE
+    // Return the tail-versioned libpath of the viewer's current location,
+    // or null if none.
+    getCurrentLibpathv() {
+    }
+
     describeCurrentLocation() {
         const loc = this.getCurrentLoc();
         // Return a copy.
