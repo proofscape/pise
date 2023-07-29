@@ -197,9 +197,6 @@ export class SphinxViewer extends BasePageViewer {
         }
     }
 
-    destroy() {
-    }
-
     /* Set the theme on a single sphinx content window.
      */
     setTheme(theme) {
