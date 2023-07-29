@@ -87,8 +87,9 @@ var NotesManager = declare(AbstractContentManager, {
     hub: null,
     // Lookup for PageViewers by pane id:
     viewers: null,
-    // Mapping that records which annopathvs are open, and how many copies of each:
-    openAnnopathvCopyCount: null,
+    // Mapping that records which tail-versioned page paths are open,
+    // and how many copies of each:
+    openPagepathvCopyCount: null,
 
     // Lookup for widgets by uid.
     widgets: null,
@@ -108,7 +109,7 @@ var NotesManager = declare(AbstractContentManager, {
 
     constructor: function() {
         this.viewers = {};
-        this.openAnnopathvCopyCount = new Map();
+        this.openPagepathvCopyCount = new Map();
         this.widgets = new Map();
         this.navEnableHandlers = [];
         this.wvuCallback = this.observeWidgetVisualUpdate.bind(this);
@@ -427,16 +428,16 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     /* This is our listener for the "pageChange" event of each of
-     * our PageViewer instances. That event is fired iff the viewer has
+     * our viewer instances. That event is fired iff the viewer has
      * loaded a page of different libpath or version from what it was before.
      */
     notePageChange: async function(event) {
-        // Maintain records of which annopaths are open, and how many copies of each.
+        // Maintain records of which pagepaths are open, and how many copies of each.
 
         // newLibpath is always defined
         const nlv = event.newLibpathv;
-        let nlpCount = this.openAnnopathvCopyCount.get(nlv) || 0;
-        this.openAnnopathvCopyCount.set(nlv, ++nlpCount);
+        let nlpCount = this.openPagepathvCopyCount.get(nlv) || 0;
+        this.openPagepathvCopyCount.set(nlv, ++nlpCount);
 
         // oldLibpath may be null
         const olv = event.oldLibpathv;
@@ -463,13 +464,13 @@ var NotesManager = declare(AbstractContentManager, {
         await this.makeDefaultLinks(libpath, uuid);
     },
 
-    notePageClose: function(annopathv) {
-        let count = this.openAnnopathvCopyCount.get(annopathv);
+    notePageClose: function(pagepathv) {
+        let count = this.openPagepathvCopyCount.get(pagepathv);
         if (count) {
-            this.openAnnopathvCopyCount.set(annopathv, --count);
+            this.openPagepathvCopyCount.set(pagepathv, --count);
             if (count === 0) {
-                this.openAnnopathvCopyCount.delete(annopathv);
-                this.purgeAllWidgetsForAnnopathv(annopathv);
+                this.openPagepathvCopyCount.delete(pagepathv);
+                this.purgeAllWidgetsForPagepathv(pagepathv);
             }
         }
     },
@@ -486,9 +487,9 @@ var NotesManager = declare(AbstractContentManager, {
         }
         const paneId = closingPane.id;
         const viewer = this.viewers[paneId];
-        const annopathv = viewer.getCurrentLibpathv();
-        if (annopathv) {
-            this.notePageClose(annopathv);
+        const pagepathv = viewer.getCurrentLibpathv();
+        if (pagepathv) {
+            this.notePageClose(pagepathv);
         }
         viewer.destroy();
         delete this.viewers[paneId];
@@ -815,23 +816,23 @@ var NotesManager = declare(AbstractContentManager, {
         }
     },
 
-    /* Given the libpathv of an annotation, get an array of the UIDs of all
-     * widgets currently loaded in memory that belong to that annotation.
+    /* Given the libpathv of a page, get an array of the UIDs of all
+     * widgets currently loaded in memory that belong to that page.
      */
-    getAllOpenWidgetUidsUnderAnnopathv: function(annopathv) {
+    getAllOpenWidgetUidsUnderPagepathv: function(pagepathv) {
         const uids = [];
         for (let [uid, widget] of this.widgets) {
-            if (widget.getAnnopathv() === annopathv) {
+            if (widget.getPagepathv() === pagepathv) {
                 uids.push(uid);
             }
         }
         return uids;
     },
 
-    /* Purge all widgets that belong to a given annotation.
+    /* Purge all widgets that belong to a given page.
      */
-    purgeAllWidgetsForAnnopathv: function(annopathv) {
-        const uids = this.getAllOpenWidgetUidsUnderAnnopathv(annopathv);
+    purgeAllWidgetsForPagepathv: function(pagepathv) {
+        const uids = this.getAllOpenWidgetUidsUnderPagepathv(pagepathv);
         for (let uid of uids) {
             this.purgeWidget(uid);
         }
@@ -984,11 +985,11 @@ var NotesManager = declare(AbstractContentManager, {
         return this.widgets.get(uid);
     },
 
-    /* Instantiate and activate the Widget instances for an annotation.
+    /* Instantiate and activate the Widget instances for a page.
      *
      * @param data: This is an object of the form {
-     *   libpath: the libpath of the annotation where these widgets are defined
-     *   version: the version of the annotation where these widgets are defined
+     *   libpath: the libpath of the page where these widgets are defined
+     *   version: the version of the page where these widgets are defined
      *   widgets: {
      *     widgetUID1: widgetData1,
      *     widgetUID2: widgetData2,
@@ -1006,10 +1007,10 @@ var NotesManager = declare(AbstractContentManager, {
     setupWidgets: function(data, elt, pane) {
         const incomingUids = Object.keys(data.widgets);
 
-        // Purge any widgets that no longer belong to the annotation.
-        const annopathv = iseUtil.lv(data.libpath, data.version);
-        const uidsUnderAnno = this.getAllOpenWidgetUidsUnderAnnopathv(annopathv);
-        for (let uid of uidsUnderAnno) {
+        // Purge any widgets that no longer belong to the page.
+        const pagepathv = iseUtil.lv(data.libpath, data.version);
+        const uidsUnderPage = this.getAllOpenWidgetUidsUnderPagepathv(pagepathv);
+        for (let uid of uidsUnderPage) {
             if (!incomingUids.includes(uid)) {
                 this.purgeWidget(uid);
             }

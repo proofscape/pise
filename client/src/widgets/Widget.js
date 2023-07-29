@@ -44,8 +44,8 @@ var Widget = declare(null, {
     version: null,
     // widget UID, which equals `libpath_version` with dots replaced by hyphens:
     uid: null,
-    // the libpath of the annotation to which this widget belongs:
-    annopath: null,
+    // the libpath of the page to which this widget belongs:
+    pagepath: null,
     // the ID of the "widget group" (or "pane group") to which this widget belongs, if any:
     groupId: null,
     // the info object as originally passed:
@@ -66,8 +66,8 @@ var Widget = declare(null, {
         this.libpath = libpath;
         this.version = info.version;
         this.uid = info.uid;
-        this.annopath = libpath.slice(0, libpath.lastIndexOf('.'));
-        this.modpath = libpath.slice(0, this.annopath.lastIndexOf('.'));
+        this.pagepath = libpath.slice(0, libpath.lastIndexOf('.'));
+        this.modpath = libpath.slice(0, this.pagepath.lastIndexOf('.'));
         this.groupId = info.pane_group;
         this.origInfo = info;
         this.liveInfo = this.getInfoCopy();
@@ -75,8 +75,8 @@ var Widget = declare(null, {
         this.listeners = {};
     },
 
-    getAnnopathv: function() {
-        return `${this.annopath}@${this.version}`
+    getPagepathv: function() {
+        return `${this.pagepath}@${this.version}`
     },
 
     // Get a deep copy of the original info object.
@@ -159,7 +159,7 @@ var Widget = declare(null, {
         this.contextMenuByPaneId.set(paneId, cm);
 
         // For now we do not have any menu items that make sense on widgets in study pages.
-        const isStudyPage = this.annopath.startsWith("special.studypage.");
+        const isStudyPage = this.pagepath.startsWith("special.studypage.");
         if (!isStudyPage) {
             // Tail selector for our libpath.
             const tsHome = document.createElement('div');
@@ -177,7 +177,7 @@ var Widget = declare(null, {
             const info = {
                 type: "SOURCE",
                 origType: "NOTES",
-                libpath: this.annopath,
+                libpath: this.pagepath,
                 modpath: this.modpath,
                 version: this.version,
                 useExisting: true,
