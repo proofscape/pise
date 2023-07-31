@@ -48,6 +48,12 @@ export class BasePageViewer extends Listenable {
         return null;
     }
 
+    /* Get the element where a background click should deselect any selected widget.
+     */
+    get mainContentArea() {
+        return null;
+    }
+
     /* Get the element whose `scrollTop` should be adjusted, to scroll the page.
      */
     get scrollNode() {
@@ -60,13 +66,25 @@ export class BasePageViewer extends Listenable {
         this.unsubscribe();
     }
 
+    setupBackgroundClickHandler() {
+        this.mainContentArea.addEventListener('click', this.backgroundClick.bind(this));
+    }
+
+    backgroundClick(event) {
+        // Do not clear the selection if the click target itself is selected.
+        const selectedTargetClick = event.target.classList.contains('selected');
+        if (!selectedTargetClick) {
+            this.clearWidgetSelection();
+        }
+    }
+
     markWidgetElementAsSelected(elt) {
         this.clearWidgetSelection();
         elt.classList.add('selected');
     }
 
     clearWidgetSelection() {
-        document.querySelectorAll('a.widget.selected').forEach(a => {
+        this.contentElement.querySelectorAll('a.widget.selected').forEach(a => {
             a.classList.remove('selected');
         });
     }

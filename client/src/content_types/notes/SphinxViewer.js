@@ -71,6 +71,10 @@ export class SphinxViewer extends BasePageViewer {
         return this.cw.document.querySelector('html');
     }
 
+    get mainContentArea() {
+        return this.cw.document.querySelector('.main');
+    }
+
     get scrollNode() {
         return this.cw.document.querySelector('html');
     }
@@ -98,6 +102,8 @@ export class SphinxViewer extends BasePageViewer {
             console.debug(this.spi);
             this.observeLocationChange();
         });
+
+        this.setupBackgroundClickHandler();
 
         // Is it a sphinx page?
         const sphinxPageInfo = this.spi;

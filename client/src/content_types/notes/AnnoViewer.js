@@ -61,7 +61,7 @@ export class AnnoViewer extends BasePageViewer {
         parent.appendChild(this.sidebar);
 
         main.addEventListener('scroll', this.observeMainAreaScroll.bind(this));
-        main.addEventListener('click', this.backgroundClick.bind(this));
+        this.setupBackgroundClickHandler();
         this.attachContextMenu(this.elt);
         this.attachSidebarContextMenu();
 
@@ -75,6 +75,10 @@ export class AnnoViewer extends BasePageViewer {
 
     get contentElement() {
         return this.elt;
+    }
+
+    get mainContentArea() {
+        return this.mainview;
     }
 
     get scrollNode() {
