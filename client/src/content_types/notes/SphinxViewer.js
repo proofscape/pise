@@ -68,11 +68,11 @@ export class SphinxViewer extends BasePageViewer {
     }
 
     get contentElement() {
-        return this.cw.document;
+        return this.cw.document.querySelector('html');
     }
 
     get scrollNode() {
-        return this.cw.document;
+        return this.cw.document.querySelector('html');
     }
 
     /* Handle the event of our iframe completing loading of a new page.
