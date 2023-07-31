@@ -75,6 +75,21 @@ export class SphinxViewer extends BasePageViewer {
         return this.cw.document.querySelector('html');
     }
 
+    /* When a Sphinx page is sufficiently narrow, it gains a visible header bar.
+     * We have to account for this in autoscroll, to ensure objects wind up visible,
+     * and not hidden behind the bar.
+     *
+     * Note: This solution also adds unnecessary padding at the bottom of the window.
+     * Eventually we might want a more refined system, where we can add it just at the
+     * top.
+     */
+    addScrollPadding(options) {
+        let px = options.padPx || 0;
+        const header = this.cw.document.querySelector('header.mobile-header');
+        px += header.offsetHeight;
+        options.padPx = px;
+    }
+
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {

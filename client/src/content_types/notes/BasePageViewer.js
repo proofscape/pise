@@ -336,8 +336,22 @@ export class BasePageViewer extends Listenable {
             return false;
         }
 
+        this.addScrollPadding(options);
+
         ise.util.scrollIntoView(elt, display, options);
         return true;
+    }
+
+    /* SUBCLASSES MAY OVERRIDE
+     *
+     * Opportunity for subclasses to add (or otherwise adjust) the padding that will
+     * be used for scrolling to a selector.
+     *
+     * param options: As received by our `scrollToSelector()` method. Should be modified
+     *  in place.
+     * return: nothing
+     */
+    addScrollPadding(options) {
     }
 
     describeLocationUpdate(loc) {
