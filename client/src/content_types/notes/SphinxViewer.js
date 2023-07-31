@@ -159,7 +159,13 @@ export class SphinxViewer extends BasePageViewer {
     }
 
     async pageContentsUpdateStep(loc) {
-        const url = this.makeUrlFromCdo(loc);
+        let url = null;
+
+        const update = this.describeLocationUpdate(loc);
+        if (update.pageChange) {
+            url = this.makeUrlFromCdo(loc);
+        }
+
         return !url ? Promise.resolve() : new Promise(resolve => {
                 // Store the resolution function to be called later, from `observeLocationChange()`,
                 // after the page has finished loading.

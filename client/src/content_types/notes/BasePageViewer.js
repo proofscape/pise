@@ -395,7 +395,25 @@ export class BasePageViewer extends Listenable {
         }
     }
 
+    /* Given a location descriptor, ensure that it defines a libpath and version,
+     * by copying these from our current location if necessary.
+     *
+     * return: true if we were able to ensure that both libpath and version are
+     *  defined in the location object, false if not.
+     */
+    ensureLibpathAndVersion(loc) {
+        const cur = this.getCurrentLoc() || {};
+        loc.libpath = loc.libpath || cur.libpath;
+        loc.version = loc.version || cur.version;
+        return !!loc.libpath && !!loc.version;
+    }
+
     async goTo(loc) {
+        const ok = this.ensureLibpathAndVersion(loc);
+        if (!ok) {
+            console.debug('Cannot go to location without libpath and version.', loc);
+            return;
+        }
         const update = await this.go(loc);
         if (update.locationChange) {
             this.recordNewHistory(loc);
