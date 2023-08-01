@@ -1069,7 +1069,7 @@ var NotesManager = declare(AbstractContentManager, {
         for (let uid of incomingUids) {
             const widget = this.widgets.get(uid);
             const wdq = socket.query('.' + uid);
-            widget.makeContextMenu(wdq, pane.id);
+            widget.makeContextMenu(pane);
             widget.activate(wdq, uid, theNotesManager, pane);
             widget.on('widgetVisualUpdate', this.wvuCallback, {nodup: true});
         }

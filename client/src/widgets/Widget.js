@@ -147,16 +147,23 @@ var Widget = declare(null, {
         }
     },
 
-    makeContextMenu: function(wdq, paneId) {
+    makeContextMenu: function(pane) {
         // In case of refreshing an open page (after rebuild), must clear old context menus
         // first. Else there is an old menu, which still thinks it is attached
         // to a DOM element that no longer exists.
-        this.destroyContextMenu(paneId);
+        this.destroyContextMenu(pane.id);
+
+        const paneNode = pane.domNode;
+        const socket = paneNode.querySelector('.cpSocket');
+        const isSphinx = socket.classList.contains('sphinxSocket');
+        const panelType = isSphinx ? "SPHINX": "NOTES";
+        const targetNode = isSphinx ? socket.querySelector('iframe') : socket;
 
         const cm = new Menu({
-            targetNodeIds: wdq,
+            targetNodeIds: [targetNode],
+            selector: `.${this.uid}`,
         });
-        this.contextMenuByPaneId.set(paneId, cm);
+        this.contextMenuByPaneId.set(pane.id, cm);
 
         // For now we do not have any menu items that make sense on widgets in study pages.
         const isStudyPage = this.pagepath.startsWith("special.studypage.");
@@ -176,7 +183,7 @@ var Widget = declare(null, {
             const widget = this;
             const info = {
                 type: "SOURCE",
-                origType: "NOTES",
+                origType: panelType,
                 libpath: this.pagepath,
                 modpath: this.modpath,
                 version: this.version,
