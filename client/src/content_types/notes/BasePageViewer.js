@@ -17,26 +17,35 @@
 import { Listenable } from "browser-peers/src/util";
 
 const ise = {};
+const dojo = {};
 
 define([
+    "dijit/Menu",
+    "dijit/MenuItem",
     "ise/util",
 ], function(
+    Menu,
+    MenuItem,
     util
 ) {
+    dojo.Menu = Menu;
+    dojo.MenuItem = MenuItem;
     ise.util = util;
 });
 
 export class BasePageViewer extends Listenable {
 
-    constructor(notesManager) {
+    constructor(notesManager, pageType) {
         super({});
         this.mgr = notesManager;
+        this.pageType = pageType;
         this.navEnableHandlers = [];
         this.history = [];
         this.ptr = null;
         this.currentPageData = null;
         this.subscribedLibpath = null;
         this.subscriptionManager = null;
+        this.contextMenu = null;
     }
 
     // ---------------------------------------------------------------------------
@@ -256,6 +265,56 @@ export class BasePageViewer extends Listenable {
      * is responsible for (possibly) loading content.
      */
     async pageContentsUpdateStep(loc) {
+    }
+
+    /* param targetNode: dom element containing the background: must be iframe for Sphinx panels
+     * param selector: CSS selector of background, within targetNode
+     * param optNames: array of strings indicating which options should be added to the menu
+     */
+    attachContextMenu(targetNode, selector, optNames) {
+        const menu = new dojo.Menu({
+            targetNodeIds: [targetNode],
+            selector: selector,
+        });
+        const viewer = this;
+
+        if (optNames.includes('toggleOverview')) {
+            menu.addChild(new dojo.MenuItem({
+                label: 'Toggle Overview',
+                onClick: function () {
+                    viewer.toggleOverviewSidebar();
+                }
+            }));
+        }
+
+        if (optNames.includes('source')) {
+            const editSrcItem = new dojo.MenuItem({
+                label: 'Source',
+                onClick: function () {
+                    viewer.editSource();
+                }
+            })
+            menu.addChild(editSrcItem);
+            menu.pfsc_ise_editSrcItem = editSrcItem;
+        }
+
+        this.contextMenu = menu;
+    }
+
+    editSource() {
+        const desc = this.describeCurrentLocation();
+        if (desc) {
+            const info = {
+                type: "SOURCE",
+                origType: this.pageType,
+                libpath: desc.libpath,
+                modpath: desc.modpath,
+                version: desc.version,
+                useExisting: true,
+                sourceRow: desc.sourceRow,
+            };
+            this.mgr.hub.contentManager.openContentInActiveTC(info);
+        }
     }
 
     updateContextMenu(loc) {

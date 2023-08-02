@@ -43,7 +43,7 @@ export class AnnoViewer extends BasePageViewer {
      * }
      */
     constructor(nm, parent, pane, uuid, options) {
-        super(nm);
+        super(nm, "NOTES");
         options = options || {};
         this.overviewScale = options.overviewScale || this.overviewScale;
         this.nm = nm;
@@ -62,7 +62,7 @@ export class AnnoViewer extends BasePageViewer {
 
         main.addEventListener('scroll', this.observeMainAreaScroll.bind(this));
         this.setupBackgroundClickHandler();
-        this.attachContextMenu(this.elt);
+        this.attachContextMenu(this.elt, undefined, ['toggleOverview', 'source']);
         this.attachSidebarContextMenu();
 
         this.pane = pane;

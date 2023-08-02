@@ -38,7 +38,7 @@ export class SphinxViewer extends BasePageViewer {
      * }
      */
     constructor(nm, parent, pane, uuid, options) {
-        super(nm);
+        super(nm, "SPHINX");
 
         // overviewScale option not (yet?) supported
 
@@ -104,6 +104,8 @@ export class SphinxViewer extends BasePageViewer {
         });
 
         this.setupBackgroundClickHandler();
+        this.attachContextMenu(this.iframe, '.main', ['source']);
+        this.updateContextMenu(this.getContentDescriptor());
 
         // Is it a sphinx page?
         const sphinxPageInfo = this.spi;
