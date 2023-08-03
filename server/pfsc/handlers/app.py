@@ -23,7 +23,7 @@ from flask import render_template, url_for, current_app
 from flask_login import current_user, logout_user
 
 from config import HostingStance
-from pfsc import check_config
+from pfsc import check_config, get_js_url
 import pfsc.constants
 from pfsc.handlers import Handler
 from pfsc.handlers.auth import _log_in_as_default_user_in_psm
@@ -823,23 +823,10 @@ class AppLoader(Handler):
             # url_for('static', filename='pdfjs/web/pdf_viewer.js'),
         ]
 
-        other_scripts = {
-            'mathjax': (
-                url_for('static', filename='mathjax/vVERSION/tex-svg.js')
-                if check_config("MATHJAX_SERVE_LOCALLY") else
-                'https://cdn.jsdelivr.net/npm/mathjax@VERSION/es5/tex-svg.js'
-            ),
-            'elkjs': (
-                url_for(
-                    'static',
-                    filename=f'elk/vVERSION/elk{"-api" if check_config("ELK_DEBUG") else ".bundled"}.js'
-                )
-                if check_config("ELKJS_SERVE_LOCALLY") else
-                'https://cdn.jsdelivr.net/npm/elkjs@VERSION/lib/elk.bundled.js'
-            ),
-            # If using KLay instead of ELK:
-            # url_for('static', filename='klay/klay.js'),
-        }
+        other_scripts = {pkg_name: get_js_url(pkg_name, version="VERSION")
+                         for pkg_name in ['mathjax', 'elkjs']}
+        # If using KLay instead of ELK, replace elkjs URL with:
+        # url_for('static', filename='klay/klay.js'),
 
         local_whl_filenames = {
             "pfsc-util": "pfsc_util-VERSION-py3-none-any.whl",

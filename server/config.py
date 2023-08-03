@@ -34,6 +34,12 @@ with open(pj_path, 'r') as f:
     pj = json.load(f)
 PISE_VERSION = pj['version']
 
+plj_path = os.path.join(OUTER_DIR, 'client', 'package-lock.json')
+with open(plj_path, 'r') as f:
+    plj = json.load(f)
+MATHJAX_VERSION = plj['dependencies']['mathjax']['version']
+ELKJS_VERSION = plj['dependencies']['elkjs']['version']
+
 
 def format_url_prefix(raw):
     """

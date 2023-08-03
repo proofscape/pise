@@ -15,8 +15,12 @@
 # --------------------------------------------------------------------------- #
 
 import os
+from contextlib import nullcontext
 
-from flask import Flask, has_app_context, current_app, request, redirect, url_for
+from flask import (
+    Flask, has_app_context, current_app, request, redirect, url_for,
+    has_request_context,
+)
 from flask.cli import AppGroup
 from flask_socketio import SocketIO
 from flask_login import LoginManager
@@ -25,7 +29,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from pfsc.constants import REDIS_CHANNEL, ISE_PREFIX
 from pfsc.excep import PfscExcep, PECode
-from config import config_lookup, ProductionConfig
+from config import (
+    config_lookup, ProductionConfig,
+    MATHJAX_VERSION, ELKJS_VERSION,
+)
 
 socketio = SocketIO()
 pfsc_cli = AppGroup('pfsc')
@@ -61,6 +68,62 @@ def check_config(var_name):
     else:
         config_class = get_config_class()
         return getattr(config_class, var_name, None)
+
+
+def local_url_for_static_file(relpath, req_env=None):
+    """
+    Build the local (no origin part) URL for a static file.
+
+    :param relpath: the path of the file, relative to the static dir.
+    :param req_env: optional dictionary, defining a request context (see
+        docstring for `flask.app.Flask.test_request_context()`).
+        If calling this function outside of a Flask request context:
+            You can use this to make a fake request context, whose `url_adapter`
+            will then be used by `url_for()` to build the URL. Otherwise, the
+            app's `url_adapter` will be used (you must at least be inside an
+            app context). The latter relies on the `APPLICATION_ROOT` and
+            `SERVER_NAME` Flask config vars.
+        If calling inside a request context, that context is used, and
+            `req_env` is ignored.
+    """
+    ctx = (
+        current_app.test_request_context(**req_env)
+        if not has_request_context() and isinstance(req_env, dict)
+        else nullcontext()
+    )
+    with ctx:
+        return url_for('static', filename=relpath, _external=False)
+
+
+def get_js_url(package_name, version=None):
+    """
+    Assemble the URL for a javascript asset.
+
+    The result is controlled by config vars, determining things like whether
+    to serve locally or from CDN, and whether to serve a debug or normal
+    version.
+
+    :param package_name: the name of the library
+    :param version: optionally pass the string you want for the version number.
+        If not given, the number from client/package-lock.json is used.
+    """
+    if package_name == 'mathjax':
+        version = version or MATHJAX_VERSION
+        return (
+            local_url_for_static_file(f'mathjax/v{version}/tex-svg.js', req_env={})
+            if check_config("MATHJAX_SERVE_LOCALLY") else
+            f'https://cdn.jsdelivr.net/npm/mathjax@{version}/es5/tex-svg.js'
+        )
+    if package_name == 'elkjs':
+        version = version or ELKJS_VERSION
+        return (
+            local_url_for_static_file(
+                f'elk/v{version}/elk{"-api" if check_config("ELK_DEBUG") else ".bundled"}.js',
+                req_env={}
+            )
+            if check_config("ELKJS_SERVE_LOCALLY") else
+            f'https://cdn.jsdelivr.net/npm/elkjs@{version}/lib/elk.bundled.js'
+        )
 
 
 def get_app():

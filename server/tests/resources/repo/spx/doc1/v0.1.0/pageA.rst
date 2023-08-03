@@ -19,3 +19,5 @@ Subsection
 ----------
 
 This is a subsection.
+It contains an equation: $\exp^{i \pi} + 1 = 0$.
+Its page should therefore contain a mathjax script tag.

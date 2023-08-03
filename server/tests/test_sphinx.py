@@ -63,6 +63,16 @@ def get_page_data_from_script_tag(soup):
     return None
 
 
+def get_mathjax_script_tags(soup):
+    """
+    Find <script> tags, if any, that have 'mathjax' in their `src` attribute.
+    """
+    return [
+        script for script in soup.find_all('script')
+        if script.get('src', '').find('mathjax') >= 0
+    ]
+
+
 def get_highlights(soup, language):
     """
     Grab all the highlight divs, for a given language.
@@ -197,6 +207,9 @@ def test_spx_doc1(app):
             "version": "v0.1.0"
         }
 
+        mjs = get_mathjax_script_tags(soup)
+        assert len(mjs) == 1
+
         # Page B
         # ======
         # We don't check much: just confirm that syntax highlighting is indeed
@@ -206,6 +219,9 @@ def test_spx_doc1(app):
         soup = BeautifulSoup(html, 'html.parser')
         hl = get_highlights(soup, 'proofscape')
         assert len(hl) == 1
+
+        mjs = get_mathjax_script_tags(soup)
+        assert len(mjs) == 0
         
         # Page C
         # ======

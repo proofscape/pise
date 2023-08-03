@@ -75,6 +75,7 @@ from pfsc.build.repo import RepoInfo, checkout, get_repo_info, parse_module_file
 from pfsc.build.versions import version_string_is_valid
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType, PFSC_EXT, RST_EXT
+from pfsc import get_js_url
 from pfsc.lang.modules import (
     CachePolicy, load_module, PfscDefn, PfscAssignment,
     pickle_module, unpickle_module, remove_all_pickles_for_repo
@@ -734,6 +735,21 @@ class Builder:
             # are not yet supporting any way of adding extensions to the Proofscape build
             # system.
             'extensions': required_extensions,
+            'mathjax_path': get_js_url('mathjax'),
+            'mathjax3_config': {
+                'options': {
+                  'renderActions': {
+                    'addMenu': [0, '', '']
+                  }
+                },
+                'tex': {
+                  'inlineMath': [['$', '$'], ['\\(', '\\)']],
+                  'displayMath': [['$$', '$$'], ['\\[', '\\]']],
+                },
+                'svg': {
+                  'fontCache': 'global'
+                }
+            }
         }
 
         stream = SphinxBuildLogStream(self.monitor)
