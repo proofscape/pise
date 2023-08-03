@@ -818,15 +818,23 @@ class AppLoader(Handler):
                 f'https://cdn.jsdelivr.net/npm/@proofscape/pise-client@{ise_vers}/dist/ise/{ise_bundle_filename}'
             ),
 
+            get_js_url('mathjax'),
+            get_js_url('elkjs'),
+            # If using KLay instead of ELK, replace elkjs URL with:
+            # url_for('static', filename='klay/klay.js'),
+
             # If we want to use pdfjs outside of iframes, might need sth like this:
             # url_for('static', filename='pdfjs/build/pdf.js'),
             # url_for('static', filename='pdfjs/web/pdf_viewer.js'),
         ]
 
-        other_scripts = {pkg_name: get_js_url(pkg_name, version="VERSION")
-                         for pkg_name in ['mathjax', 'elkjs']}
-        # If using KLay instead of ELK, replace elkjs URL with:
-        # url_for('static', filename='klay/klay.js'),
+        # `other_scripts` can be used if it is necessary to load any top-level
+        # scripts in the PISE app page, for which the version number has to be
+        # determined by the client-side code.
+        # This works in conjunction with the `loadScripts()` function in the client code's `main.js`.
+        # For a time, we used this for MathJax and ElkJS. Currently not using it for anything,
+        # but we keep the mechanism in place for possible future use.
+        other_scripts = {}
 
         local_whl_filenames = {
             "pfsc-util": "pfsc_util-VERSION-py3-none-any.whl",

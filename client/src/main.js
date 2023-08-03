@@ -66,13 +66,17 @@ define([
 ) {
 
 async function loadScripts() {
-    const urlTemplates = window.pfsc_other_scripts;
+    const urlTemplates = window.pfsc_other_scripts || {};
 
-    const mathjaxUrl = urlTemplates.mathjax.replaceAll("VERSION", MATHJAX_VERSION);
-    await iseUtil.loadScript(mathjaxUrl);
+    if (urlTemplates.mathjax) {
+        const mathjaxUrl = urlTemplates.mathjax.replaceAll("VERSION", MATHJAX_VERSION);
+        await iseUtil.loadScript(mathjaxUrl);
+    }
 
-    const elkjsUrl = urlTemplates.elkjs.replaceAll("VERSION", ELKJS_VERSION);
-    await iseUtil.loadScript(elkjsUrl);
+    if (urlTemplates.elkjs) {
+        const elkjsUrl = urlTemplates.elkjs.replaceAll("VERSION", ELKJS_VERSION);
+        await iseUtil.loadScript(elkjsUrl);
+    }
 }
 
 function computeState() {
