@@ -26,7 +26,7 @@ import pytest
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.build.products import load_annotation, load_dashgraph
-from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO
+from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO, SCRIPT_ID
 from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
 from pfsc.excep import PfscExcep
 
@@ -47,12 +47,12 @@ def get_external_anchors(soup):
 
 def get_page_data_from_script_tag(soup):
     """
-    If the HTML contains a <script id=""pfsc-page-data"> tag, then parse
+    If the HTML contains a <script> tag defining pfsc page data, then parse
     the JSON and return the data itself.
 
     Otherwise return None.
     """
-    script = soup.find('script', id='pfsc-page-data')
+    script = soup.find('script', id=SCRIPT_ID)
     if script:
         text = script.text.strip()
         intro = SCRIPT_INTRO

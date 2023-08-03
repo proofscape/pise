@@ -164,6 +164,7 @@ def get_sphinx_page(env, docname=None) -> SphinxPage:
 
 
 SCRIPT_INTRO = 'window.pfsc_page_data = '
+SCRIPT_ID = 'pfsc-page-data'
 
 
 def inject_page_data(app, pagename, templatename, context, event_arg):
@@ -180,7 +181,7 @@ def inject_page_data(app, pagename, templatename, context, event_arg):
         return
     page_data = page.get_page_data()
     body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
-    app.add_js_file(None, body=body, id='pfsc-page-data')
+    app.add_js_file(None, body=body, id=SCRIPT_ID)
 
 
 class SphinxPfscEnvironment:
