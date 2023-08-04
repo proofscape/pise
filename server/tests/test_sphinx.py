@@ -73,6 +73,20 @@ def get_mathjax_script_tags(soup):
     ]
 
 
+def get_math_spans(soup):
+    """
+    Find <span> tags with 'math' class.
+    """
+    return list(soup.find_all('span', class_='math'))
+
+
+def get_math_divs(soup):
+    """
+    Find <div> tags with 'math' class.
+    """
+    return list(soup.find_all('div', class_='math'))
+
+
 def get_highlights(soup, language):
     """
     Grab all the highlight divs, for a given language.
@@ -209,6 +223,10 @@ def test_spx_doc1(app):
 
         mjs = get_mathjax_script_tags(soup)
         assert len(mjs) == 1
+        ms = get_math_spans(soup)
+        assert len(ms) == 9
+        md = get_math_divs(soup)
+        assert len(md) == 4
 
         # Page B
         # ======

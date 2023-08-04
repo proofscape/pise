@@ -34,6 +34,7 @@ from pfsc.sphinx.sphinx_proofscape.doc_widget import (
 )
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 from pfsc.sphinx.sphinx_proofscape.links import ExternalLinks
+from pfsc.sphinx.sphinx_proofscape.vertex import VerTeX2TeX
 
 
 widgets = (
@@ -49,6 +50,7 @@ def setup(app):
     app.add_node(navwidget,
                  html=(visit_navwidget_html, depart_navwidget_html))
 
+    app.add_transform(VerTeX2TeX)
     app.add_post_transform(ExternalLinks)
 
     app.add_directive('pfsc', PfscEmbedDirective)

@@ -63,7 +63,7 @@ sphinx-proofscape==0.4.0
 sphinx-math-dollar==1.2.1
 
 # VerTeX can be used in pfsc modules!
-vertex2tex==0.3.3
+vertex2tex==0.3.4
 
 # The Flask app is a web server that handles some easy jobs itself, but hands
 # off long-running jobs to an RQ worker.

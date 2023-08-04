@@ -707,9 +707,9 @@ urllib3==2.0.4 \
     --hash=sha256:8d22f86aae8ef5e410d4f539fde9ce6b2113a001bb4d189e0aed70642d602b11 \
     --hash=sha256:de7df1803967d2c2a98e4b11bb7d6bd9210474c46e8a0401514e3a42a75ebde4
     # via requests
-vertex2tex==0.3.3 \
-    --hash=sha256:415e9eac32dd6f7c7a5cf3fac7e28e6f355ada67882e22c16dbc894eef7d59a1 \
-    --hash=sha256:dd83ecb26241a627e699f04ac70bd92b0c3852239c32cfc8ed9cc34de0beb78c
+vertex2tex==0.3.4 \
+    --hash=sha256:048d472be7a6ae71e8bf1b3bdb53de3bd9326f83978cca85a3b3da135497252a \
+    --hash=sha256:7df69c5e24cae4b71ce084c7151f6643ab806410de19b0095c49406971791507
     # via -r requirements.in
 wcwidth==0.2.6 \
     --hash=sha256:795b138f6875577cd91bba52baf9e445cd5118fd32723b460e30a0af30ea230e \
