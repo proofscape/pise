@@ -175,7 +175,7 @@ class PfscNavWidgetDirective(SphinxDirective):
                 }
     """
     optional_arguments = 1
-    final_argument_whitespace = True
+    final_argument_whitespace = False
     has_content = False
 
     widget_class = None
