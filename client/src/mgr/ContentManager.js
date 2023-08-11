@@ -106,10 +106,10 @@ var ContentManager = declare(null, {
 
         // Type category arrays
         this.libpathTypes = [
-            this.crType.NOTES, this.crType.SOURCE
+            this.crType.NOTES, this.crType.SPHINX, this.crType.SOURCE
         ];
         this.editableTypes = [
-            this.crType.NOTES
+            this.crType.NOTES, this.crType.SPHINX
         ];
         this.studyPageTypes = [
             this.crType.NOTES
