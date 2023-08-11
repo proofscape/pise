@@ -64,6 +64,7 @@ var ContentManager = declare(null, {
         PDF: "red",
         CHART: "green",
         NOTES: "blue",
+        SPHINX: "blue",
         TREE: "cyan",
     },
     // Types that have a libpath:
