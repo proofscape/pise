@@ -328,7 +328,7 @@ var Hub = declare(null, {
      * startup, and to terminate an existing worker and start up another.
      */
     restartMathWorker: function() {
-        document.querySelector('body').classList.remove('pyodideLoaded');
+        this.markPyodideLoadedInAllDocuments(false);
         let trueRestart = false;
         if (this.mathWorkerPeer) {
             trueRestart = true;
@@ -343,8 +343,33 @@ var Hub = declare(null, {
             this.mathWorkerPeer = info.peer;
             console.log('Math worker startup:', info.result);
             this.pyodidePackageInfo = info.result.pkginfo;
-            document.querySelector('body').classList.add('pyodideLoaded');
+            this.markPyodideLoadedInAllDocuments(true);
         });
+    },
+
+    pyodideIsLoaded: function() {
+        return document.body.classList.contains('pyodideLoaded');
+    },
+
+    markPyodideLoadedInAllDocuments: function(isLoaded) {
+        const docs = [document];
+        if (this.notesManager) {
+            const sphinxWindows = this.notesManager.getAllSphinxWindows();
+            for (const win of sphinxWindows) {
+                docs.push(win.document);
+            }
+        }
+        for (const doc of docs) {
+            this.markPyodideLoadedInDocument(doc, isLoaded);
+        }
+    },
+
+    markPyodideLoadedInDocument: function(doc, isLoaded) {
+        if (isLoaded) {
+            doc.body.classList.add('pyodideLoaded');
+        } else {
+            doc.body.classList.remove('pyodideLoaded');
+        }
     },
 
     /* Ping the math worker. Return true if answered, false if timeout.

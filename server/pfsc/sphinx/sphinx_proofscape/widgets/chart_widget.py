@@ -23,10 +23,9 @@ from sphinx.errors import SphinxError
 
 from pfsc.checkinput import check_boxlisting
 from pfsc.lang.widgets import ChartWidget
-from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
-    PfscNavWidgetRole, PfscNavWidgetDirective,
-)
-from pfsc.sphinx.sphinx_proofscape.util import parse_box_listing
+from pfsc.sphinx.sphinx_proofscape.widgets.nav_widgets import PfscNavWidgetRole
+from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
+from pfsc.sphinx.sphinx_proofscape.widgets.util import parse_box_listing
 
 
 def regularize_color_option_text(raw, location, option_name):
@@ -89,12 +88,11 @@ class PfscChartRole(PfscNavWidgetRole):
         Let's open :pfsc-chart:`the proof <libpath.of.some.proof>`.
     """
     widget_class = ChartWidget
-    html_class = 'chartWidget'
     widget_type_name = 'chart'
     target_field_name = 'view'
 
 
-class PfscChartDirective(PfscNavWidgetDirective):
+class PfscChartDirective(PfscOneArgWidgetDirective):
     r"""
     Directive syntax for chart widgets.
 
@@ -187,9 +185,11 @@ class PfscChartDirective(PfscNavWidgetDirective):
 
     """
     widget_class = ChartWidget
-    html_class = 'chartWidget'
+
+    label_required = True
+
     option_spec = {
-        **PfscNavWidgetDirective.option_spec,
+        **PfscOneArgWidgetDirective.option_spec,
         "on_board": unchanged,
         "off_board": unchanged,
 

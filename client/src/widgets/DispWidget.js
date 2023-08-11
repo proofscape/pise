@@ -311,7 +311,7 @@ const DispWidget = declare(ExampWidget, {
         const contentElement = this.contentElementByPaneId.get(pane.id);
         iseUtil.removeAllChildNodes(contentElement);
         contentElement.innerHTML = html;
-        iseUtil.typeset([contentElement]).then(() => {
+        this.typeset(pane.id, [contentElement]).then(() => {
             this.dispatch({
                 type: "widgetVisualUpdate",
                 paneId: pane.id,

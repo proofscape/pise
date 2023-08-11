@@ -16,10 +16,12 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import re
+
 from sphinx.errors import SphinxError
 
-from pfsc.excep import PfscExcep
-from pfsc.checkinput import check_boxlisting, check_libseg
+from pfsc.excep import PfscExcep, PECode
+from pfsc.checkinput import check_boxlisting, check_libseg, check_dict
 
 
 def process_widget_label(raw_label):
@@ -53,9 +55,9 @@ def process_widget_label(raw_label):
         # ...and if the text up to the first colon is either empty or a valid libseg...
         prefix = raw_label[:i0]
         if i0 > 0:
-            check_libseg('', prefix, {})
+            check_widget_name(prefix)
         # ...then that prefix is the widget name, while everything coming
-        # *after* the colon is the text.
+        # *after* the colon, minus external whitespace, is the text.
         name = prefix
         text = raw_label[i0 + 1:]
 
@@ -63,6 +65,13 @@ def process_widget_label(raw_label):
     text = text.strip()
 
     return name, text
+
+
+def check_widget_name(raw):
+    """
+    Check that a string gives a valid widget name.
+    """
+    check_libseg('', raw, {})
 
 
 def parse_box_listing(box_listing):
@@ -86,3 +95,66 @@ def parse_box_listing(box_listing):
     except PfscExcep as pe:
         raise SphinxError(str(pe))
     return bl.get_libpaths()
+
+
+def parse_dict_lines(text, keytype, valtype, key=None):
+    """
+    Parse the value of a single rST directive option, where the value is in a
+    format we call "dictionary lines".
+
+    Example:
+
+        key1: single-line value
+        key2: this is
+            a multi-line
+            value
+
+    A new entry provides a key, followed by a colon, and then a value. The
+    value may run over multiple lines, as long as subsequent lines are indented.
+    External whitespace is stripped from final values (and keys).
+
+    This function builds the dictionary, and checks the well-formedness of
+    each key and value, using the given `keytype` and `valtype` specs.
+
+    The checked dictionary is returned. In here, the keys and values are
+    as returned by the type checker functions.
+
+    :param text: (str) the raw text to be processed
+    :param keytype: as in `pfsc.checkinput.check_dict()`
+    :param valtype: as in `pfsc.checkinput.check_dict()`
+    :param key: optionally pass the name of an input variable under which the
+        raw text was received, for use in error message.
+
+    :return: checked dict
+    """
+    lines = text.split('\n')
+
+    entries = []
+    entry = []
+    for line in lines:
+        if not line:
+            continue
+        if entry and not re.match(r'\s', line):
+            entries.append(entry)
+            entry = []
+        entry.append(line)
+    if entry:
+        entries.append(entry)
+
+    d = {}
+    for entry in entries:
+        line0 = entry[0]
+        i0 = line0.find(":")
+        if i0 <= 0:
+            raise PfscExcep('Bad dictionary', PECode.INPUT_WRONG_TYPE, bad_field=key)
+        key = line0[:i0].strip()
+        value = line0[i0+1:]
+        value = '\n'.join([value] + entry[1:])
+        value = value.strip()
+        d[key] = value
+
+    cd = check_dict(key, d, {
+        'keytype': keytype,
+        'valtype': valtype,
+    })
+    return cd

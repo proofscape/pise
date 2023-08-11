@@ -185,6 +185,11 @@ const ExampWidget = declare(Widget, {
         this.remakeAllPyProxies();
     },
 
+    typeset: function(paneId, elements) {
+        const viewer = this.hub.notesManager.getViewerForPaneId(paneId);
+        return viewer.typeset(elements);
+    },
+
     clearErrorMessage: function(paneId) {
         this.setErrorMessage(paneId, '');
     },
@@ -206,7 +211,7 @@ const ExampWidget = declare(Widget, {
                 this.grayOut(paneId, false);
 
                 widget_elt.classList.add('widgetHasError');
-                iseUtil.typeset([err_elt]);
+                this.typeset(paneId, [err_elt]);
             } else {
                 widget_elt.classList.remove('widgetHasError');
             }

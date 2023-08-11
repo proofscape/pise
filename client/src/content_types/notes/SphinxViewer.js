@@ -94,6 +94,10 @@ export class SphinxViewer extends BasePageViewer {
         options.padPx = px;
     }
 
+    typeset(elements) {
+        return super.typeset(elements, this.cw);
+    }
+
     /* Handle the event of our iframe completing loading of a new page.
      */
     handleFrameLoad() {
@@ -102,6 +106,9 @@ export class SphinxViewer extends BasePageViewer {
             console.debug(this.spi);
             this.observeLocationChange();
         });
+
+        const hub = this.mgr.hub;
+        hub.markPyodideLoadedInDocument(this.cw.document, hub.pyodideIsLoaded());
 
         this.setupBackgroundClickHandler();
         this.attachContextMenu(this.iframe, '.main', ['source']);
@@ -124,7 +131,7 @@ export class SphinxViewer extends BasePageViewer {
             // Add custom CSS
             const styleScript = this.cw.document.createElement("script");
             styleScript.type = "text/javascript";
-            styleScript.src = this.mgr.hub.urlFor('staticISE') + "/pagesCss.js";
+            styleScript.src = this.mgr.hub.urlFor('staticISE') + "/sphinxpage.js";
             this.cw.document.querySelector('body').appendChild(styleScript);
 
             this.activateWidgets();

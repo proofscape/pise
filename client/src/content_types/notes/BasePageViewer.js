@@ -75,6 +75,10 @@ export class BasePageViewer extends Listenable {
         this.unsubscribe();
     }
 
+    typeset(elements, win) {
+        return ise.util.typeset(elements, win);
+    }
+
     setupBackgroundClickHandler() {
         this.mainContentArea.addEventListener('click', this.backgroundClick.bind(this));
     }
@@ -352,6 +356,12 @@ export class BasePageViewer extends Listenable {
                 this.markWidgetElementAsSelected(selectedElt);
             }
         }
+    }
+
+    /* Called when a widget in the page has updated its appearance. Subclasses may wish
+     * to carry out corresponding updates at this time (e.g. update an overview panel).
+     */
+    observeWidgetVisualUpdate(event) {
     }
 
     /* If the page viewer has an overview panel of some kind, that may need some special

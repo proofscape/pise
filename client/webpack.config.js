@@ -29,12 +29,12 @@ module.exports = env => {
         entry: {
             ise: './src/main.js',
             mathworker: './src/mathworker.js',
-            pagesCss: './src/css/pages.css',
+            sphinxpage: './src/sphinxpage.js',
         },
         output: {
             filename: (pathData) => {
-                if (pathData.chunk.name === 'pagesCss') {
-                    return 'ise/pagesCss.js';
+                if (pathData.chunk.name === 'sphinxpage') {
+                    return 'ise/sphinxpage.js';
                 } else {
                     return `ise/[name].bundle${devmode ? '.' : '.min.'}js`;
                 }

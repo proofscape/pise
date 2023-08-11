@@ -19,9 +19,8 @@
 from docutils.parsers.rst.directives import unchanged
 
 from pfsc.lang.widgets import PdfWidget
-from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
-    PfscNavWidgetRole, PfscNavWidgetDirective,
-)
+from pfsc.sphinx.sphinx_proofscape.widgets.nav_widgets import PfscNavWidgetRole
+from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
 
 
 class PfscPdfWidgetRole(PfscNavWidgetRole):
@@ -40,12 +39,11 @@ class PfscPdfWidgetRole(PfscNavWidgetRole):
         Compare :pfsc-doc:`the original proof <doc1#v2;s3;(1:1758:2666:400:200:100:50)>`.
     """
     widget_class = PdfWidget
-    html_class = 'pdfWidget'
     widget_type_name = 'pdf'
     target_field_name = 'sel'
 
 
-class PfscPdfWidgetDirective(PfscNavWidgetDirective):
+class PfscPdfWidgetDirective(PfscOneArgWidgetDirective):
     """
     Directive syntax for PDF widgets.
 
@@ -70,9 +68,11 @@ class PfscPdfWidgetDirective(PfscNavWidgetDirective):
 
     """
     widget_class = PdfWidget
-    html_class = 'pdfWidget'
+
+    label_required = True
+
     option_spec = {
-        **PfscNavWidgetDirective.option_spec,
+        **PfscOneArgWidgetDirective.option_spec,
         "doc": unchanged,
         "sel": unchanged,
     }

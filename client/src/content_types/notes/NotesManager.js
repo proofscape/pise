@@ -223,6 +223,21 @@ var NotesManager = declare(AbstractContentManager, {
         return {libpath, version, hash};
     },
 
+    // Get an array of the content windows of all Sphinx panels.
+    getAllSphinxWindows: function() {
+        const wins = [];
+        for (const viewer of Object.values(this.viewers)) {
+            if (viewer.pageType === "SPHINX") {
+                wins.push(viewer.cw);
+            }
+        }
+        return wins;
+    },
+
+    getViewerForPaneId: function(paneId) {
+        return this.viewers[paneId];
+    },
+
     getSuppliedDocHighlights: function(paneId) {
         const viewer = this.viewers[paneId];
         const docInfoObj = viewer?.currentPageData?.docInfo;

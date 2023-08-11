@@ -27,7 +27,7 @@ from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.build.products import load_annotation, load_dashgraph
 from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO, SCRIPT_ID
-from pfsc.sphinx.sphinx_proofscape.util import process_widget_label
+from pfsc.sphinx.sphinx_proofscape.widgets.util import process_widget_label
 from pfsc.excep import PfscExcep
 
 
@@ -36,6 +36,13 @@ def get_chart_widget_anchors(soup):
     Get the list of any and all <a> tags having class `chartWidget`.
     """
     return list(soup.find_all('a', class_='chartWidget'))
+
+
+def get_examp_widget_divs(soup):
+    """
+    Get the list of any and all <div> tags having class `exampWidget`.
+    """
+    return list(soup.find_all('div', class_='exampWidget'))
 
 
 def get_external_anchors(soup):
@@ -277,10 +284,20 @@ def test_spx_doc1(app):
         # ======
         html = (build_dir / 'foo/pageE.html').read_text()
         soup = BeautifulSoup(html, 'html.parser')
+
         A = get_external_anchors(soup)
         assert len(A) == 2
         for a in A:
             assert a['target'] == '_blank'
+
+        D = get_examp_widget_divs(soup)
+        for d, expected_name in zip(D, PAGE_E_WIDGET_NAMES):
+            assert f'test-spx-doc1-foo-pageE-_page-{expected_name}_v0-1-0' in d.get('class')
+
+        # Get the expected pfsc_page_data:
+        page_data = get_page_data_from_script_tag(soup)
+        # print('\n', json.dumps(page_data, indent=4))
+        assert page_data == PAGE_E_PAGE_DATA
 
 
 PAGE_C_WIDGET_NAMES = [
@@ -487,6 +504,72 @@ PAGE_D_PAGE_DATA = {
                 }
             ]
         }
+    }
+}
+
+PAGE_E_WIDGET_NAMES = [
+    'eg1_k', 'eg1_disp1',
+]
+
+PAGE_E_PAGE_DATA = {
+    "libpath": "test.spx.doc1.foo.pageE._page",
+    "version": "v0.1.0",
+    "widgets": {
+        "test-spx-doc1-foo-pageE-_page-eg1_k_v0-1-0": {
+            "ptype": "NumberField",
+            "name": "k",
+            "default": "cyc(7)",
+            "args": {
+                "gen": "zeta",
+                "foo": [
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "bar": False
+            },
+            "type": "PARAM",
+            "src_line": 15,
+            "trusted": False,
+            "widget_libpath": "test.spx.doc1.foo.pageE._page.eg1_k",
+            "uid": "test-spx-doc1-foo-pageE-_page-eg1_k_v0-1-0",
+            "dependencies": [],
+            "params": {},
+            "version": "v0.1.0"
+        },
+        "test-spx-doc1-foo-pageE-_page-eg1_disp1_v0-1-0": {
+            "export": [
+                "B"
+            ],
+            "build": [
+                "",
+                "# You can choose the printing format for the elements of the basis.\nfmt = 'alg'\n",
+                "B = k.integral_basis(fmt=fmt)\nhtml = \"An integral basis for $k$:\\n\\n\"\nhtml += r\"$\\{\" + ','.join([latex(b, order='old') for b in B]) + r\"\\}$\"\nreturn html"
+            ],
+            "type": "DISP",
+            "src_line": 26,
+            "trusted": False,
+            "widget_libpath": "test.spx.doc1.foo.pageE._page.eg1_disp1",
+            "uid": "test-spx-doc1-foo-pageE-_page-eg1_disp1_v0-1-0",
+            "dependencies": [
+                {
+                    "libpath": "test.spx.doc1.foo.pageE._page.eg1_k",
+                    "uid": "test-spx-doc1-foo-pageE-_page-eg1_k_v0-1-0",
+                    "type": "PARAM",
+                    "direct": True
+                }
+            ],
+            "params": {
+                "k": "test.spx.doc1.foo.pageE._page.eg1_k"
+            },
+            "imports": {},
+            "version": "v0.1.0"
+        }
+    },
+    "docInfo": {
+        "docs": {},
+        "refs": {}
     }
 }
 

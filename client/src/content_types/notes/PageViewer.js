@@ -127,6 +127,10 @@ var PageViewer = declare(null, {
         this.unsubscribe();
     },
 
+    typeset: function(elements) {
+        return iseUtil.typeset(elements);
+    },
+
     attachContextMenu: function(elt) {
         const menu = new Menu({
             targetNodeIds: [elt]

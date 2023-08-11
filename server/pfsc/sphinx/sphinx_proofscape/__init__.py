@@ -23,14 +23,12 @@ from pfsc.sphinx.sphinx_proofscape.pages import (
     setup_pfsc_env, purge_pfsc_env, merge_pfsc_env,
     inject_page_data,
 )
-from pfsc.sphinx.sphinx_proofscape.nav_widgets import (
-    navwidget, visit_navwidget_html, depart_navwidget_html,
-)
-from pfsc.sphinx.sphinx_proofscape.chart_widget import (
+from pfsc.sphinx.sphinx_proofscape.widgets import (
+    pfsc_block_widget, pfsc_inline_widget,
+    visit_pfsc_widget_html, depart_pfsc_widget_html,
     PfscChartRole, PfscChartDirective,
-)
-from pfsc.sphinx.sphinx_proofscape.doc_widget import (
     PfscPdfWidgetRole, PfscPdfWidgetDirective,
+    PfscDispWidgetDirective, PfscParamWidgetDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 from pfsc.sphinx.sphinx_proofscape.links import ExternalLinks
@@ -40,6 +38,8 @@ from pfsc.sphinx.sphinx_proofscape.vertex import VerTeX2TeX
 widgets = (
     ('chart', PfscChartRole, PfscChartDirective),
     ('pdf', PfscPdfWidgetRole, PfscPdfWidgetDirective),
+    ('disp', None, PfscDispWidgetDirective),
+    ('param', None, PfscParamWidgetDirective),
 )
 
 
@@ -47,8 +47,10 @@ def setup(app):
     app.add_config_value('pfsc_repopath', None, 'html')
     app.add_config_value('pfsc_repovers', None, 'html')
 
-    app.add_node(navwidget,
-                 html=(visit_navwidget_html, depart_navwidget_html))
+    app.add_node(pfsc_block_widget,
+                 html=(visit_pfsc_widget_html, depart_pfsc_widget_html))
+    app.add_node(pfsc_inline_widget,
+                 html=(visit_pfsc_widget_html, depart_pfsc_widget_html))
 
     app.add_transform(VerTeX2TeX)
     app.add_post_transform(ExternalLinks)
@@ -57,9 +59,11 @@ def setup(app):
 
     for name, role_class, directive_class in widgets:
         full_name = f'pfsc-{name}'
-        role_instance = role_class()
-        app.add_role(full_name, role_instance)
-        app.add_directive(full_name, directive_class)
+        if role_class:
+            role_instance = role_class()
+            app.add_role(full_name, role_instance)
+        if directive_class:
+            app.add_directive(full_name, directive_class)
 
     app.connect('builder-inited', setup_pfsc_env)
     app.connect('env-purge-doc', purge_pfsc_env)
