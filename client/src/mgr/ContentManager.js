@@ -1160,7 +1160,7 @@ var ContentManager = declare(null, {
         let tuples = [];
         if (type === this.crType.CHART) {
             tuples = this.hub.chartManager.getAllDocRefTriplesLocal({});
-        } else if (type === this.crType.NOTES) {
+        } else if (type === this.crType.NOTES || type === this.crType.SPHINX) {
             tuples = this.hub.notesManager.getAllDocRefQuadsLocal({});
         }
         for (const t of tuples) {
@@ -1220,8 +1220,8 @@ var ContentManager = declare(null, {
 
             // Links C --> X
             if (sourceType === this.crType.CHART) {
-                // Can't link CHART --> NOTES.
-                if (targetType === this.crType.NOTES) {
+                // Can't link CHART --> NOTES/SPHINX.
+                if (targetType === this.crType.NOTES || targetType === this.crType.SPHINX) {
                     return;
                 }
 
@@ -1244,7 +1244,7 @@ var ContentManager = declare(null, {
             // Theoretically we could require the user to drag and drop onto a specific widget,
             // but for now we're going to put that off. For now, the rule will be that we'll form
             // a new link iff there is *exactly one* widget group relevant to the target content.
-            if (sourceType === this.crType.NOTES) {
+            if (sourceType === this.crType.NOTES || sourceType === this.crType.SPHINX) {
                 const nm = this.hub.notesManager;
                 const quads = nm.getAllDocRefQuadsLocal({});
                 let test = (g, d) => false;
