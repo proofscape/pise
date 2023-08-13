@@ -45,7 +45,7 @@ export class AnnoViewer extends BasePageViewer {
     constructor(nm, parent, pane, uuid, options) {
         super(nm, "NOTES");
         options = options || {};
-        this.overviewScale = options.overviewScale || this.overviewScale;
+        this.overviewScale = options.overviewScale || 20;
         this.nm = nm;
         this.uuid = uuid;
         this.subscriptionManager = nm.annoSubscriptionManager;
@@ -67,8 +67,6 @@ export class AnnoViewer extends BasePageViewer {
 
         this.pane = pane;
         this._scrollNode = main;
-        this.history = [];
-        this.navEnableHandlers = [];
         this.listeners = {};
         this.on('pageChange', this.updateOverview.bind(this));
     }
