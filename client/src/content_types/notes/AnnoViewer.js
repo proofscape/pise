@@ -175,10 +175,18 @@ export class AnnoViewer extends BasePageViewer {
         return loc;
     }
 
+    writeContentDescriptor(serialOnly) {
+        const cdo = this.describeCurrentLocation();
+        cdo.type = this.nm.hub.contentManager.crType.NOTES;
+        cdo.history = this.copyHistory();
+        cdo.sidebar = this.getSidebarProperties();
+        cdo.ptr = this.ptr;
+        return cdo;
     }
 
-    writeContentDescriptor(serialOnly) {
-        // TODO
+    getCurrentLibpath() {
+        const loc = this.getCurrentLoc();
+        return loc === null ? null : loc.libpath;
     }
 
     getCurrentLibpathv() {
