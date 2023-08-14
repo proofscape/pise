@@ -261,7 +261,7 @@ export class BasePageViewer extends Listenable {
         this.updateContextMenu(loc);
         this.doScrolling(loc);
         this.doSelection(loc);
-        this.updateOverview(loc);
+        this.observePageUpdate(loc);
     }
 
     // SUBCLASSES MUST OVERRIDE
@@ -364,10 +364,11 @@ export class BasePageViewer extends Listenable {
     observeWidgetVisualUpdate(event) {
     }
 
-    /* If the page viewer has an overview panel of some kind, that may need some special
-     * update steps, whenever the page is updated. Subclasses can perform such steps here.
+    /* This is called at the end of our `updatePage()` method. It is a place where
+     * subclasses may perform any additional steps that are appropriate after the page
+     * has been updated, e.g. updating an overview panel, etc.
      */
-    updateOverview(loc) {
+    observePageUpdate(loc) {
     }
 
     /* Scroll a fraction of the way down the page.
