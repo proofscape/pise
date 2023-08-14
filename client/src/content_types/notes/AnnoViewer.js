@@ -186,14 +186,12 @@ export class AnnoViewer extends BasePageViewer {
         return loc === null ? null : iseUtil.lv(loc.libpath, loc.version);
     }
 
-    /* Set the theme on a single sphinx content window.
-     */
     setTheme(theme) {
+        // Nothing to do.
     }
 
-    /* Set the zoom level on a single sphinx content window.
-     */
     setZoom(level) {
+        // Nothing to do.
     }
 
     /* Receive updated page contents.
