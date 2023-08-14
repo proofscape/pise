@@ -182,8 +182,8 @@ export class AnnoViewer extends BasePageViewer {
     }
 
     getCurrentLibpathv() {
-        var loc = this.getCurrentLoc();
-        return loc === null ? null : iseUtil.lv(loc.libpath, loc.version);
+        const loc = this.getCurrentLoc();
+        return loc === null ? null : ise.util.lv(loc.libpath, loc.version);
     }
 
     setTheme(theme) {
