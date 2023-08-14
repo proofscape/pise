@@ -17,13 +17,13 @@
 import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
 import { DynamicSubscriptionManager, StaticSubscriptionManager } from "../SubscriptionManager";
+import { AnnoViewer } from "./AnnoViewer";
 import { SphinxViewer } from "./SphinxViewer";
 
 define([
     "dojo/_base/declare",
     "dojo/query",
     "ise/content_types/AbstractContentManager",
-    "ise/content_types/notes/PageViewer",
     "ise/widgets/Widget",
     "ise/widgets/ChartWidget",
     "ise/widgets/LinkWidget",
@@ -42,7 +42,6 @@ define([
     declare,
     query,
     AbstractContentManager,
-    PageViewer,
     Widget,
     ChartWidget,
     LinkWidget,
@@ -85,7 +84,7 @@ var NotesManager = declare(AbstractContentManager, {
 
     // Properties
     hub: null,
-    // Lookup for PageViewers by pane id:
+    // Lookup for viewers (AnnoViewer and SphinxViewer instances) by pane id:
     viewers: null,
     // Mapping that records which tail-versioned page paths are open,
     // and how many copies of each:
@@ -382,7 +381,7 @@ var NotesManager = declare(AbstractContentManager, {
         }
         const viewer = info.type === this.hub.contentManager.crType.SPHINX ?
             new SphinxViewer(this, elt, pane, info.uuid, options) :
-            new PageViewer(this, elt, pane, info.uuid, options);
+            new AnnoViewer(this, elt, pane, info.uuid, options);
         viewer.addNavEnableHandler(this.publishNavEnable.bind(this));
         viewer.on('pageChange', this.notePageChange.bind(this));
         viewer.on('pageReload', this.notePageReload.bind(this));
