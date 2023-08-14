@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 import { BasePageViewer } from "./BasePageViewer";
+import { Sidebar } from "./Sidebar";
 
 const dojo = {};
 const ise = {};
@@ -45,25 +46,27 @@ export class AnnoViewer extends BasePageViewer {
     constructor(nm, parent, pane, uuid, options) {
         super(nm, "NOTES");
         options = options || {};
-        this.overviewScale = options.overviewScale || 20;
+
         this.nm = nm;
         this.uuid = uuid;
         this.subscriptionManager = nm.annoSubscriptionManager;
 
         this.elt = document.createElement('div');
-        this.sidebar = document.createElement('div');
-        this.sidebar.classList.add('overviewSidebar', 'globalZoom');
+        const sidebarDiv = document.createElement('div');
         this.mainview = document.createElement('div');
         const main = this.mainview;
         main.classList.add('mainview', 'globalZoom');
         main.appendChild(this.elt);
         parent.appendChild(main);
-        parent.appendChild(this.sidebar);
+        parent.appendChild(sidebarDiv);
 
-        main.addEventListener('scroll', this.observeMainAreaScroll.bind(this));
         this.setupBackgroundClickHandler();
         this.attachContextMenu(this.elt, undefined, ['toggleOverview', 'source']);
-        this.attachSidebarContextMenu();
+
+        const initialScale = options.overviewScale || 20;
+        this.sidebar = new Sidebar(
+            this, sidebarDiv, this.elt, this.mainview, initialScale
+        );
 
         this.pane = pane;
         this._scrollNode = main;
@@ -81,6 +84,45 @@ export class AnnoViewer extends BasePageViewer {
 
     get scrollNode() {
         return this._scrollNode;
+    }
+
+    observeWidgetVisualUpdate(event) {
+        this.updateOverview();
+    }
+
+    observePageUpdate(loc) {
+        this.updateOverview();
+    }
+
+    updateOverview() {
+        this.sidebar.update();
+    }
+
+    showOverviewSidebar(doShow) {
+        const grandparent = this.contentElement.parentElement.parentElement;
+        if (doShow) {
+            this.sidebar.update();
+            this.sidebar.centerGlass();
+            grandparent.classList.add('showSidebar');
+        } else {
+            grandparent.classList.remove('showSidebar');
+        }
+    }
+
+    toggleOverviewSidebar() {
+        this.showOverviewSidebar(!this.sidebarIsVisible());
+    }
+
+    sidebarIsVisible() {
+        const grandparent = this.contentElement.parentElement.parentElement;
+        return grandparent.classList.contains('showSidebar');
+    }
+
+    getSidebarProperties() {
+        return {
+            visible: this.sidebarIsVisible(),
+            scale: this.sidebar.scale,
+        };
     }
 
     async pageContentsUpdateStep(loc) {
