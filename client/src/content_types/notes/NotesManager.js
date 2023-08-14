@@ -14,7 +14,6 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
-import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
 import { DynamicSubscriptionManager, StaticSubscriptionManager } from "../SubscriptionManager";
 import { AnnoViewer } from "./AnnoViewer";
