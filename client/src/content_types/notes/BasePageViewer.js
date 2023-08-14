@@ -455,29 +455,25 @@ export class BasePageViewer extends Listenable {
         };
     }
 
-    announcePageChange(update, loc, oldPageData) {
-        if (update.pageChange) {
-            const event = {
-                type: 'pageChange',
-                uuid: this.uuid,
-                oldLibpathv: null,
-                oldPageData: oldPageData,
-                newLibpathv: `${loc.libpath}@${loc.version}`,
-            }
-            const cur = this.getCurrentLoc();
-            if (cur) {
-                event.oldLibpathv = `${cur.libpath}@${cur.version}`;
-            }
-            this.dispatch(event);
+    announcePageChange(loc, oldPageData) {
+        const event = {
+            type: 'pageChange',
+            uuid: this.uuid,
+            oldLibpathv: null,
+            oldPageData: oldPageData,
+            newLibpathv: `${loc.libpath}@${loc.version}`,
         }
+        const cur = this.getCurrentLoc();
+        if (cur) {
+            event.oldLibpathv = `${cur.libpath}@${cur.version}`;
+        }
+        this.dispatch(event);
     }
 
-    updateSubscription(update, loc) {
-        if (update.pageChange) {
-            this.unsubscribe();
-            if (loc.version === "WIP") {
-                this.subscribe(loc.libpath);
-            }
+    updateSubscription(loc) {
+        this.unsubscribe();
+        if (loc.version === "WIP") {
+            this.subscribe(loc.libpath);
         }
     }
 
@@ -545,8 +541,13 @@ export class BasePageViewer extends Listenable {
         const oldPageData = this.beforeNavigate();
         await this.updatePage(loc);
         const update = this.describeLocationUpdate(loc);
-        this.announcePageChange(update, loc, oldPageData);
-        this.updateSubscription(update, loc);
+        if (update.pageChange) {
+            // Note: it is critical that these steps happen before
+            // the `recordNewHistory` step, since that changes the
+            // _current_ location, which these methods rely upon.
+            this.announcePageChange(loc, oldPageData);
+            this.updateSubscription(loc);
+        }
         return update;
     }
 }

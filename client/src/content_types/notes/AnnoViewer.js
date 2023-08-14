@@ -175,21 +175,6 @@ export class AnnoViewer extends BasePageViewer {
         return loc;
     }
 
-    announcePageChange(update, loc, oldPageData) {
-        if (update.annotationChange) {
-            const event = {
-                type: 'pageChange',
-                uuid: this.uuid,
-                oldLibpathv: null,
-                oldPageData: oldPageData,
-                newLibpathv: `${loc.libpath}@${loc.version}`,
-            }
-            const cur = this.getCurrentLoc();
-            if (cur) {
-                event.oldLibpathv = `${cur.libpath}@${cur.version}`;
-            }
-            this.dispatch(event);
-        }
     }
 
     writeContentDescriptor(serialOnly) {
