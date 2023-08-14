@@ -303,7 +303,11 @@ export class SphinxViewer extends BasePageViewer {
         super.normalizeHistoryRecord(rec);
         if (rec.url) {
             let url = rec.url;
-            const pageUrl = window.location.href;
+            // Note: don't use `window.location.href`, since that will include
+            // any trailing `#` that may have been added to the page URL due to
+            // clicks on various <a> tags that use that. Instead, use `origin`
+            // plus `pathname`.
+            const pageUrl = window.location.origin + window.location.pathname;
             if (url.startsWith(pageUrl)) {
                 url = url.slice(pageUrl.length);
             }
