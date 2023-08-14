@@ -14,5 +14,14 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+// For various page elements, like <a> tags:
 require("src/css/pages.css");
+// For examp widgets:
 require("src/examp/examp.css");
+
+// For editable areas in disp widgets:
+require("ace-builds/src-noconflict/ace.js");
+require("ace-builds/src-noconflict/mode-python.js");
+require("ace-builds/src-noconflict/theme-tomorrow.js");
+require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
+require("ace-builds/src-noconflict/ext-searchbox.js");
