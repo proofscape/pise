@@ -155,9 +155,9 @@ export class AnnoViewer extends BasePageViewer {
         this.nm.setupWidgets(data, this.elt, this.pane);
     }
 
-    /* Load page data from back-end.
+    /* Load page data from server.
      *
-     * return: a promise that resolves with the page contents.
+     * return: promise that resolves with the page contents.
      */
     async loadPageContents({libpath, version}) {
         const data = await this.prepareDataForPageLoad({libpath, version});

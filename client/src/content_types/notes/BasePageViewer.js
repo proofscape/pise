@@ -40,9 +40,25 @@ export class BasePageViewer extends Listenable {
         this.mgr = notesManager;
         this.pageType = pageType;
         this.navEnableHandlers = [];
+
+        // history: array of location objects.
+        // Just like in a web browser, a "location" consists of an address, plus an
+        // optional element within that page (to which we should scroll).
+        // In a web browser, the latter is given by the id of a page element, and is
+        // set off by a "#" char after the page address.
+        // For us, you may use any CSS selector, and we will scroll to the first element
+        // that matches it (if any).
+        // When we record a location, we always record a scrollSel, recording null
+        // if none was specified.
         this.history = [];
+        // ptr: always points at the location object in our history that
+        // represents the content we are currently showing. Remains null until
+        // the first location has been loaded.
         this.ptr = null;
+        // Each time we load a new page, we overwrite this with the data JSON for
+        // that page.
         this.currentPageData = null;
+
         this.subscribedLibpath = null;
         this.subscriptionManager = null;
         this.contextMenu = null;
@@ -127,6 +143,7 @@ export class BasePageViewer extends Listenable {
         }
     }
 
+    // Record a copy of the given location as a new location in our history.
     recordNewHistory(loc) {
         const rec = Object.assign({}, loc);
         this.normalizeHistoryRecord(rec);
@@ -161,6 +178,9 @@ export class BasePageViewer extends Listenable {
         if (this.ptr !== null) this.history[this.ptr].scrollFrac = this.computeScrollFrac();
     }
 
+    /* Increment history pointer.
+     * This gets a method since we may want some allied activity.
+     */
     incrPtr() {
         this.ptr++;
         this.publishNavEnable();
@@ -189,6 +209,12 @@ export class BasePageViewer extends Listenable {
     getCurrentLibpathv() {
     }
 
+    /* Return a location object describing the current location, or `null` if we do not
+     * have a current location.
+     *
+     * It will be a fresh object, not a ref to any element of our history, so clients
+     * may modify the returned object with impunity.
+     */
     describeCurrentLocation() {
         const loc = this.getCurrentLoc();
         // Return a copy.
@@ -442,6 +468,12 @@ export class BasePageViewer extends Listenable {
     addScrollPadding(options) {
     }
 
+    /* Given a location, describe (with booleans) in what way(s) it
+     * differs from the current location.
+     *
+     * If the current location is null (we don't have a location yet), then
+     * the given one will be said to differ from it in every way.
+     */
     describeLocationUpdate(loc) {
         const cur = this.getCurrentLoc() || {};
         const libpathChange = cur.libpath !== loc.libpath;
@@ -471,6 +503,9 @@ export class BasePageViewer extends Listenable {
         this.dispatch(event);
     }
 
+    /* Remove any existing subscription, and subscribe to the libpath
+     * we are currently viewing (but only if it is WIP).
+     */
     updateSubscription(loc) {
         this.unsubscribe();
         if (loc.version === "WIP") {
@@ -506,6 +541,29 @@ export class BasePageViewer extends Listenable {
         return !!loc.libpath && !!loc.version;
     }
 
+    /* Navigate to a location.
+     *
+     * param loc: An object describing the desired location.
+     *  All fields are optional, except that if we do not yet have a current
+     *  location, then libpath and version are required (else it's a no-op).
+     *  optional fields:
+     *      libpath: the libpath of the page to be viewed.
+     *          If undefined, use current.
+     *      version: the version of the page to be viewed.
+     *          If undefined, use current.
+     *      scrollSel: a CSS selector. Will scroll to first element in
+     *          the page that matches the selector, if any. Type of scrolling
+     *          is controlled by scrollOpts.
+     *      scrollOpts: see `scrollToSelector()` method.
+     *      scrollFrac: a float between 0 and 1 indicating what fraction of
+     *          the page we should scroll to vertically. If scrollSel is
+     *          also defined, scrollFrac overrides it.
+     *      select: a CSS selector. Will mark this element as "selected" by
+     *          adding the 'selected' class to it, after removing that class
+     *          from all others.
+     *
+     * return: Promise that resolves after we have finished loading and updating history
+     */
     async goTo(loc) {
         const ok = this.ensureLibpathAndVersion(loc);
         if (!ok) {
@@ -520,7 +578,7 @@ export class BasePageViewer extends Listenable {
 
     /* Navigate to the next location forward in the history, if any.
      *
-     * return: a Promise that resolves after we have finished loading and updating history
+     * return: Promise that resolves after we have finished loading and updating history
      */
     async goForward() {
         if (this.canGoForward()) {
@@ -530,6 +588,10 @@ export class BasePageViewer extends Listenable {
         }
     }
 
+    /* Navigate to the previous location in the history, if any.
+     *
+     * return: Promise that resolves after we have finished loading and updating history
+     */
     async goBackward() {
         if (this.canGoBackward()) {
             const loc = this.history[this.ptr - 1];
