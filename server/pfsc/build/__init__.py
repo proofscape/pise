@@ -827,7 +827,11 @@ class Builder:
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             traceback.print_exc()
-            raise PfscExcep(f'Sphinx error: {e}', PECode.SPHINX_ERROR) from e
+            oe = e.orig_exc
+            if isinstance(oe, PfscExcep):
+                raise oe
+            else:
+                raise e
 
     def inject_origins(self):
         visitor = OriginInjectionVisitor(self.mii.origins)
