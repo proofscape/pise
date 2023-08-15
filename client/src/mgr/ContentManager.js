@@ -177,6 +177,28 @@ var ContentManager = declare(null, {
         return this.contentRegistry[cpId];
     },
 
+    /* Given the ID of a ContentPane, locate the manager for that content type,
+     * and tell it to push the scroll fraction for this pane.
+     */
+    pushScrollFrac: function(cpId) {
+        const info = this.contentRegistry[cpId];
+        if (info) {
+            const mgr  = this.getManager(info.type);
+            return mgr.pushScrollFrac(cpId);
+        }
+    },
+
+    /* Given the ID of a ContentPane, locate the manager for that content type,
+     * and tell it to pop the scroll fraction for this pane.
+     */
+    popScrollFrac: function(cpId) {
+        const info = this.contentRegistry[cpId];
+        if (info) {
+            const mgr  = this.getManager(info.type);
+            return mgr.popScrollFrac(cpId);
+        }
+    },
+
     /* Search this window for a pane having a given uuid.
      * Return the Dijit paneId if found, else null.
      */

@@ -62,6 +62,7 @@ export class BasePageViewer extends Listenable {
         this.subscribedLibpath = null;
         this.subscriptionManager = null;
         this.contextMenu = null;
+        this.lastScrollFrac = null;
     }
 
     // ---------------------------------------------------------------------------
@@ -89,6 +90,17 @@ export class BasePageViewer extends Listenable {
 
     destroy() {
         this.unsubscribe();
+    }
+
+    pushScrollFrac() {
+        this.lastScrollFrac = this.computeScrollFrac();
+    }
+
+    async popScrollFrac() {
+        if (this.lastScrollFrac) {
+            this.scrollToFraction(this.lastScrollFrac);
+        }
+        this.lastScrollFrac = null;
     }
 
     typeset(elements, win) {

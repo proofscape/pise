@@ -144,11 +144,11 @@ function construct(ISE_state) {
 
     // The AppLayout constructs the basic layout elements for the app.
     const appLayout = new AppLayout(homeId, ISE_state);
-    // We need our ContentManager now, so we can pass its `openCopy` method to the TabContainerTree.
+    // We need our ContentManager now, so we can pass it to the TabContainerTree.
     const contentManager = new ContentManager();
     // Make a TabContainerTree, to manage all the tabs and splits.
     const tct = new TabContainerTree(appLayout.tctSocket, {
-        openCopy: contentManager.openCopy.bind(contentManager)
+        contentManager: contentManager
     });
     // Layout elements in DojoToolkit need to be "started up".
     appLayout.startup();

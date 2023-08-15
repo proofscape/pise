@@ -56,6 +56,10 @@ export class SphinxViewer extends BasePageViewer {
         });
 
         this.resolvePageUpdate = null;
+
+        this.resolveMovementInducedReload = null;
+        this.promiseMovementInducedReload = Promise.resolve();
+
         this.subscriptionManager = nm.sphinxSubscriptionManager;
     }
 
@@ -77,6 +81,41 @@ export class SphinxViewer extends BasePageViewer {
 
     get scrollNode() {
         return this.cw.document.querySelector('html');
+    }
+
+    pushScrollFrac() {
+        super.pushScrollFrac();
+        this.promiseMovementInducedReload = new Promise(resolve => {
+            this.resolveMovementInducedReload = resolve;
+        });
+    }
+
+    async popScrollFrac() {
+        await this.promiseMovementInducedReload;
+        await this.heightStable();
+        await super.popScrollFrac();
+    }
+
+    // Return a promise that resolves when the height of the scroll node has been
+    // stable for 100ms, or has failed to do so for 2s, whichever comes first.
+    heightStable() {
+        return new Promise(resolve => {
+            const maxTries = 20;
+            let numTries = 0;
+            let h0 = this.scrollNode.scrollHeight;
+            console.debug(h0);
+            const ival = this.cw.setInterval(() => {
+                const h1 = this.scrollNode.scrollHeight;
+                console.debug(h1);
+                if (h1 === h0 || numTries > maxTries) {
+                    this.cw.clearInterval(ival);
+                    resolve();
+                } else {
+                    h0 = h1;
+                    numTries++;
+                }
+            }, 100);
+        });
     }
 
     /* When a Sphinx page is sufficiently narrow, it gains a visible header bar.
@@ -148,6 +187,10 @@ export class SphinxViewer extends BasePageViewer {
             // No need to manage history here, since it was already handled elsewhere.
             this.resolvePageUpdate();
             this.resolvePageUpdate = null;
+        } else if (this.resolveMovementInducedReload) {
+            // The page was reloaded due to the iframe being moved in the document.
+            this.resolveMovementInducedReload();
+            this.resolveMovementInducedReload = null;
         } else {
             // The location change did not result for a deliberate call to this.updatePage().
             // This means it must have resulted from the user clicking an <a> tag within the

@@ -138,6 +138,12 @@ var AbstractContentManager = declare(null, {
         };
     },
 
+    pushScrollFrac: function(paneId) {
+    },
+
+    popScrollFrac: function(paneId) {
+    },
+
 });
 
 return AbstractContentManager;

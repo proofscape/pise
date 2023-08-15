@@ -396,6 +396,20 @@ var NotesManager = declare(AbstractContentManager, {
         });
     },
 
+    pushScrollFrac: function(paneId) {
+        const viewer = this.viewers[paneId];
+        if (viewer) {
+            viewer.pushScrollFrac();
+        }
+    },
+
+    popScrollFrac: function(paneId) {
+        const viewer = this.viewers[paneId];
+        if (viewer) {
+            viewer.popScrollFrac();
+        }
+    },
+
     /* Update the content of an existing pane of this manager's type.
      *
      * param info: An info object indicating the desired content.
