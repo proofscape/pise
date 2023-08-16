@@ -208,15 +208,6 @@ export class AnnoViewer extends BasePageViewer {
         return loc.version === "WIP";
     }
 
-    describeCurrentLocation() {
-        const loc = super.describeCurrentLocation();
-        if (loc) {
-            // Note scrollFrac.
-            loc.scrollFrac = this.computeScrollFrac();
-        }
-        return loc;
-    }
-
     writeContentDescriptor(serialOnly) {
         const cdo = this.describeCurrentLocation();
         cdo.type = this.nm.hub.contentManager.crType.NOTES;

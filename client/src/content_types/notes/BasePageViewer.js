@@ -221,16 +221,23 @@ export class BasePageViewer extends Listenable {
     getCurrentLibpathv() {
     }
 
-    /* Return a location object describing the current location, or `null` if we do not
-     * have a current location.
+    /* Return a location object describing the current location, including up-to-date
+     * scrollFrac, or `null` if we do not have a current location.
+     *
+     * The inclusion of up-to-date scrollFrac makes the return value suitable for use
+     * when reloading the page due to a rebuild.
      *
      * It will be a fresh object, not a ref to any element of our history, so clients
      * may modify the returned object with impunity.
      */
     describeCurrentLocation() {
-        const loc = this.getCurrentLoc();
-        // Return a copy.
-        return JSON.parse(JSON.stringify(loc));
+        let loc = this.getCurrentLoc();
+        loc = JSON.parse(JSON.stringify(loc));
+        if (loc) {
+            // Note up-to-date scrollFrac.
+            loc.scrollFrac = this.computeScrollFrac();
+        }
+        return loc;
     }
 
     addNavEnableHandler(callback) {
