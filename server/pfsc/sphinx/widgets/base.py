@@ -19,8 +19,8 @@ from docutils.parsers.rst.directives import unchanged
 from sphinx.util.docutils import SphinxDirective
 from sphinx.errors import SphinxError
 
-from pfsc.sphinx.sphinx_proofscape.pages import get_sphinx_page
-from pfsc.sphinx.sphinx_proofscape.widgets.util import (
+from pfsc.sphinx.pages import get_sphinx_page
+from pfsc.sphinx.widgets.util import (
     process_widget_label, check_widget_name,
 )
 from pfsc.excep import PfscExcep

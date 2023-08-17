@@ -18,8 +18,8 @@ import re
 
 from sphinx.util.docutils import SphinxRole
 
-from pfsc.sphinx.sphinx_proofscape.widgets.base import finish_run
-from pfsc.sphinx.sphinx_proofscape.widgets.util import process_widget_label
+from pfsc.sphinx.widgets.base import finish_run
+from pfsc.sphinx.widgets.util import process_widget_label
 from pfsc.excep import PfscExcep
 
 

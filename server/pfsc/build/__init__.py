@@ -83,7 +83,7 @@ from pfsc.lang.modules import (
 from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
 from pfsc.lang.widgets import GoalWidget
-from pfsc.sphinx.sphinx_proofscape.pages import (
+from pfsc.sphinx.pages import (
     build_libpath_for_rst, SphinxPage,
 )
 
@@ -724,7 +724,7 @@ class Builder:
             # We use the separate extension for the lexers:
             'sphinx_proofscape',
             # We use the local extension for everything else:
-            'pfsc.sphinx.sphinx_proofscape',
+            'pfsc.sphinx',
         ]
         confoverrides = {
             'pfsc_repopath': self.repo_info.libpath,

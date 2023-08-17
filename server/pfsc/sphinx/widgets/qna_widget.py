@@ -17,7 +17,7 @@
 from docutils.parsers.rst.directives import unchanged
 
 from pfsc.lang.widgets import QnAWidget
-from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
+from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
 
 
 class PfscQnAWidgetDirective(PfscOneArgWidgetDirective):

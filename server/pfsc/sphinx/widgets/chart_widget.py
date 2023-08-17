@@ -21,9 +21,9 @@ from sphinx.errors import SphinxError
 
 from pfsc.checkinput import check_boxlisting
 from pfsc.lang.widgets import ChartWidget
-from pfsc.sphinx.sphinx_proofscape.widgets.nav_widgets import PfscNavWidgetRole
-from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
-from pfsc.sphinx.sphinx_proofscape.widgets.util import parse_box_listing
+from pfsc.sphinx.widgets.nav_widgets import PfscNavWidgetRole
+from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
+from pfsc.sphinx.widgets.util import parse_box_listing
 
 
 def regularize_color_option_text(raw, location, option_name):

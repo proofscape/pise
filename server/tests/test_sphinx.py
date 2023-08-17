@@ -26,8 +26,8 @@ import pytest
 from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.build.products import load_annotation, load_dashgraph
-from pfsc.sphinx.sphinx_proofscape.pages import SCRIPT_INTRO, SCRIPT_ID
-from pfsc.sphinx.sphinx_proofscape.widgets.util import process_widget_label
+from pfsc.sphinx.pages import SCRIPT_INTRO, SCRIPT_ID
+from pfsc.sphinx.widgets.util import process_widget_label
 from pfsc.excep import PfscExcep
 
 

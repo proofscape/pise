@@ -23,7 +23,7 @@ from pfsc.lang.modules import (
 )
 from pfsc.lang.annotations import json_parser, PfscJsonTransformer
 from pfsc.lang.widgets import ChartWidget
-from pfsc.sphinx.sphinx_proofscape.pages import SphinxPage
+from pfsc.sphinx.pages import SphinxPage
 from pfsc.constants import WIP_TAG
 
 

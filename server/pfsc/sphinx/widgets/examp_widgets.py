@@ -18,8 +18,8 @@ from docutils.parsers.rst.directives import unchanged
 
 from pfsc.checkinput import IType, check_cdlist, check_json
 from pfsc.lang.widgets import ParamWidget, DispWidget
-from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
-from pfsc.sphinx.sphinx_proofscape.widgets.util import parse_dict_lines
+from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
+from pfsc.sphinx.widgets.util import parse_dict_lines
 
 
 class PfscParamWidgetDirective(PfscOneArgWidgetDirective):

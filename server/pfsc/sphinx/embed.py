@@ -16,7 +16,7 @@
 
 from sphinx.util.docutils import SphinxDirective
 
-from pfsc.sphinx.sphinx_proofscape.pages import (
+from pfsc.sphinx.pages import (
     build_libpath_for_rst, get_pfsc_env,
 )
 from pfsc.lang.modules import build_module_from_text, CachePolicy

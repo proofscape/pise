@@ -17,8 +17,8 @@
 from docutils.parsers.rst.directives import unchanged
 
 from pfsc.lang.widgets import PdfWidget
-from pfsc.sphinx.sphinx_proofscape.widgets.nav_widgets import PfscNavWidgetRole
-from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
+from pfsc.sphinx.widgets.nav_widgets import PfscNavWidgetRole
+from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
 
 
 class PfscPdfWidgetRole(PfscNavWidgetRole):
