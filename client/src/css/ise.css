@@ -969,45 +969,6 @@ a {
     margin-top: 8px;
 }
 
-.qna_widget {
-    font-size: 1em;
-    border: 1px solid;
-    border-radius: 7px;
-    padding: 0.5em;
-    background: #cfe0fd;
-}
-
-.themeDark .qna_widget {
-    background: #243a4c;
-}
-
-.qna_question {
-    margin-bottom: 0.5em;
-}
-
-.qna_answer {
-
-}
-
-.qna_question .qna_label {
-    font-weight: bold;
-}
-
-.qna_answer .qna_label {
-    font-weight: bold;
-}
-
-.qna_hide {
-    text-align: center;
-    transition-property: opacity;
-    transition-duration: 0.5s;
-    opacity: 0;
-}
-
-.qna_hide:hover {
-    opacity: 1;
-}
-
 /* ---------------------------------------------------------------------- */
 /* Prevent the "x" close icon being covered up by long titles, while still
    appearing all the way on the right, for short titles.                  */

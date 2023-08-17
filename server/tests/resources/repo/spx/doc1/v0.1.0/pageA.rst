@@ -12,6 +12,12 @@ Let's try an inline :pfsc-chart:`proof1: chart widget <Pf>`.
 With these, you can only specify the label, an optional name, and the ``view``
 field.
 
+.. pfsc-qna:: ultimateQuestion
+    :question:
+        What is the answer?
+    :answer:
+        42
+
 
 .. _pageA-subsec:
 

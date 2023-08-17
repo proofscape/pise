@@ -14,18 +14,25 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-from .base import (
-    pfsc_block_widget, pfsc_inline_widget,
-    visit_pfsc_widget_html, depart_pfsc_widget_html,
-)
+from docutils.parsers.rst.directives import unchanged
 
-from .chart_widget import (
-    PfscChartRole, PfscChartDirective,
-)
-from .doc_widget import (
-    PfscPdfWidgetRole, PfscPdfWidgetDirective,
-)
-from .examp_widgets import (
-    PfscDispWidgetDirective, PfscParamWidgetDirective,
-)
-from .qna_widget import PfscQnAWidgetDirective
+from pfsc.lang.widgets import QnAWidget
+from pfsc.sphinx.sphinx_proofscape.widgets.base import PfscOneArgWidgetDirective
+
+
+class PfscQnAWidgetDirective(PfscOneArgWidgetDirective):
+    """
+    Directive for Proofscape "Q&A" widgets
+
+    Accepts one argument, which is the name of the widget.
+    (It has no label, so you do not need a colon after the name.)
+    """
+    widget_class = QnAWidget
+
+    label_allowed = False
+
+    option_spec = {
+        **PfscOneArgWidgetDirective.option_spec,
+        'question': unchanged,
+        'answer': unchanged,
+    }

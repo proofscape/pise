@@ -45,6 +45,13 @@ def get_examp_widget_divs(soup):
     return list(soup.find_all('div', class_='exampWidget'))
 
 
+def get_qna_widget_divs(soup):
+    """
+    Get the list of any and all <div> tags having class `qna_widget`.
+    """
+    return list(soup.find_all('div', class_='qna_widget'))
+
+
 def get_external_anchors(soup):
     """
     Get the list of any and all <a> tags having class `external`.
@@ -207,26 +214,15 @@ def test_spx_doc1(app):
         A = get_chart_widget_anchors(soup)
         assert len(A) == 1
         assert 'test-spx-doc1-pageA-_page-proof1_v0-1-0' in A[0].get('class')
+
+        D = get_qna_widget_divs(soup)
+        assert len(D) == 1
+        assert f'test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0' in D[0].get('class')
     
         # Defines the expected pfsc_page_data
         page_data = get_page_data_from_script_tag(soup)
         # print('\n', json.dumps(page_data, indent=4))
-        widgets = page_data['widgets']
-        assert len(widgets) == 1
-        assert widgets["test-spx-doc1-pageA-_page-proof1_v0-1-0"] == {
-            "view": "test.moo.bar.results.Pf",
-            "type": "CHART",
-            "src_line": 11,
-            "widget_libpath": "test.spx.doc1.pageA._page.proof1",
-            "uid": "test-spx-doc1-pageA-_page-proof1_v0-1-0",
-            "pane_group": "test.spx.doc1@v0_1_0.pageA._page:CHART:",
-            "versions": {
-                "test.moo.bar": "v1.0.0"
-            },
-            "title_libpath": "test.spx.doc1.pageA._page",
-            "icon_type": "nav",
-            "version": "v0.1.0"
-        }
+        assert page_data == PAGE_A_PAGE_DATA
 
         mjs = get_mathjax_script_tags(soup)
         assert len(mjs) == 1
@@ -299,6 +295,40 @@ def test_spx_doc1(app):
         # print('\n', json.dumps(page_data, indent=4))
         assert page_data == PAGE_E_PAGE_DATA
 
+
+PAGE_A_PAGE_DATA = {
+    "libpath": "test.spx.doc1.pageA._page",
+    "version": "v0.1.0",
+    "widgets": {
+        "test-spx-doc1-pageA-_page-proof1_v0-1-0": {
+            "view": "test.moo.bar.results.Pf",
+            "type": "CHART",
+            "src_line": 11,
+            "widget_libpath": "test.spx.doc1.pageA._page.proof1",
+            "uid": "test-spx-doc1-pageA-_page-proof1_v0-1-0",
+            "pane_group": "test.spx.doc1@v0_1_0.pageA._page:CHART:",
+            "versions": {
+                "test.moo.bar": "v1.0.0"
+            },
+            "title_libpath": "test.spx.doc1.pageA._page",
+            "icon_type": "nav",
+            "version": "v0.1.0"
+        },
+        "test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0": {
+            "question": "What is the answer?",
+            "answer": "42",
+            "type": "QNA",
+            "src_line": 15,
+            "widget_libpath": "test.spx.doc1.pageA._page.ultimateQuestion",
+            "uid": "test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0",
+            "version": "v0.1.0"
+        }
+    },
+    "docInfo": {
+        "docs": {},
+        "refs": {}
+    }
+}
 
 PAGE_C_WIDGET_NAMES = [
     '_w0', '_w1', 'w000', '_w2', 'w001', 'w002'

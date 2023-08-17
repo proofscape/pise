@@ -27,6 +27,7 @@ from pfsc.sphinx.sphinx_proofscape.widgets import (
     PfscChartRole, PfscChartDirective,
     PfscPdfWidgetRole, PfscPdfWidgetDirective,
     PfscDispWidgetDirective, PfscParamWidgetDirective,
+    PfscQnAWidgetDirective,
 )
 from pfsc.sphinx.sphinx_proofscape.embed import PfscEmbedDirective
 from pfsc.sphinx.sphinx_proofscape.links import ExternalLinks
@@ -38,6 +39,7 @@ widgets = (
     ('pdf', PfscPdfWidgetRole, PfscPdfWidgetDirective),
     ('disp', None, PfscDispWidgetDirective),
     ('param', None, PfscParamWidgetDirective),
+    ('qna', None, PfscQnAWidgetDirective),
 )
 
 
