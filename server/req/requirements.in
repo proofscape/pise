@@ -49,7 +49,7 @@ lark067==0.6.7
 # annotations.
 mistletoe==0.7.2
 
-# Proofscape repos can declare a Sphinx doc at the root level.
+# Proofscape repos can define Sphinx pages in rst files.
 # The `furo` theme is automatically used. This is integrated with the
 # light/dark theme controls in PISE.
 furo==2022.12.7
