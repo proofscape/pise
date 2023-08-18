@@ -142,7 +142,9 @@ class Version:
         else:
             return f'{self.major}_{self.minor}_{self.patch}'
 
-STANDARD_CODES = ['a', 'c', 's', 'f', 'b']
+
+STANDARD_CODES = ['a', 'x', 'c', 's', 'f', 'b']
+
 
 class ForestBuilder(Transformer):
 
@@ -272,6 +274,7 @@ class SourceRequest(LibpathRequest):
         if L is not None:
             self.type_descrip['sourceRow'] = L
 
+
 class AnnoRequest(LibpathRequest):
 
     def __init__(self, rvlp, loc):
@@ -281,6 +284,18 @@ class AnnoRequest(LibpathRequest):
         if g is None or t is None:
             raise ValueError
         LibpathRequest.__init__(self, g, t, "NOTES", rvlp)
+
+
+class SphinxRequest(LibpathRequest):
+
+    def __init__(self, rvlp, loc):
+        self.loc = loc
+        g = loc.get('group')
+        t = loc.get('tab')
+        if g is None or t is None:
+            raise ValueError
+        LibpathRequest.__init__(self, g, t, "SPHINX", rvlp)
+
 
 class ChartRequest(TypeRequest):
 
@@ -443,7 +458,10 @@ class AugmentedLibpath:
                 self.buildtree_code = code
             elif code.type == 's':
                 self.source_code = code
-            elif code.type in 'ac':
+            # Use a list of one-char strings instead of a single string, because in the
+            # future, when you want to add a new code, you may search for occurrences
+            # of 'x' in this module, to find places where you need to add the new code!
+            elif code.type in ['a', 'c', 'x']:
                 self.content_code = code
 
     def raise_malformed_code_excep(self, code):
@@ -457,6 +475,7 @@ class AugmentedLibpath:
         if self.content_code is not None:
             ReqType = {
                 'a': AnnoRequest,
+                'x': SphinxRequest,
                 'c': ChartRequest,
             }[self.content_code.type]
             jobs.append((self.content_code, ReqType, self.content_reqs))
@@ -501,6 +520,8 @@ class AugmentedLibpath:
             req0 = self.content_reqs[0]
             if isinstance(req0, AnnoRequest):
                 type_ = 'a'
+            elif isinstance(req0, SphinxRequest):
+                type_ = 'x'
             elif isinstance(req0, ChartRequest):
                 type_ = 'c'
             else:
@@ -612,6 +633,11 @@ CODE_LOOKUP = {
         'g': 'group',
         't': 'tab',
     },
+    # Sphinx page
+    'x': {
+        'g': 'group',
+        't': 'tab',
+    },
     # chart
     'c': {
         # gid means forest group id
@@ -637,6 +663,11 @@ CODE_LOOKUP = {
 CODE_REV_LOOKUP = {
     # annotation
     'a': {
+        'group': 'g',
+        'tab': 't',
+    },
+    # Sphinx page
+    'x': {
         'group': 'g',
         'tab': 't',
     },
