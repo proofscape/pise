@@ -61,11 +61,20 @@ If a node has two or more children, they are put in parentheses, and separated b
     foo.bar(cat*baz*spam)
 Nodes may have "decorations" set off by a tilde:
     foo.bar(cat~decorationGoesHere*baz~orHere*spam~orHere)
-A decoration is a series of "codes" which consist of a single letter, optionally
-followed by a parenthesized argument block. Examples:
+A decoration is a series of "codes" which consist of a code word, optionally
+followed by a parenthesized argument block.
+
+The code word must be either a single letter other than capital "Z", or else
+a CNAME starting with capital "Z", and two or more letters long.
+For single-letter code words, the parenthesized argument block is optional;
+for extended code words beginning with "Z", it is mandatory.
+The argument block may be empty, i.e. equal to "()".
+
+Examples:
     c(1)
     s(g1t2)
     a(g0t0*g1t1)
+    Zfoo()
 The argument block may be in any of the following forms:
     (I) an integer
     (II) a list of key-value pairs
@@ -97,8 +106,10 @@ forest_grammar = r'''
     segment : CNAME ("@" version)? ("~" codes)?
     version : "W" "IP"? | "v"? INT "_" INT "_" INT
     children : "(" tree ("*" tree)+ ")"
-    codes : code+
-    code : CNAME ("(" CODE_ARGS ")")?
+    codes : (code|extended_code)+
+    code : NON_Z ("(" CODE_ARGS? ")")?
+    extended_code : "Z" CNAME "(" CODE_ARGS? ")"
+    NON_Z : /[a-zA-Y]/
     CODE_ARGS : /[^)]/+
     %import common.CNAME
     %import common.INT
@@ -205,7 +216,13 @@ class ForestBuilder(Transformer):
             arg_block = ''
         return TreeCode(type_, arg_block)
 
+    def extended_code(self, items):
+        items[0] = "Z" + items[0]
+        return self.code(items)
+
+
 forest_parser = Lark(forest_grammar, start='forest')
+
 
 class TypeRequest:
     """
