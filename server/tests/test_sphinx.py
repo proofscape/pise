@@ -635,3 +635,16 @@ def test_repeated_pfsc_directives(app):
         d_d = json.loads(j_d)
         #print(json.dumps(d_d, indent=4))
         assert d_d['libpath'] == 'test.spx.doc1.foo.pageD.Thm'
+
+
+def test_lineno_offset(app):
+    """
+    Check that the line numbers of entities defined under `pfsc::` directives
+    are correct relative to the whole file, i.e. are shifted by the starting
+    line of the directive.
+    """
+    with app.app_context():
+        j_d = load_dashgraph('test.spx.doc1.foo.pageD.Thm', version='v0.1.0')
+        d_d = json.loads(j_d)
+        #print(json.dumps(d_d, indent=4))
+        assert d_d['textRange'][0] == 20

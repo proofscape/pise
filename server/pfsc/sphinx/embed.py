@@ -47,13 +47,18 @@ class PfscEmbedDirective(SphinxDirective):
         module = pfsc_env.get_module(modpath)
         version = module.getVersion()
 
+        _, line_no = self.get_source_info()
+        # Add 1 for the blank line in the `::pfsc` directive that comes before
+        # the body text.
+        base_line_num = line_no + 1
+
         # self.content is an instance of `docutils.statemachine.StringList`.
         # It presents the lines of the content as a list, with left indent stripped.
         text = '\n'.join(self.content)
         build_module_from_text(
             text, modpath,
             version=version, existing_module=module,
-            caching=CachePolicy.ALWAYS
+            caching=CachePolicy.ALWAYS, base_line_num=base_line_num
         )
 
         # No presence in the final document.

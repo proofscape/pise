@@ -588,9 +588,11 @@ class BlockChunker:
     We store the text so modified, along with dicts mapping the block names to the original
     text (minus bracketing quotes).
     '''
-    def __init__(self, text):
+    def __init__(self, text, base_line_num=0):
         """
         :param text: the original text of a pfsc module
+        :param base_line_num: optionally pass an integer, in order to offset
+            all line numbers by this amount
         """
         self.text = text
         chunks = BLOCK_RE.split(text)
@@ -600,16 +602,20 @@ class BlockChunker:
         # We will record data in order to achieve a "line mapping". This is so that line numbers in
         # the modified text we are going to produce can be mapped back to their correct values in the original text.
         # This is useful in reporting parsing errors or seeking a definition in a module.
-        self.line_mapping = []
+        # Note: since mapping list will be reversed later, the entry added here
+        # will come last.
+        self.line_mapping = [(-1, base_line_num)]
         self.line_no = 1
         self.lines_cut = 0
+
         def keep_lines(chunk):
             n = chunk.count('\n')
             self.line_no += n
+
         def cut_lines(chunk):
             n = chunk.count('\n')
             self.lines_cut += n
-            self.line_mapping.append((self.line_no, self.lines_cut))
+            self.line_mapping.append((self.line_no, self.lines_cut + base_line_num))
 
         # Record the first text chunk.
         c0 = chunks[0]
@@ -735,14 +741,16 @@ def strip_comments(text):
     return cs.stripped_text
 
 
-def parse_module_text(text):
+def parse_module_text(text, base_line_num=0):
     """
     Parse a .pfsc module.
     :param text: The text of a .pfsc module.
+    :param base_line_num: optional integer by which to shift line numbers
+        recorded by entities in the module as their place of definition
     :return: (Lark Tree instance, BlockChunker instance)
     """
     # Simplify anno blocks.
-    bc = BlockChunker(text)
+    bc = BlockChunker(text, base_line_num=base_line_num)
     mtext = bc.get_modified_text()
     # Strip out all comments.
     mmtext = strip_comments(mtext)
@@ -1644,6 +1652,7 @@ def build_module_from_text(
         version=pfsc.constants.WIP_TAG, existing_module=None,
         history=None, caching=CachePolicy.TIME,
         dependencies=None, read_time=None,
+        base_line_num=0
 ):
     """
     Build a module, given its text, and its libpath.
@@ -1656,9 +1665,11 @@ def build_module_from_text(
     :param caching: the desired CachePolicy
     :param dependencies: optionally pass a dict mapping repopaths to required versions.
     :param read_time: Unix time stamp for when the file was read from disk
+    :param base_line_num: optional integer by which to shift line numbers
+        recorded by entities in the module as their place of definition
     :return: the PfscModule instance constructed
     """
-    tree, bc = parse_module_text(text)
+    tree, bc = parse_module_text(text, base_line_num=base_line_num)
     loader = ModuleLoader(
         modpath, bc,
         version=version, existing_module=existing_module,
