@@ -327,7 +327,8 @@ class Config:
     # Optionally, the compiled forms of annos and deducs (their HTML and JSON),
     # and the source files for modules at numbered versions, may be stored in
     # the graph database, instead of in the build dir. The build dir is then
-    # not used at all, and `PFSC_BUILD_ROOT` (see below) need not be defined.
+    # still used for caching though, so `PFSC_BUILD_ROOT` (see below) still has
+    # to be defined.
     BUILD_IN_GDB = bool(int(os.getenv("BUILD_IN_GDB", 0)))
 
     PFSC_LIB_ROOT = os.getenv("PFSC_LIB_ROOT")

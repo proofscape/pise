@@ -708,11 +708,12 @@ class Builder:
         """
         sourcedir = self.repo_info.abs_fs_path_to_dir
         confdir = sourcedir
-        outputdir = self.repo_info.get_sphinx_build_dir(version=self.version)
-        doctreedir = os.path.join(outputdir, '.doctrees')
+        outputdir = self.repo_info.get_build_dir(
+            version=self.version, sphinx_dir=True)
+        doctreedir = self.repo_info.get_build_dir(
+            version=self.version, sphinx_dir=True, cache_dir=True)
 
-        p = pathlib.Path(outputdir)
-        p.mkdir(parents=True, exist_ok=True)
+        outputdir.mkdir(parents=True, exist_ok=True)
 
         if self.make_clean:
             args = ['clean', sourcedir, outputdir]
@@ -1160,7 +1161,7 @@ class Builder:
         else:
             build_dir = self.repo_info.get_build_dir(version=self.version)
             manifest_json_path = self.repo_info.get_manifest_json_path(version=self.version)
-            os.makedirs(build_dir, exist_ok=True)
+            build_dir.mkdir(exist_ok=True)
             with open(manifest_json_path, 'w') as f:
                 f.write(j)
 

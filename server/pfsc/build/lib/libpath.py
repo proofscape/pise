@@ -27,7 +27,7 @@ from functools import lru_cache
 from flask import current_app
 from pygit2 import init_repository
 
-from pfsc import check_config
+from pfsc import check_config, get_build_dir
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_commit
@@ -257,12 +257,12 @@ class PathInfo:
         :return: pathlib.Path
         """
         lp_parts = self.libpath.split('.')
-        build_root = check_config("PFSC_BUILD_ROOT")
+        build_root = get_build_dir()
         fs_parts = (
-            [build_root] + lp_parts[:3] + [version] +
+            lp_parts[:3] + [version] +
             lp_parts[3:] + [f'module{self.fs_suffix}']
         )
-        return pathlib.Path(*fs_parts)
+        return build_root.joinpath(*fs_parts)
 
     def list_existing_built_product_paths(
             self, version=pfsc.constants.WIP_TAG, include_sphinx_html=False):
@@ -304,8 +304,13 @@ class PathInfo:
         :param version: which version we are building.
         :return: pathlib.Path
         """
-        src_path = self.get_build_dir_src_code_path(version=version)
-        return src_path.parent / 'module.pickle'
+        lp_parts = self.libpath.split('.')
+        cache_root = get_build_dir(cache_dir=True)
+        fs_parts = (
+            lp_parts[:3] + [version] +
+            lp_parts[3:] + [f'module{pfsc.constants.PICKLE_EXT}']
+        )
+        return cache_root.joinpath(*fs_parts)
 
     def get_sphinx_html_file_path(self, version=pfsc.constants.WIP_TAG):
         """
@@ -318,12 +323,12 @@ class PathInfo:
         """
         if self.is_rst_file(version=version):
             lp_parts = self.libpath.split('.')
-            build_root = check_config("PFSC_BUILD_ROOT")
+            build_root = get_build_dir(sphinx_dir=True)
             fs_parts = (
-                    [build_root, '_sphinx'] + lp_parts[:3] + [version] +
-                    lp_parts[3:-1] + [f'{lp_parts[-1]}.html']
+                lp_parts[:3] + [version] +
+                lp_parts[3:-1] + [f'{lp_parts[-1]}.html']
             )
-            return pathlib.Path(*fs_parts)
+            return build_root.joinpath(*fs_parts)
         return None
 
     def get_src_file_modification_time(self, version=pfsc.constants.WIP_TAG):

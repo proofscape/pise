@@ -15,6 +15,7 @@
 # --------------------------------------------------------------------------- #
 
 import os
+import pathlib
 from contextlib import nullcontext
 
 from flask import (
@@ -68,6 +69,30 @@ def check_config(var_name):
     else:
         config_class = get_config_class()
         return getattr(config_class, var_name, None)
+
+
+def get_build_dir(cache_dir=False, sphinx_dir=False):
+    """
+    Get a directory for recording output files.
+
+    :param cache_dir: leave False if you are recording build products like
+        html or json files that are meant to be served for browsing; set True
+        if you want to record cache files, which are build byproducts, and are
+        not meant to be served.
+    :param sphinx_dir: leave False for output from the native pfsc build; set
+        True if you are recording output from the Sphinx part of the build.
+
+    :return: pathlib.Path
+    """
+    build_dir = check_config("PFSC_BUILD_ROOT")
+    parts = [build_dir]
+    if cache_dir:
+        parts.append('cache')
+    else:
+        parts.append('html')
+    if sphinx_dir:
+        parts.append('_sphinx')
+    return pathlib.Path(*parts)
 
 
 def local_url_for_static_file(relpath, req_env=None):
@@ -181,6 +206,7 @@ def make_app(config_name=None):
     essential_vars = """
     REDIS_URI
     GRAPHDB_URI
+    PFSC_BUILD_ROOT
     PFSC_LIB_ROOT
     SECRET_KEY
     """.split()
@@ -198,15 +224,6 @@ def make_app(config_name=None):
             msg += f' Server cannot run{" in production" if i >= num_ev else ""}.'
             msg += ' Review choice of FLASK_CONFIG and .env file to ensure this var is defined.'
             raise PfscExcep(msg, PECode.ESSENTIAL_CONFIG_VAR_UNDEFINED)
-
-    # What about building?
-    # Either built products are going to be stored in the GDB, or else we need
-    # to know the filesystem directory where they are to be stored. Check that
-    # one of these two things is true:
-    if not app.config.get("BUILD_IN_GDB") and not app.config.get("PFSC_BUILD_ROOT"):
-        msg = 'Either `PFSC_BUILD_ROOT` must be defined, or `BUILD_IN_GDB` must be enabled.'
-        msg += ' Review app configuration.'
-        raise PfscExcep(msg, PECode.ESSENTIAL_CONFIG_VAR_UNDEFINED)
 
     trusted_lps = set(
         app.config.get("PFSC_TRUSTED_LIBPATHS", []) +

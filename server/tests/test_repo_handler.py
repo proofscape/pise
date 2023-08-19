@@ -21,6 +21,7 @@ import pytest
 from flask_login import current_user
 
 from tests import handleAsJson, login_context, logout
+from pfsc import get_build_dir
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer, building_in_gdb
 from pfsc.gdb.user import HostingStatus
@@ -214,9 +215,15 @@ def test_repo_loader_44(app, client, repos_ready):
             get_graph_writer().delete_full_wip_build(repopath)
         else:
             build_dir = ri.get_build_dir(version=version)
-            build_root = app.config["PFSC_BUILD_ROOT"]
-            test_build = os.path.join(build_root, 'test')
-            assert build_dir.startswith(test_build)
+
+            # Sanity check:
+            build_root = get_build_dir()
+            test_build = build_root / 'test'
+            # That this does not raise `ValueError`, is our sanity check.
+            # From Python 3.9 onward, we could call `is_relative_to()`, but
+            # we're still on 3.8.
+            build_dir.relative_to(test_build)
+
             cmd = f'rm -rf {build_dir}'
             os.system(cmd)
 

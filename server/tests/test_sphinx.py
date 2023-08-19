@@ -17,7 +17,6 @@
 """Tests of sphinx builds. """
 
 import json
-import pathlib
 
 from bs4 import BeautifulSoup
 from flask import Flask
@@ -167,8 +166,8 @@ def test_generated_pfsc_widget_data_script_tag(app):
         libpath = 'test.spx.doc0'
         version = 'v0.1.0'
         ri = get_repo_info(libpath)
-        build_dir = ri.get_sphinx_build_dir(version)
-        with open(pathlib.Path(build_dir) / 'index.html') as f:
+        build_dir = ri.get_build_dir(version, sphinx_dir=True)
+        with open(build_dir / 'index.html') as f:
             html = f.read()
         soup = BeautifulSoup(html, 'html.parser')
         widget_data = get_page_data_from_script_tag(soup)
@@ -203,7 +202,7 @@ def test_spx_doc1(app):
         libpath = 'test.spx.doc1'
         version = 'v0.1.0'
         ri = get_repo_info(libpath)
-        build_dir = pathlib.Path(ri.get_sphinx_build_dir(version))
+        build_dir = ri.get_build_dir(version, sphinx_dir=True)
 
         # Page A
         # ======

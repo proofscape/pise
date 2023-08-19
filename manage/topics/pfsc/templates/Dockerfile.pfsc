@@ -57,7 +57,7 @@ RUN {{ 'venv/bin/pip' if use_venv else 'pip' }} install --no-deps -r requirement
 
 COPY pfsc-server/pfsc pfsc
 COPY pfsc-server/static static
-RUN ln -s /proofscape/build/_sphinx static/sphinx
+RUN ln -s /proofscape/build/html/_sphinx static/sphinx
 
 COPY pfsc-server/config.py ./
 COPY pfsc-server/web.py ./

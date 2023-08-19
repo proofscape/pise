@@ -123,8 +123,12 @@ DEFAULT_USER_EMAIL = 'pfsc_default_user@localhost'
 PROGRAMMATIC_COMMIT_USER_NAME = 'Pfsc Bot'
 PROGRAMMATIC_COMMIT_USER_EMAIL = 'pfsc_bot@localhost'
 
+# Source file extensions
 PFSC_EXT = '.pfsc'
 RST_EXT = '.rst'
+
+# Extension used for pickled cache files
+PICKLE_EXT = '.pickle'
 
 
 class ContentDescriptorType:

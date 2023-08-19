@@ -19,9 +19,7 @@ Parse .pfsc modules, and build internal representations of the objects
 they declare, using the classes in the deductions and annotations (python) modules.
 """
 
-from collections import deque
 import datetime
-import pathlib
 import pickle
 import re
 
@@ -1346,7 +1344,7 @@ def remove_modules_from_disk_cache(modpaths, version=pfsc.constants.WIP_TAG):
         pickle_path = path_info.get_pickle_path(version=version)
         if pickle_path.exists():
             # Double check:
-            if pickle_path.suffix == '.pickle':
+            if pickle_path.suffix == pfsc.constants.PICKLE_EXT:
                 pickle_path.unlink()
 
 
@@ -1360,7 +1358,7 @@ def remove_all_pickles_from_dir(dir_path, recursive=False):
     for path in dir_path.iterdir():
         if recursive and path.is_dir():
             remove_all_pickles_from_dir(path, recursive=True)
-        if path.is_file() and path.suffix == '.pickle':
+        if path.is_file() and path.suffix == pfsc.constants.PICKLE_EXT:
             path.unlink()
 
 
@@ -1369,8 +1367,9 @@ def remove_all_pickles_for_repo(repopath, version=pfsc.constants.WIP_TAG):
     Purge any and all pickle files for a given repo, at a given version.
     """
     ri = get_repo_info(repopath)
-    dir_path = pathlib.Path(ri.get_build_dir(version=version))
-    remove_all_pickles_from_dir(dir_path, recursive=True)
+    dir_path = ri.get_build_dir(version=version, cache_dir=True)
+    if dir_path.exists():
+        remove_all_pickles_from_dir(dir_path, recursive=True)
 
 
 def pickle_module(module, path_info=None):

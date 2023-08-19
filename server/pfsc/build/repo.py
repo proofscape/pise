@@ -25,7 +25,7 @@ from pygit2 import (
 
 import pfsc.constants
 from pfsc.constants import PFSC_EXT, RST_EXT
-from pfsc import check_config
+from pfsc import check_config, get_build_dir
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
 from pfsc.util import run_cmd_in_dir
@@ -256,47 +256,42 @@ class RepoInfo:
         """
         return tag_name in [t.name for t in self.get_all_version_tags_in_increasing_order()]
 
-    def get_build_dir(self, version=pfsc.constants.WIP_TAG):
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user, self.project, version
-        )
-        return build_dir
+    def get_build_dir(self, version=pfsc.constants.WIP_TAG,
+                      cache_dir=False, sphinx_dir=False):
+        """
+        Get a directory for recording output files for this repo.
 
-    def get_sphinx_build_dir(self, version=pfsc.constants.WIP_TAG):
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, '_sphinx', self.family, self.user, self.project, version
-        )
-        return build_dir
+        :param version: the version for which you want to record files
+        :param cache_dir: set True if you want to record cache files; leave
+            False if you are recording build products like html or json files.
+        :param sphinx_dir: set True if you are recording output from the Sphinx
+            part of the build; leave False for output from the native pfsc build.
 
-    def get_repo_build_dir(self):
+        :return: pathlib.Path
+        """
+        root_dir = get_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        full_dir = root_dir.joinpath(self.family, self.user, self.project, version)
+        return full_dir
+
+    def get_repo_build_dir(self, version=pfsc.constants.WIP_TAG,
+                           cache_dir=False, sphinx_dir=False):
         """
         Like `get_build_dir`, but omits the version dir at the end.
         """
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user, self.project
-        )
-        return build_dir
+        build_dir = self.get_build_dir(version=version, cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        return build_dir.parent
 
-    def get_user_build_dir(self):
+    def get_user_build_dir(self, version=pfsc.constants.WIP_TAG,
+                           cache_dir=False, sphinx_dir=False):
         """
         Like `get_build_dir`, but omits the repo dir and version dir at the end.
         """
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user
-        )
-        return build_dir
-
-    def get_modules_pickle_path(self, version=pfsc.constants.WIP_TAG):
-        build_dir = self.get_build_dir(version=version)
-        return os.path.join(build_dir, 'modules.pickle')
+        build_dir = self.get_build_dir(version=version, cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        return build_dir.parent.parent
 
     def get_manifest_json_path(self, version=pfsc.constants.WIP_TAG):
         build_dir = self.get_build_dir(version=version)
-        return os.path.join(build_dir, 'manifest.json')
+        return build_dir.joinpath('manifest.json')
 
     def has_manifest_json_file(self, version=pfsc.constants.WIP_TAG):
         path = self.get_manifest_json_path(version=version)
