@@ -232,7 +232,7 @@ def test_spx_doc1(app):
 
         # Page B
         # ======
-        # We don't check much: just confirm that syntax highlighting is indeed
+        # Confirm that syntax highlighting is indeed
         # happening (which proves we're using the external sphinx-proofscape
         # pkg for this, since we don't define lexers locally).
         html = (build_dir / 'pageB.html').read_text()
@@ -240,8 +240,10 @@ def test_spx_doc1(app):
         hl = get_highlights(soup, 'proofscape')
         assert len(hl) == 1
 
+        # Even though this page has no rST math elements, it should still have
+        # a mathjax script, since we load that on all pages.
         mjs = get_mathjax_script_tags(soup)
-        assert len(mjs) == 0
+        assert len(mjs) == 1
         
         # Page C
         # ======

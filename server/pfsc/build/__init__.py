@@ -825,6 +825,13 @@ class Builder:
                              buildername, confoverrides=confoverrides)
                 app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)
+                # Set html assets policy 'always', to ensure that MathJax is
+                # always loaded in every Sphinx page, even if that page contains
+                # no rST math elements. This is important for a couple of reasons:
+                # (1) so that examp widgets can use it, and
+                # (2) so that math occurring in section headings can be typeset
+                # when it appears in the ToC in the sidebar.
+                app.set_html_assets_policy('always')
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             traceback.print_exc()
