@@ -539,6 +539,16 @@ h6.labelWidget:hover .labellink {
     background-repeat: no-repeat;
 }
 
+.sphinxIcon20 {
+    background-image: url(../img/icons/sphinx_20.png);
+    background-repeat: no-repeat;
+}
+
+.themeDark .sphinxIcon20 {
+    background-image: url(../img/icons/sphinx_20_dark.png);
+    background-repeat: no-repeat;
+}
+
 .iconDepth0 {
 }
 

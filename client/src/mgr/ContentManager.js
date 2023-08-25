@@ -426,7 +426,7 @@ var ContentManager = declare(null, {
                 case this.crType.SOURCE: iconClass = 'tabIcon contentIcon srcIcon20'; break;
                 case this.crType.PDF: iconClass = 'tabIcon pdfContentTypeIcon'; break;
                 case this.crType.THEORYMAP: iconClass = 'tabIcon contentIcon deducIcon20'; break;
-                case this.crType.SPHINX: iconClass = 'tabIcon sphinxIcon16'; break;
+                case this.crType.SPHINX: iconClass = 'tabIcon sphinxIcon20'; break;
             }
             icon_part = '<span class="'+iconClass+'">'+iconText+'</span>';
         }
