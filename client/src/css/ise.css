@@ -1123,13 +1123,17 @@ a {
 }
 
 .aboutIseDialog .pise-image-credits {
-    font-size: 1em;
-    margin-top: 22px;
-    margin-bottom: -16px;
+    font-size: 0.8em;
+    margin-top: 16px;
+    margin-bottom: -22px;
 }
 
 .aboutIseDialog .pise-image-credits span:nth-of-type(1) {
-    font-size: 1.3em;
+    font-size: 1.2em;
+}
+
+.aboutIseDialog .pise-image-credits ul {
+    margin-block-start: 0;
 }
 
 .aboutIseDialog .pise-software-table thead {
