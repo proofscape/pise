@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "USE_BASE_NGINX_FRONTEND=1" >> $GITHUB_ENV
           echo "PISE_VERS=testing" >> $GITHUB_ENV
-          echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 1 }}" >> $GITHUB_ENV
+          echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 2 }}" >> $GITHUB_ENV
       - if: ${{ inputs.pub-prep }}
         name: Configure for pub-prep
         run: |
