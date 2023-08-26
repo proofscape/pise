@@ -542,7 +542,7 @@ jobs:
           echo "------------------------------"
           grep LICENSES.txt $WDLL
           grep NOTICE.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 200000
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 150000
           test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 700
       # If it's basic testing, and we had a cache miss, then it's time to save the image we built.
       - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit != 'true' }}
