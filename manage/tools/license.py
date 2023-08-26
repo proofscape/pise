@@ -1154,6 +1154,15 @@ def get_manual_py_pkg_info_lookup():
         'aenum': {
             'license_url': 'https://github.com/ethanfurman/aenum/blob/master/aenum/LICENSE',
         },
+        'alabaster': {
+            'gh_url': 'https://github.com/bitprophet/alabaster',
+            'license_name': 'BSD-3-Clause',
+            'license_url': 'https://github.com/bitprophet/alabaster/blob/master/LICENSE',
+        },
+        'beautifulsoup4': {
+            'src_url': 'https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/files',
+            'license_url': 'https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/LICENSE',
+        },
         'bidict': {
             'gh_url': 'https://github.com/jab/bidict/tree/v0.21.4',
             'license_url': 'https://github.com/jab/bidict/blob/v0.21.4/LICENSE',
@@ -1161,6 +1170,10 @@ def get_manual_py_pkg_info_lookup():
         'blinker': {
             'gh_url': 'https://github.com/jek/blinker/tree/rel-1.4',
             'license_url': 'https://github.com/jek/blinker/blob/rel-1.4/LICENSE',
+        },
+        'build': {
+            'license_name': 'MIT',
+            'license_url': 'https://github.com/pypa/build/blob/main/LICENSE',
         },
         'cffi': {
             'src_url': 'https://foss.heptapod.net/pypy/cffi/-/tree/branch/default',
@@ -1174,6 +1187,26 @@ def get_manual_py_pkg_info_lookup():
         },
         'dnspython': {
             'gh_url': 'https://github.com/rthalley/dnspython/tree/v1.16.0',
+        },
+        # Note about docutils: The project, as a whole, lists 4 different licenses,
+        # including GPL 3, and refers to COPYING.txt. In the latter, you learn
+        # that GPL 3 applies only to one file, `tools/editors/emacs/rst.el`.
+        # Consulting the project source code at
+        #   https://sourceforge.net/p/docutils/code/HEAD/tree/trunk/docutils/
+        # you see that the `tools` directory is a sibling of the `docutils`
+        # directory.
+        #
+        # The `docutils` directory alone is what is distributed on PyPI, and what we
+        # therefore distribute in the `pise` and `pise-server` Docker images.
+        # We do NOT distribute the `tools` directory, and in particular we do
+        # NOT distribute the `tools/editors/emacs/rst.el` file. Everything we
+        # do distribute is under the other named licenses, which are the
+        # Python license, BSD-2-Clause, and other stuff that has been dedicated
+        # to the public domain.
+        'docutils': {
+            'license_name': 'BSD-2-Clause etc.',
+            'license_url': 'https://sourceforge.net/p/docutils/code/HEAD/tree/trunk/docutils/COPYING.txt',
+            'src_url': 'https://sourceforge.net/p/docutils/code/HEAD/tree/trunk/docutils/',
         },
         'eventlet': {
             "license_name": 'MIT',
@@ -1239,6 +1272,10 @@ def get_manual_py_pkg_info_lookup():
         'pyparsing': {
             'license_name': 'MIT',
         },
+        'pyproject_hooks': {
+            'license_name': 'MIT',
+            'license_url': 'https://github.com/pypa/pyproject-hooks/blob/main/LICENSE',
+        },
         'python-dotenv': {
             'license_name': 'BSD',
         },
@@ -1254,12 +1291,27 @@ def get_manual_py_pkg_info_lookup():
         'rq': {
             'license_url': 'https://github.com/rq/rq/blob/v1.8.0/LICENSE',
         },
+        'soupsieve': {
+            'license_name': "MIT",
+            'license_url': 'https://github.com/facelessuser/soupsieve/blob/main/LICENSE.md',
+        },
+        'Sphinx': {
+            'license_name': 'BSD',
+        },
+        'sphinx-basic-ng': {
+            'license_name': 'MIT',
+            'license_url': 'https://github.com/pradyunsg/sphinx-basic-ng/blob/main/LICENSE',
+        },
         'tomli': {
             'license_name': 'MIT',
         },
         'typing_extensions': {
             'gh_url': 'https://github.com/python/typing/tree/4.0.1',
             'license_name': 'PSF License',
+        },
+        'Werkzeug': {
+            'license_name': 'BSD 3-Clause',
+            'license_url': 'https://github.com/pallets/werkzeug/blob/main/LICENSE.rst',
         },
         'zipp': {
             'license_name': 'MIT',

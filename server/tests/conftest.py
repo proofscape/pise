@@ -135,13 +135,13 @@ class ClientWrapper(WzClient):
         held by the client.
         """
         headers = {}
-        cj = self.client.cookie_jar
-        if cj is not None:
-            environ = {}
-            cj.inject_wsgi(environ)
-            cookie = environ.get("HTTP_COOKIE")
-            if cookie:
-                headers["COOKIE"] = cookie
+
+        environ = {"wsgi.url_scheme": "http"}
+        self.client._add_cookies_to_wsgi(environ)
+        cookie = environ.get("HTTP_COOKIE")
+        if cookie:
+            headers["COOKIE"] = cookie
+
         ctx = self.app.test_request_context(headers=headers)
         return ctx
 
