@@ -47,13 +47,15 @@ def make_driver():
     driver = None
     if browser == "CHROME":
         options = ChromeOptions()
-        options.headless = headless
+        if headless:
+            options.add_argument('--headless')
         if pfsc_conf.SEL_STAY_OPEN:
             options.add_experimental_option("detach", True)
         return webdriver.Chrome(options=options)
     elif browser == "FIREFOX":
         options = FirefoxOptions()
-        options.headless = headless
+        if headless:
+            options.add_argument('--headless')
         return webdriver.Firefox(options=options)
 
     return driver
