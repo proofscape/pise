@@ -249,9 +249,9 @@ jobs:
           echo "Full Chrome version: $FULL_CHR_VERS"
           TRUNC_CHR_VERS=`echo $FULL_CHR_VERS | sed -e 's#\.[0-9]\+$##'`
           echo "Truncated Chrome version: $TRUNC_CHR_VERS"
-          CHR_DRIVER_VERS=`curl https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$TRUNC_CHR_VERS`
+          CHR_DRIVER_VERS=`curl https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$TRUNC_CHR_VERS`
           echo "Chrome driver version: $CHR_DRIVER_VERS"
-          echo "chromedriver-url=https://chromedriver.storage.googleapis.com/$CHR_DRIVER_VERS/chromedriver_linux64.zip" >> $GITHUB_ENV
+          echo "chromedriver-url=https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHR_DRIVER_VERS/linux64/chromedriver-linux64.zip" >> $GITHUB_ENV
       - name: Cache chromedriver
         id: cache-chromedriver
         uses: actions/cache@v3
@@ -262,8 +262,8 @@ jobs:
         name: Install chromedriver
         run: |
           wget ${{ env.chromedriver-url }}
-          unzip chromedriver_linux64.zip
-          mv chromedriver /usr/local/bin/
+          unzip chromedriver-linux64.zip
+          mv chromedriver-linux64/chromedriver /usr/local/bin/
       # -----------------------------------------
       # Make directories with pfsc makestruct
       - name: makestruct
