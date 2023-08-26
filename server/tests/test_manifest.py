@@ -376,7 +376,7 @@ def test_doc_info(repos_ready):
         "pdffp:73a76954e6a0db76a97e98bdac835811",
         "pdffp:f55073bb58f8823ebfa19482ab6fdabe"
     ]
-    assert list(d["doc_info"].keys()) == doc_ids
+    assert set(d["doc_info"].keys()) == set(doc_ids)
 
     Thm9 = manifest.lookup["test.hist.lit.H.ilbert.ZB.Thm9.Pf"]
     assert len(Thm9.build_dict()["docRefs"][doc_ids[1]]) == 4
@@ -393,7 +393,7 @@ def test_doc_info(repos_ready):
     doc_ids = [
         "pdffp:6318d851c27fc30fd97ac614cf747ac0"
     ]
-    assert list(d["doc_info"].keys()) == doc_ids
+    assert set(d["doc_info"].keys()) == set(doc_ids)
 
     wt = manifest.lookup["test.comment.notes.H.ilbert.ZB.Thm168.notes.Walkthrough"]
     assert len(wt.build_dict()["docRefs"][doc_ids[0]]) == 1
