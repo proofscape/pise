@@ -195,9 +195,60 @@ def login_as_test_user(driver, user, wait=BASIC_WAIT, logger_name='root'):
     driver.find_element(By.NAME, "password").send_keys(user)
     logger.debug(ts("Before log-in click"))
     driver.find_element(By.CSS_SELECTOR, "p > input").click()
+
+    # Before we close the login window, pause to allow time for the login to
+    # take place. The following things need to happen: (1) the server receives
+    # the login request; (2) the server sends back a 302 redirecting us to the
+    # login-success page; (3) we request the login-success page; (4) some JS
+    # on the login-success page emits a login-success event over BroadcastChannel.
+    # After that, it is okay to close the login window. The main window will
+    # hear the login-success event, which is what prompts it to issue a `whoAmI`
+    # request to the server, to find out which user it is now logged in as, and
+    # then it updates the User menu accordingly.
+    #
+    # Probably half a second would be plenty of time, but we err on the generous
+    # side, giving it 3 seconds.
+    #
+    # On 230826, we started having intermittent failures (maybe one in five runs
+    # or so), where it seems we were closing the login window too quickly. At that
+    # time, we actually had no delay here whatsoever before closing the window.
+    #
+    # The web server logs showed that we were
+    # getting the 302 redirect (so, successful login) and we requested the
+    # login-success page, but we never made the `whoAmI` request. This suggests
+    # that we were closing the login window before it had a chance to emit the
+    # login-success event over BroadcastChannel. Note that that event's triggering
+    # of `Hub.updateUser()` is necessary here, because there will be no `focus` event
+    # on the main window (which also would trigger `Hub.updateUser()`) during headless
+    # execution of Chrome via Chromedriver.
+    logger.debug(ts("After log-in click"))
+    time.sleep(3)
     driver.close()
+    logger.debug(ts("After close log-in window"))
     driver.switch_to.window(v["root"])
+
     # User menu text should now say our username
+    # Instead of just relying on `WebDriverWait()` to do the waiting for us,
+    # we give the menu one second to update, and, if it fails to do so, we
+    # err out but only after logging the browser console. This is so we can look
+    # for debug messages there, issued by the `Hub` when it checks the user login
+    # state.
+    t0 = time.time()
+    for i in range(101):
+        t1 = time.time()
+        dt = t1 - t0
+        menu_label = driver.find_element(by=By.ID, value="dijit_PopupMenuBarItem_8_text").text
+        logger.debug(f'Menu label at {int(1000*dt)}ms: {menu_label}')
+        # If it has already changed, no sense continuing to log.
+        if menu_label == f"test.{user}":
+            break
+        # If it takes 1s or more, fail after logging browser console.
+        if dt >= 1:
+            logger.debug('Menu label took 1s or more to change!')
+            log_browser_console(driver, logger_name=logger_name)
+            assert False
+        time.sleep(0.01)
+
     WebDriverWait(driver, wait).until(expected_conditions.text_to_be_present_in_element((By.ID, "dijit_PopupMenuBarItem_8_text"), f"test.{user}"))
     assert driver.find_element(By.ID, "dijit_PopupMenuBarItem_8_text").text == f"test.{user}"
     logger.info(f"Logged in as test.{user}")
