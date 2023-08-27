@@ -21,7 +21,8 @@ import datetime
 import functools
 import traceback
 
-from flask import escape, current_app, has_app_context
+from flask import current_app, has_app_context
+from markupsafe import escape
 import werkzeug.exceptions
 import mistletoe
 

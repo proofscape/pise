@@ -13,10 +13,10 @@
 # Users can log in; we send error emails to operators, and transactional emails
 # to users; we use websockets to emit results of long-running jobs like
 # building a pfsc repo.
-Flask==2.1.2
-Flask-Login==0.6.1
+Flask==2.3.2
+Flask-Login==0.6.2
 Flask-Mail==0.9.1
-Flask-SocketIO==5.1.2
+Flask-SocketIO==5.3.5
 
 # We use the Eventlet web server to support websockets via Flask-SocketIO.
 eventlet==0.33.1
@@ -79,7 +79,12 @@ python-dotenv==0.17.0
 #  * OAuth logins
 #  * the PDF proxy service
 #  * a few places where you can configure a URL to replace some built-in HTML
-requests==2.25.1
+requests==2.31.0
+# It is only for the `requests` package that we have `certifi`, but the former
+# only requires a very old version of the latter. Therefore we must explicitly
+# request a recent `certifi`, to stay up to date with removed certificates, as
+# noted by Dependabot alerts.
+certifi==2023.7.22
 
 # At this time, our only use of `tenacity` is to ensure that calls to Redis's
 # BGSAVE capture all updates, in cases where RedisGraph is being used as the

@@ -42,6 +42,14 @@ Bug Fixes
 * New pdf widget syntax: `selection` becomes `sel`; `sel: true` is new default
   ([#21](https://github.com/proofscape/pise/pull/21)).
 
+Upgrades
+
+* `Flask 2.1.2 --> 2.3.2`
+* `Flask-Login 0.6.1 --> 0.6.2`
+* `Flask-SocketIO 5.1.2 --> 5.3.5`
+* `Requests 2.25.1 --> 2.31.0`
+* `Werkzeug 2.1.2 --> 2.3.7`
+
 ## 0.26.1 (221216)
 
 Improvements:

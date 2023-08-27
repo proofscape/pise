@@ -111,7 +111,7 @@ import json, re
 from collections import namedtuple
 from itertools import chain
 
-from flask import escape
+from markupsafe import escape
 from lark import Lark, Transformer, v_args
 import vertex2tex
 import mistletoe

@@ -16,7 +16,7 @@
 
 import re, json
 
-from flask import escape, Markup
+from markupsafe import escape, Markup
 import jinja2
 
 from pfsc.constants import (
