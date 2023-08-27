@@ -326,8 +326,8 @@ def proofscape_oca(deploy_dir_path, tag='latest', mount_code=False, mount_pkg=No
     versions = get_version_numbers()
     if mount_code:
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
-        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/css:ro')
-        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/home/pfsc/proofscape/src/pfsc-server/static/v{pfsc_server_vers}/img:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/css")}:/home/pfsc/proofscape/src/pfsc-server/static/css:ro')
+        d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/static/img")}:/home/pfsc/proofscape/src/pfsc-server/static/img:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/package.json")}:/home/pfsc/proofscape/src/client/package.json:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/web.py")}:/home/pfsc/proofscape/src/pfsc-server/web.py:ro')
