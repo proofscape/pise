@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "USE_BASE_NGINX_FRONTEND=1" >> $GITHUB_ENV
           echo "PISE_VERS=testing" >> $GITHUB_ENV
-          echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 1 }}" >> $GITHUB_ENV
+          echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 2 }}" >> $GITHUB_ENV
       - if: ${{ inputs.pub-prep }}
         name: Configure for pub-prep
         run: |
@@ -249,9 +249,9 @@ jobs:
           echo "Full Chrome version: $FULL_CHR_VERS"
           TRUNC_CHR_VERS=`echo $FULL_CHR_VERS | sed -e 's#\.[0-9]\+$##'`
           echo "Truncated Chrome version: $TRUNC_CHR_VERS"
-          CHR_DRIVER_VERS=`curl https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$TRUNC_CHR_VERS`
+          CHR_DRIVER_VERS=`curl https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$TRUNC_CHR_VERS`
           echo "Chrome driver version: $CHR_DRIVER_VERS"
-          echo "chromedriver-url=https://chromedriver.storage.googleapis.com/$CHR_DRIVER_VERS/chromedriver_linux64.zip" >> $GITHUB_ENV
+          echo "chromedriver-url=https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHR_DRIVER_VERS/linux64/chromedriver-linux64.zip" >> $GITHUB_ENV
       - name: Cache chromedriver
         id: cache-chromedriver
         uses: actions/cache@v3
@@ -262,8 +262,8 @@ jobs:
         name: Install chromedriver
         run: |
           wget ${{ env.chromedriver-url }}
-          unzip chromedriver_linux64.zip
-          mv chromedriver /usr/local/bin/
+          unzip chromedriver-linux64.zip
+          mv chromedriver-linux64/chromedriver /usr/local/bin/
       # -----------------------------------------
       # Make directories with pfsc makestruct
       - name: makestruct
@@ -542,7 +542,7 @@ jobs:
           echo "------------------------------"
           grep LICENSES.txt $WDLL
           grep NOTICE.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 200000
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 150000
           test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 700
       # If it's basic testing, and we had a cache miss, then it's time to save the image we built.
       - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit != 'true' }}

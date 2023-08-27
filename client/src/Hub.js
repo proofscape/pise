@@ -867,6 +867,7 @@ var Hub = declare(null, {
         this.bcastChannel = new BroadcastChannel('login-messages');
         this.bcastChannel.addEventListener('message', event => {
             if (event.data === 'login-successful') {
+                console.debug('updateUser after `login-successful` event');
                 this.updateUser();
             }
         });
@@ -1042,6 +1043,7 @@ var Hub = declare(null, {
             // App has regained focus.
             //console.log('hub focused');
             if (!this.personalServerMode) {
+                console.debug('updateUser after app regained focus');
                 this.updateUser();
             }
             // Mostly we let EditManager decide what to do based on the configured method;
@@ -1069,6 +1071,7 @@ var Hub = declare(null, {
         //console.log('visible: ', isVisible);
         if (isVisible) {
             if (!this.personalServerMode) {
+                console.debug('updateUser after app regained visibility');
                 this.updateUser();
             }
             this.pdfManager.retryPausedDownloads();
