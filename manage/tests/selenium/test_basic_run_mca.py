@@ -30,6 +30,12 @@ class TestBasicRunMCA(Tester):
         # https://docs.pytest.org/en/6.2.x/logging.html#caplog-fixture
         caplog.set_level(selenium_logging_level, logger=__name__)
 
+        # Is there any way to set the format of caplog?
+        # The following raises no exceptions, but also has no effect on the printed logs:
+        #formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
+        #                              datefmt='%Y-%m-%d %H:%M:%S')
+        #caplog.handler.setFormatter(formatter)
+
         server_status_code, server_status_message = self.check_pise_server(deployment='mca')
         assert server_status_code == 4
         logger.info(f'PISE server check: {server_status_message}')
@@ -96,3 +102,5 @@ class TestBasicRunMCA(Tester):
         # Wait a second and log out
         time.sleep(1)
         self.log_out()
+
+        self.log_browser_console()
