@@ -17,9 +17,6 @@
 WORKDIR /home/pfsc/proofscape/src/pfsc-server/static
 RUN ln -s /proofscape/PDFLibrary \
  && mkdir -p pyodide/v{{versions["pyodide"]}} \
- && mkdir v{{server_vers}} \
- && mv css v{{server_vers}}/ \
- && mv img v{{server_vers}}/ \
  && bash -c "mkdir -p {whl,ise,dojo,mathjax,elk}"
 
 {% for filename in pyodide_files %}
