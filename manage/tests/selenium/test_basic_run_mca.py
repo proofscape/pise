@@ -38,7 +38,7 @@ class TestBasicRunMCA(Tester):
         time.sleep(1)
         self.dismiss_cookie_notice()
         self.check_user_menu()
-        self.login_as_test_user('hist')
+        self.login_as_test_user('hist', wait=1)
 
         repopath = "test.hist.lit"
 
