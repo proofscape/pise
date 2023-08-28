@@ -841,7 +841,19 @@ var Hub = declare(null, {
             } else {
                 const ours = this.OCA_version.split(/\.|-/);
                 const latest = vers.split(/\.|-/);
-                console.debug(ours, latest);
+
+                // Each array should be length three or four (major, minor, patch, and optional label).
+                // For correct comparisons, ensure length four. A version without label comes *after*
+                // a matching version with label, so tack on a 'z', to come after all labels (which start
+                // with 'a' or 'b' for alpha and beta versions).
+                if (ours.length === 3) {
+                    ours.push('z');
+                }
+                if (latest.length === 3) {
+                    latest.push('z');
+                }
+                console.debug(`Comparing OCA versions (latest: ${latest}, ours: ${ours})...`);
+
                 if (ours < latest) {
                     console.debug(`Newer OCA version is available (latest: ${latest}, ours: ${ours}).`);
                     this.alert({
