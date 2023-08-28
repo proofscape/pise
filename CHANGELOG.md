@@ -1,5 +1,13 @@
 ## next (------)
 
+Breaking Changes:
+
+* Doc refs can no longer be defined under `pdf` field in nodes; instead,
+  must now use `doc` field
+  ([#21](https://github.com/proofscape/pise/pull/21)).
+* New pdf widget syntax: `selection` becomes `sel`; `sel: true` is new default
+  ([#21](https://github.com/proofscape/pise/pull/21)).
+
 Improvements:
 
 * Improve output of `pfsc.blueprints.cli.auto_deps_build()`.
@@ -25,7 +33,7 @@ Improvements:
 * Add `clone` command to pfsc module syntax
   ([#22](https://github.com/proofscape/pise/pull/22)).
 
-Bug Fixes
+Bug Fixes:
 
 * Widget group control mappings across windows used to be able to create an
   inconsistent state after the primary window was reloaded. Now such mappings
@@ -36,19 +44,22 @@ Bug Fixes
 * Stopped build from crashing if a whole module was (accidentally) named in a
   meson script
   ([#19](https://github.com/proofscape/pise/pull/19)).
-* Doc refs can no longer be defined under `pdf` field in nodes; instead,
-  must now use `doc` field
-  ([#21](https://github.com/proofscape/pise/pull/21)).
-* New pdf widget syntax: `selection` becomes `sel`; `sel: true` is new default
-  ([#21](https://github.com/proofscape/pise/pull/21)).
+* Debugged issue with closing theory map panels
+  ([#24](https://github.com/proofscape/pise/pull/24)).
+* Repaired static dir in OCA image
+  ([#29](https://github.com/proofscape/pise/pull/29)).
+* Repaired issue with pages with examp widgets being closed before Pyodide
+  finished loading
+  ([#31](https://github.com/proofscape/pise/pull/31)).
 
-Upgrades
+Upgrades:
 
 * `Flask 2.1.2 --> 2.3.2`
 * `Flask-Login 0.6.1 --> 0.6.2`
 * `Flask-SocketIO 5.1.2 --> 5.3.5`
 * `Requests 2.25.1 --> 2.31.0`
 * `Werkzeug 2.1.2 --> 2.3.7`
+* `pfsc-examp 0.22.8 --> 0.23.0`
 
 ## 0.26.1 (221216)
 
