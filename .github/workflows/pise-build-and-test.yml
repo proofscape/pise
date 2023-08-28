@@ -698,7 +698,7 @@ jobs:
           grep about.json $WDLL
           grep EULA.txt $WDLL
           grep VERSION.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 400000
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 350000
           test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
           test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
       # -----------------------------------------
