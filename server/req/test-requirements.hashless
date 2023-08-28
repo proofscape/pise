@@ -7,4 +7,4 @@
 #-e ../displaylang
 #-e ../sympy
 
-git+https://github.com/proofscape/pfsc-test-modules.git@v0.27.0b1
+git+https://github.com/proofscape/pfsc-test-modules.git@v0.27.0

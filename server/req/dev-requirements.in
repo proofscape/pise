@@ -6,5 +6,5 @@
 -c requirements.txt
 -c test-requirements.txt
 
-pip-tools==6.6.2
+pip-tools==7.3.0
 rq-dashboard==0.6.1
