@@ -18,6 +18,17 @@
 import { DedicatedWorkerPeer } from "browser-peers/src/dedworkerpeer";
 
 
+const ise = {};
+define([
+    "ise/errors",
+], function(
+    iseErrors,
+) {
+    ise.errors = iseErrors;
+});
+const mathworkerErrorCodes = ise.errors.mathworkerErrorCodes;
+
+
 const pyodidePackages = [
     "micropip",
     "Jinja2",
@@ -162,9 +173,27 @@ async function rebuild(args) {
         value = null,
         writeHtml = false,
     } = args;
+
+    let respObj = {
+        err_lvl: mathworkerErrorCodes.UNKNOWN,
+        err_msg: 'unknown error',
+    };
+
     const nm = self.pfscisehub.notesManager;
     const w = nm.getWidget(uid);
+    if (!w) {
+        respObj.err_lvl = mathworkerErrorCodes.MISSING_WIDGET;
+        respObj.err_msg = `Missing widget for uid: ${uid}`;
+        return respObj;
+    }
+
     const obj = w.getPyProxyCopy(paneId);
+    if (!obj) {
+        respObj.err_lvl = mathworkerErrorCodes.MISSING_PY_PROXY;
+        respObj.err_msg = `Missing PyProxy for uid/paneId: ${uid}/${paneId}`;
+        return respObj;
+    }
+
     const rebuildFunc = self.pyodide.globals.get('pfsc_examp').rebuild_examp_generator_from_js;
     const response = rebuildFunc.callKwargs(obj, {value: value, write_html: writeHtml});
     // Destroy PyProxy of `rebuild` to avoid memory leak.
@@ -172,7 +201,7 @@ async function rebuild(args) {
     // on the python side.
     rebuildFunc.destroy();
     // `response` is a Map. Convert to an Object.
-    const respObj = Object.fromEntries(response);
+    respObj = Object.fromEntries(response);
     return respObj;
 }
 
@@ -224,6 +253,9 @@ class Widget {
      */
     getPyProxyCopy(paneId) {
         const proxy = this.pyProxiesByPaneId.get(paneId);
+        if (!proxy) {
+            return null;
+        }
         return proxy.copy();
     }
 

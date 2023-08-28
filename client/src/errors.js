@@ -95,6 +95,14 @@ define([], function(){
         CONTROLLED_EVALUATION_EXCEPTION: 279,
     };
 
+    // Error codes 10,000 through 10,999 are reserved for use by mathworker,
+    // and will not be used by pise/server or pfsc-examp.
+    errors.mathworkerErrorCodes = {
+        MISSING_WIDGET: 10000,
+        MISSING_PY_PROXY: 10001,
+        UNKNOWN: 10999,
+    };
+
     return errors;
 
 });

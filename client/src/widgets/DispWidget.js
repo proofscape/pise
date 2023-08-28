@@ -86,22 +86,28 @@ const DispWidget = declare(ExampWidget, {
         this.inherited(arguments);
         const activation = this.activationByPaneId.get(pane.id);
         activation.then(() => {
-            const widgetElement = this.widgetElementByPaneId.get(pane.id);
-            const editorsElement = widgetElement.querySelector('.dispWidgetEditors');
-            this.editorsElementByPaneId.set(pane.id, editorsElement);
+            // Procede only if the pane still exists. It could have been closed while waiting
+            // for Pyodide to load, and the math worker to be ready.
+            if (this.existsInPane(pane.id)) {
+                const widgetElement = this.widgetElementByPaneId.get(pane.id);
+                const editorsElement = widgetElement.querySelector('.dispWidgetEditors');
+                this.editorsElementByPaneId.set(pane.id, editorsElement);
 
-            const eds = this.editorsByPaneId.get(pane.id);
-            if (eds.length > 0) {
-                widgetElement.classList.add('editableDispWidget');
-            }
-            for (const editor of eds) {
-                const editorDiv = editor.container;
-                const code = editor.getValue();
-                const {editorPanel, buildButton,
-                    resetButton, resizeHandle} = this.makeEditorPanel(editorDiv);
-                editorsElement.appendChild(editorPanel);
-                this.activateEditorPanel(pane, code, editor, editorDiv, editorPanel,
-                    buildButton, resetButton, resizeHandle);
+                const eds = this.editorsByPaneId.get(pane.id);
+                if (eds.length > 0) {
+                    widgetElement.classList.add('editableDispWidget');
+                }
+                for (const editor of eds) {
+                    const editorDiv = editor.container;
+                    const code = editor.getValue();
+                    const {
+                        editorPanel, buildButton,
+                        resetButton, resizeHandle
+                    } = this.makeEditorPanel(editorDiv);
+                    editorsElement.appendChild(editorPanel);
+                    this.activateEditorPanel(pane, code, editor, editorDiv, editorPanel,
+                        buildButton, resetButton, resizeHandle);
+                }
             }
         });
     },
