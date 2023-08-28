@@ -1,5 +1,7 @@
 ## next (------)
 
+## 0.27.0 (------)
+
 Breaking Changes:
 
 * Doc refs can no longer be defined under `pdf` field in nodes; instead,
