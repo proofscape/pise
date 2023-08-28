@@ -94,3 +94,5 @@ class TestBasicRunOCA(Tester):
         logger.info(f'Feedback monitor hidden. Build took {dt:.2f}s.')
 
         # No log-out, in OCA.
+
+        self.log_browser_console()

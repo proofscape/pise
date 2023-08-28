@@ -843,7 +843,7 @@ var Hub = declare(null, {
                 const latest = vers.split(/\.|-/);
                 console.debug(ours, latest);
                 if (ours < latest) {
-                    console.debug('Newer OCA version is available.');
+                    console.debug(`Newer OCA version is available (latest: ${latest}, ours: ${ours}).`);
                     this.alert({
                         title: 'Newer Version Available',
                         content: `
