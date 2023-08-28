@@ -134,9 +134,9 @@ packaging==21.3 \
     --hash=sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb \
     --hash=sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522
     # via pytest
-pfsc-examp==0.23.0b0 \
-    --hash=sha256:418dad0543d44dd8d4890c5a809ac01885df48c4d11d3c425fc2bf74a92c7ede \
-    --hash=sha256:62a843daae149de16ca66db7c16755198f744ea4e2d95481eb86fde7924b1c66
+pfsc-examp==0.23.0 \
+    --hash=sha256:1ab6bbfb06e24f27204ed90b3128a592dc203857161f5c3863d562c95b2342f8 \
+    --hash=sha256:a5cbd531f0690111c16739063aaf1b04b2c6b30c9a95cb56f4b4d7b6a6254786
     # via -r test-requirements.in
 pfsc-util==0.22.8 \
     --hash=sha256:2967e36233fc05b303257d1639317e9d8db3e50f8054cc5f48b8da6dd36042a0 \
