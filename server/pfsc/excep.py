@@ -288,6 +288,11 @@ class PECode:
     # deep utils stuff
     GIT_HAD_NOTHING_TO_COMMIT = 900
 
+    # Don't use anything in the range 10,000 - 10,999.
+    # This range is reserved for use by mathworker.js, on the client side.
+    RESERVED_FOR_MATHWORKER_ON_JS_SIDE_0 = 10000
+    RESERVED_FOR_MATHWORKER_ON_JS_SIDE_1 = 10999
+
     # A code to mean "unknown". This is the default code in a PfscExcep.
     # No, there's no reason not to exceed 2^16; but this seems large enough.
     UNKNOWN = 65535

@@ -150,10 +150,22 @@ const ExampWidget = declare(Widget, {
             // risky happens in the `__init__()` method of the `ExampDisplay` class. But we
             // don't want to count on this never changing during future development.
             await this.hub.mathWorkerReady;
-            await this.hub.mathWorkerPeer.postRequest('makePyProxy', {
-                info: this.liveInfo,
-                paneId: paneId,
-            });
+            // Pane may have been closed while waiting for math worker to be ready.
+            // So first make sure the pane is still open.
+            if (this.existsInPane(paneId)) {
+                await this.hub.mathWorkerPeer.postRequest('makePyProxy', {
+                    info: this.liveInfo,
+                    paneId: paneId,
+                });
+                // To avoid a memory leak, check if the pane was closed while making the proxy,
+                // and if so destroy it now.
+                if (!this.existsInPane(paneId)) {
+                    this.hub.mathWorkerPeer.postRequest('destroyPyProxy', {
+                        uid: this.uid,
+                        paneId: paneId,
+                    });
+                }
+            }
         }
         return await this.rebuildSequence(paneId, [{
             widget: this,
@@ -318,7 +330,15 @@ const ExampWidget = declare(Widget, {
             const errLvl = response.err_lvl;
             if (errLvl !== 0) {
                 widgetsWithErrors.push(w0);
-                if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME ||
+                if (errLvl === iseErrors.mathworkerErrorCodes.MISSING_WIDGET ||
+                    errLvl === iseErrors.mathworkerErrorCodes.MISSING_PY_PROXY) {
+                    // At this time, we know of only one case in which this can happen, which is that a
+                    // page containing examp widgets was open, and then closed before the mathworker was ready
+                    // (due to Pyodide taking time to load). In such cases, we're happy to just drop the issue,
+                    // since there's nothing to be done.
+                    console.debug(`Mathworker error, probably due to page closing after request: ${response.err_msg}`);
+                }
+                else if (errLvl === iseErrors.serverSideErrorCodes.BAD_PARAMETER_RAW_VALUE_WITH_BLAME ||
                     errLvl === iseErrors.serverSideErrorCodes.CONTROLLED_EVALUATION_EXCEPTION) {
                     const uid = response.blame_widget_uid;
                     const w = uid === this.uid ? this : this.descendants.get(uid);
