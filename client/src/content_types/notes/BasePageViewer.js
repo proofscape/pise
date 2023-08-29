@@ -457,6 +457,7 @@ export class BasePageViewer extends Listenable {
      * return: boolean: true iff we found an element to scroll to.
      */
     scrollToSelector(sel, options) {
+        options = options || {};
         const display = this.scrollNode;
 
         if (sel === null) {
