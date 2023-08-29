@@ -1,4 +1,43 @@
-## next (------)
+## 0.28.0 (------)
+
+This version introduces major changes to the build system, the most
+visible of which is that you can now write `rst` files alongside `pfsc`
+files, in order to build Sphinx pages.
+
+Sphinx pages provide an alternative to the old annotation pages (which are
+also still supported). They use the Furo theme, and have sidebar tables of contents,
+and are linked to each other using all the standard ref mechanisms as in any
+Sphinx project.
+
+Certain built-in extensions are provided, including various directives and roles
+for Proofscape widgets, allowing you to include many of the same widget types (chart,
+pdf, etc.) in Sphinx pages as in annotation pages. There is also a `.. pfsc::` directive,
+under which you can write arbitrary `pfsc` module syntax, and thus make imports, define
+deductions, etc.
+
+Internally, `rst` files are regarded as defining first-class Proofscape modules,
+just as do `pfsc` files. Their libpath mirrors their filesystem path. They always
+define one special object, called `_page`, which represents the Sphinx page they define.
+This `_page` object *contains* any widgets defined using widget roles and directives,
+and sits *alongside* anything defined under any `.. pfsc::` directives. Imports
+between and among `rst` and `pfsc` files are supported in all directions.
+
+Breaking Changes:
+
+* The build process now exhibits `make`-like behavior, wherein all and only
+  those parts of a given repo are rebuilt that have changed since the last build.
+  Accordingly, building at the CLI now requires a repopath (not an arbitrary
+  modpath), no longer accepts an `-r` ("recursive") switch, and you can no longer
+  request to build a single module in isolation.
+
+* No more programmatic generation of widget names *in source modules*.
+  The names are still generated wherever missing, and written into the built
+  products, but no longer into the source code. The generated names now begin
+  with an underscore.
+
+Upgrades:
+
+* `Eventlet 0.33.1 --> 0.33.3`
 
 ## 0.27.0 (230828)
 
