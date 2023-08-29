@@ -244,8 +244,8 @@ def recycle(fs_path):
     """
     Move a file or directory to the recycling bin.
 
-    :param fs_path: filesystem path (string) pointing to the file
-      or directory that is to be recycled.
+    :param fs_path: filesystem path (string or pathlib.Path) pointing
+      to the file or directory that is to be recycled.
     :return: the name to which the file or directory was moved, within
       the recycling bin. This is essentially the given path, plus a
       timestamp, plus a random number.
@@ -254,7 +254,7 @@ def recycle(fs_path):
     os.makedirs(recyc_bin_dir, exist_ok=True)
     now = datetime.datetime.utcnow()
     dst_name = "_".join([
-        fs_path.replace(os.sep, "_"),
+        str(fs_path).replace(os.sep, "_"),
         str(now).replace(' ', "_"),
         str(random.random())
     ])
