@@ -19,7 +19,7 @@ Flask-Mail==0.9.1
 Flask-SocketIO==5.3.5
 
 # We use the Eventlet web server to support websockets via Flask-SocketIO.
-eventlet==0.33.1
+eventlet==0.33.3
 
 # We need to talk to graph databases.
 neo4j==4.2.1
