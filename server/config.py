@@ -183,7 +183,7 @@ class Config:
     # rely on the "force revalidation" pattern
     #   https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching#force_revalidation
     # to ensure that the user always gets the most recently built versions.
-    # Setting `SEND_FILE_MAX_AGE_DEFAULT` to `None` gets us the the `no-cache`
+    # Setting `SEND_FILE_MAX_AGE_DEFAULT` to `None` gets us the `no-cache`
     # header. Although this is the default value since Flask 2.0, we set it
     # explicitly here, to make it clear that this is deliberate.
     SEND_FILE_MAX_AGE_DEFAULT = None
