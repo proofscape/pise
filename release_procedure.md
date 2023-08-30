@@ -70,7 +70,24 @@ message stating the version number, and push.
     $ git commit -m "Version 0.26.0"
     $ git push origin releases/0.26.0
 
-Step 2. Add a tag, which must be of the form
+Step 2. Pushing a version tag to GitHub (next step) will initiate a "pub prep"
+test run, which carries out more tests than are ordinarily carried out for PRs.
+In order to avoid having to move the tag in the event of unexpected errors, it
+is good to do a manual run in full "pub prep" mode, before pushing the tag.
+
+In order to do this, go to the Actions tab for the repo at GitHub, select
+the `pise-build-and-test` workflow, and manually initiate a run. In the
+"Run workflow" dropdown box, be sure to:
+
+* Select the release branch
+* Check the box to "Do extra steps in preparation for publication"
+* Enter the correct version tag for the release
+* Set debug level to 2
+
+After the run completes, you can inspect the uploaded artifacts if you want,
+but delete them when you are done.
+
+Step 3. Add a tag, which must be of the form
 `vMAJOR.MINOR.PATCH(-LABEL)` (`LABEL` part optional), and push the tag to
 GitHub. For example,
 
@@ -82,10 +99,10 @@ that works toward publication. It begins with jobs that build and test all the
 products. The actual publication job, however, will not run until it has been
 approved by a project maintainer.
 
-Step 3. Approve the publication job, and confirm availability of the published
+Step 4. Approve the publication job, and confirm availability of the published
 products at Docker Hub and npm, after it completes.
 
-Step 4. Return to the `main` branch, and merge the release branch.
+Step 5. Return to the `main` branch, and merge the release branch.
 There should be merge conflicts in the `package.json` and `package-lock.json`
 files under the `client` dir, regarding the version number. We want to keep the
 version from the `main` branch:
