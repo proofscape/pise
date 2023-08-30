@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+@import url("pages.css");
+
 /*
  * This ensures that when tabs are clicked in tab containers,
  * their titles do not become highlighted with a blue border.
@@ -523,6 +525,30 @@ h6.labelWidget:hover .labellink {
     background-image: url(../img/icons/circle3_dark.png);
 }
 
+.noContentsModuleIcon {
+    filter: grayscale(1);
+}
+
+.sphinxIcon16 {
+    background-image: url(../img/icons/sphinx_16.png);
+    background-repeat: no-repeat;
+}
+
+.themeDark .sphinxIcon16 {
+    background-image: url(../img/icons/sphinx_16_dark.png);
+    background-repeat: no-repeat;
+}
+
+.sphinxIcon20 {
+    background-image: url(../img/icons/sphinx_20.png);
+    background-repeat: no-repeat;
+}
+
+.themeDark .sphinxIcon20 {
+    background-image: url(../img/icons/sphinx_20_dark.png);
+    background-repeat: no-repeat;
+}
+
 .iconDepth0 {
 }
 
@@ -779,23 +805,12 @@ a.widget {
     color: rgb(113, 184, 239);
 }
 
-.themeDark a.widget.selected,
-a.widget.selected {
-    background: #dd0;
-    color: blue;
-}
-
 a.external {
     color: blue;
-    background-position: center right;
-    background-repeat: no-repeat;
-    background-image: url(../img/icons/ext_link.png);
-    padding-right: 14px;
 }
 
 .themeDark a.external {
     color: rgb(113, 184, 239);
-    background-image: url(../img/icons/ext_link_dark.png);
 }
 
 a {
@@ -964,45 +979,6 @@ a {
     margin-top: 8px;
 }
 
-.qna_widget {
-    font-size: 1em;
-    border: 1px solid;
-    border-radius: 7px;
-    padding: 0.5em;
-    background: #cfe0fd;
-}
-
-.themeDark .qna_widget {
-    background: #243a4c;
-}
-
-.qna_question {
-    margin-bottom: 0.5em;
-}
-
-.qna_answer {
-
-}
-
-.qna_question .qna_label {
-    font-weight: bold;
-}
-
-.qna_answer .qna_label {
-    font-weight: bold;
-}
-
-.qna_hide {
-    text-align: center;
-    transition-property: opacity;
-    transition-duration: 0.5s;
-    opacity: 0;
-}
-
-.qna_hide:hover {
-    opacity: 1;
-}
-
 /* ---------------------------------------------------------------------- */
 /* Prevent the "x" close icon being covered up by long titles, while still
    appearing all the way on the right, for short titles.                  */
@@ -1128,19 +1104,36 @@ a {
     font-size: 1.4em;
     top: 110px;
     left: 256px;
-    padding-bottom: 10px;
+    padding-bottom: 26px;
+    padding-top: 5px;
 }
 
 .aboutIseDialog .pise-software-table-wrapper {
-    height: 266px;
+    height: 323px;
     overflow: scroll;
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 0 12px;
 }
 
 .aboutIseDialog .pise-software-table {
-    margin-top: 18px;
     width: 100%;
     font-size: 1.3em;
     line-height: 2em;
+}
+
+.aboutIseDialog .pise-image-credits {
+    font-size: 0.8em;
+    margin-top: 16px;
+    margin-bottom: -22px;
+}
+
+.aboutIseDialog .pise-image-credits span:nth-of-type(1) {
+    font-size: 1.2em;
+}
+
+.aboutIseDialog .pise-image-credits ul {
+    margin-block-start: 0;
 }
 
 .aboutIseDialog .pise-software-table thead {
@@ -1327,6 +1320,10 @@ p.warning {
     background-position: center left;
     background-repeat: no-repeat;
     background-image: url(../img/icons/warning16.png);
+    padding-left: 20px;
+}
+
+p.warningIndent {
     padding-left: 20px;
 }
 

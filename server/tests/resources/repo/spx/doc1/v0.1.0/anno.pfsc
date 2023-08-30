@@ -1,0 +1,7 @@
+# Here we try an import from an rst module into a pfsc module.
+
+from ..foo.pageC import _page as pageC
+
+anno Notes @@@
+Here's <link:>[a link]{ref: pageC.w000} to a widget in a Sphinx page.
+@@@

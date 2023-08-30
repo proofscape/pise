@@ -23,10 +23,7 @@ import pytest
 
 from tests import handleAsJson, login_context
 from pfsc.constants import WEBSOCKET_NAMESPACE, ISE_PREFIX, UserProps
-from pfsc.build import build_module
-from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer, get_graph_reader
-from pfsc.lang.modules import get_modpath
 from pfsc.excep import PECode
 
 """
@@ -34,18 +31,15 @@ For now, skipping all tests involving sockets.
 Have not yet figured out how to get the socketio test client working.
 """
 
-def ensure_built(app, libpath, version):
-    with app.app_context():
-        ri = get_repo_info(libpath)
-        ri.checkout(version)
-        modpath = get_modpath(libpath)
-        build_module(modpath, caching=0)
-
-
 ###############################################################################
 # UPDATE: Currently, the sio_client does say it's connected, but we still can't
 # get any tests to work in which we want the sio_client to receive emitted
 # messages.
+# UPDATE (230829): After package upgrades from today's rebase of sphinx topic
+# onto main (resulting in regenerating requirements.txt from scratch), this test
+# works when run in isolation, but not when running our entire suite of unit
+# tests. It is somehow history-dependent.
+@pytest.mark.skip(reason="sio_client still not working for us...")
 def test_connect(sio_client):
     assert sio_client.is_connected(namespace=WEBSOCKET_NAMESPACE)
 
@@ -91,8 +85,8 @@ def test_load_dashgraph(app, client, repos_ready):
             e = d["dashgraph"]["children"]["test.moo.bar.results.Pf.U"]["enrichment"]
             deducs = e["Deduc"]
             annos = e["Anno"]
-            assert len(deducs) == 2 and "test.moo.comment.bar.xpan_T" in [deducs[i]["libpath"] for i in range(2)]
-            assert len(annos) == 1 and annos[0]["libpath"] == "test.moo.comment.bar.NotesT"
+            assert len(deducs) == 3 and "test.moo.comment.bar.xpan_T" in [deducs[i]["libpath"] for i in range(2)]
+            assert len(annos) == 2 and annos[0]["libpath"] == "test.moo.comment.bar.NotesT"
 
             u = d["dashgraph"]["children"]["test.moo.bar.results.Pf.R"]["user_notes"]
             assert u == {
@@ -331,7 +325,7 @@ def test_forest_update_helper_0(app, client, repos_ready):
         info = {
             "current_forest": {},
             #"on_board": [],
-            "off_board": "all",
+            "off_board": "<all>",
             "to_view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.D330.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.D330.A20"
@@ -355,7 +349,7 @@ def test_forest_update_helper_1(app, client, repos_ready):
         info = {
             "current_forest": {},
             #"on_board": [],
-            "off_board": "all",
+            "off_board": "<all>",
             "to_view": [
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A10",
                 "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A20"
@@ -440,7 +434,7 @@ def test_permission_rejections_POST(app, client, repos_ready, url):
 @pytest.mark.parametrize('info', [
 {
     "current_forest": {},
-    "off_board": "all",
+    "off_board": "<all>",
     "to_view": [
         "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A10",
         "test.hist.lit.H.ilbert.ZB.Thm168.Pf1A.A20"
@@ -452,7 +446,7 @@ def test_permission_rejections_POST(app, client, repos_ready, url):
 },
 {
     "current_forest": {"test.hist.lit.H.ilbert.ZB.Thm168.Pf1A@WIP":{}},
-    "reload": "all",
+    "reload": "<all>",
     "incl_nbhd_in_view": True
 }
 ])

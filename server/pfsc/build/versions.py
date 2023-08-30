@@ -70,6 +70,20 @@ def collapse_padded_full_version(pfv):
     M, m, p = [int(k) for k in [pfv[n*i : n*i + n] for i in range(3)]]
     return f'v{M}.{m}.{p}'
 
+
+def get_padded_components(version):
+    """
+    :param version: string giving version such as `v3.14.159` or `WIP`
+    :return: the three padded version components, such as
+        `('000003', '000014', '000159')` or `('WIP', '000000', '000000')`
+    """
+    f = pfsc.constants.PADDED_VERSION_COMPONENT_FORMAT
+    if version == pfsc.constants.WIP_TAG:
+        return version, f % 0, f % 0
+    vt = VersionTag(version)
+    return map(lambda n: f % n, vt.get_components())
+
+
 def collapse_major_string(ms):
     """
     :param ms: a string giving a major version, as obtained from a j-node's

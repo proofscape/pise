@@ -535,10 +535,16 @@ class SoftwarePackage:
 
     def get_raw_license_url(self):
         url = self.get_license_url()
+
         gh_prefix = 'https://github.com/'
         if url.startswith(gh_prefix):
             url = 'https://raw.githubusercontent.com/' + url[len(gh_prefix):]
             url = re.sub(r'/blob/', '/', url)
+
+        # Special cases:
+        if url.startswith('https://bazaar.launchpad.net/'):
+            url = re.sub(r'/view/', '/download/', url)
+
         return url
 
     def __str__(self):
@@ -1159,8 +1165,13 @@ def get_manual_py_pkg_info_lookup():
             'license_name': 'BSD-3-Clause',
             'license_url': 'https://github.com/bitprophet/alabaster/blob/master/LICENSE',
         },
+        'attrs': {
+            'license_name': 'MIT',
+            'license_url': 'https://github.com/python-attrs/attrs/blob/main/LICENSE',
+        },
         'beautifulsoup4': {
             'src_url': 'https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/files',
+            'license_name': 'MIT',
             'license_url': 'https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/LICENSE',
         },
         'bidict': {
@@ -1229,6 +1240,9 @@ def get_manual_py_pkg_info_lookup():
         'Flask-SocketIO': {
             'license_name': 'MIT',
         },
+        'furo': {
+            'license_name': 'MIT',
+        },
         'greenlet': {
             'license_url': 'https://github.com/python-greenlet/greenlet/blob/master/LICENSE',
         },
@@ -1238,8 +1252,15 @@ def get_manual_py_pkg_info_lookup():
         'hiredis': {
             'license_url': 'https://github.com/redis/hiredis-py/blob/master/LICENSE',
         },
+        'idna': {
+            'license_name': 'BSD-3-Clause',
+        },
         'importlib-metadata': {
             'license_name': 'Apache 2.0',
+        },
+        'iniconfig': {
+            'license_name': "MIT",
+            'license_url': 'https://github.com/pytest-dev/iniconfig/blob/main/LICENSE',
         },
         'isodate': {
             'license_url': 'https://github.com/gweis/isodate/blob/master/LICENSE',
@@ -1262,6 +1283,10 @@ def get_manual_py_pkg_info_lookup():
         'neo4j': {
             'license_name': 'Apache 2.0',
             'license_url': 'https://github.com/neo4j/neo4j-python-driver/blob/4.2.1/LICENSE.txt',
+        },
+        'packaging': {
+            'license_name': 'Apache 2.0',
+            'license_url': 'https://github.com/pypa/packaging/blob/main/LICENSE.APACHE',
         },
         'pep517': {
             'license_name': 'MIT',
@@ -1308,6 +1333,10 @@ def get_manual_py_pkg_info_lookup():
         'typing_extensions': {
             'gh_url': 'https://github.com/python/typing/tree/4.0.1',
             'license_name': 'PSF License',
+        },
+        'urllib3': {
+            'license_name': 'MIT',
+            'license_url': 'https://github.com/urllib3/urllib3/blob/main/LICENSE.txt',
         },
         'Werkzeug': {
             'license_name': 'BSD 3-Clause',

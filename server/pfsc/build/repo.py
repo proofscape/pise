@@ -24,7 +24,8 @@ from pygit2 import (
 )
 
 import pfsc.constants
-from pfsc import check_config
+from pfsc.constants import PFSC_EXT, RST_EXT
+from pfsc import check_config, get_build_dir
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
 from pfsc.util import run_cmd_in_dir
@@ -255,36 +256,42 @@ class RepoInfo:
         """
         return tag_name in [t.name for t in self.get_all_version_tags_in_increasing_order()]
 
-    def get_build_dir(self, version=pfsc.constants.WIP_TAG):
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user, self.project, version
-        )
-        return build_dir
+    def get_build_dir(self, version=pfsc.constants.WIP_TAG,
+                      cache_dir=False, sphinx_dir=False):
+        """
+        Get a directory for recording output files for this repo.
 
-    def get_repo_build_dir(self):
+        :param version: the version for which you want to record files
+        :param cache_dir: set True if you want to record cache files; leave
+            False if you are recording build products like html or json files.
+        :param sphinx_dir: set True if you are recording output from the Sphinx
+            part of the build; leave False for output from the native pfsc build.
+
+        :return: pathlib.Path
+        """
+        root_dir = get_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        full_dir = root_dir.joinpath(self.family, self.user, self.project, version)
+        return full_dir
+
+    def get_repo_build_dir(self, version=pfsc.constants.WIP_TAG,
+                           cache_dir=False, sphinx_dir=False):
         """
         Like `get_build_dir`, but omits the version dir at the end.
         """
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user, self.project
-        )
-        return build_dir
+        build_dir = self.get_build_dir(version=version, cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        return build_dir.parent
 
-    def get_user_build_dir(self):
+    def get_user_build_dir(self, version=pfsc.constants.WIP_TAG,
+                           cache_dir=False, sphinx_dir=False):
         """
         Like `get_build_dir`, but omits the repo dir and version dir at the end.
         """
-        build_root = check_config("PFSC_BUILD_ROOT")
-        build_dir = os.path.join(
-            build_root, self.family, self.user
-        )
-        return build_dir
+        build_dir = self.get_build_dir(version=version, cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+        return build_dir.parent.parent
 
     def get_manifest_json_path(self, version=pfsc.constants.WIP_TAG):
         build_dir = self.get_build_dir(version=version)
-        return os.path.join(build_dir, 'manifest.json')
+        return build_dir.joinpath('manifest.json')
 
     def has_manifest_json_file(self, version=pfsc.constants.WIP_TAG):
         path = self.get_manifest_json_path(version=version)
@@ -350,6 +357,33 @@ class RepoInfo:
         return items
 
 
+def parse_module_filename(filename):
+    """
+    Determine whether a filename (just name, not path) appears to name a
+    Proofscape module (of pfsc or rst type), and if so, split it into stem
+    and extension.
+
+    Examples:
+
+        >>> parse_module_filename('foo.pfsc')
+        ('foo', '.pfsc', '.rst')
+
+    :param filename: string, supposedly of the form `stem.extension`
+
+    :return: triple (stem, ext, other_ext) giving the stem, the (dotted) extension,
+        and the (dotted) extension that wasn't used. All three are `None` if the
+        filename did not appear to have an acceptable extension.
+    """
+    stem, ext, other_ext = None, None, None
+    if filename.endswith(PFSC_EXT):
+        stem = filename[:-len(PFSC_EXT)]
+        ext, other_ext = PFSC_EXT, RST_EXT
+    elif filename.endswith(RST_EXT):
+        stem = filename[:-len(RST_EXT)]
+        ext, other_ext = RST_EXT, PFSC_EXT
+    return stem, ext, other_ext
+
+
 class FilesystemNode:
     DIR = "DIR"
     FILE = "FILE"
@@ -367,23 +401,30 @@ class FilesystemNode:
         if cur_depth > pfsc.constants.MAX_REPO_DIR_DEPTH:
             raise PfscExcep('Exceeded max repo directory depth.', PECode.REPO_DIR_NESTING_DEPTH_EXCEEDED)
         child_dirs = []
+
         with os.scandir(fspath) as it:
             for entry in it:
                 name = entry.name
-                if entry.is_file() and name.endswith('.pfsc'):
-                    libpath = self.libpath if name == '__.pfsc' else f'{self.libpath}.{name[:-5]}'
-                    node = FilesystemNode(name, f'{self.id}/{name}', libpath, FilesystemNode.FILE)
-                    self.add_child(node)
+                if entry.is_file():
+                    stem, _, _ = parse_module_filename(name)
+                    if stem:
+                        libpath = self.libpath if name == '__.pfsc' else f'{self.libpath}.{stem}'
+                        node = FilesystemNode(name, f'{self.id}/{name}', libpath, FilesystemNode.FILE)
+                        self.add_child(node)
                 # For dirs, definitely want to skip `.git`. We'll skip all hidden dirs.
                 elif entry.is_dir() and not name.startswith('.'):
                     node = FilesystemNode(name, f'{self.id}/{name}', f'{self.libpath}.{name}', FilesystemNode.DIR)
                     self.add_child(node)
                     path = os.path.join(fspath, name)
-                    #node.explore(path)
                     child_dirs.append((node, path))
+
+        # Arrange alphabetically
+        self.children.sort(key=lambda u: u.name)
+
         if omit_fileless_dirs and self.num_files == 0:
             # Don't bother recursing.
             return
+
         for node, path in child_dirs:
             node.explore(path, cur_depth=cur_depth + 1)
 
@@ -415,9 +456,9 @@ class FilesystemNode:
             "type": self.kind,
             "sibling": siblingOrder,
         })
-        self.children.sort(key=lambda u: u.name)
         for i, child in enumerate(self.children):
-            if omit_fileless_dirs and child.kind == FilesystemNode.DIR and child.num_files == 0: continue
+            if omit_fileless_dirs and child.kind == FilesystemNode.DIR and child.num_files == 0:
+                continue
             child.build_relational_model(items, siblingOrder=i)
 
 

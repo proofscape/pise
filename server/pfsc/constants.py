@@ -123,8 +123,29 @@ DEFAULT_USER_EMAIL = 'pfsc_default_user@localhost'
 PROGRAMMATIC_COMMIT_USER_NAME = 'Pfsc Bot'
 PROGRAMMATIC_COMMIT_USER_EMAIL = 'pfsc_bot@localhost'
 
-class IndexType:
+# Source file extensions
+PFSC_EXT = '.pfsc'
+RST_EXT = '.rst'
 
+# Extension used for pickled cache files
+PICKLE_EXT = '.pickle'
+
+
+class ContentDescriptorType:
+    """
+    Type names for manifest tree nodes, and content descriptor
+    dictionaries. Matches content type names used on the client side.
+    """
+    CHART = 'CHART'
+    MODULE = 'MODULE'
+    NOTES = 'NOTES'
+    SPHINX = 'SPHINX'
+
+
+class IndexType:
+    """
+    Labels and type names for nodes and edges in the GDB.
+    """
     # -----------------------------------------------------
     # j-node types
     VERSION = 'Version'
@@ -133,6 +154,7 @@ class IndexType:
     DEDUC = 'Deduc'
     EXAMP = 'Examp'
     ANNO  = 'Anno'
+    SPHINX = 'Sphinx'
 
     DEFN = 'Defn'
     ASGN = 'Asgn'

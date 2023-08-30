@@ -343,6 +343,7 @@ def test_meson_arcwords(app):
     """
     with app.app_context():
         mod = load_module('test.moo.deducs.d1')
+        mod.resolve()
         foo = mod['foo']
         g = str(foo.graph)
         print()
@@ -371,6 +372,7 @@ def test_bar(app):
     """
     with app.app_context():
         mod = load_module('test.moo.deducs.d2')
+        mod.resolve()
         bar = mod['bar']
         g = str(bar.graph)
         print()
@@ -417,6 +419,7 @@ def test_issue_7(app):
         ri = get_repo_info(libpath)
         with checkout(ri, version):
             mod = load_module(libpath)
+            mod.resolve()
             dg = mod['Pf2'].buildDashgraph()
             #import json
             #print(json.dumps(dg['edges'], indent=4))
@@ -434,7 +437,8 @@ def test_issue_14(app):
         ri = get_repo_info(libpath)
         with checkout(ri, version):
             with pytest.raises(PfscExcep) as ei:
-                load_module(libpath)
+                mod = load_module(libpath)
+                mod.resolve()
             assert ei.value.code() == PECode.MESON_BAD_GHOST_NODE
 
 

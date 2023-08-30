@@ -1,1 +1,2 @@
 FLASK_APP=web
+FLASK_CONFIG=localdev

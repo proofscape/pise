@@ -16,6 +16,7 @@
 
 import json
 
+import pfsc.constants
 from pfsc.constants import UserProps
 from pfsc.excep import PfscExcep, PECode
 from pfsc.gdb.reader import GraphReader
@@ -80,48 +81,23 @@ class GraphWriter:
 
     def clear_wip_indexing(self, mii, tx):
         """
-        Clear anything currently in the index resulting from a previous WIP
-        build of this module. This means (a) delete every j-node and j-reln falling under the
-        module and having major version number "WIP", and (b) set any `cut: "WIP"`
-        properties that may have been set on anything under this module back to `cut: "inf"`.
+        Delete every j-node and j-reln falling under the module and having
+        major version number "WIP"
 
-        In case you are wondering why step (b) is necessary: It is true that this has no
-        impact on anyone querying the GDB regarding _numbered_ releases of the repo in
-        question; but it matters for the one doing WIP builds. There, an object that
-        _was_ cut in the previous build, but _not_ in the present one, would still
-        appear to be cut.
-
-        Example: Suppose in the latest numbered build there's a proof with assertion
-        nodes A10 and A20, and there is an (A10)-[e:IMPLIES]->(A20) relation in the
-        GDB. Next you do a WIP build where you try interposing another assertion node
-        A15, so that A10-->A15-->A20. This will cause e.cut = "WIP". If you then change
-        your mind and remove the new node A15 and restore the implication A10-->A20,
-        then e.cut should go back to "inf" on the next WIP build.
+        Since WIP indexing is done in ISOLATED mode, this is enough. (In
+        particular, there is no need to reset any `cut` properties on other
+        nodes.)
         """
         mii.note_begin_indexing_phase(110)
-        for modpath in mii.all_modules():
+        # Any j-relns added in a previous WIP build should have at least
+        # one endpoint which is a j-node added in that build, so dropping
+        # just the nodes should be enough.
+        for modpath in mii.all_modpaths_with_changes():
             self._drop_wip_nodes_under_module(modpath, tx)
             mii.note_task_element_completed(111)
-            # Any j-relns added in a previous WIP build should have at least
-            # one endpoint which is a j-node added in that build, so dropping
-            # just the nodes should be enough.
-        node_db_ids = [k.db_uid for k in mii.existing_k_nodes.values()]
-        reln_db_ids = [k.db_uid for k in mii.existing_k_relns.values()]
-        self._undo_wip_cut_nodes(node_db_ids, tx)
-        mii.note_task_element_completed(112, len(node_db_ids))
-        self._undo_wip_cut_relns(reln_db_ids, tx)
-        mii.note_task_element_completed(113, len(reln_db_ids))
 
     def _drop_wip_nodes_under_module(self, modpath, tx):
         """Drop all nodes having a given modpath and major=WIP. """
-        raise NotImplementedError
-
-    def _undo_wip_cut_nodes(self, node_db_ids, tx):
-        """Among nodes with given DB IDs, reset cut=WIP to cut=inf. """
-        raise NotImplementedError
-
-    def _undo_wip_cut_relns(self, reln_db_ids, tx):
-        """Among relns with given DB IDs, reset cut=WIP to cut=inf. """
         raise NotImplementedError
 
     def ix0100(self, mii, tx):
@@ -155,12 +131,21 @@ class GraphWriter:
         """
         Retargeting.
 
-        We add "retargeting" edges.
+        We add "RETARGETS" edges.
         There are two sides to this:
         (1) For any new enrichments we have added, we add retargeting edges if
             their declared targets have moved forward;
         (2) For anything that has moved in this release, we add retargeting edges
             from any existing enrichments on them, to their new location.
+
+        Note that the major/cut interval on a TARGETS edge indicates the set of
+        versions of the *tail*, over which this relationship to the head holds.
+        Therefore the RETARGETS edges we add will be given the same major/cut as
+        the TARGETS edges they correspond to. Essentially, a TARGETS edge says,
+        "Enrichment e at major version M was designed as an enrichment on target
+        t," while a corresp. RETARGETS edge says, "But now t can be found at
+        a new address, so e@M is still designed as an enrichment on the thing
+        at this new address."
         """
         raise NotImplementedError
 
@@ -199,6 +184,16 @@ class GraphWriter:
     def delete_full_wip_build(self, repopath):
         """
         Delete everything for a given repo @WIP.
+        """
+        self.delete_full_build_at_version(repopath, version=pfsc.constants.WIP_TAG)
+
+    def delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
+        """
+        Delete everything for a given repo at a given version.
+
+        WARNING: If numbered versions have been built under DIFFERENTIAL indexing
+        mode, then deleting any but the latest numbered version for a given
+        repo will result in an inconsistent state in the index.
         """
         raise NotImplementedError
 

@@ -29,9 +29,16 @@ module.exports = env => {
         entry: {
             ise: './src/main.js',
             mathworker: './src/mathworker.js',
+            sphinxpage: './src/sphinxpage.js',
         },
         output: {
-            filename: `ise/[name].bundle${devmode ? '.' : '.min.'}js`,
+            filename: (pathData) => {
+                if (pathData.chunk.name === 'sphinxpage') {
+                    return 'ise/sphinxpage.js';
+                } else {
+                    return `ise/[name].bundle${devmode ? '.' : '.min.'}js`;
+                }
+            },
         },
         mode: devmode ? 'development' : 'production',
         devtool: devmode ? 'eval-cheap-source-map' : undefined,

@@ -19,7 +19,7 @@ Flask-Mail==0.9.1
 Flask-SocketIO==5.3.5
 
 # We use the Eventlet web server to support websockets via Flask-SocketIO.
-eventlet==0.33.1
+eventlet==0.33.3
 
 # We need to talk to graph databases.
 neo4j==4.2.1
@@ -49,8 +49,21 @@ lark067==0.6.7
 # annotations.
 mistletoe==0.7.2
 
+# Proofscape repos can define Sphinx pages in rst files.
+# The `furo` theme is automatically used. This is integrated with the
+# light/dark theme controls in PISE.
+furo==2022.12.7
+# The *external* `sphinx-proofscape` package provides syntax highlighting for
+# the pfsc module syntax and meson language, while the Sphinx extension defined
+# locally in `pise/server` under `pfsc.sphinx` defines
+# everything else (roles and directives for widgets, etc.).
+sphinx-proofscape==0.4.0
+# When you write a Sphinx doc inside a Proofscape repo, you can use dollar
+# signs for math modes.
+sphinx-math-dollar==1.2.1
+
 # VerTeX can be used in pfsc modules!
-vertex2tex==0.3.3
+vertex2tex==0.3.4
 
 # The Flask app is a web server that handles some easy jobs itself, but hands
 # off long-running jobs to an RQ worker.

@@ -20,7 +20,7 @@ module, as defined in a .pfsc file.
 """
 
 import re, traceback
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import mistletoe
 from markupsafe import Markup
@@ -31,7 +31,7 @@ from pfsc.lang import meson as meson
 from pfsc.build.repo import get_repo_part
 from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.gdb import get_graph_reader
-from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn
+from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn, EnrichmentType
 from pfsc import util
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
@@ -148,7 +148,7 @@ class Deduction(Enrichment, NodeLikeObj):
         rdef_paths:      list(str)   rdef paths from deduc preamble
         module:          PfscModule object to which this deduc belongs
         """
-        Enrichment.__init__(self, 'deduction')
+        Enrichment.__init__(self, EnrichmentType.deduction)
         NodeLikeObj.__init__(self)
         self.parent = module
         self.name = name
@@ -165,8 +165,16 @@ class Deduction(Enrichment, NodeLikeObj):
 
         self.rdef_paths = rdef_paths
         self.runningDefs = []
+        self.target_paths = target_paths
+        self.pending_clones = deque()
 
-        if not module: return
+    def resolve(self):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+        """
+        target_paths = self.target_paths
+        module = self.parent
         self.find_and_store_targets(target_paths, module, all_nodes=True, common_deduc=True)
 
         # FIXME: isn't this redundant?
@@ -179,6 +187,19 @@ class Deduction(Enrichment, NodeLikeObj):
         #for ts in target_paths:
         #    G = self.createGhosts(ts)
         #    self.ghostNodes.append(G)
+
+        while self.pending_clones:
+            pc = self.pending_clones.popleft()
+            clone = pc.make_clone(self)
+            clone.add_as_content(self)
+        # Cascade libpaths *again*, so that newly resolved clones can know theirs.
+        self.cascadeLibpaths()
+
+        self.resolve_objects()
+        self.buildGraph()
+
+    def add_pending_clone(self, pc):
+        self.pending_clones.append(pc)
 
     @property
     def trusted(self):
@@ -274,14 +295,6 @@ class Deduction(Enrichment, NodeLikeObj):
         # After the final iteration, the deepest GhostNode (the one for the full dotpath given)
         # is the one we now want to return.
         return G
-
-    def getXpansAvailPresentationInfo(self, major, filter_by_repo_permission=True):
-        infos = get_graph_reader().get_enrichment(
-            self.getLibpath(),
-            major,
-            filter_by_repo_permission=filter_by_repo_permission
-        )
-        return infos
 
     def getNodeType(self):
         return 'deduc'
@@ -821,6 +834,9 @@ class SubDeduc(Deduction):
     def __init__(self, name):
         Deduction.__init__(self, name, [], [])
 
+    def add_as_content(self, owner):
+        owner.addSubDeduc(self)
+
     def makeClone(self, name=None):
         """
         Make a clone of this subdeduc. You can pass a name if you want to specify
@@ -907,6 +923,9 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.docReference = None
+
+    def add_as_content(self, owner):
+        owner.addNode(self)
 
     def makeClone(self, name=None):
         """

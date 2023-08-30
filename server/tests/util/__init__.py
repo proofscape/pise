@@ -18,9 +18,10 @@ import os
 import re
 import tempfile
 
+import pfsc.constants
 from pfsc import make_app
 from pfsc.constants import TEST_RESOURCE_DIR
-from pfsc.build import build_release, build_module
+from pfsc.build import build_repo
 from pfsc.build.versions import VersionTag
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_writer
@@ -83,12 +84,15 @@ def gather_repo_info():
     return REPOS
 
 
-def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
+def make_repos(config=LocalDevConfig, verbose=True, cautious=False, only=None):
     """
     Set up for unit tests by building all the "test" repos.
     :param config: a Config subclass. This is needed for the PFSC_LIB_ROOT.
     :param verbose: control verbosity
     :param cautious: control whether we ask before rebuilding existing repos
+    :param only: if None, simply make *all* the test repos. If not None,
+        should be a list of ordered pairs (user, proj) giving those user/project
+        pairs that are the only repos you want to make.
     :return: nothing
     """
     # Ensure the `test` folder exists.
@@ -97,7 +101,10 @@ def make_repos(config = LocalDevConfig, verbose = True, cautious = False):
         os.makedirs(LIB_TEST_DIR)
     REPOS = gather_repo_info()
     for repo in REPOS:
-        if verbose: print("Repo test.%s.%s..." % (repo.user, repo.proj))
+        user_proj_pair = (repo.user, repo.proj)
+        if only is not None and user_proj_pair not in only:
+            continue
+        if verbose: print("Repo test.%s.%s..." % user_proj_pair)
         USER_DIR = os.path.join(LIB_TEST_DIR, repo.user)
         PROJ_DIR = os.path.join(USER_DIR, repo.proj)
         # Make user dir if does not exist already.
@@ -182,37 +189,98 @@ def get_basic_repos():
     ))
 
 
-def clear_all_indexing():
+def clear_indexing(repopath=None, version=None):
+    """
+    if repopath is None:
+        Clear all indexing under `test` host segment.
+    else:
+        if version is None:
+            Clear indexing for repopath@WIP
+        else:
+            Clear indexing for repopath@version
+    """
     app = make_app(ConfigName.LOCALDEV)
     with app.app_context():
         gw = get_graph_writer()
-        gw.clear_test_indexing()
+        if repopath is None:
+            gw.clear_test_indexing()
+        else:
+            version = version or pfsc.constants.WIP_TAG
+            gw.delete_full_build_at_version(repopath, version)
 
 
 def build_big(verbose=True):
-    clear_all_indexing()
+    clear_indexing()
     repopath = 'test.hist.lit'
     version = 'v0.0.0'
     app = make_app(ConfigName.LOCALDEV)
     # Ensure we are able to build:
     app.config["PERSONAL_SERVER_MODE"] = True
     with app.app_context():
-        build_release(repopath, version=version, verbose=verbose)
+        build_repo(
+            repopath, version=version, verbose=verbose, make_clean=True
+        )
+
+
+def clear_and_build_releases_with_deps_depth_first(
+        app, repopath_version_pairs, verbose=False
+):
+    """
+    Clear index of test junk, then build the desired repos at the desired
+    versions, first building any dependencies, in topological order ("depth first").
+
+    :param app: Flask app
+    :param repopath_version_pairs: iterable of pairs (repopath, version)
+    """
+    repos_built = set()
+    clear_indexing()
+    repos = get_basic_repos()
+    repos = {r.libpath: r for r in repos}
+    stack = []
+
+    def request_version(rp, vers):
+        repo = repos[rp]
+        i0 = repo.tag_names.index(vers)
+        versions = reversed(repo.tag_names[:i0 + 1])
+        stack.extend([(rp, v) for v in versions])
+
+    with app.app_context():
+        for repopath, version in repopath_version_pairs:
+            request_version(repopath, version)
+            while stack:
+                rp, vers = stack.pop()
+                if f'{rp}@{vers}' in repos_built:
+                    continue
+                repo = repos[rp]
+                repo.lookup_dependencies()
+                deps = repo.deps[vers].rhs if vers in repo.deps else {}
+                prereqs = []
+                for k, v in deps.items():
+                    if f'{k}@{v}' not in repos_built:
+                        prereqs.append((k, v))
+                if prereqs:
+                    stack.append((rp, vers))
+                    for k, v in prereqs:
+                        request_version(k, v)
+                else:
+                    verspath = f'{rp}@{vers}'
+                    print(f'\nBuilding {verspath}...')
+                    build_repo(rp, version=vers, verbose=verbose, make_clean=True)
+                    repos_built.add(verspath)
 
 
 def build_all(verbose=True):
-    clear_all_indexing()
     repos = get_basic_repos()
     app = make_app(ConfigName.LOCALDEV)
     # Ensure we are able to build:
     app.config["PERSONAL_SERVER_MODE"] = True
-    # Setting ALLOW_WIP to False makes this serve as a test of the
-    # `pfsc.lang.modules.inherit_release_build_signal()` function.
-    app.config["ALLOW_WIP"] = False
-    with app.app_context():
-        for repo in repos:
-            for version in repo.tag_names:
-                build_release(repo.libpath, version=version, verbose=verbose)
+    repopath_version_pairs = []
+    for repo in repos:
+        for version in repo.tag_names:
+            repopath_version_pairs.append((repo.libpath, version))
+    clear_and_build_releases_with_deps_depth_first(
+        app, repopath_version_pairs, verbose=verbose
+    )
 
 
 def get_tags_to_build_as_wip():
@@ -234,5 +302,6 @@ def build_at_wip(verbose=True):
         for repopath, tag in tags_to_build_as_wip:
             ri = get_repo_info(repopath)
             ri.checkout(tag)
-            build_module(repopath, recursive=True, caching=0, verbose=verbose)
+            print(f'\nBuilding {repopath}@WIP...')
+            build_repo(repopath, verbose=verbose, make_clean=True)
             ri.clean()

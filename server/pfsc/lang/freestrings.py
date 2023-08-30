@@ -198,6 +198,22 @@ class Libpath(str):
         self = str.__new__(cls, value)
         return self
 
+    def resolve_to_rhs_or_not_at_all(self, scope):
+        if scope is None:
+            return self
+        obj, ancpath = scope.getAsgnValueFromAncestor(self)
+        if obj is not None:
+            # We got the RHS of a PfscAssignment
+            return obj
+        obj, ancpath = scope.getFromAncestor(self)
+        if obj is None:
+            # This means we couldn't resolve the libpath at all, which is an exception.
+            msg = 'Libpath %s could not be resolved.' % self
+            raise PfscExcep(msg, PECode.RELATIVE_LIBPATH_CANNOT_BE_RESOLVED)
+        # We can resolve the libpath, but it doesn't point to a PfscAssignment,
+        # so we just return the libpath itself.
+        return self
+
 
 class PfscJsonTransformer(Transformer):
 
@@ -207,27 +223,9 @@ class PfscJsonTransformer(Transformer):
         """
         self.scope = scope
 
-    @staticmethod
-    def raise_libpath_resolution_excep(libpath):
-        msg = 'Libpath %s could not be resolved.' % libpath
-        raise PfscExcep(msg, PECode.RELATIVE_LIBPATH_CANNOT_BE_RESOLVED)
-
     def json_libpath(self, items):
         libpath = Libpath('.'.join(items))
-        scope = self.scope
-        if scope is None:
-            return libpath
-        obj, ancpath = scope.getAsgnValueFromAncestor(libpath)
-        if obj is not None:
-            # We got the RHS of a PfscAssignment
-            return obj
-        obj, ancpath = scope.getFromAncestor(libpath)
-        if obj is None:
-            # This means we couldn't resolve the libpath at all, which is an exception.
-            self.raise_libpath_resolution_excep(libpath)
-        # We can resolve the libpath, but it doesn't point to a PfscAssignment,
-        # so we just return the libpath itself.
-        return libpath
+        return libpath.resolve_to_rhs_or_not_at_all(self.scope)
 
     @v_args(inline=True)
     def ve_string(self, s):

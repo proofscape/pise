@@ -389,8 +389,8 @@ const Chooser = declare(null, {
     },
 
     typesetDisplayedValue: function() {
-        let elt = this.value_slot[0];
-        iseUtil.typeset([elt]);
+        const elt = this.value_slot[0];
+        this.parent.typeset(this.pane.id, [elt]);
     },
 
     getDisplayedValueHtml: function() {

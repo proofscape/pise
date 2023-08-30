@@ -235,6 +235,7 @@ class TheoryMapBuilder(Handler):
         module = build_module_from_text(modtext, modpath, dependencies={
             repopath: vers.full,
         })
+        module.resolve()
         theorymap = module[name]
         dg = theorymap.buildDashgraph()
         self.set_response_field('dashgraph', dg)

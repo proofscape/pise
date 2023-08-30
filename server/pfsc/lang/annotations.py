@@ -16,7 +16,7 @@
 
 import json
 
-from pfsc.lang.objects import PfscObj, Enrichment
+from pfsc.lang.objects import EnrichmentPage, EnrichmentType
 from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.excep import PfscExcep, PECode
 from pfsc.constants import IndexType
@@ -28,7 +28,8 @@ from pfsc.lang.widgets import (
     WIDGET_TYPE_TO_CLASS, replace_data
 )
 
-class Annotation(Enrichment):
+
+class Annotation(EnrichmentPage):
     """
     This class represents Proofscape annotations, as defined using the `anno`
     keyword in pfsc modules.
@@ -59,11 +60,11 @@ class Annotation(Enrichment):
     """
 
     def __init__(self, name, target_paths, text, module):
-        Enrichment.__init__(self, 'annotation')
+        EnrichmentPage.__init__(self, EnrichmentType.annotation)
         self.parent = module
         self.name = name
         self.text = text
-        self.find_and_store_targets(target_paths, module)
+        self.target_paths = target_paths
         self._trusted = None
         # Stuff we need to build:
         self.raw_parts = None
@@ -74,17 +75,20 @@ class Annotation(Enrichment):
         self.escaped_html = None
         self.anno_data = None
 
+    def resolve(self):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+        """
+        self.find_and_store_targets(self.target_paths, self.parent)
+        EnrichmentPage.resolve(self)
+
     @property
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
             self._trusted = libpath_is_trusted(libpath)
         return self._trusted
-
-    def resolveLibpathsRec(self):
-        for item in self.items.values():
-            if callable(getattr(item, 'resolveLibpathsRec', None)):
-                item.resolveLibpathsRec()
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
@@ -108,7 +112,7 @@ class Annotation(Enrichment):
         assert self.Np % 2 == 1
         # Number of widget defns:
         self.Nw = int((self.Np - 1) / 2)
-        transformer = PfscJsonTransformer(scope=self)
+        transformer = PfscJsonTransformer(scope=None)
         # Iterate over the widget defns:
         for k in range(self.Nw):
             # Each widget defn comes in the form of a RawWidgetData named tuple.
@@ -236,39 +240,12 @@ class Annotation(Enrichment):
             if caching: self.escaped_html = escaped_html
         return escaped_html
 
-    def get_anno_data(self, caching=True):
-        """
-        Get the data for the notespage.
-
-        :param caching: If True, the data will only be computed once, and stored.
-        :return: The data.
-        """
-        anno_data = self.anno_data
-        if anno_data is None or not caching:
-            widget_data = {}
-            for widget in self.widget_seq:
-                if isinstance(widget, MalformedWidget):
-                    continue
-                widget.enrich_data()
-                uid = widget.writeUID()
-                data = widget.writeData()
-                widget_data[uid] = data
-            anno_data = {
-                'libpath': self.getLibpath(),
-                'version': self.getVersion(),
-                'widgets': widget_data,
-                'docInfo': self.gather_doc_info(caching=caching),
-            }
-            if caching:
-                self.anno_data = anno_data
-        return anno_data
-
     def get_notespage_data(self, caching=True):
         """
         Get all the info for a notespage, bundled into one dict.
         """
         html = self.get_escaped_html(caching=caching)
-        data = self.get_anno_data(caching=caching)
+        data = self.get_page_data(caching=caching)
         return {
             "html": html,
             "data": data

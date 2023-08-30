@@ -24,11 +24,55 @@ from pfsc.build.versions import (
     adapt_gen_version_to_major_index_prop)
 from pfsc.constants import WIP_TAG, IndexType
 from pfsc.excep import PfscExcep, PECode
-from pfsc.gdb.k import make_kNode_from_jNode, kNode
+from pfsc.gdb.k import kNode
 from pfsc.gdb.user import User
 from pfsc.gdb.util import SimpleGraph
 from pfsc.lang.theorygraph import TheoryNode, TheoryEdge, TheoryGraph
 from pfsc.permissions import have_repo_permission, ActionType
+
+
+class EnrichmentRecord:
+    """
+    Represents an enrichment found in the index.
+
+    libpath: the libpath of the enrichment
+    repopath: the repopath of the enrichment
+    node_type: the IndexType of the jNode representing the enrichment
+    reln_type: the IndexType of the jReln r in (enrichment)-[r]->(target)
+    target_libpath: the libpath of the target
+    padded_full_versions: iterable of padded full versions (strings) for all
+        versions at which the enrichment relates to the target in this way
+    """
+
+    def __init__(
+            self, k_reln,
+            padded_full_versions=None
+    ):
+        self.libpath = k_reln.tail_libpath
+        self.repopath = k_reln.repopath
+        self.node_type = k_reln.tail_type
+        self.reln_type = k_reln.reln_type
+        self.target_libpath = k_reln.head_libpath
+
+        if padded_full_versions is None:
+            padded_full_versions = set()
+        self.padded_full_versions = set(padded_full_versions)
+
+        self._max_pfv = None
+
+    def add_padded_full_versions(self, pfvs):
+        self.padded_full_versions.update(set(pfvs))
+
+    @property
+    def max_pfv(self):
+        if self._max_pfv is None:
+            self._max_pfv = max(self.padded_full_versions)
+        return self._max_pfv
+
+    def __lt__(self, other):
+        if self.libpath != other.libpath:
+            return self.libpath < other.libpath
+        return self.max_pfv < other.max_pfv
 
 
 class GraphReader:
@@ -84,6 +128,45 @@ class GraphReader:
             `ModuleIndexInfo.write_version_node_props()`.
         """
         raise NotImplementedError
+
+    def get_versions_for_k_objects(self, objects, include_wip=False):
+        """
+        Given an iterable of kObj instances (kNodes and/or kRelns), determine
+        the indexed versions that include each object.
+
+        :param objects: iterable of kObj instances
+        :param include_wip: as for the `get_versions_indexed()` method
+        :return: dict mapping each object to a list of the indexed versions
+            that include that object. Each list is of the format returned by
+            the `get_versions_indexed()` method.
+        """
+        events_by_repopath = defaultdict(list)
+        for obj in objects:
+            events_by_repopath[obj.repopath].append((obj.major, 1, obj))
+            events_by_repopath[obj.repopath].append((obj.cut, 0, obj))
+
+        versions = defaultdict(list)
+        for rp, events in events_by_repopath.items():
+            events.sort()
+            N = len(events)
+            e_open = set()
+            cur_maj = None
+            ptr = 0
+            vs = self.get_versions_indexed(rp, include_wip=include_wip)
+            for v in vs:
+                M = v['major']
+                if M != cur_maj:
+                    cur_maj = M
+                    while ptr < N and (e := events[ptr])[0] <= M:
+                        if e[1]:
+                            e_open.add(e[2])
+                        else:
+                            e_open.remove(e[2])
+                        ptr += 1
+                for obj in e_open:
+                    versions[obj].append(v)
+
+        return versions
 
     def version_is_already_indexed(self, repopath, version):
         """
@@ -211,7 +294,10 @@ class GraphReader:
     def _get_origins_internal(self, label, libpaths, major0):
         raise NotImplementedError
 
-    def get_enrichment(self, deducpath, major, filter_by_repo_permission=True):
+    def get_enrichment(
+            self, deducpath, major, filter_by_repo_permission=True,
+            do_consolidate=False, do_sort=True,
+    ):
         """
         List available enrichment (expansions, annotations, comparisons) for
         any nodes in a given deduction, or for the deduction itself.
@@ -222,6 +308,12 @@ class GraphReader:
         :param filter_by_repo_permission: if True, we will not report any
             enrichments as available at WIP unless we have permission for the
             repo where they are defined.
+        :param do_consolidate: if True, all enrichments having a given libpath
+            are put together as if one enrichment, and their version sets
+            combined.
+        :param do_sort: if True, each list of enrichments (see return format
+            below) is sorted, primarily by libpath, secondarily by latest
+            version.
         :return: dict of the form:
 
             {
@@ -244,54 +336,76 @@ class GraphReader:
           - Enrichments under 'Deduc' are expansions; those under 'Anno' are
             annotations; those under 'CF' are comparisons, i.e. nodes or deducs
             whose 'cf' field points to the target.
-          - Each `info` is a dict of properties of an enrichment node, as returned
-            by `kNode.get_property_dict()`, PLUS the following additional properties:
-              `WIP`: true if this enrichment is available at WIP version, false otherwise.
-              `latest`: the latest indexed _numerical_ version of this enrichment,
-                or null if there isn't any (meaning it is only available at WIP).
+          - Each `info` is a dict of the form {
+                libpath: the libpath of the enrichment,
+                versions: list of versions at which this enrichment is
+                    available. If WIP is present, it comes last; numerical
+                    versions are sorted in increasing order.
+            }
         """
         major0 = self.adaptall(major)
         enrichment = defaultdict(lambda: defaultdict(list))
         show_demo = check_config("SHOW_DEMO_ENRICHMENTS")
         target_is_demo = get_repo_info(deducpath).is_demo()
-        res = self._find_enrichments_internal(deducpath, major0)
-        for e, e_reln_type, padded_full_versions, t_libpath in res:
-            k = make_kNode_from_jNode(e)
+        relns = self._find_enrichments_internal(deducpath, major0)
+        versions = self.get_versions_for_k_objects(relns, include_wip=True)
+        ers = [
+            EnrichmentRecord(reln, [v['full'] for v in vs])
+            for reln, vs in versions.items()
+        ]
 
+        # By default, we do not consolidate. This is because, for the most
+        # part, different enrichment records with the same libpath represent
+        # different entities, as indicated by move mappings. The possible
+        # exception is an enrichment @WIP. Since move mappings are ignored
+        # for indexing @WIP, it's ambiguous.
+        if do_consolidate:
+            ers_by_libpath = {}
+            for er in ers:
+                er0 = ers_by_libpath.get(er.libpath)
+                if er0:
+                    er0.add_padded_full_versions(er.padded_full_versions)
+                else:
+                    ers_by_libpath[er.libpath] = er
+            ers = list(ers_by_libpath.values())
+
+        if do_sort:
+            ers.sort()
+
+        for rec in ers:
             # If config says not to show demo enrichments on non-demo objects, and
             # this is a demo enrichment, then skip this one.
             if not show_demo and not target_is_demo and get_repo_info(
-                    k.libpath).is_demo():
+                    rec.libpath).is_demo():
                 continue
 
-            info = k.get_property_dict()
             versions = [collapse_padded_full_version(pfv) for pfv in
-                        sorted(padded_full_versions)]
-            n = len(versions)
-            assert n > 0
-            if versions[-1] == WIP_TAG:
-                info[WIP_TAG] = True
-                info['latest'] = versions[-2] if n > 1 else None
+                        sorted(rec.padded_full_versions)]
+
+            if WIP_TAG in versions:
                 if filter_by_repo_permission and not have_repo_permission(
-                        ActionType.READ, k.repopath, WIP_TAG):
-                    if info['latest'] is None:
-                        continue
-                    info[WIP_TAG] = False
-            else:
-                info[WIP_TAG] = False
-                info['latest'] = versions[-1]
+                        ActionType.READ, rec.repopath, WIP_TAG):
+                    versions.pop()
+                    assert WIP_TAG not in versions
 
-            e_type = (
-                IndexType.CF
-                if e_reln_type == IndexType.CF else
-                k.node_type
-            )
-
-            enrichment[t_libpath][e_type].append(info)
+            if versions:
+                e_type = (
+                    IndexType.CF
+                    if rec.reln_type == IndexType.CF else
+                    rec.node_type
+                )
+                enrichment[rec.target_libpath][e_type].append({
+                    'libpath': rec.libpath,
+                    'versions': versions,
+                })
 
         return enrichment
 
     def _find_enrichments_internal(self, deducpath, major0):
+        """
+        Return a list of kReln instances, representing all existing
+        enrichments on any target at or under deducpath@major0.
+        """
         raise NotImplementedError
 
     def get_modpath(self, libpath, major):

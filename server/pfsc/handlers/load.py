@@ -314,7 +314,7 @@ class SourceLoader(Handler):
     def go_ahead(self, libpaths, versions, cache_code):
         source_lookup = {}
         for libpath, vers in zip(libpaths, versions):
-            modpath = get_modpath(libpath.value, version=vers.major)
+            modpath = get_modpath(libpath.value, version=vers.full)
             text = products.load_source(modpath, cache_control_code=cache_code, version=vers.full)
             source_lookup[modpath] = text
         self.set_response_field('source', source_lookup)
@@ -389,7 +389,7 @@ class ModpathFinder(Handler):
                 # but since we only need a major version, we use the
                 # more tolerant IType.
                 'vers': {
-                    'type': IType.MAJ_VERS,
+                    'type': IType.FULL_VERS,
                 },
             }
         })
@@ -399,7 +399,7 @@ class ModpathFinder(Handler):
         # intrusion into a repo you do not own, but still it would go against
         # our general policy. If you don't own a repo, you can't acess anything
         # about it at its WIP version.
-        if vers == pfsc.constants.WIP_TAG:
+        if vers.full == pfsc.constants.WIP_TAG:
             self.check_repo_read_permission(libpath, vers, action='access work in progress from')
 
     def confirm(self, libpath):
@@ -408,5 +408,5 @@ class ModpathFinder(Handler):
         assert libpath.valid_format
 
     def go_ahead(self, libpath, vers):
-        modpath = get_modpath(libpath.value, version=vers)
+        modpath = get_modpath(libpath.value, version=vers.full)
         self.set_response_field('modpath', modpath)

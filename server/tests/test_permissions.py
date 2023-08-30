@@ -168,7 +168,7 @@ def test_repo_permission_11(app, repos_ready):
 def test_repo_permission_12(client, repos_ready):
     """WRITE, WIP, allowed, PSM = ok"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
         'parentpath': parentpath,
         'name': name,
@@ -195,7 +195,7 @@ def test_repo_permission_13(app, client, repos_ready, username, ok):
     """WRITE, WIP, allowed, not PSM, logged in. Result depends on identity. """
     app.config["ADMIN_USERS"] = ['test.admin']
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     with login_context(client, username):
         resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
             'parentpath': parentpath,
@@ -215,7 +215,7 @@ def test_repo_permission_13(app, client, repos_ready, username, ok):
 def test_repo_permission_14(app, client, repos_ready):
     """WRITE, WIP, allowed, neither PSM nor logged in = rejected"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
         'parentpath': parentpath,
         'name': name,
@@ -230,7 +230,7 @@ def test_repo_permission_14(app, client, repos_ready):
 def test_repo_permission_15(app, client, repos_ready):
     """WRITE, WIP, not allowed = rejected (despite PSM and owner)"""
     parentpath = 'test.moo.bar'
-    name = 'results'
+    name = 'results.pfsc'
     with login_context(client, 'moo'):
         resp = client.put(f'{ISE_PREFIX}/makeNewSubmodule', data={
             'parentpath': parentpath,
@@ -341,7 +341,7 @@ def test_repo_permission_209(client, repos_ready):
 
 ###############################################################################
 
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo
 
 @pytest.mark.psm
 def test_load_module_at_wip_fail(app, repos_ready):
@@ -351,7 +351,7 @@ def test_load_module_at_wip_fail(app, repos_ready):
     """
     with app.app_context():
         with pytest.raises(PfscExcep) as ei:
-            build_release('test.moo.err3', 'v1.0.0')
+            build_repo('test.moo.err3', version='v1.0.0')
         print(ei.value)
         assert ei.value.code() == PECode.NO_WIP_IMPORTS_IN_NUMBERED_RELEASES
 
@@ -363,6 +363,6 @@ def test_load_module_at_wip_succeed(app, repos_ready):
     So there should be no error here.
     """
     with app.app_context():
-        build_module('test.moo.err3', recursive=True)
+        build_repo('test.moo.err3')
         # Clean up
         get_graph_writer().delete_everything_under_repo('test.moo.err3')

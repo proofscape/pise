@@ -66,13 +66,17 @@ define([
 ) {
 
 async function loadScripts() {
-    const urlTemplates = window.pfsc_other_scripts;
+    const urlTemplates = window.pfsc_other_scripts || {};
 
-    const mathjaxUrl = urlTemplates.mathjax.replaceAll("VERSION", MATHJAX_VERSION);
-    await iseUtil.loadScript(mathjaxUrl);
+    if (urlTemplates.mathjax) {
+        const mathjaxUrl = urlTemplates.mathjax.replaceAll("VERSION", MATHJAX_VERSION);
+        await iseUtil.loadScript(mathjaxUrl);
+    }
 
-    const elkjsUrl = urlTemplates.elkjs.replaceAll("VERSION", ELKJS_VERSION);
-    await iseUtil.loadScript(elkjsUrl);
+    if (urlTemplates.elkjs) {
+        const elkjsUrl = urlTemplates.elkjs.replaceAll("VERSION", ELKJS_VERSION);
+        await iseUtil.loadScript(elkjsUrl);
+    }
 }
 
 function computeState() {
@@ -140,11 +144,11 @@ function construct(ISE_state) {
 
     // The AppLayout constructs the basic layout elements for the app.
     const appLayout = new AppLayout(homeId, ISE_state);
-    // We need our ContentManager now, so we can pass its `openCopy` method to the TabContainerTree.
+    // We need our ContentManager now, so we can pass it to the TabContainerTree.
     const contentManager = new ContentManager();
     // Make a TabContainerTree, to manage all the tabs and splits.
     const tct = new TabContainerTree(appLayout.tctSocket, {
-        openCopy: contentManager.openCopy.bind(contentManager)
+        contentManager: contentManager
     });
     // Layout elements in DojoToolkit need to be "started up".
     appLayout.startup();

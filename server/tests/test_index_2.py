@@ -18,7 +18,7 @@ import json
 import pytest
 
 import pfsc.constants
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo
 from pfsc.build.repo import get_repo_info
 from pfsc.gdb import get_graph_reader, get_graph_writer
 from pfsc.excep import PfscExcep, PECode
@@ -50,7 +50,7 @@ def test_get_modpath(app, repos_ready):
 @pytest.mark.parametrize('version, err_code', [
 ['v1.0.0', PECode.MISSING_REPO_CHANGE_LOG],
 ['v2.0.0', PECode.MISSING_REPO_CHANGE_LOG],
-['v3.0.0', PECode.VERSION_NOT_BUILT_YET],
+['v3.0.0', PECode.MODULE_DOES_NOT_EXIST],
 ['v4.0.0', PECode.BAD_LIBPATH],
 # The next one does raise an exception, but the point is to test that
 # a warning is printed about the libpath that looks absolute when
@@ -66,7 +66,7 @@ def test_various_errors(app, version, err_code):
     with app.app_context():
         repopath = 'test.moo.err'
         with pytest.raises(PfscExcep) as ei:
-            build_release(repopath, version)
+            build_repo(repopath, version=version)
         pe = ei.value
         print('\n', pe)
         assert pe.code() == err_code
@@ -89,10 +89,10 @@ def test_more_errors(app, version, err_code):
         repopath = 'test.moo.err2'
         # Ensure the initial (correct) version is built.
         if not gr.version_is_already_indexed(repopath, 'v1.0.0'):
-            build_release(repopath, 'v1.0.0')
+            build_repo(repopath, version='v1.0.0')
         # Now trigger errors with subsequent versions.
         with pytest.raises(PfscExcep) as ei:
-            build_release(repopath, version)
+            build_repo(repopath, version=version)
         pe = ei.value
         print('\n', pe)
         assert pe.code() == err_code
@@ -130,7 +130,7 @@ def test_moo_bar(app):
         print(v)
         ri.checkout(v)
         v034_hash = ri.get_current_commit_hash()
-        build_module(repopath, recursive=True)
+        build_repo(repopath)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)
@@ -145,7 +145,7 @@ def test_moo_bar(app):
         v = 'v1.0.0'
         print('=' * 50)
         print(v)
-        build_release(repopath, v)
+        build_repo(repopath, version=v)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)
@@ -166,7 +166,7 @@ def test_moo_bar(app):
         print('=' * 50)
         print(v)
         ri.checkout(v)
-        build_module(repopath, recursive=True)
+        build_repo(repopath)
         g = check_everything_under_repo(repopath)
         if verbose:
             print(g)
@@ -252,7 +252,7 @@ def test_get_enrichment_no_wip(app, repos_ready):
         gr = get_graph_reader()
         E = gr.get_enrichment('test.moo.bar.results.Thm', 1)
         print(json.dumps(E, indent=4))
-        assert E['test.moo.bar.results.Thm.C']["Deduc"][0][pfsc.constants.WIP_TAG] == False
+        assert pfsc.constants.WIP_TAG not in E['test.moo.bar.results.Thm.C']["Deduc"][0]["versions"]
 
 def test_moo_comment_1(app, repos_ready):
     """
@@ -268,12 +268,12 @@ def test_moo_comment_1(app, repos_ready):
             e = E[f"test.moo.bar.results.Pf.{name}"]
             d = e["Deduc"]
             a = e["Anno"]
-            assert len(d) == 1 and d[0]["libpath"] == f"test.moo.comment.bar.xpan_{name}"
-            assert len(a) == 1 and a[0]["libpath"] == f"test.moo.comment.bar.Notes{name}"
-            assert d[0]["latest"] == "v0.2.0"
-            assert d[0][pfsc.constants.WIP_TAG] == True
-            assert a[0]["latest"] == "v0.2.0"
-            assert a[0][pfsc.constants.WIP_TAG] == True
+            assert len(d) == 2 and d[0]["libpath"] == f"test.moo.comment.bar.xpan_{name}"
+            assert len(a) == 2 and a[0]["libpath"] == f"test.moo.comment.bar.Notes{name}"
+            assert d[0]['versions'][-1] == "v0.2.0"
+            assert d[1]['versions'][-1] == pfsc.constants.WIP_TAG
+            assert a[0]['versions'][-1] == "v0.2.0"
+            assert a[1]['versions'][-1] == pfsc.constants.WIP_TAG
 
 def test_moo_comment_2a(app, repos_ready):
     """
@@ -292,8 +292,8 @@ def test_moo_comment_2a(app, repos_ready):
         e = E["test.moo.bar.results.Pf.U"]
         d = e["Deduc"]
         a = e["Anno"]
-        assert len(d) == 2 and "test.moo.comment.bar.xpan_T" in [d[i]["libpath"] for i in range(2)]
-        assert len(a) == 1 and a[0]["libpath"] == "test.moo.comment.bar.NotesT"
+        assert len(d) == 4 and "test.moo.comment.bar.xpan_T" in [d[i]["libpath"] for i in range(2)]
+        assert len(a) == 2 and a[0]["libpath"] == "test.moo.comment.bar.NotesT"
 
 @pytest.mark.skip("""This no longer does anything different from the last test.
 We need to carefully design our set of test repos so that we can test generation
@@ -340,10 +340,13 @@ def test_retarget_for_moves(app, repos_ready):
         lp7C = lp7 + ".C"
         lp8C = lp8 + ".C"
 
+        def latest(i):
+            return list(filter(lambda v: v != "WIP", i['versions']))[-1]
+
         def scan(E, lp):
             d = {}
             for i in E[lp]["Deduc"]:
-                d[i["latest"]] = i["libpath"]
+                d[latest(i)] = i["libpath"]
             return d
 
         assert scan(E1, lp7C) == {

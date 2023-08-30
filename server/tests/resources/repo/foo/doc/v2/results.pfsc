@@ -41,7 +41,7 @@ deduc Pf of Thm.C {
 anno Discussion @@@
 Let's talk about this stuff, and refer to <pdf:>[doc1 as a whole]{
     doc: doc1,
-}, and then say something about <pdf:>[a particular spot within doc1]{
+}, and then say something about <pdf:wFoo>[a particular spot within doc1]{
     doc: doc1,
     sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.

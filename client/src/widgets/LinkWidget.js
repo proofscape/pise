@@ -26,8 +26,7 @@ define([
 
 var LinkWidget = declare(Widget, {
 
-    onClick: function(event) {
-        const pane = this.hub.contentManager.getSurroundingPane(event.target);
+    onClick: function(event, pane) {
         const nm = this.hub.notesManager;
         const info = this.getInfoCopy();
 
@@ -77,7 +76,7 @@ var LinkWidget = declare(Widget, {
         if (loadingPane === null) {
             // There is no existing pane where we want to load the content,
             // so open it beside the current tab.
-            nm.hub.contentManager.openContentBeside(targetInfo, event.target);
+            nm.hub.contentManager.openContentBeside(targetInfo, pane);
         } else {
             // There already is a pane where we want to load the content.
             const makeActive = true;
@@ -95,7 +94,9 @@ var LinkWidget = declare(Widget, {
     },
 
     activate: function(wdq, uid, nm, pane) {
-        wdq.on('click', this.onClick.bind(this));
+        wdq.on('click', event => {
+            this.onClick(event, pane);
+        });
     },
 
 });

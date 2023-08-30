@@ -49,8 +49,9 @@ def test_disps_01(app):
         ri.checkout('v0.1.0')
         modpath = 'test.comment.notes.H.ilbert.ZB.Thm17'
         mod = load_module(modpath, caching=0)
+        mod.resolve()
         anno = mod['Notes']
-        anno.get_anno_data()
+        anno.get_page_data()
         wl = anno.get_widget_lookup()
 
         cases = [

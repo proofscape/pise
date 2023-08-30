@@ -301,6 +301,7 @@ class StudyPageBuilder(GoalDataHandler):
         module = build_module_from_text(pfsc_text, modpath, dependencies={
             repopath: vers.full,
         })
+        module.resolve()
         # Hack: Before writing the data for the page, tell this PfscModule
         # that it represents the same version as that of the subject matter
         # the study page is about. The study page itself was built at "WIP"
@@ -308,10 +309,10 @@ class StudyPageBuilder(GoalDataHandler):
         # IDs and pane group IDs. This helps keep things distinct if the user
         # simultaneously loads the study page for a given entity at two or
         # more different versions.
-        module.setRepresentedVersion(vers.full)
+        module.version = vers.full
         page = module[pagename]
         html = page.get_escaped_html()
-        data = page.get_anno_data()
+        data = page.get_page_data()
         data_json = json.dumps(data)
         self.set_response_field('html', html)
         self.set_response_field('data_json', data_json)
@@ -385,7 +386,7 @@ class GoalDataLoader:
         self.determine_type()
 
     def determine_modpath(self):
-        self.modpath = get_modpath(self.libpath, version=self.version.major)
+        self.modpath = get_modpath(self.libpath, version=self.version.full)
 
     def determine_type(self):
         gr = get_graph_reader()
@@ -420,8 +421,8 @@ class GoalDataLoader:
             built = get_graph_reader().module_is_built(self.modpath, self.version.full)
         else:
             pi = PathInfo(self.modpath)
-            build_dir, fn = pi.get_build_dir_and_filename(version=self.version.full)
-            built = os.path.exists(build_dir)
+            path = pi.get_build_dir_src_code_path(version=self.version.full)
+            built = path.parent.exists()
         if not built:
             msg = f'Cannot load study data for `{self.libpath}@{self.version.full}`'
             msg += ' since it has not been built yet.'
@@ -534,7 +535,7 @@ class BuildDir_GoalDataLoader(GoalDataLoader):
             # We load directly from the build dir, since the `load_annotation`
             # function does extra work by loading the HTML file.
             pi = PathInfo(self.modpath)
-            build_dir, fn = pi.get_build_dir_and_filename(version=self.version.full)
+            src_path = pi.get_build_dir_src_code_path(version=self.version.full)
             anno_suffix = '.anno.json'
             dg_suffix = '.dg.json'
             for node in contents:
@@ -548,8 +549,7 @@ class BuildDir_GoalDataLoader(GoalDataLoader):
                         suffix = anno_suffix
                         reader = self.read_info_from_anno_data_json
                     name = data["name"]
-                    with open(os.path.join(build_dir, f'{name}{suffix}')) as f:
-                        j = f.read()
+                    j = (src_path.parent / f'{name}{suffix}').read_text()
                     infos.append(reader(name, j))
         return infos
 
@@ -604,6 +604,8 @@ class ModuleLoad_GoalDataLoader(GoalDataLoader):
 
     def load_goal_data(self):
         module = load_module(self.modpath, version=self.version.full)
+        # Q: Do we need to call `module.resolve()`? Don't see any obvious need
+        # for it, at the moment. Could review again in future.
         if self.type_ in [IndexType.ANNO, IndexType.DEDUC]:
             item_name = self.libpath[len(self.modpath) + 1:]
             item = module.get(item_name)

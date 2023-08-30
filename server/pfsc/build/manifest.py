@@ -160,15 +160,17 @@ class Manifest:
         t = self.root_node.build_dict()
         return json.dumps(t)
 
-    def set_build_info(self, libpath, version, commit, time, recursive):
+    def set_build_info(self, libpath, version, commit, time):
         self.build_info = {
             libpath: {
                 "version": version,
                 "commit": commit,
                 "time": str(time),
-                "recursive": recursive
             }
         }
+
+    def get_version(self):
+        return list(self.build_info.values())[0]["version"]
 
     def set_build_info_dict(self, d):
         self.build_info = d
@@ -214,16 +216,15 @@ class Manifest:
 
         sb, ob = self.build_info, other.build_info
         built_libpath, build_info = list(ob.items())[0]
-        recursive = build_info['recursive']
 
-        # If recursive, then remove any keys from sb of which k is a segmentwise prefix.
-        if recursive:
-            n = len(built_libpath)
-            remove_keys = [
-                k1 for k1 in sb if k1[:n] == built_libpath and k1[n:n+1] in ['', '.']
-            ]
-            for k1 in remove_keys:
-                del sb[k1]
+        # Since all builds are recursive, remove any keys from sb of which k
+        # is a segmentwise prefix.
+        n = len(built_libpath)
+        remove_keys = [
+            k1 for k1 in sb if k1[:n] == built_libpath and k1[n:n+1] in ['', '.']
+        ]
+        for k1 in remove_keys:
+            del sb[k1]
 
         sb[built_libpath] = build_info
 
@@ -249,11 +250,12 @@ class Manifest:
                 self.root_node = B
             else:
                 A.parent.replace(A, B)
-            # If the incoming build was not recursive, then we want to save
-            # any pre-existing submodules.
-            if not recursive:
-                submodules = A.get_submodules()
-                B.add_children(submodules)
+            # We used to support cases where the incoming build was not recursive.
+            # In those cases we would want to save any pre-existing submodules.
+            # Saving this here (for now), but commenting it out.
+            #if not recursive:
+            #    submodules = A.get_submodules()
+            #    B.add_children(submodules)
         # But if our first matching node matched some proper ancestor of the
         # newly built module, then we can just add the new node as a child.
         else:
@@ -278,6 +280,12 @@ class ManifestTreeNode:
         self.children = []
         self.data['libpath'] = id_
 
+    def set_data_property(self, k, v):
+        """
+        Set a single pair in this node's data.
+        """
+        self.data[k] = v
+
     def update_data(self, d):
         """
         Pass a dictionary of pairs with which to update this node's data.
@@ -299,7 +307,11 @@ class ManifestTreeNode:
             d["children"] = children
         return d
 
-    def build_relational_model(self, items, recursive=True, siblingOrder=0):
+    def build_relational_model(
+            self, items,
+            recursive=True, siblingOrder=0,
+            subs_parent=None, lift_sphinx_pages=False
+    ):
         """
         Build a list of items in the tree rooted at this node.
 
@@ -313,26 +325,66 @@ class ManifestTreeNode:
                           only for "content" nodes. This would be appropriate for an update
                           after rebuilding a module non-recursively.
         :param siblingOrder: Value for the `sibling` attribute.
+        :param subs_parent: optional parent element to substitute for `self.parent`
+        :param lift_sphinx_pages: set True in order to *replace* rst module
+            nodes with their Sphinx page nodes, in the computed model. Any other
+            contents of the module are made to look like children of the page element.
         :return: nothing. The `items` list you pass is modified in-place.
         """
-        d = {"id": self.id, "sibling": siblingOrder}
-        d["parent"] = self.parent.id if self.parent else None
-        for k, v in self.data.items():
-            d[k] = v
-        items.append(d)
+        parent = subs_parent or self.parent
+        d = {
+            "id": self.id,
+            "sibling": siblingOrder,
+            "parent": parent.id if parent else None,
+            "version": self.manifest.get_version(),
+        }
+        d.update(self.data)
+
+        if lift_sphinx_pages and self.is_sphinx_page():
+            d["name"] = self.parent.data["name"]
+            d["hasChildren"] = len(self.parent.children) > 1
+        else:
+            d["hasChildren"] = len(self.children) > 0
+
+        do_lift = False
+        sphinx_page = None
+        if self.is_rst() and lift_sphinx_pages:
+            do_lift = True
+            for child in self.children:
+                if child.is_sphinx_page():
+                    sphinx_page = child
+                    break
+        else:
+            items.append(d)
+
         am_module = self.is_module()
         if am_module:
             d["hasSubmodules"] = False
+
         for i, child in enumerate(self.children):
             if child.is_module():
                 if am_module:
                     d["hasSubmodules"] = True
                 if not recursive:
                     continue
-            child.build_relational_model(items, recursive=recursive, siblingOrder=i)
+
+            if do_lift:
+                next_parent = self.parent if child is sphinx_page else sphinx_page
+            else:
+                next_parent = self
+            child.build_relational_model(
+                items, recursive=recursive, siblingOrder=i,
+                subs_parent=next_parent, lift_sphinx_pages=lift_sphinx_pages
+            )
 
     def is_module(self):
-        return self.data.get("type") == "MODULE"
+        return self.data.get("type") == pfsc.constants.ContentDescriptorType.MODULE
+
+    def is_rst(self):
+        return self.is_module() and (self.data.get("is_rst") is True)
+
+    def is_sphinx_page(self):
+        return self.data.get("type") == pfsc.constants.ContentDescriptorType.SPHINX
 
     def get_submodules(self):
         """
@@ -348,8 +400,11 @@ class ManifestTreeNode:
         """
         return filter(lambda c: c.data.get("type") != "MODULE", self.children)
 
-    def add_child(self, child):
-        self.children.append(child)
+    def add_child(self, child, prepend=False):
+        if prepend:
+            self.children.insert(0, child)
+        else:
+            self.children.append(child)
         self.manifest.add_node(child)
         child.parent = self
 

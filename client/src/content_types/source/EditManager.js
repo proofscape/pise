@@ -18,6 +18,7 @@ const ace = require("ace-builds/src-noconflict/ace.js");
 require("src/content_types/source/mode-proofscape.js");
 require("ace-builds/src-noconflict/mode-markdown.js");
 require("ace-builds/src-noconflict/mode-python.js");
+require("ace-builds/src-noconflict/mode-rst");
 require("ace-builds/src-noconflict/theme-tomorrow.js");
 require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
@@ -119,8 +120,6 @@ var EditManager = declare(AbstractContentManager, {
                 }
             }
         });
-
-        this.hub.socketManager.on('moduleBuilt', this.handleModuleBuiltEvent.bind(this));
     },
 
     resolvePendingWrites: function(libpaths, info=null) {
@@ -138,25 +137,6 @@ var EditManager = declare(AbstractContentManager, {
                 this.pendingBuilds.get(lp).resolve(info);
                 this.pendingBuilds.delete(lp);
             }
-        }
-    },
-
-    /* Respond to iseEvent of type 'moduleBuilt' by requesting module fulltext if that module
-     * is currently open in any editors, and _carefully_ overwriting (i.e. with shadow commit)
-     * current editor contents.
-     */
-    handleModuleBuiltEvent: function({ modpath, timestamp }) {
-        const doc = this.docsByModpath[modpath];
-        if (doc) {
-            this.hub.xhrFor('loadSource', {
-                query: { libpaths: modpath, versions: "WIP", cache_code: `${timestamp}` },
-                handleAs: 'json',
-            }).then(resp => {
-                //console.log(resp);
-                if (this.hub.errAlert3(resp)) return;
-                const newText = resp.text;
-                this.carefullyOverwriteOpenModule(modpath, newText);
-            });
         }
     },
 
@@ -785,7 +765,8 @@ var EditManager = declare(AbstractContentManager, {
      * optional fields:
      *
      *   buildpaths: list of libpaths of modules to be built
-     *   recursives: list of booleans saying whether corresp. builds are to be recursive
+     *   makecleans: list of booleans saying whether corresp. builds should be made clean
+     *      first, i.e. whether all pickle files should be erased first.
      *   autowrites: list of autowrite dictionaries. See doctext for `WriteHandler`
      *               class at the back-end in `handlers/write.py`.
      *
@@ -827,7 +808,7 @@ var EditManager = declare(AbstractContentManager, {
      *     method call.
      *
      * @param args: the message for the server's WriteHandler.
-     *   NOTE: The writepaths and buildpaths (and corresponding args, writetexts and recursives,
+     *   NOTE: The writepaths and buildpaths (and corresponding args, writetexts and makecleans,
      *   resp.) will be filtered first. We will reject any paths that do not appear to belong
      *   to the current user.
      * @return: promise that resolves with the initial http response. This does not contain
@@ -911,9 +892,9 @@ var EditManager = declare(AbstractContentManager, {
             args.writetexts || []
         );
 
-        const [buildpaths, recursives] = this.filterMatchedArraysByUserAccess(
+        const [buildpaths, makecleans] = this.filterMatchedArraysByUserAccess(
             args.buildpaths || [],
-            args.recursives || []
+            args.makecleans || []
         );
 
         // TODO:
@@ -926,7 +907,7 @@ var EditManager = declare(AbstractContentManager, {
             writetexts: writetexts,
             shadowonly: args.shadowonly,
             buildpaths: buildpaths,
-            recursives: recursives,
+            makecleans: makecleans,
             autowrites: args.autowrites,
         };
     },
@@ -946,7 +927,7 @@ var EditManager = declare(AbstractContentManager, {
         var buildpath = this.modpaths[paneId];
         return this.build({
             buildpaths: [buildpath],
-            recursives: [false]
+            makecleans: [false]
         });
     },
 
@@ -1090,19 +1071,20 @@ var EditManager = declare(AbstractContentManager, {
                 this.modpaths[paneId] = modpath;
                 this.setContent(modpath, paneId, text, fvr, cpos);
             }
-            this.configureSession(editor);
-            this.configureSession(editor.pfscIseOverviewEditor);
+            this.configureSession(editor, info.is_rst);
+            this.configureSession(editor.pfscIseOverviewEditor, info.is_rst);
             if (sbProps.visible) {
                 this.showOverviewSidebar(paneId, true);
             }
         });
     },
 
-    configureSession: function(editor) {
+    configureSession: function(editor, is_rst) {
         const sesh = editor.getSession();
-        // Set to Proofscape mode.
-        sesh.setMode("ace/mode/proofscape");
-        // Tabs
+
+        const mode = is_rst ? 'rst' : 'proofscape';
+        sesh.setMode("ace/mode/" + mode);
+
         sesh.setTabSize(4);
         sesh.setUseSoftTabs(true);
     },

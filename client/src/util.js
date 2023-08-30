@@ -45,9 +45,11 @@ util.assign = function(target, props, sources) {
 };
 
 util.copyTextToClipboard = function(text) {
-    var box = document.createElement("textarea");
+    const box = document.createElement("textarea");
     box.value = text;
     box.style.opacity = 0;
+    box.style.position = 'fixed';
+    box.style.zIndex = -1;
     document.body.appendChild(box);
     box.focus();
     box.select();
@@ -614,10 +616,10 @@ util.extractOriginalHlidFromHlDescriptor = function(hld) {
  *  Need not be the immediate parent of element.
  * param options: {
  *  padPx: pixels of padding at each of top and bottom of view area.
- *      Default 0. Adds to pad from padPct.
+ *      Default 0. Adds to pad from padFrac.
  *  padFrac: padding at each of top and bottom of view area, as fraction
  *      of total height of panel. Should be a float between 0.0 and 1.0.
- *      Default 0.0 Adds to pad from padPx.
+ *      Default 0.0. Adds to pad from padPx.
  *  pos: ['top', 'mid'], default 'top'. Scroll the object to
  *      this position, vertically.
  *  policy: ['pos', 'min', 'distant'], default 'pos'.
@@ -755,13 +757,20 @@ util.confStringActivatesDangerButton = function(inputElt, confString, buttonElt,
 }
 
 /* This function provides an easy way to chain MathJax typeset promises.
+ *
+ * param elements: array of dom elements to be typeset
+ * param win: optional window, whose copy of MathJax is to be used.
+ *  Defaults to top level window.
+ *
  * See <https://docs.mathjax.org/en/latest/web/typeset.html>
  */
-util.typeset = function(elements) {
-    MathJax.startup.promise = MathJax.startup.promise.then(
-        () => MathJax.typesetPromise(elements)
+util.typeset = function(elements, win) {
+    win = win || window;
+    const MJ = win.MathJax;
+    MJ.startup.promise = MJ.startup.promise.then(
+        () => MJ.typesetPromise(elements)
     ).catch(console.error);
-    return MathJax.startup.promise;
+    return MJ.startup.promise;
 };
 
 // If you want to instead go back and forth through the server, you would want

@@ -91,6 +91,8 @@ directory structure:
 
     PFSC_ROOT
      |-- build
+     |    |-- cache
+     |    |-- html
      |-- deploy
      |    |-- .ssl
      |-- graphdb

@@ -1,0 +1,12 @@
+from ..results import Pf, Discussion
+
+anno Notes @@@
+This time let's see that we can define pdf widgets as copies of others
+belonging to another module: one from a node, and one from another pdf widget.
+
+Here is one <pdf:>[from a node defined in another module]{
+    sel: Pf.S
+}, and here is one <pdf:>[from a pdf widget defined in another module]{
+    sel: Discussion.wFoo
+}.
+@@@

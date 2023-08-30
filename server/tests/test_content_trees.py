@@ -16,6 +16,7 @@
 
 from pfsc.contenttree import parse, build_forest_for_content
 
+
 def test_round_trip():
     print()
     text = "foo.bar(cat@3_1_4~s(g1t2*g2t0)b*cat2@W(foo2*bar2~c(0)))"
@@ -37,3 +38,35 @@ def test_round_trip():
     print(resulting_text)
     print(text)
     assert resulting_text == text
+
+
+def test_code_formats():
+    print()
+    text = "foo.bar.cat~abc()d(3)Zfoo()Zbar(p7q11)"
+    forest = parse(text, allowed_codes=['a', 'b', 'c', 'd', 'Zfoo', 'Zbar'])
+    root = forest[0]
+    print(root.write())
+    auglps = root.expand()
+    print('-------------')
+    assert len(auglps) == 1
+    alp = auglps[0]
+    codes = alp.codes
+    assert len(codes) == 6
+
+    expected = [
+        ['a', 0],
+        ['b', 0],
+        ['c', 0],
+        ['d', 1, 3],
+        ['Zfoo', 0],
+        ['Zbar', 1, {'p': '7', 'q': '11'}]
+    ]
+    for code, ex in zip(codes, expected):
+        assert code.type == ex[0]
+        assert len(code.locations) == ex[1]
+        if ex[1]:
+            a = ex[2]
+            if isinstance(a, int):
+                assert code.locations[0].n == a
+            elif isinstance(a, dict):
+                assert code.locations[0].args == a

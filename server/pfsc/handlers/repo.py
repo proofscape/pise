@@ -26,7 +26,7 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.handlers import RepoTaskHandler
 from pfsc.checkinput import IType
 from pfsc.checkinput.version import check_full_version
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo
 from pfsc.build.manifest import has_manifest, load_manifest
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (
@@ -212,9 +212,13 @@ class RepoLoader(RepoTaskHandler):
         repopath = self.repo_info.libpath
         manifest = load_manifest(repopath, cache_control_code=ccc, version=self.version)
         root = manifest.get_root_node()
+
+        # Since only the tree model is sent to the client, we load certain
+        # extra information from the manifest into the root node.
         root.update_data({'docInfo': manifest.doc_infos})
+
         model = []
-        root.build_relational_model(model)
+        root.build_relational_model(model, lift_sphinx_pages=True)
         return model
 
     def emit_repo_built_event(self):
@@ -320,13 +324,13 @@ class RepoLoader(RepoTaskHandler):
     def rebuild(self):
         self.action = ''
         if self.version == pfsc.constants.WIP_TAG:
-            return build_module(self.repo_info.libpath, recursive=True, progress=self.update)
+            return build_repo(self.repo_info.libpath, progress=self.update)
         else:
             if not self.repo_info.has_version_tag(self.version):
                 self.fetch()
                 self.action = ''
             self.check_hash()
-            return build_release(self.repo_info.libpath, self.version, progress=self.update)
+            return build_repo(self.repo_info.libpath, version=self.version, progress=self.update)
 
     def make_demo_repo(self):
         self.action = 'Make demo repo...'

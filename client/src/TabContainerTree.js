@@ -483,8 +483,6 @@ tct.LeafNode = declare(tct.Node, {
         dojoOn(this.menu, 'open', function(e){
             theLeaf.tct.announceMenuOpening(theLeaf.menu, this);
         });
-        // Initialize scroll stack.
-        this.scrollStack = [];
         // Add the TC to the socket.
         this.socket.addChild(this.tc);
         // Add any panes to the TC.
@@ -503,28 +501,14 @@ tct.LeafNode = declare(tct.Node, {
         return this.tc.getChildren().length;
     },
 
-    // It's useful to be able to store the fraction, or percentage, that each
-    // content pane is currently scrolled.
+    // Store the fraction, or percentage, that each content pane is currently scrolled.
     pushScrollFractions : function() {
-        const scrollFracs = {};
-        const children = this.tc.getChildren();
-        for (let i in children) {
-            const c = children[i];
-            let dn = c.domNode;
-            // Scrolling in notes panes actually takes place inside a subelement
-            // of class 'mainview' (which distinguishes it from the overview panel).
-            // Question: Should we also try to record scroll fractions for overviews?
-            const mv = dn.querySelector('.mainview');
-            if (mv) {
-                dn = mv;
+        if (this.tct.contentManager) {
+            const children = this.tc.getChildren();
+            for (const c of Object.values(children)) {
+                this.tct.contentManager.pushScrollFrac(c.id);
             }
-            const t = dn.scrollTop;
-            const h = dn.scrollHeight;
-            const p = t/h;
-            //console.log(c.id, t, h, p);
-            scrollFracs[c.id] = p;
         }
-        this.scrollStack.push(scrollFracs);
     },
 
     // Restore scroll positions to the best of our ability. Note that if the width of
@@ -532,21 +516,10 @@ tct.LeafNode = declare(tct.Node, {
     // split) then this method is highly imperfect. This is due to the reflowing of
     // paragraphs. I don't see much we can do about this.
     popScrollFractions : function() {
-        const scrollFracs = this.scrollStack.pop();
-        const children = this.tc.getChildren();
-        for (let i in children) {
-            const c = children[i];
-            let dn = c.domNode;
-            const mv = dn.querySelector('.mainview');
-            if (mv) {
-                dn = mv;
-            }
-            const h = dn.scrollHeight;
-            const p = scrollFracs[c.id];
-            if (p) {
-                const t = p*h;
-                //console.log(c.id, t, h, p);
-                dn.scrollTop = t;
+        if (this.tct.contentManager) {
+            const children = this.tc.getChildren();
+            for (const c of Object.values(children)) {
+                this.tct.contentManager.popScrollFrac(c.id);
             }
         }
     },
@@ -807,8 +780,8 @@ tct.TabContainerTree = declare(null, {
     tabPosition: "top",
     // The LayoutContainer to which this will be added:
     socket: null,
-    // Function to call when opening copy of existing ContentPane:
-    openCopy: null,
+    // Object implementing the "content manager interface":
+    contentManager: null,
 
     // Counter for Ids of TabContainers:
     tcIdCounter: 0,
@@ -847,11 +820,19 @@ tct.TabContainerTree = declare(null, {
      *      layoutContainer: A dijit/layout/LayoutContainer, where the
      *                       TabContainerTree should live.
      * Optional:
-     *      openCopy: Function to call when it's time to open a copy of an existing ContentPane.
-     *                If omitted, then you can only move tabs, not open them in other containers.
-     *                If provided, should be a function that accepts two ContentPanes: the old one, and
-     *                  the new one (in that order). Doesn't need to return anything. Just takes
-     *                  responsibility for adding content to the new CP.
+     *      contentManager: object implementing the "content manager interface", which consists of
+     *          the following methods:
+     *              openCopy(oldCP, newCP):
+     *                  Used when it's time to open a copy of an existing ContentPane.
+     *                  Accepts two ContentPanes: the old one, and the new one (in that order).
+     *                  Doesn't return anything. Just takes responsibility for adding content to the new CP.
+     *              pushScrollFrac(paneId):
+     *                  Save the current scroll of the indicated content pane, so that it can be restored
+     *                  later. This will be invoked before we move a content pane (which causes the html
+     *                  therein to be reloaded/reflowed), as happens when we add or remove a split.
+     *              popScrollFrac(paneId):
+     *                  Restore a previously pushed (saved) scroll fraction in the indicated content pane.
+     *                  This will be invoked after we have finished moving a content pane.
      *      tabPosition: "top", "bottom", "left" or "right"
      */
     constructor : function(layoutContainer, args) {
@@ -1478,10 +1459,10 @@ tct.TabContainerTree = declare(null, {
 
     /**
      * Say whether we are able to open copies of tabs, which is the same as
-     * asking whether the client supplied an `openCopy` function.
+     * asking whether the client supplied a `contentManager` interface.
     */
     canOpenCopy : function() {
-        return this.openCopy !== null;
+        return this.contentManager !== null;
     },
 
     /**
@@ -1506,7 +1487,7 @@ tct.TabContainerTree = declare(null, {
             newPane = this.addContentPaneToTC(newTc);
             // Pass the old and new CPs to the client-supplied openCopy function,
             // so that the client can take care of copying the content.
-            this.openCopy(pane, newPane);
+            this.contentManager.openCopy(pane, newPane);
         } else {
             // We don't have a way of opening a copy, so move instead.
             this.movePane(pane, newTcId);

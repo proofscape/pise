@@ -61,11 +61,20 @@ If a node has two or more children, they are put in parentheses, and separated b
     foo.bar(cat*baz*spam)
 Nodes may have "decorations" set off by a tilde:
     foo.bar(cat~decorationGoesHere*baz~orHere*spam~orHere)
-A decoration is a series of "codes" which consist of a single letter, optionally
-followed by a parenthesized argument block. Examples:
+A decoration is a series of "codes" which consist of a code word, optionally
+followed by a parenthesized argument block.
+
+The code word must be either a single letter other than capital "Z", or else
+a CNAME starting with capital "Z", and two or more letters long.
+For single-letter code words, the parenthesized argument block is optional;
+for extended code words beginning with "Z", it is mandatory.
+The argument block may be empty, i.e. equal to "()".
+
+Examples:
     c(1)
     s(g1t2)
     a(g0t0*g1t1)
+    Zfoo()
 The argument block may be in any of the following forms:
     (I) an integer
     (II) a list of key-value pairs
@@ -97,8 +106,10 @@ forest_grammar = r'''
     segment : CNAME ("@" version)? ("~" codes)?
     version : "W" "IP"? | "v"? INT "_" INT "_" INT
     children : "(" tree ("*" tree)+ ")"
-    codes : code+
-    code : CNAME ("(" CODE_ARGS ")")?
+    codes : (code|extended_code)+
+    code : NON_Z ("(" CODE_ARGS? ")")?
+    extended_code : "Z" CNAME "(" CODE_ARGS? ")"
+    NON_Z : /[a-zA-Y]/
     CODE_ARGS : /[^)]/+
     %import common.CNAME
     %import common.INT
@@ -131,7 +142,9 @@ class Version:
         else:
             return f'{self.major}_{self.minor}_{self.patch}'
 
-STANDARD_CODES = ['a', 'c', 's', 'f', 'b']
+
+STANDARD_CODES = ['a', 'x', 'c', 's', 'f', 'b']
+
 
 class ForestBuilder(Transformer):
 
@@ -205,7 +218,13 @@ class ForestBuilder(Transformer):
             arg_block = ''
         return TreeCode(type_, arg_block)
 
+    def extended_code(self, items):
+        items[0] = "Z" + items[0]
+        return self.code(items)
+
+
 forest_parser = Lark(forest_grammar, start='forest')
+
 
 class TypeRequest:
     """
@@ -255,6 +274,7 @@ class SourceRequest(LibpathRequest):
         if L is not None:
             self.type_descrip['sourceRow'] = L
 
+
 class AnnoRequest(LibpathRequest):
 
     def __init__(self, rvlp, loc):
@@ -264,6 +284,18 @@ class AnnoRequest(LibpathRequest):
         if g is None or t is None:
             raise ValueError
         LibpathRequest.__init__(self, g, t, "NOTES", rvlp)
+
+
+class SphinxRequest(LibpathRequest):
+
+    def __init__(self, rvlp, loc):
+        self.loc = loc
+        g = loc.get('group')
+        t = loc.get('tab')
+        if g is None or t is None:
+            raise ValueError
+        LibpathRequest.__init__(self, g, t, "SPHINX", rvlp)
+
 
 class ChartRequest(TypeRequest):
 
@@ -426,7 +458,10 @@ class AugmentedLibpath:
                 self.buildtree_code = code
             elif code.type == 's':
                 self.source_code = code
-            elif code.type in 'ac':
+            # Use a list of one-char strings instead of a single string, because in the
+            # future, when you want to add a new code, you may search for occurrences
+            # of 'x' in this module, to find places where you need to add the new code!
+            elif code.type in ['a', 'c', 'x']:
                 self.content_code = code
 
     def raise_malformed_code_excep(self, code):
@@ -440,6 +475,7 @@ class AugmentedLibpath:
         if self.content_code is not None:
             ReqType = {
                 'a': AnnoRequest,
+                'x': SphinxRequest,
                 'c': ChartRequest,
             }[self.content_code.type]
             jobs.append((self.content_code, ReqType, self.content_reqs))
@@ -484,6 +520,8 @@ class AugmentedLibpath:
             req0 = self.content_reqs[0]
             if isinstance(req0, AnnoRequest):
                 type_ = 'a'
+            elif isinstance(req0, SphinxRequest):
+                type_ = 'x'
             elif isinstance(req0, ChartRequest):
                 type_ = 'c'
             else:
@@ -595,6 +633,11 @@ CODE_LOOKUP = {
         'g': 'group',
         't': 'tab',
     },
+    # Sphinx page
+    'x': {
+        'g': 'group',
+        't': 'tab',
+    },
     # chart
     'c': {
         # gid means forest group id
@@ -620,6 +663,11 @@ CODE_LOOKUP = {
 CODE_REV_LOOKUP = {
     # annotation
     'a': {
+        'group': 'g',
+        'tab': 't',
+    },
+    # Sphinx page
+    'x': {
         'group': 'g',
         'tab': 't',
     },

@@ -27,7 +27,7 @@ from functools import lru_cache
 from flask import current_app
 from pygit2 import init_repository
 
-from pfsc import check_config
+from pfsc import check_config, get_build_dir
 import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_commit
@@ -61,9 +61,9 @@ def libpathToAbsFSPath(libpath):
     :return: the corresponding absolute filesystem path
 
     NB: This is a purely syntactic operation, not semantic. It is up to
-    you to decide if '.pfsc' or '/__.pfsc' needs to be tacked onto
+    you to decide if '.pfsc', '.rst', or '/__.pfsc' needs to be tacked onto
     the end. If you need help with this, you should probably be using
-    the `PathInfo` class. See in particular `PathInfo.get_pfsc_fs_path()`.
+    the `PathInfo` class. See in particular `PathInfo.get_src_fs_path()`.
     """
     parts = libpath.split('.')
     lib_root = check_config("PFSC_LIB_ROOT")
@@ -82,8 +82,10 @@ def absFSPathToLibpath(abs_fs_path):
     path = os.path.relpath(abs_fs_path, lib_root)
     if path[-5:] == '.pfsc':
         path = path[:-5]
-    if path[-2:] == "__":
-        path = path[:-3]
+        if path[-2:] == "__":
+            path = path[:-3]
+    elif path[-4:] == '.rst':
+        path = path[:-4]
     libpath = path.replace(os.sep, '.')
     return libpath
 
@@ -123,11 +125,9 @@ def expand_multipath(mp):
     an expression of the form `{lp1,lp2,...,lpn}`, where each lpi itself has the
     form of a libpath. The multipath thereby indicates multiple libpaths.
 
-    Note: there must be no whitespace inside the braces.
-
     For example, the multipath
 
-                    foo.bar.{spam.baz,cat}.boo
+                    foo.bar.{spam.baz, cat}.boo
 
     indicates the two libpaths,
 
@@ -150,7 +150,7 @@ def expand_multipath(mp):
     prefix = mp[:i0]
     suffix = mp[i1+1:]
     multi = mp[i0+1:i1].split(',')
-    return [prefix + m + suffix for m in multi]
+    return [prefix + m.strip() + suffix for m in multi]
 
 
 class PathInfo:
@@ -163,10 +163,9 @@ class PathInfo:
 
         # What libpath do we represent?
         self.libpath = libpath
+        self.segments = []
 
-        # Before populating our info fields, we define them all here:
-
-        # Does the path refer to an existing .pfsc file?
+        # Does the path refer to an existing file?
         self.is_file = None
         # If so, record the absolute filesystem path to the file.
         self.abs_fs_path_to_file = None
@@ -179,9 +178,9 @@ class PathInfo:
         self.dir_has_default_module = None
         # If we do have a default module, record the abs fs path to it.
         self.abs_fs_path_to_default_module = None
-        # If the path refers to a .pfsc file, or to a dir that has a __.pfsc file,
+        # If the path refers to a file, or to a dir that has a __.pfsc file,
         # record the modification time of that file, as a Unix timestamp.
-        self.pfsc_file_modification_time = None
+        self.src_file_modification_time = None
 
         # Now check the given path, populating the info fields.
         self.check_libpath()
@@ -191,11 +190,17 @@ class PathInfo:
         Check the given libpath, populating all info fields to describe what we learn.
         """
         fs_path = libpathToAbsFSPath(self.libpath)
-        # Is there a pfsc module under this name?
-        modpath = fs_path + '.pfsc'
-        self.is_file = os.path.exists(modpath)
-        if self.is_file:
-            self.abs_fs_path_to_file = modpath
+
+        self.segments = self.libpath.split('.')
+
+        # Is there a .pfsc or .rst file under this name?
+        for ext in ['.pfsc', '.rst']:
+            modpath = fs_path + ext
+            self.is_file = os.path.exists(modpath)
+            if self.is_file:
+                self.abs_fs_path_to_file = modpath
+                break
+
         # Does the path name a directory?
         self.is_dir = os.path.isdir(fs_path)
         # If so, is there a default module within the directory?
@@ -205,10 +210,15 @@ class PathInfo:
             self.dir_has_default_module  = os.path.exists(default_modpath)
             if self.dir_has_default_module:
                 self.abs_fs_path_to_default_module = default_modpath
-        # If there is a pfsc file, get its modification time.
-        pfsc_fs_path = self.get_pfsc_fs_path()
-        if pfsc_fs_path is not None:
-            self.pfsc_file_modification_time = os.stat(pfsc_fs_path).st_mtime
+
+        # If there is a module file, get its modification time.
+        src_fs_path = self.get_src_fs_path()
+        if src_fs_path is not None:
+            self.src_file_modification_time = os.path.getmtime(src_fs_path)
+
+    @property
+    def segment_length(self):
+        return len(self.segments)
 
     def get_formal_parent_path(self):
         """
@@ -224,36 +234,151 @@ class PathInfo:
         assert k > 0
         return self.libpath[:k]
 
-    def is_module(self, strict=False):
+    def is_module(self, version=pfsc.constants.WIP_TAG, strict=False):
         """
         Say whether this path points to a module.
+
+        :param version: the version in which you are interested.
         :param strict: set True if you require directories to contain a `__.pfsc` file in order
                    to be considered a module.
         :return: boolean
         """
-        return self.is_file or (self.is_dir and (self.dir_has_default_module or not strict))
+        if version == pfsc.constants.WIP_TAG:
+            return self.is_file or (self.is_dir and (self.dir_has_default_module or not strict))
+        else:
+            return self.get_build_dir_src_code_path(version=version).parent.exists()
 
-    def get_build_dir_and_filename(self, version=pfsc.constants.WIP_TAG):
+    def get_build_dir_src_code_path(self, version=pfsc.constants.WIP_TAG):
         """
-        If this libpath represents a module, compute the build output dir for that module.
+        Get the path where this module's source code should be saved
+        when building.
 
         :param version: which version we are building.
-        :return: The absolute filesystem path to the build dir for this module, or None if
-          this does not appear to be a module.
+        :return: pathlib.Path
         """
-        parts = self.libpath.split('.')
-        build_root = check_config("PFSC_BUILD_ROOT")
-        fs_dir_parts = [build_root] + parts[:3] + [version] + parts[3:]
-        filename = '__.src'
-        return os.path.join(*fs_dir_parts), filename
+        lp_parts = self.libpath.split('.')
+        build_root = get_build_dir()
+        fs_parts = (
+            lp_parts[:3] + [version] +
+            lp_parts[3:] + [f'module{self.fs_suffix}']
+        )
+        return build_root.joinpath(*fs_parts)
+
+    def list_existing_built_product_paths(
+            self, version=pfsc.constants.WIP_TAG, include_sphinx_html=False):
+        """
+        Get list of pathlib.Path pointing to *existing* built product files for
+        this module, at a given version.
+        
+        :param version: the version of interest
+        :param include_sphinx_html: if True, include in the list the path to
+            this module's Sphinx html file, if it has one. Otherwise, list only
+            the product files in the ordinary build dir.
+        :return: list of existing pathlib.Path. Possibly empty.
+        """
+        paths = []
+        
+        src_path = self.get_build_dir_src_code_path(version=version)
+        build_dir = src_path.parent
+        if build_dir.exists():
+            paths = [
+                path for path in build_dir.iterdir()
+                if path.is_file() and path.suffixes in [
+                    ['.anno', '.html'],
+                    ['.anno', '.json'],
+                    ['.dg', '.json'],
+                ]
+            ]
+        
+        if include_sphinx_html:
+            sphinx_html_path = self.get_sphinx_html_file_path(version=version)
+            if sphinx_html_path is not None and sphinx_html_path.exists():
+                paths.append(sphinx_html_path)
+        
+        return paths
+
+    def get_pickle_path(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the path for this module's pickle file.
+
+        :param version: which version we are building.
+        :return: pathlib.Path
+        """
+        lp_parts = self.libpath.split('.')
+        cache_root = get_build_dir(cache_dir=True)
+        fs_parts = (
+            lp_parts[:3] + [version] +
+            lp_parts[3:] + [f'module{pfsc.constants.PICKLE_EXT}']
+        )
+        return cache_root.joinpath(*fs_parts)
+
+    def get_sphinx_html_file_path(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the path for this module's Sphinx html file, if this is an rst
+        module.
+
+        :param version: the version of interest
+        :return: pathlib.Path if this is an rst module, None otherwise.
+            Note: the path need *not* actually exist.
+        """
+        if self.is_rst_file(version=version):
+            lp_parts = self.libpath.split('.')
+            build_root = get_build_dir(sphinx_dir=True)
+            fs_parts = (
+                lp_parts[:3] + [version] +
+                lp_parts[3:-1] + [f'{lp_parts[-1]}.html']
+            )
+            return build_root.joinpath(*fs_parts)
+        return None
+
+    def get_src_file_modification_time(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the modification time for the source file.
+        """
+        if version == pfsc.constants.WIP_TAG:
+            return self.src_file_modification_time
+        else:
+            src_path = self.get_build_dir_src_code_path(version=version)
+            if not src_path.exists():
+                return None
+            return src_path.stat().st_mtime
+
+    def get_built_product_modification_times(self, version=pfsc.constants.WIP_TAG):
+        """
+        Get the modification times for all existing built products for this module.
+
+        :return: dict in which keys are absolute filesystem paths to built products,
+            and values are modification times of these files.
+        """
+        products = self.list_existing_built_product_paths(version=version, include_sphinx_html=True)
+        return {
+            path: path.stat().st_mtime for path in products
+        }
+
+    @property
+    def fs_suffix(self):
+        return pfsc.constants.RST_EXT if self.is_rst_file() else pfsc.constants.PFSC_EXT
+
+    def is_rst_file(self, version=pfsc.constants.WIP_TAG):
+        """
+        Say whether the file representing this module is an `.rst` file.
+        """
+        if version == pfsc.constants.WIP_TAG:
+            p = self.abs_fs_path_to_file
+            return p and p.endswith(pfsc.constants.RST_EXT)
+        else:
+            src_path = self.get_build_dir_src_code_path(version=version)
+            if not src_path.exists():
+                return None
+            return src_path.suffix == pfsc.constants.RST_EXT
 
     def name_is_available(self, proposed_name):
         """
         If this path points to a directory, say whether a certain name is still available
-        for a .pfsc file within this directory.
+        for a file within this directory.
 
         :param proposed_name: The name whose availability is to be checked.
-          _Must not_ include the `.pfsc` file extension.
+          _Must not_ include the `.pfsc` or `.rst` file extension.
         :return: boolean
         :raises: PfscExcep if this path does not point to a directory.
         """
@@ -264,8 +389,11 @@ class PathInfo:
         with os.scandir(self.abs_fs_path_to_dir) as it:
             for entry in it:
                 name = entry.name
-                if entry.is_file() and name.endswith('.pfsc'):
-                    existing_names.append(name[:-5])
+                if entry.is_file():
+                    if name.endswith('.pfsc'):
+                        existing_names.append(name[:-5])
+                    elif name.endswith('.rst'):
+                        existing_names.append(name[:-4])
                 # For dirs, definitely want to skip `.git`. We'll skip all hidden dirs.
                 elif entry.is_dir() and not name.startswith('.'):
                     if '__.pfsc' in os.listdir(entry.path):
@@ -273,9 +401,9 @@ class PathInfo:
         available = proposed_name not in existing_names
         return available
 
-    def get_pfsc_fs_path(self):
+    def get_src_fs_path(self):
         """
-        :return: If this libpath points to a .pfsc file, return the absolute filesystem
+        :return: If this libpath points to a file, return the absolute filesystem
                  path to that file. Otherwise return None.
         """
         if self.is_dir and self.dir_has_default_module:
@@ -285,6 +413,13 @@ class PathInfo:
         else:
             fs_path = None
         return fs_path
+
+    def get_src_filename(self):
+        filename = None
+        fs_path_str = self.get_src_fs_path()
+        if fs_path_str:
+            filename = pathlib.Path(fs_path_str).name
+        return filename
 
     def make_tilde_backup(self):
         """
@@ -311,15 +446,15 @@ class PathInfo:
 
     def write_module(self, text, appendTilde=False):
         """
-        Write the given text to disk under the .pfsc for this module, if any.
+        Write the given text to disk in the file for this module, if any.
         :param text: The fulltext of the module to be written.
         :param appendTilde: If True, append a tilde "~" to the end of the filename.
         :return: number of bytes written
-        :raises: PfscExcep if no such .pfsc file exists
+        :raises: PfscExcep if no such file exists
         """
-        fs_path = self.get_pfsc_fs_path()
+        fs_path = self.get_src_fs_path()
         if fs_path is None:
-            msg = 'Libpath %s does not point to a .pfsc file.' % self.libpath
+            msg = 'Libpath %s does not point to a file.' % self.libpath
             raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
         if appendTilde:
             fs_path += "~"
@@ -339,14 +474,13 @@ class PathInfo:
         :raises: FileNotFoundError if there is no file for the desired version.
         """
         if version == pfsc.constants.WIP_TAG:
-            fs_path = self.get_pfsc_fs_path()
+            fs_path = self.get_src_fs_path()
             if fs_path is None:
                 raise FileNotFoundError
         elif building_in_gdb():
             return get_graph_reader().load_module_src(self.libpath, version)
         else:
-            build_dir, filename = self.get_build_dir_and_filename(version=version)
-            fs_path = os.path.join(build_dir, filename)
+            fs_path = self.get_build_dir_src_code_path(version=version)
         if cache_control_code is None:
             return read_file_with_cache.__wrapped__(fs_path, None)
         else:
@@ -357,36 +491,38 @@ def get_modpath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
     Compute the libpath of the deepest module named in a given libpath.
 
     :param libpath: any valid absolute libpath
-    :param version: the version at which this relation should obtain.
+    :param version: the version of interest
     :param strict: set True if you require directories to contain a `__.pfsc` file in order
                    to be considered a module.
     :return: the longest initial segment of this path that points to a module
     """
-    if version != pfsc.constants.WIP_TAG:
-        modpath = get_graph_reader().get_modpath(libpath, version)
-        if modpath is None:
-            msg = f'Cannot find module for `{libpath}` at version `{version}`.'
-            raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
-        return modpath
     parts = libpath.split('.')
     if len(parts) < 3:
         msg = 'Libpath too short: %s' % libpath
         raise PfscExcep(msg, PECode.LIBPATH_TOO_SHORT)
     p = parts[:2]
+    repopath = None
     for part in parts[2:]:
         p.append(part)
         lp = '.'.join(p)
+        if repopath is None:
+            repopath = lp
         pi = PathInfo(lp)
-        if not pi.is_module(strict=strict):
+        if not pi.is_module(version=version, strict=strict):
             p.pop()
             break
     if len(p) < 3:
-        msg = 'Module does not exist: %s' % libpath
-        raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+        msg = f'Cannot find source file for module {libpath}@{version}'
+        e = PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+        e.extra_data({
+            'repopath': repopath,
+            'version': version,
+        })
+        raise e
     modpath = '.'.join(p)
     return modpath
 
-def get_formal_moditempath(libpath, strict=False):
+def get_formal_moditempath(libpath, version=pfsc.constants.WIP_TAG, strict=False):
     """
     Like `get_modpath`, only we try to extend the modpath one segment more, to
     a libpath denoting a "module item" (i.e. an item defined at the top level of a
@@ -396,12 +532,13 @@ def get_formal_moditempath(libpath, strict=False):
     of this function.
 
     :param libpath: any valid absolute libpath
+    :param version: the version of interest
     :param strict: see `get_modpath` function.
 
     :raises: PfscExcep if the given libpath is too short to point to a module item, i.e. if it
              points to a module.
     """
-    modpath = get_modpath(libpath, strict=strict)
+    modpath = get_modpath(libpath, version=version, strict=strict)
     remainder = libpath[len(modpath)+1:]
     rem_parts = remainder.split('.')
     next_seg = rem_parts[0]
@@ -411,17 +548,19 @@ def get_formal_moditempath(libpath, strict=False):
     moditempath = modpath + '.' + next_seg
     return moditempath
 
-def get_deduction_closure(libpaths):
+def get_deduction_closure(libpaths, version=pfsc.constants.WIP_TAG):
     """
     Given an iterable of libpaths of deducs and/or nodes, compute the "deduction closure"
-    thereof. This is the smallest set of deductions that contains all the items named.
+    thereof. This is the smallest set of deductions that contains all the items named,
+    at the indicated version.
 
     :param libpaths: list of libpaths of deducs and/or nodes.
+    :param version: the version of interest
     :return: set of libpaths of the deduction closure thereof
     """
     closure = set()
     for libpath in libpaths:
-        closure.add(get_formal_moditempath(libpath))
+        closure.add(get_formal_moditempath(libpath, version=version))
     return closure
 
 def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_label="DISK"):
@@ -447,7 +586,7 @@ def git_style_merge_conflict_file(modpath, yourtext, your_label="YOURS", disk_la
     :return: Git-style "merge conflict" text (string) combining the two versions.
     """
     pi = PathInfo(modpath)
-    fs_path = pi.get_pfsc_fs_path()
+    fs_path = pi.get_src_fs_path()
     if fs_path is None:
         msg = f'Module {modpath} does not exist.'
         raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)

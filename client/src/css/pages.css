@@ -1,0 +1,75 @@
+/* ------------------------------------------------------------------------- *
+ *  Copyright (c) 2011-2023 Proofscape Contributors                          *
+ *                                                                           *
+ *  Licensed under the Apache License, Version 2.0 (the "License");          *
+ *  you may not use this file except in compliance with the License.         *
+ *  You may obtain a copy of the License at                                  *
+ *                                                                           *
+ *      http://www.apache.org/licenses/LICENSE-2.0                           *
+ *                                                                           *
+ *  Unless required by applicable law or agreed to in writing, software      *
+ *  distributed under the License is distributed on an "AS IS" BASIS,        *
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
+ *  See the License for the specific language governing permissions and      *
+ *  limitations under the License.                                           *
+ * ------------------------------------------------------------------------- */
+
+/* This sheet is for styling that pertains to both anno pages and Sphinx pages.
+ * It is kept separate so that it is easy to load into Sphinx iframes.
+ */
+
+.themeDark a.widget.selected,
+a.widget.selected {
+    background: #dd0;
+    color: blue;
+}
+
+a.external {
+    background-position: center right;
+    background-repeat: no-repeat;
+    background-image: url(../img/icons/ext_link.png);
+    padding-right: 14px;
+}
+
+.themeDark a.external {
+    background-image: url(../img/icons/ext_link_dark.png);
+}
+
+.qna_widget {
+    font-size: 1em;
+    border: 1px solid;
+    border-radius: 7px;
+    padding: 0.5em;
+    background: #cfe0fd;
+}
+
+.themeDark .qna_widget {
+    background: #243a4c;
+}
+
+.qna_question {
+    margin-bottom: 0.5em;
+}
+
+.qna_answer {
+
+}
+
+.qna_question .qna_label {
+    font-weight: bold;
+}
+
+.qna_answer .qna_label {
+    font-weight: bold;
+}
+
+.qna_hide {
+    text-align: center;
+    transition-property: opacity;
+    transition-duration: 0.5s;
+    opacity: 0;
+}
+
+.qna_hide:hover {
+    opacity: 1;
+}

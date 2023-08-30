@@ -1,0 +1,15 @@
+doc1 = {
+    url: "https://example.org/pdf/foo1.pdf",
+    docId: "pdffp:fedcba9876543210"
+}
+
+doc2 = {
+  url: "https://example.org/pdf/foo2.pdf",
+  docId: "pdffp:0123456789abcdef"
+}
+
+dependencies = {
+    "test.spx.doc0": "v0.1.0",
+    "test.moo.bar": "v1.0.0",
+    "test.moo.comment": "v0.1.0",
+}

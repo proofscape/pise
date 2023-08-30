@@ -149,7 +149,7 @@ export class TreeManager extends Listenable {
 
         const tree = new dojo.Tree({
             model: theModel,
-            openOnClick: true, // open/close by clicking anywhere (not just on +/- icon)
+            openOnClick: false, // open/close by clicking anywhere (not just on +/- icon)
             getIconClass: getIconClass,
             onClick: function(item, row, event){
                 // We'll set a boolean, `activate` to true iff the item should be activated.

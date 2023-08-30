@@ -40,7 +40,7 @@ def test_git_style_merge(app, repo, modpath, branch1, branch2):
         ri = get_repo_info(repo)
         ri.checkout(branch2)
         pi = PathInfo(modpath)
-        fs_path = pi.get_pfsc_fs_path()
+        fs_path = pi.get_src_fs_path()
         with open(fs_path) as f:
             yourtext = f.read()
         ri.checkout(branch1)

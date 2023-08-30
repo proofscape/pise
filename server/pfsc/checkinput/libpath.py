@@ -20,6 +20,7 @@ import re
 import lark.exceptions
 
 import pfsc.constants
+from pfsc.constants import PFSC_EXT, RST_EXT
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.addresses import VersionedLibpathNode
 from pfsc.build.lib.libpath import expand_multipath, PathInfo, get_modpath
@@ -40,26 +41,32 @@ class BoxListing:
 
     Such a listing may be given in many ways:
       * It may not be defined at all, in the case of optional fields (so we get None when we look for it);
-      * It may be a string giving a single libpath or multipath;
+      * It may be a string giving either a single libpath or multipath, or a comma-delimited
+        list of libpaths and multipaths;
       * It may be a list of strings giving a mixture of libpaths and multipaths;
-      * Sometimes, it may be a string giving a special keyword.
+      * Sometimes, it may be a string of the form `<...>`, i.e. beginning and
+        ending with angle brackets, giving a special keyword.
 
     The purpose of this class is to accept such a value, and uniformize it.
     """
 
-    def __init__(self, raw_value, allowed_keywords=[]):
+    def __init__(self, raw_value, allowed_keywords=None):
         """
         :param raw_value: the raw value of the box listing
-        :param allowed_keywords: optional list of keywords allowed for this particular box listing
+        :param allowed_keywords: optional list of keywords allowed for this
+            particular box listing. Keywords should be listed here *without*
+            angle brackets.
 
-        Our aim is to uniformize the input by storing either a list of libpaths, or a keyword value.
+        Our aim is to uniformize the input by storing either a list of
+        libpaths, or a keyword value.
         """
+        self.allowed_keywords = allowed_keywords or []
 
         # We record a keyword, which will remain `None` if the user did not provide one.
         self.keyword = None
         # All libpaths are initially considered to be (potential) multipaths, until expanded.
         self.multipaths = []
-        # After expanding potential multipaths, we store them here as plain libpaths.
+        # After expanding (potential) multipaths, we store them here as plain libpaths.
         self.libpaths = []
         # We may also want to check the libpaths, and so we can store CheckedLibpath instances as well.
         self.checked_libpaths = []
@@ -69,12 +76,12 @@ class BoxListing:
             return
         # If a string was given...
         if isinstance(raw_value, str):
-            # ...it may have been a keyword,
-            if raw_value in allowed_keywords:
-                self.keyword = raw_value
-            # ...otherwise we assume it is a multipath.
+            # ...Is it an angle-bracketed keyword?
+            if keyword := self.extract_keyword(raw_value):
+                self.keyword = keyword
+            # ...otherwise we parse it into a list of multipaths.
             else:
-                self.multipaths = [raw_value]
+                self.multipaths = self.parse_raw_string_as_multipaths(raw_value)
         # If a list was given, we assume it is a list of multipaths.
         elif isinstance(raw_value, list):
             self.multipaths = raw_value
@@ -86,6 +93,51 @@ class BoxListing:
         # Finally, expand multipaths into plain libpaths.
         for mp in self.multipaths:
             self.libpaths.extend(expand_multipath(mp))
+
+    def extract_keyword(self, raw_string):
+        """
+        Given a raw input string, determine whether it is an angle-bracketed
+        one of our allowed keywwords.
+
+        :return: the inner, unbracketed keyword, if it is one; else None
+        """
+        if raw_string.startswith("<") and raw_string.endswith(">"):
+            if (inner := raw_string[1:-1]) in self.allowed_keywords:
+                return inner
+        return None
+
+    @staticmethod
+    def parse_raw_string_as_multipaths(raw_string):
+        """
+        Parse a string as a comma-delimited list of multipaths, with skipped
+        whitespace.
+
+        :return: list of strings, believed to be multipaths
+        """
+        mps = []
+        mp = ''
+        depth = 0
+        for c in raw_string:
+            if c in ' \t\r\n':
+                continue
+            if c == ',' and depth == 0:
+                mps.append(mp)
+                mp = ''
+                continue
+
+            if c == '{':
+                depth += 1
+                if depth > 1:
+                    raise PfscExcep(f'Boxlisting contains nested braces: {raw_string}')
+            elif c == '}':
+                depth -= 1
+                if depth < 0:
+                    raise PfscExcep(f'Boxlisting contains unmatched braces: {raw_string}')
+
+            mp += c
+        if mp:
+            mps.append(mp)
+        return mps
 
     def is_keyword(self, *args):
         """
@@ -114,11 +166,14 @@ def check_boxlisting(key, raw, typedef):
     :param raw: The raw value of the boxlisting. May be None, str, or list.
     :param typedef:
         opt:
-            allowed_keywords: list of keywords allowed for this box listing; see doctext for `BoxListing` class
+            allowed_keywords: list of keywords allowed for this box listing;
+                see doctext for `BoxListing` class
 
-            libpath_type: a typedef dict d. If given, we will pass this dictionary d to the check_libpath
-                          function when we check all libpaths in the boxlisting. CheckedLibpath instances
-                          will be stored in the BoxListing.
+            libpath_type: a typedef dict d. If given, we will pass this
+                dictionary d to the check_libpath function when we check all
+                libpaths in the boxlisting. CheckedLibpath instances will be
+                stored in the BoxListing.
+
     :return: a BoxListing instance
     """
     # Form the BoxListing instance.
@@ -149,7 +204,13 @@ def check_libseg(key, raw, typedef):
     """
     Check a single segment in (or for) a libpath
 
-    :param typedef: no special options
+    :param typedef:
+        opt:
+            user_supplied: boolean, saying whether this name was supplied
+                by a user. If so, it is not allowed to begin with underscore,
+                exclamation point, or question mark.
+                Default: False
+
     :return: a CheckedLibseg object
     """
     checked = CheckedLibseg()
@@ -166,8 +227,74 @@ def check_libseg(key, raw, typedef):
     if M is None or M.group() != raw:
         msg = 'Segment %s is of bad format.' % raw
         raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
+    if typedef.get('user_supplied'):
+        if raw[0] in '_!?':
+            msg = f'User supplied libpath segment `{raw}` cannot begin with `{raw[0]}`.'
+            raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
     checked.valid_format = True
     return checked
+
+
+class CheckedModuleFilename:
+
+    def __init__(self, stem_segment, extension):
+        """
+        :param stem_segment: CheckedLibseg
+        :param extension: string
+        """
+        self.checked_stem_segment = stem_segment
+        self.extension = extension
+
+    def __str__(self):
+        return f'{self.checked_stem_segment.value}.{self.extension}'
+
+
+def check_module_filename(key, raw, typedef):
+    """
+    :param raw: str, giving a proposed full filename for a module file.
+        Should be of the form STEM.EXTENSION.
+    :param typedef:
+        opt:
+            segment: a typedef dict that will be forwarded to the `check_libseg()`
+                function, for checking the stem.
+            allow_pfsc: boolean, saying whether the `pfsc` extension is allowed.
+                Default: True.
+            allow_rst: boolean, saying whether the `rst` extension is allowed.
+                Default: True.
+
+    :return: CheckedModuleFilename
+    """
+
+    allow_pfsc = typedef.get('allow_pfsc', True)
+    allow_rst = typedef.get('allow_rst', True)
+    allowed_exts = []
+    if allow_pfsc:
+        allowed_exts.append(PFSC_EXT)
+    if allow_rst:
+        allowed_exts.append(RST_EXT)
+    expected_ext = ' or '.join([f'"{ext}"' for ext in allowed_exts])
+
+    parts = raw.split('.')
+    if len(parts) != 2:
+        msg = f'Bad filename "{raw}".'
+        if expected_ext:
+            msg += f' Should have extension {expected_ext}.'
+        raise PfscExcep(msg, PECode.BAD_MODULE_FILENAME, bad_field=key)
+
+    stem, pure_ext = parts
+
+    dotted_ext = f'.{pure_ext}'
+    if dotted_ext not in allowed_exts:
+        msg = f'File name "{raw}" has bad extension.'
+        if expected_ext:
+            msg += f' Expected {expected_ext}.'
+        raise PfscExcep(msg, PECode.BAD_MODULE_FILENAME, bad_field=key)
+
+    segment_typedef = typedef.get('segment', {})
+    checked_stem = check_libseg(key, stem, segment_typedef)
+
+    return CheckedModuleFilename(checked_stem, pure_ext)
+
 
 class EntityType:
     REPO = 'repo'
@@ -355,6 +482,10 @@ def check_libpath(key, raw, typedef):
             value_only: boolean. Default False, in which case we return a CheckedLibpath instance.
               Set True if instead you only want the `value` property thereof to be returned.
 
+            short_okay: boolean. Default False, in which case libpath is expected to
+                contain at least three segments (being the repopath).
+                Set True to allow libpaths shorter than three segments.
+
     :return: a CheckedLibpath object, or just its `value` property (see above).
     """
     checked = CheckedLibpath()
@@ -371,7 +502,7 @@ def check_libpath(key, raw, typedef):
     # Check proper dotted path format
     parts = raw.split('.')
     # Need at least three parts to name a repo.
-    if len(parts) < 3:
+    if len(parts) < 3 and not typedef.get('short_okay'):
         msg = 'Libpath %s is too short.' % raw
         raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
     # Check format of each part.

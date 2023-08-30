@@ -23,7 +23,7 @@ from flask import render_template, url_for, current_app
 from flask_login import current_user, logout_user
 
 from config import HostingStance
-from pfsc import check_config
+from pfsc import check_config, get_js_url
 import pfsc.constants
 from pfsc.handlers import Handler
 from pfsc.handlers.auth import _log_in_as_default_user_in_psm
@@ -44,6 +44,7 @@ from pfsc.contenttree import (
     AugmentedLibpath,
     TypeRequest,
     AnnoRequest,
+    SphinxRequest,
     ChartRequest,
     SourceRequest,
     LocDesc,
@@ -151,7 +152,7 @@ class AugLpSeq:
                 else:
                     # For now at least, ChartRequests are the only kind of
                     # TypeRequests that can use back-references; all other
-                    # types (at the moment, just AnnoRequest), must specify
+                    # types (at the moment, just AnnoRequest and SphinxRequest), must specify
                     # group and tab numbers, so are ready to be recorded.
                     record_request_info(req)
 
@@ -311,7 +312,7 @@ class StateArgMaker(Handler):
         # charts, and paths are requested; and we want the set S of all versioned _module_
         # paths for which sources are requested. Here we work with "repo-versioned" libpaths,
         # i.e. those of the form `host.user.repo@version.remainder`.
-        A, C, S = set(), set(), set()
+        A, C, S, X = set(), set(), set(), set()
         B, F = self.trees_to_rvlps(trees)
         for tc in tcs:
             for tab in tc['tabs']:
@@ -322,10 +323,12 @@ class StateArgMaker(Handler):
                     S.add(make_source_vmp(tab))
                 elif ty == "CHART":
                     C.update(set(make_chart_vlps(tab)))
+                elif ty == "SPHINX":
+                    X.add(make_notes_vlp(tab))
 
         # L will be the set of all versioned libpaths for which we must make some request.
         # It starts out as this:
-        L = A | C | B | F
+        L = A | C | X | B | F
         # However, for source modpaths we also need a mapping to some libpath
         # in L for which this source can be requested, and we enlarge L as necessary.
         src_vmp2vlp = {}
@@ -354,9 +357,9 @@ class StateArgMaker(Handler):
         active_tabs = []
         vlp2chartLocs = defaultdict(list)
         # In order to set up widget group control mappings later, we'll need a
-        # lookup where we can obtain one (g, t) location where a given annotation,
-        # identified by its repo-versioned libpath, can be found.
-        anno_panes = {}
+        # lookup where we can obtain one (g, t) location where a given page
+        # (anno or Sphinx), identified by its repo-versioned libpath, can be found.
+        anno_or_sphinx_panes = {}
         forest_groups = []
         total_tab_count = 0
         for g, tc in enumerate(tcs):
@@ -365,15 +368,19 @@ class StateArgMaker(Handler):
                 total_tab_count += 1
                 ty = tab['type']
 
-                if ty == "NOTES":
+                if ty in ["NOTES", "SPHINX"]:
+                    content_code, request_class = {
+                        "NOTES": ('a', AnnoRequest),
+                        "SPHINX": ('x', SphinxRequest),
+                    }[ty]
                     vlp = make_notes_vlp(tab)
-                    # Again, the annotation for a given vlp may indeed be open in more
+                    # Again, the page for a given vlp may indeed be open in more
                     # than one (g, t) location, but it doesn't matter here; we just need
-                    # _one_ location where that anno can be found.
-                    anno_panes[vlp] = (g, t)
-                    loc = LocDesc('a', {'g': g, 't': t})
+                    # _one_ location where that page can be found.
+                    anno_or_sphinx_panes[vlp] = (g, t)
+                    loc = LocDesc(content_code, {'g': g, 't': t})
                     alp = alps[vlp]
-                    alp.content_reqs.append(AnnoRequest(vlp, loc))
+                    alp.content_reqs.append(request_class(vlp, loc))
 
                 elif ty == "SOURCE":
                     vmp = make_source_vmp(tab)
@@ -466,7 +473,7 @@ class StateArgMaker(Handler):
         widget_link_codes = []
         for k, v in widgetPanes.items():
             vlp, widget_type, group_name = k.split(":")
-            sg, st = anno_panes[vlp]
+            sg, st = anno_or_sphinx_panes[vlp]
             tg, tt = v.split(":")
             widget_link_codes.append(f'{sg},{st}-{widget_type}.{group_name}-{tg},{tt}')
         if widget_link_codes:
@@ -818,28 +825,23 @@ class AppLoader(Handler):
                 f'https://cdn.jsdelivr.net/npm/@proofscape/pise-client@{ise_vers}/dist/ise/{ise_bundle_filename}'
             ),
 
+            get_js_url('mathjax'),
+            get_js_url('elkjs'),
+            # If using KLay instead of ELK, replace elkjs URL with:
+            # url_for('static', filename='klay/klay.js'),
+
             # If we want to use pdfjs outside of iframes, might need sth like this:
             # url_for('static', filename='pdfjs/build/pdf.js'),
             # url_for('static', filename='pdfjs/web/pdf_viewer.js'),
         ]
 
-        other_scripts = {
-            'mathjax': (
-                url_for('static', filename='mathjax/vVERSION/tex-svg.js')
-                if check_config("MATHJAX_SERVE_LOCALLY") else
-                'https://cdn.jsdelivr.net/npm/mathjax@VERSION/es5/tex-svg.js'
-            ),
-            'elkjs': (
-                url_for(
-                    'static',
-                    filename=f'elk/vVERSION/elk{"-api" if check_config("ELK_DEBUG") else ".bundled"}.js'
-                )
-                if check_config("ELKJS_SERVE_LOCALLY") else
-                'https://cdn.jsdelivr.net/npm/elkjs@VERSION/lib/elk.bundled.js'
-            ),
-            # If using KLay instead of ELK:
-            # url_for('static', filename='klay/klay.js'),
-        }
+        # `other_scripts` can be used if it is necessary to load any top-level
+        # scripts in the PISE app page, for which the version number has to be
+        # determined by the client-side code.
+        # This works in conjunction with the `loadScripts()` function in the client code's `main.js`.
+        # For a time, we used this for MathJax and ElkJS. Currently not using it for anything,
+        # but we keep the mechanism in place for possible future use.
+        other_scripts = {}
 
         local_whl_filenames = {
             "pfsc-util": "pfsc_util-VERSION-py3-none-any.whl",

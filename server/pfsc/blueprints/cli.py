@@ -20,6 +20,8 @@ CLI commands
 
 import json
 import pathlib
+import sys
+import traceback
 
 import click
 from flask.cli import with_appcontext
@@ -28,63 +30,75 @@ from pygit2 import clone_repository, GitError, RemoteCallbacks
 import pfsc.constants
 from pfsc.constants import UserProps
 from pfsc import pfsc_cli, make_app
-from pfsc.build.lib.libpath import get_modpath
-from pfsc.build import build_module, build_release
+from pfsc.build import build_repo
 from pfsc.build.repo import RepoInfo
 from pfsc.checkinput import check_type, IType
 from pfsc.gdb import get_gdb, get_graph_writer, get_graph_reader
 from pfsc.excep import PfscExcep, PECode
 
 
+"""
+Note: To build requires a configuration, since we need to know where are the
+`lib` and `build` dirs, and what is our graph database URI.
+To set the configuration, set the FLASK_CONFIG environment variable.
+
+So, for example, you might use
+
+    $ export FLASK_APP=web
+    $ export FLASK_CONFIG=localdev
+
+before attempting to build from the commandline.
+
+HOWEVER, we currently have both of these settings in our `.flaskenv`, so
+
+    $ flask pfsc build
+
+should work, out of the box, provided you've installed all the Python reqs and
+activated your virtual environment.
+"""
+
+
 @pfsc_cli.command('build')
-@click.argument('libpath')
+@click.argument('repopath')
 @click.option('-t', '--tag', default="WIP",
-              help='Build the module at version TEXT. Default: "WIP".')
-@click.option('-r', '--recursive', is_flag=True, default=False,
-              help='Also build all submodules, recursively.')
+              help='Build the repo at version TEXT. Default: "WIP".')
+@click.option('-c', '--clean', is_flag=True, default=False,
+              help='Do a clean build, ensuring all modules are re-read from source.')
 @click.option('-v', '--verbose', is_flag=True, default=False)
 @click.option('--auto-deps', is_flag=True, default=False,
               help='Automatically clone and build missing dependencies, recursively.')
+@click.option('--debug', is_flag=True, default=False, help='Print debugging traceback on error.')
 @with_appcontext
-def build(libpath, tag, recursive, verbose=False, auto_deps=False):
+def build(repopath, tag, clean, verbose=False, auto_deps=False, debug=False):
     """
-    Build the proofscape module at LIBPATH.
-
-    Note: To build requires a configuration, since we need to know where are the
-    `lib` and `build` dirs, and what is our graph database URI.
-    To set the configuration, set the FLASK_CONFIG environment variable.
-
-    So, for example, you might use
-
-        $ export FLASK_APP=web
-        $ export FLASK_CONFIG=localdev
-
-    before attempting to build from the commandline.
+    Build the proofscape repo at REPOPATH.
     """
-    # By invoking the `make_app` function with no arguments, we allow it to
-    # determine the configuration based on the FLASK_CONFIG environment variable.
-    app = make_app()
-    # However we force PSM, since when you are working from the CLI you should
-    # be able to do whatever you want.
-    app.config["PERSONAL_SERVER_MODE"] = True
-    with app.app_context():
-        if auto_deps:
-            auto_deps_build(libpath, tag, recursive, verbose=verbose)
-        else:
-            failfast_build(libpath, tag, recursive, verbose=verbose)
+    try:
+        # By invoking the `make_app` function with no arguments, we allow it to
+        # determine the configuration based on the FLASK_CONFIG environment variable.
+        app = make_app()
+        # However we force PSM, since when you are working from the CLI you should
+        # be able to do whatever you want.
+        app.config["PERSONAL_SERVER_MODE"] = True
+        with app.app_context():
+            if auto_deps:
+                auto_deps_build(repopath, tag, clean, verbose=verbose)
+            else:
+                failfast_build(repopath, tag, clean, verbose=verbose)
+    except PfscExcep as e:
+        if debug:
+            traceback.print_exc()
+        print(e)
+        sys.exit(1)
 
 
-def failfast_build(libpath, tag, recursive, verbose=False):
+def failfast_build(repopath, tag, clean, verbose=False):
     """
     This is the regular type of build, which simply fails if the repo is not
     present, or has a dependency that has not yet been built.
     """
     try:
-        if tag != pfsc.constants.WIP_TAG:
-            build_release(libpath, tag, verbose=verbose)
-        else:
-            modpath = get_modpath(libpath)
-            build_module(modpath, recursive=recursive, verbose=verbose)
+        build_repo(repopath, version=tag, make_clean=clean, verbose=verbose)
     except PfscExcep as e:
         code = e.code()
         data = e.extra_data()
@@ -98,7 +112,7 @@ def failfast_build(libpath, tag, recursive, verbose=False):
 MAX_AUTO_DEPS_RECURSION_DEPTH = 32
 
 
-def auto_deps_build(libpath, tag, recursive, verbose=False):
+def auto_deps_build(repopath, tag, clean, verbose=False):
     """
     Do a build with the "auto dependencies" feature enabled.
     This means that when dependencies have not been built yet, we try to build
@@ -107,18 +121,14 @@ def auto_deps_build(libpath, tag, recursive, verbose=False):
     exceep the maximum allowed recursion depth set by the
     `MAX_AUTO_DEPS_RECUSION_DEPTH` variable, or some other error occurs.
     """
-    jobs = [(libpath, tag, recursive, verbose)]
+    jobs = [(repopath, tag, clean, verbose)]
     while 0 < len(jobs) <= MAX_AUTO_DEPS_RECURSION_DEPTH:
         job = jobs.pop()
-        libpath, tag, recursive, verbose = job
+        repopath, tag, clean, verbose = job
         print('-'*80)
-        print(f'Building {libpath}@{tag}...')
+        print(f'Building {repopath}@{tag}...')
         try:
-            if tag != pfsc.constants.WIP_TAG:
-                build_release(libpath, tag, verbose=verbose)
-            else:
-                modpath = get_modpath(libpath)
-                build_module(modpath, recursive=recursive, verbose=verbose)
+            build_repo(repopath, version=tag, make_clean=clean, verbose=verbose)
         except PfscExcep as e:
             code = e.code()
             data = e.extra_data()
@@ -131,7 +141,11 @@ def auto_deps_build(libpath, tag, recursive, verbose=False):
                 clone(repopath, verbose=verbose)
                 # Retry
                 jobs.append(job)
-            elif code == PECode.VERSION_NOT_BUILT_YET:
+            elif code in [
+                PECode.VERSION_NOT_BUILT_YET,
+                PECode.MODULE_DOES_NOT_EXIST,
+                PECode.MODULE_HAS_NO_CONTENTS,
+            ]:
                 # We have a dependency that hasn't been built yet. Try to build it.
                 repopath = data["repopath"]
                 version = data["version"]
@@ -140,7 +154,7 @@ def auto_deps_build(libpath, tag, recursive, verbose=False):
                 # First requeue the job that failed.
                 jobs.append(job)
                 # Now add a job on top of it, for the dependency.
-                jobs.append((repopath, version, True, verbose))
+                jobs.append((repopath, version, clean, verbose))
             else:
                 raise
     if len(jobs) > MAX_AUTO_DEPS_RECURSION_DEPTH:

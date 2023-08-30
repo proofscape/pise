@@ -365,7 +365,7 @@ def test_index_1(app):
             # Make sure we're on the initial version.
             repo_info.checkout('v0')
             # Index recursively.
-            rep = index(repo_info, recursive=True, caching=0)
+            rep = index(repo_info)
             print("\nIndex %s:" % repo_path)
             print(rep)
 
@@ -373,7 +373,7 @@ def test_index_1(app):
         print("\nBrook advances to v1.")
         brook_ri = ri['brook']
         brook_ri.checkout('v1')
-        rep = index(brook_ri, recursive=True, caching=0)
+        rep = index(brook_ri)
         print("\nIndex %s:" % brook_ri.libpath)
         print(rep)
         assert rep.steps[0].intention.remove_nodes == {'test.brook.math.exp1.X1.B2'}
@@ -389,7 +389,7 @@ def test_index_1(app):
         print("\nAttempt to reindex Casey, without advancing.")
         casey_ri = ri['casey']
         with pytest.raises(PfscExcep) as ei:
-            index(casey_ri, recursive=True, caching=0)
+            index(casey_ri)
         pe = ei.value
         print(pe)
         assert pe.code() == PECode.TARGET_DOES_NOT_EXIST
@@ -398,7 +398,7 @@ def test_index_1(app):
         # This time it should work.
         print("\nCasey advances to v1.")
         casey_ri.checkout('v1')
-        rep = index(casey_ri, recursive=True, caching=0)
+        rep = index(casey_ri)
         print("\nIndex %s:" % casey_ri.libpath)
         print(rep)
 
@@ -416,7 +416,7 @@ def test_index_1(app):
         print("\nAlex advances to v1.")
         alex_ri = ri['alex']
         alex_ri.checkout('v1')
-        rep = index(alex_ri, recursive=True, caching=0)
+        rep = index(alex_ri)
         print("\nIndex %s:" % alex_ri.libpath)
         ifs = rep.get_full_summary()
         print(repr(ifs))
@@ -424,7 +424,7 @@ def test_index_1(app):
 
         print("\nAlex advances to v2.")
         alex_ri.checkout('v2')
-        rep = index(alex_ri, recursive=True, caching=0)
+        rep = index(alex_ri)
         print("\nIndex %s:" % alex_ri.libpath)
         ifs = rep.get_full_summary()
         print(repr(ifs))
@@ -432,7 +432,7 @@ def test_index_1(app):
 
         print("\nAlex advances to v3.")
         alex_ri.checkout('v3')
-        rep = index(alex_ri, recursive=True, caching=0)
+        rep = index(alex_ri)
         print("\nIndex %s:" % alex_ri.libpath)
         ifs = rep.get_full_summary()
         print(repr(ifs))

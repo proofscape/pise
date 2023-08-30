@@ -25,15 +25,16 @@ def test_lower_graph(app):
     print()
     deducpath = 'test.hist.lit.H.ilbert.ZB.Thm119.Thm'
     with app.app_context():
-        graph = get_graph_reader().get_lower_theory_graph(deducpath, "WIP")
+        graph = get_graph_reader().get_lower_theory_graph(deducpath, "v0.0.0")
         name = '_map'
         modtext = graph.write_modtext(name)
         print(modtext)
         type_ = 'lower'
         modpath = f'special.theorymap.{type_}.{deducpath}'
         module = build_module_from_text(modtext, modpath, dependencies={
-            'test.hist.lit': "WIP",
+            'test.hist.lit': "v0.0.0",
         })
+        module.resolve()
         theorymap = module[name]
         dg = theorymap.buildDashgraph()
         print(json.dumps(dg, indent=4))
@@ -46,15 +47,16 @@ def test_upper_graph(app):
     print()
     deducpath = 'test.hist.lit.H.ilbert.ZB.Thm8.Thm'
     with app.app_context():
-        graph = get_graph_reader().get_upper_theory_graph(deducpath, "WIP")
+        graph = get_graph_reader().get_upper_theory_graph(deducpath, "v0.0.0")
         name = '_map'
         modtext = graph.write_modtext(name)
         print(modtext)
         type_ = 'upper'
         modpath = f'special.theorymap.{type_}.{deducpath}'
         module = build_module_from_text(modtext, modpath, dependencies={
-            'test.hist.lit': "WIP",
+            'test.hist.lit': "v0.0.0",
         })
+        module.resolve()
         theorymap = module[name]
         dg = theorymap.buildDashgraph()
         print(json.dumps(dg, indent=4))

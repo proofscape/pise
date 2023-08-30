@@ -19,6 +19,7 @@ from collections import defaultdict
 from pfsc.build.versions import get_major_version_part
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.doc import DocReference
+from pfsc.constants import ContentDescriptorType
 
 
 class PfscObj:
@@ -145,6 +146,14 @@ class PfscObj:
             if callable(getattr(item, 'cascadeLibpaths', None)):
                 item.cascadeLibpaths()
 
+    def resolveLibpathsRec(self):
+        for item in self.items.values():
+            if callable(getattr(item, 'resolveLibpathsRec', None)):
+                item.resolveLibpathsRec()
+
+    def resolve(self):
+        pass
+
     def setTextRange(self, row0, col0, row1, col1):
         """
         Define the range in the module text over which this entity was defined.
@@ -162,6 +171,14 @@ class PfscObj:
         slp = self.libpath
         n = len(slp)
         ilp = item.getLibpath()
+        if not ilp:
+            # This case can arise e.g. in the case of a plain import,
+            #   import test.foo.bar
+            # in which case we will have an item called `test` that points to
+            # a PfscObj that has no libpath. (Should we instead give that obj
+            # the libpath `test`? What about assumption that all absolute
+            # libpaths have length at least three segments?)
+            return False
         m = len(ilp)
         pre = ilp[:n]
         return pre == slp and (
@@ -169,13 +186,20 @@ class PfscObj:
             ( m > n and ilp[n] == '.' )
         )
 
-    def getNativeItemsInDefOrder(self):
+    def getNativeItemsInDefOrder(self, accept_primitive=False):
         """
         Get an ordered dict of all native items in definition order.
 
+        :param accept_primitive: set True to also accept primitive items, i.e.
+            items that are not instances of `PfscObj`.
         :return: ordered dict of native items
         """
-        return {name:item for name, item in self.items.items() if self.isNative(item)}
+        def test(item):
+            return self.isNative(item) or (
+                accept_primitive and not isinstance(item, PfscObj)
+            )
+
+        return {name:item for name, item in self.items.items() if test(item)}
 
     def recursiveItemVisit(self, visitor_func):
         """
@@ -271,9 +295,9 @@ class PfscObj:
     def getDependencies(self):
         return self.getModule().getDependencies()
 
-    def getRequiredVersionOfObject(self, libpath, extra_err_msg='', loading_time=True):
+    def getRequiredVersionOfObject(self, libpath, extra_err_msg=''):
         mod = self.getModule()
-        return mod.getRequiredVersionOfObject(libpath, extra_err_msg=extra_err_msg, loading_time=loading_time)
+        return mod.getRequiredVersionOfObject(libpath, extra_err_msg=extra_err_msg)
 
     def getDeduction(self):
         """
@@ -317,6 +341,17 @@ class PfscObj:
 
     def getDocRefInternalId(self):
         return self.getLibpath()
+
+    def add_as_content(self, owner):
+        """
+        Add self as "contents" to owner, in a way respecting the type of
+        contents. For use during READ/RESOLVE of modules.
+
+        Subclasses may override, for special ways of recording.
+
+        :param owner: PfscObj to which self is to be added
+        """
+        owner[self.name] = self
 
     def __getitem__(self, path):
         """
@@ -501,6 +536,21 @@ class PfscDefn(PfscObj):
         self.lhs = lhs
         self.rhs = rhs
 
+
+class EnrichmentType:
+    annotation = 'annotation'
+    deduction = 'deduction'
+    sphinxpage = 'sphinxpage'
+
+    @classmethod
+    def to_content_descriptor_type(cls, enrichment_type):
+        return {
+            cls.annotation: ContentDescriptorType.NOTES,
+            cls.deduction: ContentDescriptorType.CHART,
+            cls.sphinxpage: ContentDescriptorType.SPHINX,
+        }.get(enrichment_type)
+
+
 class Enrichment(PfscObj):
     """
     A PfscObj that provides enrichment. Such objects can have "targets", and the top-level
@@ -560,10 +610,7 @@ class Enrichment(PfscObj):
                 'docs': {},
                 'refs': {},
             }
-            stype = {
-                'deduction': 'CHART',
-                'annotation': 'NOTES',
-            }.get(self.typename)
+            stype = EnrichmentType.to_content_descriptor_type(self.typename)
 
             def grabHighlights(obj):
                 ref = obj.getDocRef()
@@ -664,3 +711,43 @@ class Enrichment(PfscObj):
             all_nodes=all_nodes, common_deduc=common_deduc,
             typename=self.typename, name=self.name
         )
+
+
+class EnrichmentPage(Enrichment):
+    """
+    Essentially, an EnrichmentPage is something that contains Widgets.
+    Annotations and SphinxPages are our existing examples.
+    """
+
+    def __init__(self, typename):
+        Enrichment.__init__(self, typename)
+        self.page_data = None
+
+    def get_proper_widgets(self):
+        raise NotImplementedError
+
+    def resolve(self):
+        self.resolveLibpathsRec()
+        for widget in self.get_proper_widgets():
+            widget.enrich_data()
+
+    def get_page_data(self, caching=True):
+        """
+        Get the data dictionary for the page.
+
+        :param caching: If True, the data will only be computed once, and stored.
+        :return: dict
+        """
+        page_data = self.page_data
+        if page_data is None or not caching:
+            page_data = {
+                'libpath': self.getLibpath(),
+                'version': self.getVersion(),
+                'widgets': {
+                    w.writeUID(): w.writeData() for w in self.get_proper_widgets()
+                },
+                'docInfo': self.gather_doc_info(caching=caching),
+            }
+            if caching:
+                self.page_data = page_data
+        return page_data

@@ -126,6 +126,12 @@ class kNode(kObj):
     def __repr__(self):
         return str(self)
 
+    def __hash__(self):
+        return hash(str(self))
+
+    def __lt__(self, other):
+        return str(self) < str(other)
+
     def get_property_dict(self):
         basic = {
             'libpath': self.libpath,
@@ -193,6 +199,12 @@ class kReln(kObj):
 
     def __repr__(self):
         return str(self)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __lt__(self, other):
+        return str(self) < str(other)
 
     def __eq__(self, other):
         return (

@@ -17,11 +17,15 @@
 from gremlin_python.process.graph_traversal import __
 from gremlin_python.process.traversal import TextP
 
-from pfsc.constants import INF_TAG, WIP_TAG, IndexType
+from pfsc.constants import WIP_TAG, IndexType
 from pfsc.gdb.writer import GraphWriter
+from pfsc.gdb.k import make_kNode_from_jNode, make_kReln_from_jReln
 import pfsc.gdb.gremlin.indexing as indexing
 from pfsc.gdb.gremlin.util import (
-    GTX, lp_covers, merge_node, is_user, lp_maj)
+    GTX, lp_covers, merge_node, is_user, lp_maj,
+    set_kReln_reln_props,
+)
+from pfsc.build.versions import get_padded_components
 from pfsc.excep import PfscExcep
 
 
@@ -56,21 +60,6 @@ class GremlinGraphWriter(GraphWriter):
             __.identity(),
             __.out(IndexType.BUILD),
         ).barrier().drop().iterate()
-
-    def _undo_wip_cut_nodes(self, node_db_ids, gtx):
-        gtx.V(*node_db_ids).has('cut', WIP_TAG).union(
-            # On Neptune, we will add a new 'cut' property, instead of updating
-            # the existing one, unless we drop the existing one first. See
-            #   https://docs.aws.amazon.com/neptune/latest/userguide/access-graph-gremlin-differences.html#w3aac15c18c10c15c53
-            __.properties('cut').drop(),
-            __.property('cut', INF_TAG)
-        ).iterate()
-
-    def _undo_wip_cut_relns(self, reln_db_ids, gtx):
-        gtx.E(*reln_db_ids).has('cut', WIP_TAG).union(
-            __.properties('cut').drop(),
-            __.property('cut', INF_TAG)
-        ).iterate()
 
     def ix0200(self, mii, gtx):
         if mii.V_cut:
@@ -129,21 +118,32 @@ class GremlinGraphWriter(GraphWriter):
                 retarget_counter += len(mcs)
                 mc_ids = [mc.db_uid for mc in mcs]
                 tr = lp_covers(k.tail_libpath, k.tail_major, gtx.V()).as_('e')
-                tr.V(mc_ids).add_e(IndexType.RETARGETS).from_('e').iterate()
+                tr = tr.V(mc_ids).add_e(IndexType.RETARGETS).from_('e')
+                tr = set_kReln_reln_props(k, tr)
+                tr.iterate()
             mii.note_task_element_completed(361)
         # (2) Existing enrichments on anything we moved:
         ids = [mii.existing_k_nodes[a].db_uid for a, b in
                mii.mm_closure.items() if b is not None]
         res = [] if not ids else gtx.V(ids).as_('t') \
-            .in_(IndexType.TARGETS, IndexType.RETARGETS).as_('e') \
-            .select('e', 't').by(__.id_()).by('libpath').to_list()
-        pairs = [[d['e'], mii.mm_closure[d['t']]] for d in res]
-        if pairs:
-            retarget_counter += len(pairs)
+            .in_e(IndexType.TARGETS, IndexType.RETARGETS).as_('r').out_v().as_('e') \
+            .select('e', 'r', 't') \
+            .by(__.element_map()).by(__.element_map()).by(__.element_map()).to_list()
+        triples = [
+            [
+                make_kNode_from_jNode(d['e']).db_uid,
+                make_kReln_from_jReln((d['e'], d['r'], d['t'])),
+                mii.mm_closure[make_kNode_from_jNode(d['t']).libpath]
+            ]
+            for d in res
+        ]
+        if triples:
+            retarget_counter += len(triples)
             tr = gtx
-            for eid, tlp in pairs:
-                tr = lp_covers(tlp, mii.major, tr.V()).as_('r'). \
-                    V(eid).add_e(IndexType.RETARGETS).to('r')
+            for eid, k_reln, tlp in triples:
+                tr = lp_covers(tlp, mii.major, tr.V()).as_('t'). \
+                    V(eid).add_e(IndexType.RETARGETS).to('t')
+                tr = set_kReln_reln_props(k_reln, tr)
             tr.iterate()
         mii.note_task_element_completed(362, len(ids))
         if verbose:
@@ -168,10 +168,13 @@ class GremlinGraphWriter(GraphWriter):
             __.out(IndexType.BUILD),
         ).barrier().drop().iterate()
 
-    def delete_full_wip_build(self, repopath):
+    def delete_full_build_at_version(self, repopath, version=WIP_TAG):
+        M, m, p = get_padded_components(version)
         self.g.V().has('repopath', repopath).or_(
-            __.has('major', WIP_TAG),
-            __.has('version', WIP_TAG)
+            __.has('version', version),
+            __.and_(
+                __.has('major', M), __.has('minor', m), __.has('patch', p),
+            )
         ).union(
             __.identity(),
             __.out(IndexType.BUILD),

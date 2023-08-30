@@ -39,8 +39,8 @@ def test_get_modpath(libpath, modpath):
 ))
 def test_get_formal_moditempath(libpath, moditempath):
     if moditempath:
-        assert get_formal_moditempath(libpath) == moditempath
+        assert get_formal_moditempath(libpath, version='v0.0.0') == moditempath
     else:
         with pytest.raises(PfscExcep) as ei:
-            get_formal_moditempath(libpath)
+            get_formal_moditempath(libpath, version='v0.0.0')
         assert str(ei.value).find('too short') >= 0

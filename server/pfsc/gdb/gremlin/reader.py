@@ -14,7 +14,6 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-from collections import defaultdict
 import json
 
 from gremlin_python.process.graph_traversal import __
@@ -161,56 +160,13 @@ class GremlinGraphReader(GraphReader):
         return [(m['libpath'], m['major'], m.get('origin')) for m in M]
 
     def _find_enrichments_internal(self, deducpath, major0):
-        tr = lp_covers(deducpath, major0, self.g.V())
-
-        te = tr.union(
+        tr = lp_covers(deducpath, major0, self.g.V()).union(
             __.identity().as_('t'),
             __.repeat(covers(major0, __.in_e(IndexType.UNDER)).out_v()).emit().as_('t')
-        ).in_e(IndexType.TARGETS, IndexType.RETARGETS, IndexType.CF).as_('e_reln').out_v().as_('e') \
-                .select('e', 'e_reln', 't') \
-                .by(__.element_map()).by(__.label()).by('libpath').to_list()
-
-        repos = {i['e']['repopath'] for i in te}
-        rvs = {}
-        for rp in repos:
-            vs = self.get_versions_indexed(rp, include_wip=True)
-            rvs[rp] = vs
-
-        enrichments_by_libpath = {}
-        for i in te:
-            e = i['e']
-            enrichments_by_libpath[e['libpath']] = e
-
-        events_by_repopath = defaultdict(list)
-        for lp, e in enrichments_by_libpath.items():
-            events_by_repopath[e['repopath']].append((e['major'], 1, lp))
-            events_by_repopath[e['repopath']].append((e['cut'], 0, lp))
-
-        versions_per_enrichment = defaultdict(list)
-        for rp in repos:
-            events = list(sorted(events_by_repopath[rp]))
-            N = len(events)
-            e_open = set()
-            cur_maj = None
-            ptr = 0
-            vs = rvs[rp]
-            for v in vs:
-                M = v['major']
-                if M != cur_maj:
-                    cur_maj = M
-                    while ptr < N and (e := events[ptr])[0] <= M:
-                        if e[1]:
-                            e_open.add(e[2])
-                        else:
-                            e_open.remove(e[2])
-                        ptr += 1
-                for elp in e_open:
-                    versions_per_enrichment[elp].append(v['full'])
-
-        return [
-            [i['e'], i['e_reln'], versions_per_enrichment[i['e']['libpath']], i['t']]
-            for i in te
-        ]
+        ).in_e(IndexType.TARGETS, IndexType.RETARGETS, IndexType.CF).as_('r').out_v().as_('e') \
+                .select('e', 'r', 't') \
+                .by(__.element_map()).by(__.element_map()).by(__.element_map()).to_list()
+        return [make_kReln_from_jReln((i['e'], i['r'], i['t'])) for i in tr]
 
     def get_modpath(self, libpath, major):
         major0 = self.adaptall(major)

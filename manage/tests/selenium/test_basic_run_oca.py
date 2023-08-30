@@ -48,8 +48,8 @@ class TestBasicRunOCA(Tester):
 
         self.open_repo(repopath, s_repo_root_node, select_tab='fs')
 
-        # Open context menu and click "build recursive" option.
-        self.click_nth_context_menu_option(s_repo_root_node, "dijit_Menu_1", 7, "Build Recursive")
+        # Open context menu and click "Build" option.
+        self.click_nth_context_menu_option(s_repo_root_node, "dijit_Menu_1", 6, "Build")
         t0 = time.time()
         logger.info("Starting build...")
 

@@ -67,6 +67,9 @@ file glob patterns as necessary. The globs follow the rules for the Python
 `pathlib` package.
 
 In particular, '**/' means search in this dir and in all subdirs recursively.
+
+SEE ALSO: the SUPERPROJECTS dict defined below, for projects like `pise`, which
+combine several of these (what used to be) separate repos into one larger project.
 """
 COPYRIGHT_INFO_PER_REPO = {
     "demorepos": {
@@ -126,7 +129,7 @@ COPYRIGHT_INFO_PER_REPO = {
     },
     "manage": {
         # Yes, this project can update its own headers:
-        "src_dir": "../pfsc-manage",
+        "src_dir": "pfsc-manage",
         "statement": {
             "existing": "Copyright (c) 2021-2022",
             "desired":  "Copyright (c) 2021-2023"
@@ -208,6 +211,31 @@ COPYRIGHT_INFO_PER_REPO = {
     },
 }
 
+"""
+In the `SUPERPROJECTS` dict, you can assemble several of the "repos" listed
+above (which used to all be separate repos) into larger projects.
+
+The format is: {
+    <project_name>: {
+        "subdir1": "reponame1",
+        "subdir2": "reponame2",
+        "subdir3": "reponame3",
+        ...
+    },
+    ...
+}
+
+The "subdir" keys define internal directories under which the files for that
+repo will be listed.
+"""
+SUPERPROJECTS = {
+    'pise': {
+        'server': 'server',
+        'ise': 'ise',
+        'manage': 'manage',
+    }
+}
+
 
 class LicensableFiles:
     """
@@ -237,6 +265,55 @@ class LicensableFiles:
     def internal_path(self, path):
         """Turn an absolute path into one relative to the repo root dir."""
         return path.relative_to(self.root)
+
+    def full_and_internal_paths(self):
+        """
+        Return an iterator over pairs (fpath, ipath), giving the full and
+        internal paths of all licensable files in the repo.
+        """
+        for fpath in self.paths():
+            ipath = self.internal_path(fpath)
+            yield fpath, ipath
+
+
+class SuperprojectLicensableFiles:
+    """
+    Provides iteration over the licensable files in *several* repos, regarded
+    as parts of one larger superproject.
+    """
+
+    def __init__(self, project_name):
+        proj = SUPERPROJECTS.get(project_name)
+        if proj is None:
+            raise click.UsageError(f'Unknown project name: {project_name}')
+        self.proj = {
+            subdir: LicensableFiles(repo)
+            for subdir, repo in proj.items()
+        }
+
+    def full_and_internal_paths(self):
+        """
+        Return an iterator over pairs (fpath, ipath), giving the full and
+        internal paths of all licensable files in the project.
+        """
+        for subdir, lf in self.proj.items():
+            sdpath = Path(subdir)
+            for fpath, repo_ipath in lf.full_and_internal_paths():
+                proj_ipath = sdpath / repo_ipath
+                yield fpath, proj_ipath
+
+
+def get_licensable_files(name):
+    """
+    Construct a `LicensableFiles` for a repo, or `SuperprojectLicensableFiles`
+    for a superproject, according to the given name.
+    """
+    if name in COPYRIGHT_INFO_PER_REPO:
+        return LicensableFiles(name)
+    elif name in SUPERPROJECTS:
+        return SuperprojectLicensableFiles(name)
+    else:
+        raise click.UsageError(f'No known repo or superproject for name: {name}')
 
 
 ###############################################################################
@@ -331,6 +408,9 @@ def cat(div_char, div_len, dry_run, verbose, repo):
 
     The license headers are chopped off, and in their place we put a simple
     divider containing the path to the file, relative to the repo root dir.
+
+    REPO can be any key in either the COPYRIGHT_INFO_PER_REPO lookup, or the
+    SUPERPROJECTS lookup, in update.py.
     """
     try:
         div_len = int(div_len)
@@ -343,9 +423,8 @@ def cat(div_char, div_len, dry_run, verbose, repo):
     has_no_header = []
     total_length = 0
 
-    lf = LicensableFiles(repo)
-    for path in lf.paths():
-        rel_path = lf.internal_path(path)
+    lf = get_licensable_files(repo)
+    for path, rel_path in lf.full_and_internal_paths():
         with open(path) as f:
             text = f.read()
 

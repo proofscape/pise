@@ -19,24 +19,26 @@ Parse .pfsc modules, and build internal representations of the objects
 they declare, using the classes in the deductions and annotations (python) modules.
 """
 
-import datetime, re
-import inspect
-import pathlib
+import datetime
+import pickle
+import re
 
 from lark import Lark, v_args
 from lark.exceptions import VisitError, LarkError
 
 from pfsc.lang.annotations import Annotation
-from pfsc.lang.freestrings import PfscJsonTransformer, json_grammar, json_grammar_imports
+from pfsc.lang.freestrings import (
+    PfscJsonTransformer, json_grammar, json_grammar_imports, Libpath
+)
 from pfsc.lang.deductions import (
     PfscObj, Deduction, SubDeduc, Node, Supp, Flse, node_factory,
 )
 from pfsc.lang.objects import PfscDefn
+from pfsc.lang.widgets import Widget
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo, get_modpath
-from pfsc.build.repo import get_repo_part
+from pfsc.build.repo import get_repo_part, get_repo_info
 from pfsc.build.versions import version_string_is_valid
-from pfsc.gdb import get_graph_reader
 from pfsc.permissions import have_repo_permission, ActionType
 from pfsc_util.scan import PfscModuleStringAwareScanner
 import pfsc.util as util
@@ -48,26 +50,21 @@ class PfscModule(PfscObj):
     Represents a whole Proofscape Module.
     """
 
-    def __init__(self, libpath, loading_version=pfsc.constants.WIP_TAG, given_dependencies=None):
+    def __init__(
+            self, libpath, version=pfsc.constants.WIP_TAG,
+            given_dependencies=None, read_time=None
+    ):
         """
         :param libpath: the libpath of this module.
-        :param loading_version: the version of this module that we are using
-          at the time that we are loading it.
+        :param version: the version of this module.
         :param given_dependencies: a dependencies lookup which, if given, will
           override that which we obtain from our root module.
         """
         PfscObj.__init__(self)
         self.libpath = libpath
+        self.read_time = read_time
         self.repopath = get_repo_part(libpath)
-        self.loading_version = loading_version
-        # This module may represent a different version than that named by
-        # the loading version. This is because when we are building, all modules
-        # from the repo being built are always loaded at WIP version (with a possible
-        # checkout of a tagged release prior to this); however, if it is a release
-        # build, then they represent not WIP but their release number.
-        # We initialize the represented version to the same value, but it can be
-        # changed later.
-        self.represented_version = loading_version
+        self.version = version
         self._modtext = None  # place to stash the original text of the module
         self._bc = None  # place to stash the BlockChunker that processed this module's text
         self.dependencies = None
@@ -75,6 +72,78 @@ class PfscModule(PfscObj):
             self.load_and_validate_dependency_info()
             assert isinstance(self.dependencies, dict)
             self.dependencies.update(given_dependencies)
+        self.pending_imports = []
+        self.resolving = False
+        self.resolved = False
+
+    def add_pending_import(self, pi):
+        self.pending_imports.append(pi)
+
+    def list_modules_imported_from(self):
+        return [pi.src_modpath for pi in self.pending_imports]
+
+    def get_oldest_built_product_timestamp(self):
+        """
+        Get the oldest timestamp on any of this module's existing built
+        products in the build dir, if any, else -1.
+        """
+        pi = PathInfo(self.libpath)
+        times = pi.get_built_product_modification_times(version=self.version)
+        return max([-1] + list(times.values()))
+
+    def partial_resolve_external_at_wip(self, cache=None, prog_mon=None):
+        """
+        If this module has any imports of external modules @WIP, do a partial
+        resolution on them now, i.e. just load all the modules, recursively.
+
+        :return: the latest timestamp for the resolved modules, or any modules
+            resolved recursively under them, else -1 if no such modules.
+        """
+        latest_read_time = -1
+        for pi in self.pending_imports:
+            if pi.is_external_at_wip():
+                lrt = pi.resolve(cache=cache, prog_mon=prog_mon, load_only=True)
+                latest_read_time = max(latest_read_time, lrt)
+        return latest_read_time
+
+    def resolve(self, cache=None, prog_mon=None, load_only=False):
+        """
+        RESOLUTION steps that are delayed so that we can have a pure READ phase,
+        when initially building modules.
+
+        :return: the latest read time (Unix time stamp) of this module, or any
+            module imported under it, recursively.
+        """
+        latest_read_time = self.read_time or 0
+        if not self.resolved and not self.resolving:
+            self.resolving = True
+
+            if cache is None:
+                cache = {}
+
+            if prog_mon:
+                prog_mon.set_message(f'Reolving imports from {self.libpath}...')
+
+            for pi in self.pending_imports:
+                lrt = pi.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
+                latest_read_time = max(latest_read_time, lrt)
+
+            if not load_only:
+                if prog_mon:
+                    prog_mon.set_message(f'Resolving {self.libpath}...')
+
+                self.resolve_libpaths_to_rhses()
+
+                native = self.getNativeItemsInDefOrder()
+                for item in native.values():
+                    if isinstance(item, PfscObj):
+                        item.resolve()
+
+                self.resolved = True
+
+            self.resolving = False
+
+        return latest_read_time
 
     def isRepo(self):
         return self.libpath == self.repopath
@@ -86,20 +155,67 @@ class PfscModule(PfscObj):
         pi = PathInfo(self.libpath)
         return pi.is_file
 
-    def setRepresentedVersion(self, vers):
-        self.represented_version = vers
-
     def getDependencies(self):
         return self.dependencies or {}
+
+    def resolve_libpaths_to_rhses(self):
+        """
+        Visit all items recursively, and replace `Libpath` instances with
+        RHSes of `PfscAssigment`s in those cases where they point to them.
+
+        This takes over, in the READ/RESOLVE design, for the resolution that
+        used to take place in `PfscJsonTransformer.json_libpath()`.
+        """
+        def replace_or_replace_within(item, scope):
+            """
+            If item is a `Libpath`, then resolve to RHS or not at all; if it
+            is a list or dict, resolve recursively within.
+
+            Return the given item itself unless it was a `Libpath` that
+            resolved to an RHS, in which case return the RHS.
+            """
+            if isinstance(item, Libpath):
+                return item.resolve_to_rhs_or_not_at_all(scope)
+            elif isinstance(item, list):
+                for i, list_item in enumerate(item):
+                    item[i] = replace_or_replace_within(list_item, scope)
+            elif isinstance(item, dict):
+                for k, v in item.items():
+                    item[k] = replace_or_replace_within(v, scope)
+            return item
+
+        def visit(obj):
+            """
+            An `assignment` in a pfsc module can occur only at the top level
+            (i.e. as a `tla`), or else among `nodecontents` or `deduccontents`.
+
+            At the top level, a `PfscAssignment` is stored as the value.
+            In node or deduc contents, the RHS value is stored instead.
+
+            Therefore we need only consider `Node`, `Deduction`, and
+            `PfscAssignment` items here.
+            """
+            if isinstance(obj, (Node, Deduction)):
+                native = obj.getNativeItemsInDefOrder(accept_primitive=True)
+                for name, item in native.items():
+                    obj[name] = replace_or_replace_within(item, obj)
+            elif isinstance(obj, PfscAssignment):
+                obj.rhs = replace_or_replace_within(obj.rhs, obj)
+            elif isinstance(obj, Widget):
+                replace_or_replace_within(obj.data, obj)
+
+        self.recursiveItemVisit(visit)
 
     def load_and_validate_dependency_info(self):
         if self.dependencies is None:
             deps = {}
             if not self.isSpecial():
                 root_module = self if self.isRepo() else load_module(
-                    self.repopath, version=self.loading_version, fail_gracefully=True, history=[]
+                    self.repopath, version=self.version, fail_gracefully=True, history=[]
                 )
                 if root_module:
+                    # No need to call root_module.resolve(), since we are only interested in
+                    # an assignment made in this module (which needs no resolution).
                     deps = root_module.getAsgnValue(pfsc.constants.DEPENDENCIES_LHS, default={})
 
             checked_deps = {}
@@ -120,7 +236,7 @@ class PfscModule(PfscObj):
 
             self.dependencies = checked_deps
 
-    def getRequiredVersionOfObject(self, libpath, extra_err_msg='', loading_time=True):
+    def getRequiredVersionOfObject(self, libpath, extra_err_msg=''):
         """
         Determine, according to the dependencies declaration for the repo to which
         this module belongs, what is the required version of a given object.
@@ -129,15 +245,12 @@ class PfscModule(PfscObj):
         :param extra_err_msg: extra string to be added onto the error message, in
             case the version number is unavailable. This can provide helpful info
             about where/why the version number is needed.
-        :param loading_time: Is this request happening during module loading? This
-            controls whether we use our loading version or represented version, when
-            the object in question belongs to the same repo as us.
         :return: the required version string.
         """
         self.load_and_validate_dependency_info()
         repopath = get_repo_part(libpath)
         if repopath == self.repopath:
-            return self.loading_version if loading_time else self.represented_version
+            return self.version
         if repopath not in self.dependencies:
             msg = f'Repo `{self.repopath}` failed to define required version of `{repopath}`.'
             msg += extra_err_msg
@@ -145,7 +258,7 @@ class PfscModule(PfscObj):
         return self.dependencies[repopath]
 
     def getVersion(self):
-        return self.represented_version
+        return self.version
 
     def setBlockChunker(self, bc):
         self._bc = bc
@@ -159,11 +272,17 @@ class PfscModule(PfscObj):
         else:
             self._modtext = args[0]
 
-    def getBuildDirAndFilename(self, version=pfsc.constants.WIP_TAG):
+    def get_build_dir_src_code_path(self, version=pfsc.constants.WIP_TAG):
         pi = PathInfo(self.libpath)
-        return pi.get_build_dir_and_filename(version=version)
+        return pi.get_build_dir_src_code_path(version=version)
 
+    def list_existing_built_product_paths(self, version=pfsc.constants.WIP_TAG):
+        pi = PathInfo(self.libpath)
+        return pi.list_existing_built_product_paths(version=version)
+                
     def getBuiltVersion(self):
+        if rst_src := getattr(self, '_rst_src', None):
+            return rst_src
         return self._bc.write_module_text()
 
     def writeBuiltVersionToDisk(self, writeOnlyIfDifferent=True, makeTildeBackup=True):
@@ -195,9 +314,9 @@ class PfscModule(PfscObj):
         @return: the loaded submodule, if found, else None
         """
         possible_submodule_path = '.'.join([self.libpath, name])
-        sub = load_module(possible_submodule_path, version=self.loading_version, fail_gracefully=True)
+        sub = load_module(possible_submodule_path, version=self.version, fail_gracefully=True)
         if sub is not None:
-            # We did manage to load a submodule. Save it under its name.
+            sub.resolve()
             self[name] = sub
         return sub
 
@@ -443,6 +562,7 @@ pfsc_parser = Lark(
 
 BLOCK_RE = re.compile(r'(anno +([a-zA-Z]\w*)[^@]*?)@@@(\w{,8})(\s.*?)@@@\3', flags=re.S)
 
+
 class BlockChunker:
     '''
     Contrary to the appearance of the pfsc_parser definition in EBNF above, "annotation blocks"
@@ -468,9 +588,11 @@ class BlockChunker:
     We store the text so modified, along with dicts mapping the block names to the original
     text (minus bracketing quotes).
     '''
-    def __init__(self, text):
+    def __init__(self, text, base_line_num=0):
         """
         :param text: the original text of a pfsc module
+        :param base_line_num: optionally pass an integer, in order to offset
+            all line numbers by this amount
         """
         self.text = text
         chunks = BLOCK_RE.split(text)
@@ -480,16 +602,20 @@ class BlockChunker:
         # We will record data in order to achieve a "line mapping". This is so that line numbers in
         # the modified text we are going to produce can be mapped back to their correct values in the original text.
         # This is useful in reporting parsing errors or seeking a definition in a module.
-        self.line_mapping = []
+        # Note: since mapping list will be reversed later, the entry added here
+        # will come last.
+        self.line_mapping = [(-1, base_line_num)]
         self.line_no = 1
         self.lines_cut = 0
+
         def keep_lines(chunk):
             n = chunk.count('\n')
             self.line_no += n
+
         def cut_lines(chunk):
             n = chunk.count('\n')
             self.lines_cut += n
-            self.line_mapping.append((self.line_no, self.lines_cut))
+            self.line_mapping.append((self.line_no, self.lines_cut + base_line_num))
 
         # Record the first text chunk.
         c0 = chunks[0]
@@ -615,14 +741,16 @@ def strip_comments(text):
     return cs.stripped_text
 
 
-def parse_module_text(text):
+def parse_module_text(text, base_line_num=0):
     """
     Parse a .pfsc module.
     :param text: The text of a .pfsc module.
+    :param base_line_num: optional integer by which to shift line numbers
+        recorded by entities in the module as their place of definition
     :return: (Lark Tree instance, BlockChunker instance)
     """
     # Simplify anno blocks.
-    bc = BlockChunker(text)
+    bc = BlockChunker(text, base_line_num=base_line_num)
     mtext = bc.get_modified_text()
     # Strip out all comments.
     mmtext = strip_comments(mtext)
@@ -637,7 +765,7 @@ def parse_module_text(text):
     return tree, bc
 
 
-class PreClone(PfscObj):
+class PendingClone(PfscObj):
     """
     Represents an intention to make a clone of a node or subdeduc.
     """
@@ -646,6 +774,9 @@ class PreClone(PfscObj):
         PfscObj.__init__(self)
         self.orig_libpath = orig_libpath
         self.local_name = local_name
+
+    def add_as_content(self, owner):
+        owner.add_pending_clone(self)
 
     def make_clone(self, owner):
         orig_obj, _ = owner.getFromAncestor(
@@ -677,12 +808,17 @@ class PfscAssignment(PfscObj):
     def get_rhs(self):
         return self.rhs
 
+    def add_as_content(self, owner):
+        owner[self.lhs] = self.rhs
+
+
 class PfscDeducPreamble:
 
     def __init__(self, name, targets, rdefs):
         self.name = name
         self.targets = targets
         self.rdefs = rdefs
+
 
 class PfscRelpath:
 
@@ -719,6 +855,7 @@ class PfscRelpath:
         abspath = '.'.join(keep_parts)
         return abspath
 
+
 class CachePolicy:
     """
     Enum class for ways of using the module cache.
@@ -734,31 +871,52 @@ class CachePolicy:
     ALWAYS=1
     TIME=2
 
-class ModuleLoader(PfscJsonTransformer):
 
-    def __init__(self, modpath, bc, version=pfsc.constants.WIP_TAG, history=None, caching=CachePolicy.TIME, dependencies=None, do_imports=True):
+class PendingImport:
+    """
+    Represents an import that is pending, i.e. has not yet been resolved.
+    """
+    PLAIN_IMPORT_FORMAT = 0
+    FROM_IMPORT_FORMAT = 1
+
+    def __init__(self, home_module, format,
+                 src_modpath, object_names=None, local_path=None):
         """
-        :param modpath: The libpath of this module
-        :param bc: The BlockChunker that performed the first chunking pass on this module's text
-        :param version: The version being loaded
-        :param history: a list of libpaths we have already imported; helps detect cyclic import errors
-        :param caching: set the cache policy.
-        :param dependencies: optionally pass a dict mapping repopaths to required versions. If provided,
-          these will override what we would have determined by checking dependencies declared in the repo root module.
-        :param do_imports: Set False if you don't actually want to perform imports. May be useful for testing.
+        :param home_module: the PfscModule where the import happened
+        :param format: one of PLAIN_IMPORT_FORMAT, FROM_IMPORT_FORMAT, indicating
+            the format of the import statement
+        :param src_modpath: the libpath of the module named as the source in
+            the import statement
+        :param object_names: for FROM imports, the name or names (str or list of
+            str) of the imported object or objects inside of the source module,
+            or "*" if importing all from there
+        :param local_path: dotted path or name under which the imported object
+            (last imported object, if several) is to be stored in the home module
         """
-        # Since we are subclassing Transformer, and since our grammar has a nonterminal
-        # named `module` (namely, the start symbol for our grammar), we use `self._module`
-        # to store the PfscModule object we are building.
-        self.modpath = modpath
-        self.version = version
-        self._module = PfscModule(modpath, loading_version=version, given_dependencies=dependencies)
-        super().__init__(scope=self._module)
-        self.bc = bc
-        self._module.setBlockChunker(bc)
-        self.do_imports = do_imports
-        self.caching = caching
-        self.history = history
+        self.home_module = home_module
+        self.format = format
+        self.src_modpath = src_modpath
+        self.object_names = object_names
+        self.local_path = local_path
+        self.homepath = self.home_module.libpath
+        self._src_version = None
+
+    @property
+    def src_version(self):
+        if self._src_version is None:
+            self._src_version = self.get_desired_version_for_target(self.src_modpath)
+        return self._src_version
+
+    def is_external_at_wip(self):
+        """
+        Say whether this is an external import (the source module belongs to a
+        different repo than the one where the import happened) of a module
+        taken @WIP version.
+        """
+        return (
+            get_repo_part(self.src_modpath) != get_repo_part(self.homepath)
+            and self.src_version == pfsc.constants.WIP_TAG
+        )
 
     def get_desired_version_for_target(self, targetpath):
         """
@@ -766,114 +924,219 @@ class ModuleLoader(PfscJsonTransformer):
         :return: the version at which we wish to take the repo to which the
           named target belongs.
         """
-        extra_msg = f' Required for import in module `{self.modpath}`.'
-        return self._module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
+        extra_msg = f' Required for import in module `{self.homepath}`.'
+        return self.home_module.getRequiredVersionOfObject(targetpath, extra_err_msg=extra_msg)
+
+    def resolve(self, cache=None, prog_mon=None, load_only=False):
+        """
+        Resolve this import, and store the result in the "home module," i.e.
+        the module where this import statement occurred.
+        """
+        if cache is None:
+            cache = {}
+        if self.format == self.PLAIN_IMPORT_FORMAT:
+            return self.resolve_plainimport(cache=cache, prog_mon=prog_mon, load_only=load_only)
+        elif self.format == self.FROM_IMPORT_FORMAT:
+            return self.resolve_fromimport(cache=cache, prog_mon=prog_mon, load_only=load_only)
+
+    def resolve_plainimport(self, cache=None, prog_mon=None, load_only=False):
+        """
+        Carry out (delayed) resolution of a PLAIN-IMPORT.
+        """
+        if cache is None:
+            cache = {}
+        modpath = self.src_modpath
+        if modpath == self.homepath:
+            msg = 'Module %s is attempting to import itself.' % self.homepath
+            raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+        version = self.src_version
+        module = load_module(
+            modpath, version=version, fail_gracefully=False,
+            caching=CachePolicy.TIME, cache=cache
+        )
+        if not load_only:
+            self.home_module[self.local_path] = module
+        # Depth-first resolution:
+        return module.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
+
+    def resolve_fromimport(self, cache=None, prog_mon=None, load_only=False):
+        """
+        Carry out (delayed) resolution of a FROM-IMPORT.
+        """
+        lrt = 0
+        if cache is None:
+            cache = {}
+        modpath = self.src_modpath
+        version = self.src_version
+
+        # Now we have the module libpath and version from which we are attempting to import something.
+        # What we're allowed to do depends on whether the modpath we've constructed is the
+        # same as that of this module, or different.
+        # Usually it will be different, and then we have these permissions:
+        may_import_all = True
+        may_search_within_module = True
+
+        if modpath == self.homepath:
+            # The modpaths will be the same in the special case where we are attempting to
+            # import a submodule via a relative path.
+            # For example, if the module a.b.c.d features the import statement
+            #     from . import e
+            # where a.b.c.d.e is a submodule of a.b.c.d, then this case arises.
+            # In this case, submodules are the _only_ thing we can try to import.
+            may_import_all = False
+            may_search_within_module = False
+            src_module = None
+        else:
+            # In all other cases, the modpath points to something other than this module.
+            # We can now attempt to build it, in case it points to a module (receiving None if it does not).
+            src_module = load_module(
+                modpath, version=version, fail_gracefully=True,
+                caching=CachePolicy.TIME, cache=cache
+            )
+            if src_module:
+                # Depth-first resolution:
+                lrt = src_module.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
+
+        object_names = self.object_names
+        # Next behavior depends on whether we wanted to import "all", or named individual object(s).
+        if object_names == "*":
+            if not may_import_all:
+                # Currently the only time when importing all is prohibited is when we are
+                # trying to import from self.
+                msg = 'Module %s is attempting to import * from itself.' % self.homepath
+                raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+            # Importing "all".
+            # In this case, the modpath must point to an actual module, or else it is an error.
+            if src_module is None:
+                msg = 'Attempting to import * from non-existent module: %s' % modpath
+                raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
+            if not load_only:
+                all_names = src_module.listAllItems()
+                for name in all_names:
+                    self.home_module[name] = src_module[name]
+        else:
+            # Importing individual name(s).
+            N = len(object_names)
+            requested_local_name = self.local_path
+            for i, object_name in enumerate(object_names):
+                # Set up the local name.
+                local_name = requested_local_name if requested_local_name and i == N - 1 else object_name
+                # Initialize imported object to None, so we can check for success.
+                obj = None
+                # Construct the full path to the object, and compute the longest initial segment
+                # of it that points to a module.
+                full_object_path = modpath + '.' + object_name
+                object_modpath = get_modpath(full_object_path, version=version)
+                # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
+                if object_modpath == self.homepath:
+                    if full_object_path == self.homepath:
+                        msg = f'Module {self.homepath} attempts to import itself from its ancestor.'
+                    else:
+                        msg = f'Module {self.homepath} attempts to import from within itself.'
+                    raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
+                # The first attempt is to find the name in the source module, if any.
+                if src_module and may_search_within_module:
+                    obj = src_module.get(object_name)
+                # If that failed, try to import a submodule.
+                if obj is None:
+                    obj = load_module(
+                        full_object_path, version=version, fail_gracefully=True,
+                        caching=CachePolicy.TIME, cache=cache
+                    )
+                    if obj:
+                        # Depth-first resolution:
+                        lrt = obj.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
+                # If that failed too, it's an error.
+                if obj is None:
+                    msg = 'Could not import %s from %s' % (object_name, modpath)
+                    raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
+                    # Otherwise, record the object.
+                elif not load_only:
+                    self.home_module[local_name] = obj
+
+        return lrt
+
+
+class ModuleLoader(PfscJsonTransformer):
+
+    def __init__(
+            self, modpath, bc,
+            version=pfsc.constants.WIP_TAG, existing_module=None,
+            history=None, caching=CachePolicy.TIME,
+            dependencies=None, read_time=None, do_imports=True
+    ):
+        """
+        :param modpath: The libpath of this module
+        :param bc: The BlockChunker that performed the first chunking pass on this module's text
+        :param version: The version being loaded
+        :param existing_module: optional existing `PfscModule` instance to be extended
+        :param history: a list of libpaths we have already imported; helps detect cyclic import errors
+        :param caching: set the cache policy.
+        :param dependencies: optionally pass a dict mapping repopaths to required versions. If provided,
+          these will override what we would have determined by checking dependencies declared in the repo root module.
+        :param read_time: Unix time stamp for when the file was read from disk
+        :param do_imports: Set False if you don't actually want to perform imports. May be useful for testing.
+        """
+        # Since we are subclassing Transformer, and since our grammar has a nonterminal
+        # named `module` (namely, the start symbol for our grammar), we use `self._module`
+        # to store the PfscModule object we are building.
+        self.modpath = modpath
+        self.version = version
+        self._module = existing_module or PfscModule(
+            modpath, version=version, given_dependencies=dependencies,
+            read_time=read_time
+        )
+
+        # For delayed resolution, we dot NOT want our `PfscJsonTransformer`
+        # superclass to do any resolving of `Libpath` instances. Therefore
+        # set `scope` to `None`.
+        scope = None
+        super().__init__(scope=scope)
+
+        self.bc = bc
+        self._module.setBlockChunker(bc)
+        self.do_imports = do_imports
+        self.caching = caching
+        self.history = history
 
     def fromimport(self, items):
         """
-        fromimport : "from" (relpath|libpath) "import" (STAR|identlist ("as" IDENTIFIER)?)
+        Process line of the form:
+            fromimport : "from" (relpath|libpath) "import" (STAR|identlist ("as" IDENTIFIER)?)
         """
         if self.do_imports:
-
-            # Gather data.
-            is_relative = isinstance(items[0], PfscRelpath)
+            src_modpath = items[0]
+            is_relative = isinstance(src_modpath, PfscRelpath)
             if is_relative:
-                modpath = items[0].resolve(self.modpath)
-            else:
-                modpath = items[0]
+                src_modpath = src_modpath.resolve(self.modpath)
             object_names = items[1]
             requested_local_name = items[2] if len(items) == 3 else None
-            version = self.get_desired_version_for_target(modpath)
-
-            # Now we have the module libpath and version from which we are attempting to import something.
-            # What we're allowed to do depends on whether the modpath we've constructed is the
-            # same as that of this module, or different.
-            # Usually it will be different, and then we have these permissions:
-            may_import_all = True
-            may_search_within_module = True
-
-            if modpath == self.modpath:
-                # The modpaths will be the same in the special case where we are attempting to
-                # import a submodule via a relative path.
-                # For example, if the module a.b.c.d features the import statement
-                #     from . import e
-                # where a.b.c.d.e is a submodule of a.b.c.d, then this case arises.
-                # In this case, submodules are the _only_ thing we can try to import.
-                may_import_all = False
-                may_search_within_module = False
-                src_module = None
-            else:
-                # In all other cases, the modpath points to something other than this module.
-                # We can now attempt to build it, in case it points to a module (receiving None if it does not).
-                src_module = load_module(modpath, version=version, fail_gracefully=True, history=self.history, caching=self.caching)
-
-            # Next behavior depends on whether we wanted to import "all", or named individual object(s).
-            if object_names == "*":
-                if not may_import_all:
-                    # Currently the only time when importing all is prohibited is when we are
-                    # trying to import from self.
-                    msg = 'Module %s is attempting to import * from itself.' % self.modpath
-                    raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
-                # Importing "all".
-                # In this case, the modpath must point to an actual module, or else it is an error.
-                if src_module is None:
-                    msg = 'Attempting to import * from non-existent module: %s' % modpath
-                    raise PfscExcep(msg, PECode.MODULE_DOES_NOT_EXIST)
-                all_names = src_module.listAllItems()
-                for name in all_names:
-                    self._module[name] = src_module[name]
-            else:
-                # Importing individual name(s).
-                N = len(object_names)
-                for i, object_name in enumerate(object_names):
-                    # Set up the local name.
-                    local_name = requested_local_name if requested_local_name and i == N-1 else object_name
-                    # Initialize imported object to None, so we can check for success.
-                    obj = None
-                    # Construct the full path to the object, and compute the longest initial segment
-                    # of it that points to a module.
-                    full_object_path = modpath + '.' + object_name
-                    object_modpath = get_modpath(full_object_path, version=version)
-                    # If the object_modpath equals the libpath of the module we're in, this is a cyclic import error.
-                    if object_modpath == self.modpath:
-                        if full_object_path == self.modpath:
-                            msg = f'Module {self.modpath} attempts to import itself from its ancestor.'
-                        else:
-                            msg = f'Module {self.modpath} attempts to import from within itself.'
-                        raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
-                    # The first attempt is to find the name in the source module, if any.
-                    if src_module and may_search_within_module:
-                        obj = src_module.get(object_name)
-                    # If that failed, try to import a submodule.
-                    if obj is None:
-                        obj = load_module(full_object_path, version=version, fail_gracefully=True, history=self.history, caching=self.caching)
-                    # If that failed too, it's an error.
-                    if obj is None:
-                        msg = 'Could not import %s from %s' % (object_name, modpath)
-                        raise PfscExcep(msg, PECode.MODULE_DOES_NOT_CONTAIN_OBJECT)
-                    # Otherwise, record the object.
-                    else:
-                        self._module[local_name] = obj
+            pi = PendingImport(
+                self._module, PendingImport.FROM_IMPORT_FORMAT,
+                src_modpath, object_names=object_names, local_path=requested_local_name
+            )
+            self._module.add_pending_import(pi)
 
     def plainimport(self, items):
         if self.do_imports:
+            src_modpath = items[0]
             # Are we using a relative libpath or absolute one?
-            is_relative = isinstance(items[0], PfscRelpath)
+            is_relative = isinstance(src_modpath, PfscRelpath)
             if is_relative:
-                modpath = items[0].resolve(self.modpath)
+                src_modpath = src_modpath.resolve(self.modpath)
                 # In this case the user _must_ provide an "as" clause.
                 if len(items) < 2:
                     msg = 'Plain import with relative libpath failed to provide "as" clause.'
                     raise PfscExcep(msg, PECode.PLAIN_RELATIVE_IMPORT_MISSING_LOCAL_NAME)
                 local_path = items[1]
             else:
-                modpath = items[0]
                 # In this case an "as" clause is optional.
-                local_path = items[1] if len(items) == 2 else modpath
-            # Try to get the module, and store a reference to it in our module.
-            v = self.get_desired_version_for_target(modpath)
-            module = load_module(modpath, version=v, fail_gracefully=False, history=self.history, caching=self.caching)
-            self._module[local_path] = module
+                local_path = items[1] if len(items) == 2 else src_modpath
+            pi = PendingImport(
+                self._module, PendingImport.PLAIN_IMPORT_FORMAT,
+                src_modpath, local_path=local_path
+            )
+            self._module.add_pending_import(pi)
 
     @staticmethod
     def ban_duplicates(names_encountered, next_name):
@@ -914,67 +1177,10 @@ class ModuleLoader(PfscJsonTransformer):
         obj.setTextRange(actual_lineno, None, None, None)
         return actual_lineno
 
-    def set_contents(self, owner, contents, names=None):
-        """
-        Add contents to an owner (Deduc, Node, SubDeduc)
-
-        :param owner: the owner to which the contents are to be added
-        :param contents: the contents to be added to the owner
-        :param names: the set of names already recorded in the owner
-        """
-        if names is None: names = set()
-        for item in contents:
-            # Resolve clones
-            if isinstance(item, PreClone):
-                item = item.make_clone(owner)
-            # Must test if SubDeduc _before_ testing if Deduction, since the former is a subclass of the latter.
-            if isinstance(item, SubDeduc):
-                self.ban_duplicates(names, item.name)
-                owner.addSubDeduc(item)
-            elif isinstance(item, Node):
-                self.ban_duplicates(names, item.name)
-                owner.addNode(item)
-            # Assignments are recorded as plain strings, under their given names.
-            elif isinstance(item, PfscAssignment):
-                self.ban_duplicates(names, item.lhs)
-                owner[item.lhs] = item.rhs
-            elif isinstance(item, (Deduction, Annotation, PfscDefn)):
-                self.ban_duplicates(names, item.name)
-                owner[item.name] = item
-
     def module(self, items):
-        # Among the types of contents in a module are: imports, deducs, and other stuff.
-        # The imports are not to be recorded; they just _do_ something.
-        # The deducs already have been recorded. They record themselves, so that subsequent
-        # deducs are able to find them. Likewise for annos and assignments.
-        # Anything else is yet to be recorded in this module, so we do that here.
-        existing_names = set(self._module.listAllItems())
-        types_to_be_recorded = [
-            # There used to be a couple of types needing to be recorded here,
-            # but no more. For now we keep all this code in case it is useful
-            # again at some point.
-            #
-            # To be clear, if one of the nonterminal handler methods for an
-            # entity that can be defined at the top level of a pfsc module
-            # returns items of class Foo, then you should list Foo here.
-            #
-            # For example, we used to list PfscAssignment here. But that ended
-            # when we started recording these in the `assignment` nonterminal
-            # handler method below.
-            #
-            # Generally speaking, we have switched to a design where top-level
-            # entities record themselves in the module as soon as they can, so
-            # that entities defined after them can reference them.
-        ]
-        items_to_be_recorded = []
-        for item in items:
-            for type_ in types_to_be_recorded:
-                if isinstance(item, type_):
-                    items_to_be_recorded.append(item)
-                    break
-        self.set_contents(self._module, items_to_be_recorded, existing_names)
-        # Whether we keep the above, defunct code around or not, we still need to
-        # return self._module.
+        # In our handlers for top-level nonterminals (deduc, anno, etc.), we
+        # are already recording the item in the module, so there is nothing
+        # left to do here.
         return self._module
 
     def anno(self, items):
@@ -994,28 +1200,24 @@ class ModuleLoader(PfscJsonTransformer):
         pa.build()
         # Now that it has built its widgets, we can cascade and resolve libpaths.
         pa.cascadeLibpaths()
-        pa.resolveLibpathsRec()
         return pa
 
     def deduc(self, items):
         preamble, contents = items
         ded = Deduction(preamble.name, preamble.targets, preamble.rdefs, module=self._module)
         self.set_first_line(ded, preamble.name.line)
-        # Add to module now, so later defs can reference.
         self._module[ded.name] = ded
-        self.set_contents(ded, contents)
-        # Deductions are declared at the top level of modules,
-        # so now we can let libpaths cascade down.
+        for item in contents:
+            item.add_as_content(ded)
         ded.cascadeLibpaths()
-        ded.resolve_objects()
-        ded.buildGraph()
         return ded
 
     def subdeduc(self, items):
         name, contents = items
         subdeduc = SubDeduc(name)
         self.set_first_line(subdeduc, name.line)
-        self.set_contents(subdeduc, contents)
+        for item in contents:
+            item.add_as_content(subdeduc)
         return subdeduc
 
     def defn(self, items):
@@ -1029,7 +1231,8 @@ class ModuleLoader(PfscJsonTransformer):
     def basicnode(self, items):
         type_, name, contents = items
         node = node_factory(type_, name)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1039,7 +1242,8 @@ class ModuleLoader(PfscJsonTransformer):
         alternate_lps = items[1] if len(items) == 3 else []
         node = Supp(name)
         node.set_alternate_lps(alternate_lps)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1047,7 +1251,8 @@ class ModuleLoader(PfscJsonTransformer):
         type_, name, contents = items
         node = node_factory(type_, name)
         node.set_wolog(True)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1057,7 +1262,8 @@ class ModuleLoader(PfscJsonTransformer):
         contra = items[1] if len(items) == 3 else []
         node = Flse(name)
         node.set_contra(contra)
-        self.set_contents(node, contents)
+        for item in contents:
+            item.add_as_content(node)
         self.set_first_line(node, name.line)
         return node
 
@@ -1068,7 +1274,7 @@ class ModuleLoader(PfscJsonTransformer):
     def clone(self, items, meta):
         libpath = items[0]
         local_name = items[1] if len(items) == 2 else None
-        pc = PreClone(libpath, local_name)
+        pc = PendingClone(libpath, local_name)
         self.set_first_line(pc, meta.line)
         return pc
 
@@ -1118,15 +1324,10 @@ class ModuleLoader(PfscJsonTransformer):
         pa.cascadeLibpaths()
         return pa
 
-class CachedModule:
 
-    def __init__(self, read_time, module):
-        """
-        @param read_time: a Unix timestamp for the time at which the module's contents were read off disk.
-        @param module: the PfscModule to be cached
-        """
-        self.read_time = read_time
-        self.module = module
+def make_timestamp_for_module():
+    return datetime.datetime.now().timestamp()
+
 
 class TimestampedText:
 
@@ -1138,35 +1339,100 @@ class TimestampedText:
         self.read_time = read_time
         self.text = text
 
-_MODULE_CACHE = {}
 
-def remove_modules_from_cache(modpaths, version=pfsc.constants.WIP_TAG):
+def remove_modules_from_disk_cache(modpaths, version=pfsc.constants.WIP_TAG):
+    """
+    Purge any pickle files that may be present on disk, for the named modules.
+
+    :param modpaths: iterable of module libpaths (strings)
+    :param version: the version at which these module pickle files should be purged
+    """
     for modpath in modpaths:
-        verspath = f'{modpath}@{version}'
-        if verspath in _MODULE_CACHE:
-            del _MODULE_CACHE[verspath]
+        path_info = PathInfo(modpath)
+        pickle_path = path_info.get_pickle_path(version=version)
+        if pickle_path.exists():
+            # Double check:
+            if pickle_path.suffix == pfsc.constants.PICKLE_EXT:
+                pickle_path.unlink()
 
 
-def inherit_release_build_signal():
-    signal = None
-    p = pathlib.Path(__file__)
-    target_filename = str(p.parent.parent / 'build' / '__init__.py')
-    stack = inspect.stack()
-    for fi in stack:
-        if fi.filename == target_filename and fi.function in ['build', 'write_all']:
-            # See https://docs.python.org/3.8/library/inspect.html#the-interpreter-stack
-            # on why the try-finally with del frame is recommended for avoiding mem leak.
+def remove_all_pickles_from_dir(dir_path, recursive=False):
+    """
+    Purge any and all pickle files in (and optionally under) a directory.
+
+    :param dir_path: pathlib.Path
+    :param recursive: set True if you want to recurse on all nested directories
+    """
+    for path in dir_path.iterdir():
+        if recursive and path.is_dir():
+            remove_all_pickles_from_dir(path, recursive=True)
+        if path.is_file() and path.suffix == pfsc.constants.PICKLE_EXT:
+            path.unlink()
+
+
+def remove_all_pickles_for_repo(repopath, version=pfsc.constants.WIP_TAG):
+    """
+    Purge any and all pickle files for a given repo, at a given version.
+    """
+    ri = get_repo_info(repopath)
+    dir_path = ri.get_build_dir(version=version, cache_dir=True)
+    if dir_path.exists():
+        remove_all_pickles_from_dir(dir_path, recursive=True)
+
+
+def pickle_module(module, path_info=None):
+    """
+    Save a pickled representation of a `PfscModule` at its correct location in
+    the build directory for the repo and version to which the module belongs.
+
+    :param module: the PfscModule
+    :param path_info: optional PathInfo object for this module. If not given,
+        we construct it here.
+    :return: the path of the pickle file
+    """
+    if path_info is None:
+        path_info = PathInfo(module.libpath)
+    pickle_path = path_info.get_pickle_path(version=module.version)
+    if not pickle_path.parent.exists():
+        pickle_path.parent.mkdir(parents=True)
+    with open(pickle_path, 'wb') as f:
+        pickle.dump(module, f, pickle.HIGHEST_PROTOCOL)
+    return pickle_path
+
+
+def unpickle_module(path_spec, version):
+    """
+    Try to load a module from its pickle file.
+
+    :param path_spec: libpath (str), or PathInfo object for the module
+    :param version: the version at which you are trying to load the module
+    :return: PfscModule, or None if pickle file doesn't exist or is malformed
+    """
+    module = None
+    path_info = path_spec if isinstance(path_spec, PathInfo) else PathInfo(path_spec)
+    pickle_path = path_info.get_pickle_path(version=version)
+    if pickle_path.exists():
+        with open(pickle_path, 'rb') as f:
             try:
-                frame = fi.frame
-                signal = frame.f_locals.get('building_a_release_of')
-                if signal is not None:
-                    break
-            finally:
-                del frame
-    return signal
+                module = pickle.load(f)
+            except Exception as e:
+                # TODO: log the exception
+                pass
+    return module
 
 
-def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_gracefully=False, history=None, caching=CachePolicy.TIME, cache=_MODULE_CACHE):
+class LoadingResult:
+
+    def __init__(self, rebuilt):
+        self.rebuilt = rebuilt
+
+
+def load_module(
+        path_spec, version=pfsc.constants.WIP_TAG,
+        text=None, fail_gracefully=False, history=None,
+        caching=CachePolicy.TIME, cache=None,
+        current_builds=None, loading_results=None,
+):
     """
     This is how you get a PfscModule object, i.e. an internal representation of a pfsc module.
     You can call it directly, or you can call it through a PathInfo object's own `load_module` method.
@@ -1194,84 +1460,117 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
     @param history: This is used for detecting cyclic import errors. Generally, you don't have to use this
                     yourself; it is already used appropriately by the system.
 
-    @param caching: Here is where you can set the cache policy. See `CachePolicy` enum class.
+    @param caching: Cache policy controlling how we use the on-disk cache (i.e. pickle files).
+        See `CachePolicy` enum class. Note that we always use the in-mem cache, when it's a hit.
 
-    @param cache: The cache itself, where the modules are stored. Generally you don't need to use this yourself
-                  (but you could, in order to have more fine-grained control over what gets reloaded and what
-                  does not). Note that here we are using Python's #1 Gotcha -- the mutable default arg.
-                  That means the dict we use as a cache is set at
-                  function def time, and persists through all calls to this function (in other words, does
-                  what you would want).
+    @param cache: The in-mem module cache.
+
+    @param current_builds: Like the `history` kwarg, this is here to catch cyclic errors, in this case
+        cyclic builds. These *shouldn't* arise anyway, but we have this kwarg as an extra safety net,
+        to prevent infinite recursion. This pertains only to the special case where an rst module is loaded
+        @WIP, and is *not* being loaded from cache. In a build scenario, this should only happen when the
+        module belongs to another repo than the one(s) already being built.
+
+    @param loading_results: Optional dict in which information about the loading process will be recorded.
+        Info will be recorded as an instance of the `LoadingResult` class, under the
+        tail-versioned modpath as key, but not if that key is already present in the dict.
 
     @return: If successful, the loaded PfscModule instance is returned. If unsuccessful, then behavior depends
              on the `fail_gracefully` kwarg. If that is `True`, we will return `None`; otherwise, nothing will
              be returned, as a `PfscException` will be raised instead.
     """
-    # Get a PathInfo object.
-    if isinstance(path_spec, PathInfo):
-        # You already gave us a PathInfo object.
-        path_info = path_spec
-    else:
-        assert isinstance(path_spec, str)
-        # You gave a libpath. Construct a PathInfo on it.
-        path_info = PathInfo(path_spec)
-    # Grab the modpath.
+    path_info = path_spec if isinstance(path_spec, PathInfo) else PathInfo(path_spec)
+
     modpath = path_info.libpath
     repopath = get_repo_part(modpath)
-    if version == pfsc.constants.WIP_TAG:
-        if inherit_release_build_signal() != repopath and not have_repo_permission(
-            ActionType.READ, repopath, pfsc.constants.WIP_TAG
-        ):
-            msg = f'Insufficient permission to load `{modpath}` at WIP.'
-            raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
+    verspath = f'{modpath}@{version}'
 
-    # Function for the case where the libpath fails to point to a .pfsc file:
-    def fail(force_excep=False):
-        if fail_gracefully and not force_excep:
+    if version == pfsc.constants.WIP_TAG and not have_repo_permission(
+        ActionType.READ, repopath, pfsc.constants.WIP_TAG
+    ):
+        msg = f'Insufficient permission to load `{modpath}` at WIP.'
+        raise PfscExcep(msg, PECode.INADEQUATE_PERMISSIONS)
+
+    def fail(msg=None, pe_code=None):
+        if fail_gracefully:
             return None
         else:
-            msg = f'Could not find source code for module `{modpath}` at version `{version}`.'
-            raise PfscExcep(msg, PECode.MODULE_HAS_NO_CONTENTS)
-    # Now let's decide whether we're going to _reload_ the module (i.e. _not_ use the cache).
-    # To begin with, if any of the following three conditions obtains, then yes we want to reload:
-    #   (1) text given, (2) cache policy "never", or (3) cache miss.
-    # So we begin by checking these.
+            msg = msg or f'Could not find source code for module `{modpath}` at version `{version}`.'
+            if pe_code is None:
+                pe_code = PECode.MODULE_HAS_NO_CONTENTS
+            e = PfscExcep(msg, pe_code)
+            e.extra_data({
+                'repopath': repopath,
+                'version': version,
+                'modpath': modpath,
+            })
+            raise e
+
+    if cache is None:
+        cache = {}
+
+    # Decide whether we will rebuild the module (i.e. *not* use the cache).
+    will_rebuild = False
     text_given = (text is not None)
-    never_use_cache = (caching == CachePolicy.NEVER)
-    verspath = f'{modpath}@{version}'
-    cache_miss = (verspath not in cache)
-    if text_given or never_use_cache or cache_miss:
-        should_reload = True
+    mem_cache_hit = (verspath in cache)
+    never_use_disk_cache = (caching == CachePolicy.NEVER)
+    if text_given:
+        # If module text was passed, this is always to be used to construct the module.
+        will_rebuild = True
+    elif mem_cache_hit:
+        # The cache policy only controls how we use the on-disk cache (i.e.
+        # pickle files). If we have a cache hit in the in-mem cache, we always use it.
+        will_rebuild = False
+    elif never_use_disk_cache:
+        # At this point, it's at best an on-disk cache hit. If we're told not
+        # to use that, then we should rebuild.
+        will_rebuild = True
     else:
-        # In this case, the text was not given, and it's a cache hit, and the cache policy is
-        # either "always" or the time-based policy.
-        # If it's the "always" policy, then we do want to use the cache, i.e. do _not_ want to reload.
-        if caching == CachePolicy.ALWAYS:
-            should_reload = False
-        # Or, if we want a numbered release version, then there's no question of it having
-        # changed since last load. Numbered releases, by definition, do not change!
-        elif version != pfsc.constants.WIP_TAG:
-            should_reload = False
+        # In this case, we *want* to use the on-disk cache, provided it is both
+        # *possible* (module is available) and *appropriate* (i.e. time stamps
+        # check out, if using time-based policy).
+        unpickled_module = unpickle_module(path_info, version)
+        if not unpickled_module:
+            will_rebuild = True
+        elif caching == CachePolicy.ALWAYS:
+            will_rebuild = False
+        # Otherwise, the module was found in the on-disk cache, and we're using time-based policy.
         else:
-            # In this case, it should be the time-based cache policy.
             assert caching == CachePolicy.TIME
             # We need to compare the modification time to the read time.
-            t_r = cache[verspath].read_time
-            t_m = path_info.pfsc_file_modification_time
-            if t_m is None: return fail()
-            # We should reload the module if it has been modified since it was last read.
-            # SUBTLETY: The Unix mtime timestamp is truncated to next lowest integer; the
-            # read time is not. This can result in cases where, if we built a module and
-            # then quickly modified and wrote it, the read time can appear to be after the
-            # modification time. To prevent this, we give the modification time a "boost"
-            # by adding one to it.
-            should_reload = t_m + 1 >= t_r
-    # Are we reloading?
-    if should_reload:
-        # Only when we have to reload does history become relevant, so we deal with it now.
-        # If history is None, we actually want an empty list. As opposed to our deliberate use of a mutable
-        # default arg for the `cache` kwarg, here we have to _work around_ that behavior.
-        if history is None: history = []
+            t_r = unpickled_module.read_time
+            t_m = path_info.get_src_file_modification_time(version=version)
+            if t_m is None:
+                return fail()
+            # We should rebuild the module if it has been modified since it was last read.
+            if isinstance(t_m, int):
+                # At one time (I think I was using a MacBook Pro, in summer 2019, with up-to-date
+                # OS -- not sure which Python version, probably 3.5 - 3.7?), I seem to have observed
+                # that the Unix mtime timestamps were being truncated to next lowest integer.
+                # It's also possible I was working on an Ubuntu server at the time.
+                # At any rate, now (230624, macOS 10.14.6, Python 3.8) they seem to be floats, with
+                # microsecond accuracy. *In case* we get an integer, we give the mod time a +1
+                # boost, to be on the safe side. ("Safe" meaning: err on the side of reloading
+                # the module even if unnecessary.)
+                # I note that coarse filesystem time resolution is a phenomenon acknowledged e.g. by Sphinx:
+                # https://github.com/sphinx-doc/sphinx/blob/d3c91f951255c6729a53e38c895ddc0af036b5b9/sphinx/builders/__init__.py#L498-L501
+                t_m += 1
+            will_rebuild = t_m >= t_r
+        # If it was an on-disk cache hit, and we're going to use it, then elevate
+        # it to the in-mem cache.
+        if unpickled_module and not will_rebuild:
+            cache[verspath] = unpickled_module
+
+    if isinstance(loading_results, dict) and verspath not in loading_results:
+        loading_results[verspath] = LoadingResult(will_rebuild)
+
+    if not will_rebuild:
+        module = cache[verspath]
+        return module
+    else:
+        # Only when we have to rebuild does history become relevant, so we deal with it now.
+        if history is None:
+            history = []
         # If the module we're trying to build is already in the history of imports that have
         # led us to this point, then we raise a cyclic import error.
         if modpath in history:
@@ -1279,71 +1578,104 @@ def load_module(path_spec, version=pfsc.constants.WIP_TAG, text=None, fail_grace
             raise PfscExcep(msg, PECode.CYCLIC_IMPORT_ERROR)
         # Otherwise, add this modpath to the history.
         history.append(modpath)
-        # We need an instance of TimestampedText.
-        if text_given:
-            # Text was given.
-            if not isinstance(text, TimestampedText):
-                # If text was provided but is not already an instance of TimestampedText, then it must be a string.
-                assert isinstance(text, str)
-                # We set `None` as timestamp, to ensure the module will not be cached.
-                ts_text = TimestampedText(None, text)
-            else:
-                ts_text = text
-        else:
-            # Text was not given, so we need to read it from disk.
+
+        is_rst = path_info.is_rst_file(version=version)
+        if is_rst:
             if version != pfsc.constants.WIP_TAG:
-                # If it's not a WIP module, we need the desired version to have
-                # already been built and indexed. Check that now.
-                if not get_graph_reader().version_is_already_indexed(repopath, version):
-                    msg = f'Trying to load `{modpath}` at release `{version}`'
-                    msg += ', but that version has not been built yet on this server.'
-                    e = PfscExcep(msg, PECode.VERSION_NOT_BUILT_YET)
-                    e.extra_data({
-                        'repopath': repopath,
-                        'version': version,
-                        'modpath': modpath,
-                    })
-                    raise e
-            # To be on the safe side, make timestamp just _before_ performing the read operation.
-            # (This is "safe" in the sense that the read operation looks older, so we will be more
-            # likely to reload in the future, i.e. to catch updates.)
-            read_time = datetime.datetime.now().timestamp()
-            try:
-                module_contents = path_info.read_module(version=version)
-            except FileNotFoundError:
-                return fail(force_excep=(version!=pfsc.constants.WIP_TAG))
-            ts_text = TimestampedText(read_time, module_contents)
-        # Construct a PfscModule.
-        module = build_module_from_text(ts_text.text, modpath, version=version, history=history, caching=caching)
+                msg = (
+                    f'Cannot build rst module `{modpath}` at version `{version}`.'
+                    ' May need to build its repo at that version first.'
+                )
+                fail(msg=msg, pe_code=PECode.VERSION_NOT_BUILT_YET)
+
+            if current_builds is None:
+                current_builds = set()
+            if repopath in current_builds:
+                msg = f'Cyclic build error. Trying to build rst module {modpath}@WIP'
+                msg += ' while already building:\n'
+                for rp in current_builds:
+                    msg += f'  {rp}\n'
+                fail(msg=msg, pe_code=PECode.CYCLIC_IMPORT_ERROR)
+            current_builds.add(repopath)
+
+            from pfsc.build import Builder
+            b = Builder(
+                repopath, version=pfsc.constants.WIP_TAG,
+                current_builds=current_builds
+            )
+            b.build(
+                force_reread_rst_paths=[path_info.abs_fs_path_to_file],
+                no_sphinx_write=True
+            )
+            module = b.module_cache[verspath]
+        else:
+            # We need an instance of TimestampedText.
+            if text_given:
+                # Text was given.
+                if not isinstance(text, TimestampedText):
+                    # If text was provided but is not already an instance of TimestampedText, then it must be a string.
+                    assert isinstance(text, str)
+                    # We set `None` as timestamp, to ensure the module will not be cached.
+                    ts_text = TimestampedText(None, text)
+                else:
+                    ts_text = text
+            else:
+                # To be on the safe side, make timestamp just _before_ performing the read operation.
+                # (This is "safe" in the sense that the read operation looks older, so we will be more
+                # likely to rebuild in the future, i.e. to catch updates.)
+                read_time = make_timestamp_for_module()
+                try:
+                    module_contents = path_info.read_module(version=version)
+                except FileNotFoundError:
+                    return fail()
+                ts_text = TimestampedText(read_time, module_contents)
+            # Construct a PfscModule.
+            module = build_module_from_text(
+                ts_text.text, modpath, version=version, history=history,
+                caching=caching, read_time=ts_text.read_time
+            )
+
         # If everything is working correctly, then now is the time to "forget" this
         # module, i.e. to erase its record from the history list; it should be the last record.
         to_forget = history.pop()
         assert to_forget == modpath
-        # If the module text has a timestamp, then save the module in the cache.
-        if ts_text.read_time is not None:
-            cm = CachedModule(ts_text.read_time, module)
-            cache[verspath] = cm
-        # Finally, we can return the module.
-        return module
-    else:
-        # We are not reloading, i.e. we are using the cache.
-        module = cache[verspath].module
+
+        if module.read_time is not None:
+            cache[verspath] = module
+            pickle_module(module, path_info)
+
         return module
 
-def build_module_from_text(text, modpath, version=pfsc.constants.WIP_TAG, history=None, caching=CachePolicy.TIME, dependencies=None):
+
+def build_module_from_text(
+        text, modpath,
+        version=pfsc.constants.WIP_TAG, existing_module=None,
+        history=None, caching=CachePolicy.TIME,
+        dependencies=None, read_time=None,
+        base_line_num=0
+):
     """
     Build a module, given its text, and its libpath.
     :param text: (str) the text of the module
     :param modpath: (str) the libpath of the module
     :param version: (str) the version being built
+    :param existing_module: optional existing `PfscModule` instance to be extended
     :param history: (list) optional history of modules built; useful for
       detecting cyclic import errors
     :param caching: the desired CachePolicy
     :param dependencies: optionally pass a dict mapping repopaths to required versions.
+    :param read_time: Unix time stamp for when the file was read from disk
+    :param base_line_num: optional integer by which to shift line numbers
+        recorded by entities in the module as their place of definition
     :return: the PfscModule instance constructed
     """
-    tree, bc = parse_module_text(text)
-    loader = ModuleLoader(modpath, bc, version=version, history=history, caching=caching, dependencies=dependencies)
+    tree, bc = parse_module_text(text, base_line_num=base_line_num)
+    loader = ModuleLoader(
+        modpath, bc,
+        version=version, existing_module=existing_module,
+        history=history, caching=caching, dependencies=dependencies,
+        read_time=read_time
+    )
     try:
         module = loader.transform(tree)
     except VisitError as v:

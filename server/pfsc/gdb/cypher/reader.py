@@ -165,16 +165,15 @@ class CypherGraphReader(GraphReader):
         )
 
     def _find_enrichments_internal(self, deducpath, major0):
-        return self.session.run(
+        res = self.session.run(
             f"""
             MATCH p = (e)-[e_reln:{IndexType.TARGETS}|{IndexType.RETARGETS}|{IndexType.CF}]->(t)-[:{IndexType.UNDER}*0..]->(d:{IndexType.DEDUC} {{libpath: $deducpath}})
             WHERE d.major <= $major < d.cut AND all(r IN relationships(p)[1..] WHERE r.major <= $major < r.cut)
-            WITH e, type(e_reln) as e_reln_type, t.libpath as t_lp
-            MATCH (v:{IndexType.VERSION}) WHERE v.repopath = e.repopath AND e.major <= v.major < e.cut
-            RETURN e, e_reln_type, collect(v.full), t_lp
+            RETURN e, e_reln, t
             """,
             deducpath=deducpath, major=major0
         )
+        return [make_kReln_from_jReln(rec) for rec in res]
 
     def get_modpath(self, libpath, major):
         major = self.adaptall(major)

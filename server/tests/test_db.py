@@ -16,7 +16,7 @@
 
 import pytest
 
-from pfsc.constants import UserProps
+from pfsc.constants import UserProps, INF_TAG
 from pfsc.gdb import get_gdb, get_graph_reader, get_graph_writer
 from pfsc.gdb.user import UserNotes
 
@@ -41,9 +41,9 @@ def test_get_ancestor_chain(app, repos_ready):
         for link in chain:
             print(link)
         assert chain == [
-            ['test.alex.math.thm2.Thm2', 'v2.0.0', 'inf'],
-            ['test.alex.math.thm2.Pf2', 'v2.0.0', 'inf'],
-            ['test.brook.math.exp1.X3', 'v2.0.0', 'inf'],
+            ['test.alex.math.thm2.Thm2', 'v2.0.0', INF_TAG.upper()],
+            ['test.alex.math.thm2.Pf2', 'v2.0.0', INF_TAG.upper()],
+            ['test.brook.math.exp1.X3', 'v2.0.0', INF_TAG.upper()],
         ]
 
 def test_get_deduc_closure(app, repos_ready):

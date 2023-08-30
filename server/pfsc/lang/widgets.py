@@ -161,8 +161,10 @@ def replace_data(data, datapaths, replacer, accept_absent=False):
         else:
             p[key] = r
 
+
 def make_widget_uid(widgetpath, version):
     return f'{widgetpath}_{version}'.replace('.', '-')
+
 
 class Widget(PfscObj):
     """
@@ -179,6 +181,7 @@ class Widget(PfscObj):
         self.name = name
         self.label = label
         self.lineno_within_anno = lineno
+        self.is_inline = None
         # Enrich the data object with the typename and lineno of the widget.
         data["type"] = type_
         data["src_line"] = self.get_lineno_within_module()
@@ -240,16 +243,14 @@ class Widget(PfscObj):
 
     def resolveLibpathsRec(self):
         self.repos = self.resolve_libpaths_in_data(self.libpath_datapaths)
-        for item in self.items.values():
-            if callable(getattr(item, 'resolveLibpathsRec', None)):
-                item.resolveLibpathsRec()
+        PfscObj.resolveLibpathsRec(self)
 
-    def getRequiredRepoVersions(self, loading_time=True):
+    def getRequiredRepoVersions(self):
         # Get ahold of the desired version for each repo implicated by libpaths
         # in this widget's data.
         extra_msg = f' Required by widget `{self.libpath}`.'
         return {
-            r: self.getRequiredVersionOfObject(r, extra_err_msg=extra_msg, loading_time=loading_time)
+            r: self.getRequiredVersionOfObject(r, extra_err_msg=extra_msg)
             for r in self.repos
         }
 
@@ -263,7 +264,7 @@ class Widget(PfscObj):
         version = self.getVersion()
         return make_widget_uid(libpath, version)
 
-    def writeHTML(self, label=None):
+    def writeHTML(self, label=None, sphinx=False):
         if label is None: label = escape(self.label)
         # Unlike the case with the MalformedWidget, this time self.data _has_
         # successfully passed through our JSON parser, which means that any
@@ -404,6 +405,7 @@ class Widget(PfscObj):
         replace_data(self.data, datapaths, replacer)
         return repos
 
+
 class UnknownTypeWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
@@ -466,15 +468,66 @@ class CtlWidget(Widget):
             renderer.sn_top_level = sn.get('top_level')
 
 
-chart_widget_template = jinja2.Template("""<a class="widget chartWidget {{ uid }}" href="#">{{ label }}</a>""")
+class NavWidget(Widget):
+    """
+    Superclass for "navigation" widget types, i.e. ones whose HTML representation
+    is a single <a> tag, and whose job is to navigate (to) some other content.
+    """
 
-class ChartWidget(Widget):
+    def __init__(self, type_, html_template_name, name, label, data, parent, lineno):
+        Widget.__init__(self, type_, name, label, data, parent, lineno)
+        self.html_template_name = html_template_name
+        self.is_inline = True
+
+    def writeHTML(self, label=None, sphinx=False):
+        if label is None:
+            label = escape(self.label)
+
+        classes = []
+        if sphinx:
+            # We want Sphinx's 'reference' class, which eliminates the
+            # underscore text decoration.
+            classes.append('reference')
+        classes.append(self.writeUID())
+
+        context = {
+            'label': label,
+            'classes': ' '.join(classes),
+        }
+        template = widget_templates[self.html_template_name]
+        return template.render(context)
+
+
+"""
+Note: We need Widget classes (along with all PfscObj subclasses) to be
+picklable, so that internal representations can be stored on disk, and restored
+later to speed up re-builds.
+
+Jinja templates appear not to be picklable, so we store the following templates
+in a lookup, instead of storing them as attributes of their respective Widget
+classes.
+"""
+chart_widget_template = jinja2.Template("""<a class="widget chartWidget {{ classes }}" href="#">{{ label }}</a>""")
+pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ classes }}" tabindex="-1" href="#">{{ label }}</a>""")
+link_widget_template = jinja2.Template("""<a class="widget linkWidget {{ classes }}" href="#">{{ label }}</a>""")
+label_widget_template = jinja2.Template("""<{{tag}} class="widget labelWidget {{ classes }}">{{contents}}<span class="labellink">¶</span></{{tag}}>""")
+goal_widget_template = jinja2.Template("""<{{tag}} class="widget goalWidget {{ classes }}"><span class="graphics"></span>{{contents}}</{{tag}}>""")
+widget_templates = {
+    'chart_widget_template': chart_widget_template,
+    'pdf_widget_template': pdf_widget_template,
+    'link_widget_template': link_widget_template,
+    'label_widget_template': label_widget_template,
+    'goal_widget_template': goal_widget_template,
+}
+
+
+class ChartWidget(NavWidget):
     """
     A Widget class for controlling Chart views.
     """
 
     def __init__(self, name, label, data, anno, lineno):
-        Widget.__init__(self, WidgetTypes.CHART, name, label, data, anno, lineno)
+        NavWidget.__init__(self, WidgetTypes.CHART, 'chart_widget_template', name, label, data, anno, lineno)
         self.libpath_datapaths = (
             "on_board",
             "off_board",
@@ -492,67 +545,66 @@ class ChartWidget(Widget):
     def enrich_data(self):
         super().enrich_data()
         self.set_pane_group()
-        self.data['versions'] = self.getRequiredRepoVersions(loading_time=False)
+        self.data['versions'] = self.getRequiredRepoVersions()
         self.data['title_libpath'] = self.parent.libpath
         self.data['icon_type'] = 'nav'
         self.set_up_hovercolor()
 
     def set_up_hovercolor(self):
-        """
-        NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
-
-        If user has requested hovercolor, we enrich the data for ease of
-        use at the front-end.
-
-        Under `hovercolor`, the user provides an ordinary `color` request.
-        The user should _not_ worry about using any of `update`, `save`, `rest`;
-        we take care of all of that. User should just name the colors they want.
-
-        We transform the given color request so that under `hovercolor` our data
-        instead features _two_ ordinary color requests: one called `over` and one
-        called `out`. These can then be applied on `mouseover` and `mouseout` events.
-        """
         hc_name = 'hovercolor'
         if hc_name in self.data:
             hc = self.data[hc_name]
-            # Data for mouseover:
-            over = {':update': True}
-            def set_prefix(s):
-                if s[0] != ":": return s
-                return f':save:tmp{s}'
-            for k, v in hc.items():
-                k, v = map(set_prefix, [k, v])
-                over[k] = v
-            # Data for mouseout:
-            out = {':update': True}
-            def do_weak_restore(s):
-                if s[0] != ":": return s
-                return f':wrest'
-            for k, v in hc.items():
-                k, v = map(do_weak_restore, [k, v])
-                out[k] = v
-            self.data[hc_name] = {
-                'over': over,
-                'out': out
-            }
+            self.data[hc_name] = set_up_hovercolor(hc)
 
-    def writeHTML(self, label=None):
-        if label is None: label = escape(self.label)
-        context = {
-            'label': label,
-            'uid': self.writeUID()
-        }
-        return chart_widget_template.render(context)
 
-pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ uid }}" tabindex="-1" href="#">{{ label }}</a>""")
+def set_up_hovercolor(hc):
+    """
+    NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
 
-class PdfWidget(Widget):
+    If user has requested hovercolor, we enrich the data for ease of
+    use at the front-end.
+
+    Under `hovercolor`, the user provides an ordinary `color` request.
+    The user should _not_ worry about using any of `update`, `save`, `rest`;
+    we take care of all of that. User should just name the colors they want.
+
+    We transform the given color request so that under `hovercolor` our data
+    instead features _two_ ordinary color requests: one called `over` and one
+    called `out`. These can then be applied on `mouseover` and `mouseout` events.
+    """
+    over = {':update': True}
+
+    def set_prefix(s):
+        if s[0] != ":":
+            return s
+        return f':save:tmp{s}'
+    for k, v in hc.items():
+        k, v = map(set_prefix, [k, v])
+        over[k] = v
+
+    out = {':update': True}
+
+    def do_weak_restore(s):
+        if s[0] != ":":
+            return s
+        return f':wrest'
+    for k, v in hc.items():
+        k, v = map(do_weak_restore, [k, v])
+        out[k] = v
+
+    return {
+        'over': over,
+        'out': out
+    }
+
+
+class PdfWidget(NavWidget):
     """
     A Widget class for controlling PDF panes.
     """
 
     def __init__(self, name, label, data, anno, lineno):
-        Widget.__init__(self, WidgetTypes.PDF, name, label, data, anno, lineno)
+        NavWidget.__init__(self, WidgetTypes.PDF, 'pdf_widget_template', name, label, data, anno, lineno)
         self.docReference = None
 
     def enrich_data(self):
@@ -640,18 +692,8 @@ class PdfWidget(Widget):
         # the widget in question.
         return self.writeUID()
 
-    def writeHTML(self, label=None):
-        if label is None: label = escape(self.label)
-        context = {
-            'label': label,
-            'uid': self.writeUID()
-        }
-        return pdf_widget_template.render(context)
 
-
-link_widget_template = jinja2.Template("""<a class="widget linkWidget {{ uid }}" href="#">{{ label }}</a>""")
-
-class LinkWidget(Widget):
+class LinkWidget(NavWidget):
     """
     Link widgets are for making a link to another annotation, or directly to
     a particular widget within an annotation.
@@ -695,7 +737,7 @@ class LinkWidget(Widget):
         }
         defaults.update(data)
         data = defaults
-        Widget.__init__(self, WidgetTypes.LINK, name, label, data, anno, lineno)
+        NavWidget.__init__(self, WidgetTypes.LINK, 'link_widget_template', name, label, data, anno, lineno)
         self.check_required_fields(["ref"])
         self.libpath_datapaths = (
             "ref",
@@ -706,22 +748,15 @@ class LinkWidget(Widget):
         # Determine the type of thing the ref points to.
         # It should be either an annotation or a widget.
         target_libpath = self.data['ref']
-        target_annopath = get_formal_moditempath(target_libpath)
+        target_version = self.getRequiredVersionOfObject(target_libpath)
+        target_annopath = get_formal_moditempath(target_libpath, version=target_version)
         target_type = "ANNO" if target_libpath == target_annopath else "WIDG"
         self.data["annopath"] = target_annopath
-        target_version = self.getRequiredVersionOfObject(target_annopath, loading_time=False)
         self.data["target_version"] = target_version
         self.data['target_type'] = target_type
         if target_type == "WIDG":
             self.data['target_selector'] = '.' + make_widget_uid(target_libpath, target_version)
 
-    def writeHTML(self, label=None):
-        if label is None: label = escape(self.label)
-        context = {
-            'label': label,
-            'uid': self.writeUID()
-        }
-        return link_widget_template.render(context)
 
 qna_widget_template = jinja2.Template("""
 <div class="widget qna_widget {{ uid }}">
@@ -738,6 +773,7 @@ qna_widget_template = jinja2.Template("""
 </div>
 """)
 
+
 class QnAWidget(Widget):
     """
     Question & Answer widgets are for posing a question, and giving the answer.
@@ -751,11 +787,12 @@ class QnAWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.QNA, name, label, data, anno, lineno)
+        self.is_inline = False
         self.check_required_fields(QnAWidget.required_fields)
         self.question = data[QnAWidget.QUESTION]
         self.answer   = data[QnAWidget.ANSWER]
 
-    def writeHTML(self, label=None):
+    def writeHTML(self, label=None, sphinx=False):
         if label is None: label = escape(self.label)
         context = {
             'label': label,
@@ -767,6 +804,7 @@ class QnAWidget(Widget):
 
 
 heading_pattern = re.compile(r'<h([1-6])>(.+?)</h\1>$')
+
 
 class WrapperWidget(Widget):
     """
@@ -780,7 +818,7 @@ class WrapperWidget(Widget):
     would make a correct representation of the label text. Here the tag will be either `span` or
     else one of the heading tags h1 - h6.
 
-    Subclasses may write their own writeHTML method, or, if it suffices, simply set self.template,
+    Subclasses may write their own writeHTML method, or, if it suffices, simply set self.template_name,
     and use the abstract method of this class.
 
     NB: The templates you use should be one-liners. This is because they are going to be passed
@@ -804,16 +842,20 @@ class WrapperWidget(Widget):
         # rendering markdown on our label).
         self.determine_tag_and_contents()
 
-    def writeHTML(self, label=None):
+    def writeHTML(self, label=None, sphinx=False):
+        classes = []
+        if sphinx:
+            classes.append('reference')
+        classes.append(self.writeUID())
+
         context = {
             'tag': self.tag,
             'contents': self.contents,
-            'uid': self.writeUID()
+            'classes': ' '.join(classes),
         }
-        return self.template.render(context)
+        template = widget_templates[self.template_name]
+        return template.render(context)
 
-
-label_widget_template = jinja2.Template("""<{{tag}} class="widget labelWidget {{ uid }}">{{contents}}<span class="labellink">¶</span></{{tag}}>""")
 
 class LabelWidget(WrapperWidget):
     """
@@ -827,10 +869,9 @@ class LabelWidget(WrapperWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.LABEL, name, label, data, anno, lineno)
-        self.template = label_widget_template
+        self.template_name = 'label_widget_template'
+        self.is_inline = True
 
-
-goal_widget_template = jinja2.Template("""<{{tag}} class="widget goalWidget {{ uid }}"><span class="graphics"></span>{{contents}}</{{tag}}>""")
 
 class GoalWidget(WrapperWidget):
     """
@@ -851,10 +892,11 @@ class GoalWidget(WrapperWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.GOAL, name, label, data, anno, lineno)
-        self.template = goal_widget_template
+        self.template_name = 'goal_widget_template'
         self.libpath_datapaths = [
             'altpath'
         ]
+        self.is_inline = True
 
     def compute_origin(self, force=False):
         # If the origin was already given, don't bother to do anything (unless forcing).
@@ -903,6 +945,7 @@ class ExampWidget(Widget):
 
     def __init__(self, type_, name, label, data, anno, lineno):
         Widget.__init__(self, type_, name, label, data, anno, lineno)
+        self.is_inline = False
         self.context_name = self.data.get('context', 'Basic')
         self.libpath_datapaths = (
             'import',
@@ -961,6 +1004,10 @@ class ExampWidget(Widget):
 
     def enrich_data(self):
         super().enrich_data()
+        if self.parent.get_index_type() == IndexType.SPHINX:
+            # Since Sphinx pages are served statically, trust state isn't
+            # injected at serve time; we record it instead at build time.
+            self.data['trusted'] = self.trusted
         self.data['dependencies'] = self.compute_dependency_closure()
 
     def get_direct_dependencies(self):
@@ -988,7 +1035,12 @@ class ExampWidget(Widget):
         dep_graph = {}
         info_by_libpath = {}
         self._compute_dependency_closure_recursive(dep_graph, info_by_libpath, top_level=True)
-        order = topological_sort(dep_graph, reversed=True)
+        try:
+            order = topological_sort(dep_graph, reversed=True)
+        except PfscExcep as pe:
+            if pe.code() == PECode.DAG_HAS_CYCLE:
+                pe.extendMsg(f' Trying to resolve dependencies for widget {self.libpath}')
+            raise pe
         closure = [info_by_libpath[lp] for lp in order if lp != self.libpath]
         return closure
 
@@ -1020,12 +1072,14 @@ class ExampWidget(Widget):
             'err_msg': str(pe),
         })
 
+
 evaluation_error_template = jinja2.Template("""
 <div class="widget dummyWidget {{ uid }}">
     <p>{{err_msg}}</p>
 </div>
 
 """)
+
 
 class ParamWidget(ExampWidget):
     """
@@ -1047,7 +1101,7 @@ class ParamWidget(ExampWidget):
         if 'import' in self.data:
             del self.data['import']
 
-    def writeHTML(self, label=None):
+    def writeHTML(self, label=None, sphinx=False):
         html = f'<div class="widget exampWidget paramWidget {self.writeUID()}">\n'
         html += '<div class="exampWidgetErrMsg"></div>\n'
         html += '<div class="chooser_container">\n'  # <-- chooser HTML to be set as inner HTML here
@@ -1131,7 +1185,7 @@ class DispWidget(ExampWidget):
 
         self.data['build'] = parts
 
-    def writeHTML(self, label=None):
+    def writeHTML(self, label=None, sphinx=False):
         html = f'<div class="widget exampWidget dispWidget {self.writeUID()}">\n'
         html += '<div class="dispWidgetInputArea">\n'
         html += '  <div class="dispWidgetEditors"></div>\n'
@@ -1151,6 +1205,7 @@ class DispWidget(ExampWidget):
         return html
 
 ##############################################################################
+
 
 class WidgetTypes:
     CTL = "CTL"

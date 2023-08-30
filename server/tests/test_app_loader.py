@@ -419,6 +419,69 @@ state_4 = """\
     }
 }"""
 
+args_5 = {
+    "a": "0;0",
+    "c": "test.spx.doc1@W~fb.pageA._page~x(g0t0)"
+}
+gen_args_5 = {
+    "a": "0;0",
+    "c": "test.spx.doc1@W~fb.pageA._page~x(g0t0)"
+}
+state_5 = """\
+{
+    "autoSaveDelay": 30000,
+    "reloadFromDisk": "auto",
+    "saveAllOnAppBlur": true,
+    "enablePdfProxy": false,
+    "offerPdfLibrary": false,
+    "allowWIP": true,
+    "appUrlPrefix": "",
+    "devMode": false,
+    "personalServerMode": false,
+    "ssnrAvailable": false,
+    "hostingByRequest": true,
+    "tosURL": null,
+    "tosVersion": null,
+    "prpoURL": null,
+    "prpoVersion": null,
+    "loginsPossible": true,
+    "err_lvl": 0,
+    "content": {
+        "tctStructure": [
+            "L"
+        ],
+        "tctSizeFractions": [],
+        "activeTcIndex": 0,
+        "tcs": [
+            {
+                "tabs": [
+                    {
+                        "type": "SPHINX",
+                        "libpath": "test.spx.doc1.pageA._page",
+                        "version": "WIP",
+                        "modpath": "test.spx.doc1.pageA"
+                    }
+                ],
+                "activeTab": 0
+            }
+        ]
+    },
+    "trees": {
+        "trees": {
+            "test.spx.doc1@WIP": {
+                "expand": {
+                    "fsNodeIds": [
+                        "."
+                    ],
+                    "buildNodeIds": [
+                        "test.spx.doc1"
+                    ]
+                }
+            }
+        }
+    }
+}
+"""
 
 def normalize_gids(state):
     gids = []
@@ -453,6 +516,7 @@ def normalize_served_state(state):
     (gen_args_2, state_2),
     (gen_args_3, state_3),
     (args_4, state_4),
+    (args_5, state_5),
 ))
 def test_app_loader(app, args, expected):
     with app.app_context():
@@ -476,6 +540,7 @@ def test_app_loader(app, args, expected):
 
             assert computed == expected
 
+
 def test_app_loader_2(app):
     print()
     with app.app_context():
@@ -484,12 +549,14 @@ def test_app_loader_2(app):
         #print(response.data)
         assert 'ISE split code V is malformed.' not in str(response.data)
 
+
 @pytest.mark.parametrize(['state', 'expected'], (
     (state_0, gen_args_0),
     (state_1, gen_args_1),
     (state_2, gen_args_2),
     (state_3, gen_args_3),
     (state_4, gen_args_4),
+    (state_5, gen_args_5),
 ))
 def test_arg_maker(app, state, expected):
     print()
@@ -504,6 +571,7 @@ def test_arg_maker(app, state, expected):
             args = json.loads(resp['args'])
             print(json.dumps(args, indent=4))
             assert args == expected
+
 
 trees_1 = {
     "test.moo.comment@WIP": {

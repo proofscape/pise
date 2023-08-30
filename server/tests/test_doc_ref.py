@@ -37,7 +37,8 @@ def test_doc_ref_validate_1(app, mod, expected_code):
         ri.checkout('v0')
         print()
         with pytest.raises(PfscExcep) as ei:
-            load_module(f'test.foo.doc.{mod}')
+            mod = load_module(f'test.foo.doc.{mod}')
+            mod.resolve()
         pe = ei.value
         code = pe.code()
         print(pe, code)
@@ -68,6 +69,7 @@ def test_doc_ref_assemble_1(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v0')
         mod = load_module('test.foo.doc.Z1')
+        mod.resolve()
         print()
         dg = mod['Z1'].buildDashgraph()
         doc_info = dg['deducInfo']['docInfo']
@@ -114,6 +116,7 @@ def test_doc_ref_assemble_2(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v1')
         mod = load_module('test.foo.doc.results')
+        mod.resolve()
         print()
         dg = mod['Pf'].buildDashgraph()
         doc_info = dg['deducInfo']['docInfo']
@@ -132,10 +135,11 @@ def test_doc_ref_formats_1(app):
         ri = get_repo_info('test.foo.doc')
         ri.checkout('v2')
         mod = load_module('test.foo.doc.results')
+        mod.resolve()
         print()
         dg = mod['Pf'].buildDashgraph()
         pf_doc_info = dg['deducInfo']['docInfo']
-        anno = mod['Discussion'].get_anno_data()
+        anno = mod['Discussion'].get_page_data()
 
         verbose = False
         if verbose:
@@ -167,11 +171,55 @@ def test_doc_ref_formats_1(app):
         )
 
         # Getting widget uids for siids for pdf widgets:
-        assert refs[0]["siid"] == "test-foo-doc-results-Discussion-w2_WIP"
+        assert refs[0]["siid"] == "test-foo-doc-results-Discussion-wFoo_WIP"
 
         # Clone widget has its own siid and slp, but also has expected osiid and oslp:
-        assert refs[3]['siid'] == 'test-foo-doc-results-Discussion-w5_WIP'
+        assert refs[3]['siid'] == 'test-foo-doc-results-Discussion-w4_WIP'
         assert refs[3]['slp'] == 'test.foo.doc.results.Discussion'
         assert refs[3]['stype'] == 'NOTES'
         assert refs[3]['osiid'] == 'test.foo.doc.results.Pf.R'
         assert refs[3]['oslp'] == 'test.foo.doc.results.Pf'
+
+
+@pytest.mark.psm
+def test_doc_ref_formats_2(app):
+    """
+    Test doc refs copying others defined in another module. This is relevant
+    to aspects of the build process, like that widgets are enriched as a part
+    of module resolution (and thus in an order respecting the import DAG).
+    """
+    with app.app_context():
+        ri = get_repo_info('test.foo.doc')
+        ri.checkout('v2')
+        mod = load_module('test.foo.doc.more')
+        mod.resolve()
+        print()
+        anno = mod['Notes'].get_page_data()
+
+        verbose = False
+        if verbose:
+            import json
+            print(json.dumps(anno, indent=4))
+
+        anno_doc_info = anno['docInfo']
+
+        ref1 = anno_doc_info['refs']['pdffp:0123456789abcdef'][0]
+        ref2 = anno_doc_info['refs']['pdffp:fedcba9876543210'][0]
+
+        assert ref1 == {
+            "ccode": "v2;s3;(146:1758:2666:210:450:90:46);",
+            "siid": "test-foo-doc-more-Notes-w1_WIP",
+            "slp": "test.foo.doc.more.Notes",
+            "stype": "NOTES",
+            "osiid": "test.foo.doc.results.Pf.S",
+            "oslp": "test.foo.doc.results.Pf"
+        }
+
+        assert ref2 == {
+            "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
+            "siid": "test-foo-doc-more-Notes-w2_WIP",
+            "slp": "test.foo.doc.more.Notes",
+            "stype": "NOTES",
+            "osiid": "test-foo-doc-results-Discussion-wFoo_WIP",
+            "oslp": "test.foo.doc.results.Discussion"
+        }

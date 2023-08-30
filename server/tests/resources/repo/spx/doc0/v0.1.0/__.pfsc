@@ -1,0 +1,8 @@
+dependencies = {
+    'test.moo.bar': 'v1.0.0'
+}
+
+
+anno Notes @@@
+Hello.
+@@@

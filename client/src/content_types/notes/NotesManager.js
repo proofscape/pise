@@ -14,15 +14,15 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
-import { UnknownPeerError } from "browser-peers/src/errors";
 import { GlobalLinkingMap } from "../linking";
-import { SubscriptionManager } from "../SubscriptionManager";
+import { DynamicSubscriptionManager, StaticSubscriptionManager } from "../SubscriptionManager";
+import { AnnoViewer } from "./AnnoViewer";
+import { SphinxViewer } from "./SphinxViewer";
 
 define([
     "dojo/_base/declare",
     "dojo/query",
     "ise/content_types/AbstractContentManager",
-    "ise/content_types/notes/PageViewer",
     "ise/widgets/Widget",
     "ise/widgets/ChartWidget",
     "ise/widgets/LinkWidget",
@@ -41,7 +41,6 @@ define([
     declare,
     query,
     AbstractContentManager,
-    PageViewer,
     Widget,
     ChartWidget,
     LinkWidget,
@@ -84,17 +83,19 @@ var NotesManager = declare(AbstractContentManager, {
 
     // Properties
     hub: null,
-    // Lookup for PageViewers by pane id:
+    // Lookup for viewers (AnnoViewer and SphinxViewer instances) by pane id:
     viewers: null,
-    // Mapping that records which annopathvs are open, and how many copies of each:
-    openAnnopathvCopyCount: null,
+    // Mapping that records which tail-versioned page paths are open,
+    // and how many copies of each:
+    openPagepathvCopyCount: null,
 
     // Lookup for widgets by uid.
     widgets: null,
 
     navEnableHandlers: null,
 
-    subscriptionManager: null,
+    annoSubscriptionManager: null,
+    sphinxSubscriptionManager: null,
 
     wvuCallback: null,
 
@@ -106,7 +107,7 @@ var NotesManager = declare(AbstractContentManager, {
 
     constructor: function() {
         this.viewers = {};
-        this.openAnnopathvCopyCount = new Map();
+        this.openPagepathvCopyCount = new Map();
         this.widgets = new Map();
         this.navEnableHandlers = [];
         this.wvuCallback = this.observeWidgetVisualUpdate.bind(this);
@@ -127,7 +128,8 @@ var NotesManager = declare(AbstractContentManager, {
 
     initSubscrips: function() {
         const viewers = this.viewers;
-        this.subscriptionManager = new SubscriptionManager(this.hub, {
+        const nm = this;
+        this.annoSubscriptionManager = new DynamicSubscriptionManager(this.hub, {
             fetchName: 'loadAnnotation',
             fetchArgBuilder: (libpath, timestamp) => {
                 return {
@@ -160,11 +162,83 @@ var NotesManager = declare(AbstractContentManager, {
                 }
             },
         });
+        this.sphinxSubscriptionManager = new StaticSubscriptionManager(this.hub, {
+            staticUrlBuilder: libpath => {
+                return nm.makeSphinxUrl(libpath, "WIP");
+            },
+            fetchContent: false,
+            missingObjHandler: (libpath, paneIds, status) => {
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    // FIXME: Maybe better than closing the whole pane would be to
+                    //  first ask the viewer to remove the current page from its history,
+                    //  and move to an adjacent history entry, if possible. Only if there
+                    //  was no other history entry would we close the pane.
+                    viewer.pane.onClose();
+                }
+            },
+            reloader: (libpath, paneIds, url) => {
+                for (const paneId of paneIds) {
+                    const viewer = viewers[paneId];
+                    viewer.refresh(url);
+                }
+            },
+        });
+    },
+
+    /* Build the RELATIVE static url for a Sphinx page.
+     */
+    makeSphinxUrl: function(libpath, version, hash) {
+        // Libpath goes: host, owner, repo, remainder, '_page'
+        // For the URL we need to:
+        //  - insert the version tag as the 4th segment
+        //  - chop off the '_page' segment
+        const parts = libpath.split('.');
+        parts.splice(3, 0, version);
+        parts.pop()
+        hash = hash || '';
+        return `static/sphinx/${parts.join("/")}.html${hash}`
+    },
+
+    /* Given the RELATIVE static url for a Sphinx page, return the
+     * libpath, version, and hash.
+     */
+    decomposeSphinxUrl: function(url) {
+        const h = url.split("#");
+        const hash = h.length === 2 ? h[1] : null;
+
+        const prefix = 'static/sphinx/'
+        const suffix = '.html'
+        const p = h[0].slice(prefix.length, -suffix.length);
+        const parts = p.split('/');
+
+        // parts go: host, owner, repo, version, remainder
+        const version = parts.splice(3, 1)[0];
+
+        parts.push('_page');
+        const libpath = parts.join('.');
+
+        return {libpath, version, hash};
+    },
+
+    // Get an array of the content windows of all Sphinx panels.
+    getAllSphinxWindows: function() {
+        const wins = [];
+        for (const viewer of Object.values(this.viewers)) {
+            if (viewer.pageType === "SPHINX") {
+                wins.push(viewer.cw);
+            }
+        }
+        return wins;
+    },
+
+    getViewerForPaneId: function(paneId) {
+        return this.viewers[paneId];
     },
 
     getSuppliedDocHighlights: function(paneId) {
         const viewer = this.viewers[paneId];
-        const docInfoObj = viewer?.currentPageData.docInfo;
+        const docInfoObj = viewer?.currentPageData?.docInfo;
         const hls = {
             docs: new Map(),
             refs: new Map(),
@@ -304,7 +378,9 @@ var NotesManager = declare(AbstractContentManager, {
         if (sbProps.scale) {
             options.overviewScale = sbProps.scale;
         }
-        const viewer = new PageViewer(this, elt, pane, info.uuid, options);
+        const viewer = info.type === this.hub.contentManager.crType.SPHINX ?
+            new SphinxViewer(this, elt, pane, info.uuid, options) :
+            new AnnoViewer(this, elt, pane, info.uuid, options);
         viewer.addNavEnableHandler(this.publishNavEnable.bind(this));
         viewer.on('pageChange', this.notePageChange.bind(this));
         viewer.on('pageReload', this.notePageReload.bind(this));
@@ -318,6 +394,20 @@ var NotesManager = declare(AbstractContentManager, {
                 viewer.showOverviewSidebar(true);
             }
         });
+    },
+
+    pushScrollFrac: function(paneId) {
+        const viewer = this.viewers[paneId];
+        if (viewer) {
+            viewer.pushScrollFrac();
+        }
+    },
+
+    popScrollFrac: function(paneId) {
+        const viewer = this.viewers[paneId];
+        if (viewer) {
+            viewer.popScrollFrac();
+        }
     },
 
     /* Update the content of an existing pane of this manager's type.
@@ -340,13 +430,8 @@ var NotesManager = declare(AbstractContentManager, {
      * return: The info object.
      */
     writeStateInfo: function(oldPaneId, serialOnly) {
-        const viewer = this.viewers[oldPaneId],
-            stateInfo = viewer.describeCurrentLocation();
-        stateInfo.type = this.hub.contentManager.crType.NOTES;
-        stateInfo.history = viewer.copyHistory();
-        stateInfo.sidebar = viewer.getSidebarProperties();
-        stateInfo.ptr = viewer.ptr;
-        return stateInfo;
+        const viewer = this.viewers[oldPaneId];
+        return viewer.writeContentDescriptor(serialOnly);
     },
 
     /* Take note of the fact that one pane of this manager's type has been copied to a
@@ -370,16 +455,16 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     /* This is our listener for the "pageChange" event of each of
-     * our PageViewer instances. That event is fired iff the viewer has
+     * our viewer instances. That event is fired iff the viewer has
      * loaded a page of different libpath or version from what it was before.
      */
     notePageChange: async function(event) {
-        // Maintain records of which annopaths are open, and how many copies of each.
+        // Maintain records of which pagepaths are open, and how many copies of each.
 
         // newLibpath is always defined
         const nlv = event.newLibpathv;
-        let nlpCount = this.openAnnopathvCopyCount.get(nlv) || 0;
-        this.openAnnopathvCopyCount.set(nlv, ++nlpCount);
+        let nlpCount = this.openPagepathvCopyCount.get(nlv) || 0;
+        this.openPagepathvCopyCount.set(nlv, ++nlpCount);
 
         // oldLibpath may be null
         const olv = event.oldLibpathv;
@@ -395,7 +480,7 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     /* This is our listener for the "pageReload" event of each of
-     * our PageViewer instances. That event is fired after the viewer has
+     * our viewer instances. That event is fired after the viewer has
      * finished reloading a page that was just rebuilt.
      */
     notePageReload: async function({uuid, libpath, oldPageData, newPageData}) {
@@ -406,13 +491,13 @@ var NotesManager = declare(AbstractContentManager, {
         await this.makeDefaultLinks(libpath, uuid);
     },
 
-    notePageClose: function(annopathv) {
-        let count = this.openAnnopathvCopyCount.get(annopathv);
+    notePageClose: function(pagepathv) {
+        let count = this.openPagepathvCopyCount.get(pagepathv);
         if (count) {
-            this.openAnnopathvCopyCount.set(annopathv, --count);
+            this.openPagepathvCopyCount.set(pagepathv, --count);
             if (count === 0) {
-                this.openAnnopathvCopyCount.delete(annopathv);
-                this.purgeAllWidgetsForAnnopathv(annopathv);
+                this.openPagepathvCopyCount.delete(pagepathv);
+                this.purgeAllWidgetsForPagepathv(pagepathv);
             }
         }
     },
@@ -429,9 +514,9 @@ var NotesManager = declare(AbstractContentManager, {
         }
         const paneId = closingPane.id;
         const viewer = this.viewers[paneId];
-        const annopathv = viewer.getCurrentLibpathv();
-        if (annopathv) {
-            this.notePageClose(annopathv);
+        const pagepathv = viewer.getCurrentLibpathv();
+        if (pagepathv) {
+            this.notePageClose(pagepathv);
         }
         viewer.destroy();
         delete this.viewers[paneId];
@@ -744,28 +829,37 @@ var NotesManager = declare(AbstractContentManager, {
     },
 
     setTheme: function(theme) {
+        for (const v of Object.values(this.viewers)) {
+            v.setTheme(theme);
+        }
         for (const w of this.widgets.values()) {
             w.setTheme(theme);
         }
     },
 
-    /* Given the libpathv of an annotation, get an array of the UIDs of all
-     * widgets currently loaded in memory that belong to that annotation.
+    setZoom: function(level) {
+        for (const v of Object.values(this.viewers)) {
+            v.setZoom(level);
+        }
+    },
+
+    /* Given the libpathv of a page, get an array of the UIDs of all
+     * widgets currently loaded in memory that belong to that page.
      */
-    getAllOpenWidgetUidsUnderAnnopathv: function(annopathv) {
+    getAllOpenWidgetUidsUnderPagepathv: function(pagepathv) {
         const uids = [];
         for (let [uid, widget] of this.widgets) {
-            if (widget.getAnnopathv() === annopathv) {
+            if (widget.getPagepathv() === pagepathv) {
                 uids.push(uid);
             }
         }
         return uids;
     },
 
-    /* Purge all widgets that belong to a given annotation.
+    /* Purge all widgets that belong to a given page.
      */
-    purgeAllWidgetsForAnnopathv: function(annopathv) {
-        const uids = this.getAllOpenWidgetUidsUnderAnnopathv(annopathv);
+    purgeAllWidgetsForPagepathv: function(pagepathv) {
+        const uids = this.getAllOpenWidgetUidsUnderPagepathv(pagepathv);
         for (let uid of uids) {
             this.purgeWidget(uid);
         }
@@ -833,8 +927,9 @@ var NotesManager = declare(AbstractContentManager, {
      *
      * param uid: the unique id of the widget
      * param event: the browser-native mouse event object
+     * param pane: the Dijit pane in which the event happened
      */
-    handleNavWidgetMouseEvent: async function(uid, event) {
+    handleNavWidgetMouseEvent: async function(uid, event, pane) {
         const action = {mouseover: 'show', mouseout: 'hide', click: 'click'}[event.type];
         const clickedElt = event.target;
         const LN = this.linkingMap;
@@ -843,7 +938,7 @@ var NotesManager = declare(AbstractContentManager, {
         const gid = widget.groupId;
 
         const cm = this.hub.contentManager;
-        const clickedPane = cm.getSurroundingPane(clickedElt);
+        const clickedPane = pane;
         const clickedPanelUuid = cm.getUuidByPaneId(clickedPane.id);
         const targetUuids = await LN.get(clickedPanelUuid, gid);
 
@@ -891,7 +986,7 @@ var NotesManager = declare(AbstractContentManager, {
                 // to obtain named highlights, if we requested one under `highlightId`.
                 info.requestingUuid = clickedPanelUuid;
             }
-            const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedElt);
+            const {spawned} = await cm.updateOrSpawnBeside(info, existing, clickedPanelUuid);
             if (spawned) {
                 await LN.add(clickedPanelUuid, gid, spawned);
             } else if (claimable) {
@@ -917,11 +1012,11 @@ var NotesManager = declare(AbstractContentManager, {
         return this.widgets.get(uid);
     },
 
-    /* Instantiate and activate the Widget instances for an annotation.
+    /* Instantiate and activate the Widget instances for a page.
      *
      * @param data: This is an object of the form {
-     *   libpath: the libpath of the annotation where these widgets are defined
-     *   version: the version of the annotation where these widgets are defined
+     *   libpath: the libpath of the page where these widgets are defined
+     *   version: the version of the page where these widgets are defined
      *   widgets: {
      *     widgetUID1: widgetData1,
      *     widgetUID2: widgetData2,
@@ -939,10 +1034,10 @@ var NotesManager = declare(AbstractContentManager, {
     setupWidgets: function(data, elt, pane) {
         const incomingUids = Object.keys(data.widgets);
 
-        // Purge any widgets that no longer belong to the annotation.
-        const annopathv = iseUtil.lv(data.libpath, data.version);
-        const uidsUnderAnno = this.getAllOpenWidgetUidsUnderAnnopathv(annopathv);
-        for (let uid of uidsUnderAnno) {
+        // Purge any widgets that no longer belong to the page.
+        const pagepathv = iseUtil.lv(data.libpath, data.version);
+        const uidsUnderPage = this.getAllOpenWidgetUidsUnderPagepathv(pagepathv);
+        for (let uid of uidsUnderPage) {
             if (!incomingUids.includes(uid)) {
                 this.purgeWidget(uid);
             }
@@ -1001,7 +1096,7 @@ var NotesManager = declare(AbstractContentManager, {
         for (let uid of incomingUids) {
             const widget = this.widgets.get(uid);
             const wdq = socket.query('.' + uid);
-            widget.makeContextMenu(wdq, pane.id);
+            widget.makeContextMenu(pane);
             widget.activate(wdq, uid, theNotesManager, pane);
             widget.on('widgetVisualUpdate', this.wvuCallback, {nodup: true});
         }

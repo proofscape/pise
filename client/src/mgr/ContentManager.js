@@ -57,12 +57,14 @@ var ContentManager = declare(null, {
         NOTES:  "NOTES",
         SOURCE: "SOURCE",
         PDF: "PDF",
-        THEORYMAP: "THEORYMAP"
+        THEORYMAP: "THEORYMAP",
+        SPHINX: "SPHINX",
     },
     typeColors: {
         PDF: "red",
         CHART: "green",
         NOTES: "blue",
+        SPHINX: "blue",
         TREE: "cyan",
     },
     // Types that have a libpath:
@@ -92,22 +94,22 @@ var ContentManager = declare(null, {
 
         this.contentRegistry = {};
 
-        // Method Lookup
         // This maps each content type to the method that sets up panes for that type.
-        var f = {};
-        f[this.crType.NOTES]  = this.setupNotesContentPane.bind(this);
-        f[this.crType.CHART]  = this.setupChartContentPane.bind(this);
-        f[this.crType.SOURCE] = this.setupEditorContentPane.bind(this);
-        f[this.crType.PDF]    = this.setupPdfContentPane.bind(this);
-        f[this.crType.THEORYMAP] = this.setupTheorymapContentPane.bind(this);
-        this.setupMethods = f;
+        this.setupMethods = {
+            [this.crType.NOTES]: this.setupNotesContentPane.bind(this),
+            [this.crType.CHART]: this.setupChartContentPane.bind(this),
+            [this.crType.SOURCE]: this.setupEditorContentPane.bind(this),
+            [this.crType.PDF]: this.setupPdfContentPane.bind(this),
+            [this.crType.THEORYMAP]: this.setupTheorymapContentPane.bind(this),
+            [this.crType.SPHINX]: this.setupSphinxContentPane.bind(this),
+        };
 
         // Type category arrays
         this.libpathTypes = [
-            this.crType.NOTES, this.crType.SOURCE
+            this.crType.NOTES, this.crType.SPHINX, this.crType.SOURCE
         ];
         this.editableTypes = [
-            this.crType.NOTES
+            this.crType.NOTES, this.crType.SPHINX
         ];
         this.studyPageTypes = [
             this.crType.NOTES
@@ -155,6 +157,7 @@ var ContentManager = declare(null, {
         case this.crType.SOURCE: return this.hub.editManager;
         case this.crType.PDF: return this.hub.pdfManager;
         case this.crType.THEORYMAP: return this.hub.theorymapManager;
+        case this.crType.SPHINX: return this.hub.notesManager;
         }
     },
 
@@ -172,6 +175,28 @@ var ContentManager = declare(null, {
 
     getContentInfo: function(cpId) {
         return this.contentRegistry[cpId];
+    },
+
+    /* Given the ID of a ContentPane, locate the manager for that content type,
+     * and tell it to push the scroll fraction for this pane.
+     */
+    pushScrollFrac: function(cpId) {
+        const info = this.contentRegistry[cpId];
+        if (info) {
+            const mgr  = this.getManager(info.type);
+            return mgr.pushScrollFrac(cpId);
+        }
+    },
+
+    /* Given the ID of a ContentPane, locate the manager for that content type,
+     * and tell it to pop the scroll fraction for this pane.
+     */
+    popScrollFrac: function(cpId) {
+        const info = this.contentRegistry[cpId];
+        if (info) {
+            const mgr  = this.getManager(info.type);
+            return mgr.popScrollFrac(cpId);
+        }
     },
 
     /* Search this window for a pane having a given uuid.
@@ -401,6 +426,7 @@ var ContentManager = declare(null, {
                 case this.crType.SOURCE: iconClass = 'tabIcon contentIcon srcIcon20'; break;
                 case this.crType.PDF: iconClass = 'tabIcon pdfContentTypeIcon'; break;
                 case this.crType.THEORYMAP: iconClass = 'tabIcon contentIcon deducIcon20'; break;
+                case this.crType.SPHINX: iconClass = 'tabIcon sphinxIcon20'; break;
             }
             icon_part = '<span class="'+iconClass+'">'+iconText+'</span>';
         }
@@ -455,6 +481,14 @@ var ContentManager = declare(null, {
                  info.origType !== "MODULE") ? N - 1 : N,
             subpath = parts.slice(a, b).join('.');
         return subpath;
+    },
+
+    setupSphinxContentPane: function(title, cp) {
+        domStyle.set(cp.domNode, "padding", 0);
+        cp.set('content', '<div class="cpSocket sphinxSocket fullheight tex2jax_ignore"></div>');
+        cp.set('title', title);
+        var sel = '#' + cp.id + ' .cpSocket';
+        return sel;
     },
 
     setupTheorymapContentPane: function(title, cp) {
@@ -1148,7 +1182,7 @@ var ContentManager = declare(null, {
         let tuples = [];
         if (type === this.crType.CHART) {
             tuples = this.hub.chartManager.getAllDocRefTriplesLocal({});
-        } else if (type === this.crType.NOTES) {
+        } else if (type === this.crType.NOTES || type === this.crType.SPHINX) {
             tuples = this.hub.notesManager.getAllDocRefQuadsLocal({});
         }
         for (const t of tuples) {
@@ -1208,8 +1242,8 @@ var ContentManager = declare(null, {
 
             // Links C --> X
             if (sourceType === this.crType.CHART) {
-                // Can't link CHART --> NOTES.
-                if (targetType === this.crType.NOTES) {
+                // Can't link CHART --> NOTES/SPHINX.
+                if (targetType === this.crType.NOTES || targetType === this.crType.SPHINX) {
                     return;
                 }
 
@@ -1232,7 +1266,7 @@ var ContentManager = declare(null, {
             // Theoretically we could require the user to drag and drop onto a specific widget,
             // but for now we're going to put that off. For now, the rule will be that we'll form
             // a new link iff there is *exactly one* widget group relevant to the target content.
-            if (sourceType === this.crType.NOTES) {
+            if (sourceType === this.crType.NOTES || sourceType === this.crType.SPHINX) {
                 const nm = this.hub.notesManager;
                 const quads = nm.getAllDocRefQuadsLocal({});
                 let test = (g, d) => false;

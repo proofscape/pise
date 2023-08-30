@@ -62,22 +62,22 @@ def test_cf_in(client, repos_ready):
     vers = 'v0.0.0'
     resp = client.get(f'{ISE_PREFIX}/loadDashgraph?libpath={libpath}&vers={vers}')
     d = handleAsJson(resp)
-    #print(json.dumps(d, indent=4))
+    print(json.dumps(d, indent=4))
 
     dg = d["dashgraph"]
     e = dg[enrichment_key]
     cf = e[IndexType.CF][0]
     assert cf["libpath"] == "test.hist.lit.H.ilbert.ZB.Thm168.Pf"
-    assert cf["latest"] == "v0.0.0"
+    assert cf["versions"][-1] == "v0.0.0"
 
     dg = dg[children_key][f'{libpath}.Cs1']
     e = dg[enrichment_key]
     cf = e[IndexType.CF][0]
     assert cf["libpath"] == "test.hist.lit.H.ilbert.ZB.Thm168.Pf.Cs1"
-    assert cf["latest"] == "v0.0.0"
+    assert cf["versions"][-1] == "v0.0.0"
 
     dg = dg[children_key][f'{libpath}.Cs1.S']
     e = dg[enrichment_key]
     cf = e[IndexType.CF][0]
     assert cf["libpath"] == "test.hist.lit.H.ilbert.ZB.Thm168.Pf.Cs1.S"
-    assert cf["latest"] == "v0.0.0"
+    assert cf["versions"][-1] == "v0.0.0"

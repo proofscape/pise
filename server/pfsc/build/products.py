@@ -22,7 +22,7 @@ import os
 from functools import lru_cache
 
 import pfsc.constants
-from pfsc import check_config
+from pfsc import get_build_dir
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo
 from pfsc.gdb import building_in_gdb, get_graph_reader
@@ -67,9 +67,9 @@ def get_dashgraph_dir_and_filename(deducpath, version=pfsc.constants.WIP_TAG):
     """
     dp_parts = deducpath.split('.')
     deduc_name = dp_parts[-1]
-    build_root = check_config("PFSC_BUILD_ROOT")
-    fs_dir_parts = [build_root] + dp_parts[:3] + [version] + dp_parts[3:-1]
-    dg_dir = os.path.join(*fs_dir_parts)
+    build_root = get_build_dir()
+    fs_dir_parts = dp_parts[:3] + [version] + dp_parts[3:-1]
+    dg_dir = build_root.joinpath(*fs_dir_parts)
     dg_filename = '%s.dg.json' % deduc_name
     return dg_dir, dg_filename
 
@@ -125,9 +125,9 @@ def get_annotation_dir_and_filenames(annopath, version=pfsc.constants.WIP_TAG):
     """
     libpath_parts = annopath.split('.')
     anno_name = libpath_parts[-1]
-    build_root = check_config("PFSC_BUILD_ROOT")
-    fs_dir_parts = [build_root] + libpath_parts[:3] + [version] + libpath_parts[3:-1]
-    dest_dir = os.path.join(*fs_dir_parts)
+    build_root = get_build_dir()
+    fs_dir_parts = libpath_parts[:3] + [version] + libpath_parts[3:-1]
+    dest_dir = build_root.joinpath(*fs_dir_parts)
     html_filename = '%s.anno.html' % anno_name
     json_filename = '%s.anno.json' % anno_name
     return dest_dir, html_filename, json_filename

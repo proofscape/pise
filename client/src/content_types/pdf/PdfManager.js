@@ -854,7 +854,7 @@ var PdfManager = declare(AbstractContentManager, {
 
     },
 
-    /* Handle a mouse event on a highlight, in our of our panels.
+    /* Handle a mouse event on a highlight, in one of our panels.
      *
      * param uuid: the uuid of the panel where the event happened
      * param event: the browser-native mouse event object itself
@@ -887,8 +887,8 @@ var PdfManager = declare(AbstractContentManager, {
                 } else {
                     cdo.select = siid;
                 }
-            } else if (stype === "NOTES") {
-                // For highlights supplied by a notes page, the siid's are the widget uids
+            } else if (stype === "NOTES" || stype === "SPHINX") {
+                // For highlights supplied by an anno or sphinx page, the siid's are the widget uids
                 // of the widgets that supplied them.
                 const selector = `.${siid}`;
                 cdo.select = selector;

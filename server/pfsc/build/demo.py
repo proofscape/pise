@@ -23,7 +23,7 @@ from rq.registry import ScheduledJobRegistry
 from rq.exceptions import NoSuchJobError
 
 import pfsc.constants
-from pfsc import check_config, get_app
+from pfsc import check_config, get_app, get_build_dir
 from pfsc.rq import get_rqueue
 from pfsc.util import (
     casual_time_delta,
@@ -190,6 +190,7 @@ def delete_demo_repo_with_app(repopath, dry_run=False):
     with app.app_context():
         delete_demo_repo(repopath, dry_run=dry_run)
 
+
 def delete_demo_repo(repopath, dry_run=False):
     """
     Delete a demo repo completely:
@@ -239,30 +240,36 @@ def delete_demo_repo(repopath, dry_run=False):
             else:
                 os.system(cmd)
 
-    # If we're not building in the GDB, then we need to clean up the BUILD dir.
-    # If we are, then there's nothing to do here, since all build products will
-    # be cleaned up when we clean up the index, below.
-    if not building_in_gdb():
-        build_root = check_config("PFSC_BUILD_ROOT")
-        expected_prefix = os.path.join(build_root, RepoFamily.DEMO)
-        user_build_dir = ri.get_user_build_dir()
-        repo_build_dir = ri.get_repo_build_dir()
-        assert user_build_dir.startswith(expected_prefix)
-        assert repo_build_dir.startswith(expected_prefix)
-        if os.path.exists(repo_build_dir):
-            if dry_run:
-                print(f'Recycle {repo_build_dir}')
-            else:
-                recycle(repo_build_dir)
-        if os.path.exists(user_build_dir):
-            # Was it the last repo for this user?
-            remaining = os.listdir(user_build_dir)
-            if not remaining:
-                cmd = f'rmdir {user_build_dir}'
+    # Clean up BUILD dir.
+    for cache_dir in [False, True]:
+        for sphinx_dir in [False, True]:
+            user_build_dir = ri.get_user_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+            repo_build_dir = ri.get_repo_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+
+            # Sanity check:
+            build_root = get_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+            expected_prefix = build_root / RepoFamily.DEMO
+            # That this does not raise `ValueError`, is our sanity check.
+            # From Python 3.9 onward, we could call `is_relative_to()`, but
+            # we're still on 3.8.
+            user_build_dir.relative_to(expected_prefix)
+            repo_build_dir.relative_to(expected_prefix)
+
+            if os.path.exists(repo_build_dir):
                 if dry_run:
-                    print(cmd)
+                    print(f'Recycle {repo_build_dir}')
                 else:
-                    os.system(cmd)
+                    recycle(repo_build_dir)
+
+            if os.path.exists(user_build_dir):
+                # Was it the last repo for this user?
+                remaining = os.listdir(user_build_dir)
+                if not remaining:
+                    cmd = f'rmdir {user_build_dir}'
+                    if dry_run:
+                        print(cmd)
+                    else:
+                        os.system(cmd)
 
     # Clean up the INDEX:
     gw = get_graph_writer()

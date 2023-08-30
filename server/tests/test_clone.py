@@ -45,9 +45,10 @@ def test_clone_00(app):
     with app.app_context():
         modpath = f'test.local.foo'
         with pytest.raises(PfscExcep) as ei:
-            build_module_from_text(modtext, modpath, dependencies={
+            module = build_module_from_text(modtext, modpath, dependencies={
                 'test.hist.lit': "WIP",
             })
+            module.resolve()
         assert ei.value.code() == PECode.CANNOT_CLONE_NODE
 
 
@@ -81,6 +82,7 @@ def test_clone_01(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.hist.lit': "WIP",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -130,6 +132,7 @@ def test_clone_02a(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.foo.bar': "WIP",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -177,6 +180,7 @@ def test_clone_02b(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.foo.bar': "WIP",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -224,6 +228,7 @@ def test_clone_03a(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.hist.lit': "WIP",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -263,6 +268,7 @@ def test_clone_03b(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.hist.lit': "WIP",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -307,6 +313,7 @@ def test_clone_04a(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.wid.get': "v0.1.0",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()
@@ -347,6 +354,7 @@ def test_clone_04b(app):
         module = build_module_from_text(modtext, modpath, dependencies={
             'test.wid.get': "v0.1.0",
         })
+        module.resolve()
         name = 'Foo'
         deduc = module[name]
         dg = deduc.buildDashgraph()

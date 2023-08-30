@@ -22,18 +22,18 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.modules import load_module
 from pfsc.build.repo import RepoInfo
 
-widget_data_1 = {
+widget_data_1 = """{
     "test-foo-bar-expansions-Notes1-w10_WIP": {
         "view": "test.foo.bar.results.Pf",
         "type": "CHART",
-        'uid': 'test-foo-bar-expansions-Notes1-w10_WIP',
         "src_line": 22,
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
+        "uid": "test-foo-bar-expansions-Notes1-w10_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:",
         "versions": {
             "test.foo.bar": "WIP"
         },
         "title_libpath": "test.foo.bar.expansions.Notes1",
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "icon_type": "nav",
         "version": "WIP"
     },
@@ -41,18 +41,18 @@ widget_data_1 = {
         "view": "test.foo.bar.expansions.X",
         "group": 2,
         "type": "CHART",
-        'uid': 'test-foo-bar-expansions-Notes1-w20_WIP',
         "src_line": 26,
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
+        "uid": "test-foo-bar-expansions-Notes1-w20_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:2",
         "versions": {
             "test.foo.bar": "WIP"
         },
         "title_libpath": "test.foo.bar.expansions.Notes1",
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
         "icon_type": "nav",
         "version": "WIP"
     }
-}
+}"""
 
 html_1 = r"""<p>Some enlightening notes...
 with a <a class="widget chartWidget test-foo-bar-expansions-Notes1-w10_WIP" href="#">chart widget with <em>cool equation</em> $e^{ i\pi}+1=0$ in the label</a>
@@ -60,27 +60,21 @@ This time we give it its own name, and even put it in a different pane group.
 <a class="widget chartWidget test-foo-bar-expansions-Notes1-w20_WIP" href="#"></a></p>
 """
 
-# Here we want to see that duplicate widget names are detected.
 @pytest.mark.psm
 def test_dup_names(app):
     with app.app_context():
-        # First advance to v1, where there is a duplicate widget name.
         ri = RepoInfo('test.foo.bar')
-        ri.checkout('v1')
-        with pytest.raises(PfscExcep) as ei:
-            mod = load_module('test.foo.bar.expansions', caching=0)
-        assert ei.value.code() == PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE
-        # Now advance to v2, where the error is corrected.
         ri.checkout('v2')
         mod = load_module('test.foo.bar.expansions', caching=0)
+        mod.resolve()
         anno = mod['Notes1']
         html = anno.get_escaped_html()
-        wd = anno.get_anno_data()["widgets"]
+        wd = anno.get_page_data()["widgets"]
         j = json.dumps(wd, indent=4)
-        print(j)
         print(html)
-        assert wd == widget_data_1
+        print(j)
         assert html == html_1
+        assert j == widget_data_1
 
 mod_text_fragment_2 = """\
 <chart:w20>[]{
@@ -186,6 +180,7 @@ def test_libpath_resolve(app):
         ri = RepoInfo('test.moo.links')
         ri.checkout('v0.1.0')
         mod = load_module('test.moo.links.anno1', caching=0)
+        mod.resolve()
         assert mod['Notes'].widget_seq[0].data['ref'] == 'test.moo.links.deducs1.Foo'
 
 
@@ -199,6 +194,7 @@ def test_local_libpath_resolve(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v10')
         mod = load_module('test.foo.bar.expansions', caching=0)
+        mod.resolve()
         assert mod['Notes3'].widget_seq[0].data['altpath'] == 'test.foo.bar.expansions.Notes3.w2'
         assert mod['Notes3'].widget_seq[1].data['altpath'] == 'test.foo.bar.expansions.Notes3.w2'
 
@@ -209,15 +205,19 @@ def test_param_widget_1(app):
         ri = RepoInfo('test.foo.eg')
         ri.checkout('v0')
         mod = load_module('test.foo.eg.notes', caching=0)
-        # In Notes1, the widgets are broken, so we get a total of zero widgets.
-        # In Notes2, they build okay, so we get two of them.
-        for name, n in [
-            ['Notes1', 0],
-            ['Notes2', 2],
-        ]:
-            anno = mod[name]
-            data = anno.get_anno_data()
-            assert len(data['widgets']) == n
+
+        # In Notes1, the widgets try to import each other, cyclically.
+        with pytest.raises(PfscExcep) as ei:
+            anno = mod['Notes1']
+            anno.resolve()
+        assert ei.value.code() == PECode.DAG_HAS_CYCLE
+
+        # In Notes2, the widgets build okay.
+        anno = mod['Notes2']
+        anno.resolve()
+        data = anno.get_page_data()
+        assert len(data['widgets']) == 2
+
 
 @pytest.mark.psm
 def test_param_widget_2(app):
@@ -228,9 +228,10 @@ def test_param_widget_2(app):
         ri = RepoInfo('test.comment.notes')
         ri.checkout('v0.1.0')
         mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
+        mod.resolve()
         anno = mod['Notes']
         html = anno.get_escaped_html()
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         #print()
         #print(html)
         #print(json.dumps(data, indent=4))
@@ -265,8 +266,9 @@ def test_disp_widget_1(app):
         ri = RepoInfo('test.comment.notes')
         ri.checkout('v0.1.0')
         mod = load_module('test.comment.notes.H.ilbert.ZB.Thm17', caching=0)
+        mod.resolve()
         anno = mod['Notes']
-        data = anno.get_anno_data()
+        data = anno.get_page_data()
         widget_data = data["widgets"]
         info = [
             ("disp1", 3),

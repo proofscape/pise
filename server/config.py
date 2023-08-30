@@ -34,6 +34,12 @@ with open(pj_path, 'r') as f:
     pj = json.load(f)
 PISE_VERSION = pj['version']
 
+plj_path = os.path.join(OUTER_DIR, 'client', 'package-lock.json')
+with open(plj_path, 'r') as f:
+    plj = json.load(f)
+MATHJAX_VERSION = plj['dependencies']['mathjax']['version']
+ELKJS_VERSION = plj['dependencies']['elkjs']['version']
+
 
 def format_url_prefix(raw):
     """
@@ -169,6 +175,18 @@ class Config:
     PROXY_FIX_PROTO = int(os.getenv("PROXY_FIX_PROTO", 0))
 
     # Static assets:
+
+    # Sphinx pages are served as static files. Therefore, when the server is
+    # operating in dynamic mode, it is critical that static files be served
+    # with `Cache-Control: no-cache` header. Since Flask also automatically
+    # gives them an accurate `Last-Modified` header, we are thereby able to
+    # rely on the "force revalidation" pattern
+    #   https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching#force_revalidation
+    # to ensure that the user always gets the most recently built versions.
+    # Setting `SEND_FILE_MAX_AGE_DEFAULT` to `None` gets us the `no-cache`
+    # header. Although this is the default value since Flask 2.0, we set it
+    # explicitly here, to make it clear that this is deliberate.
+    SEND_FILE_MAX_AGE_DEFAULT = None
 
     ISE_VERSION = PISE_VERSION
     ISE_SERVE_MINIFIED = bool(int(os.getenv("ISE_SERVE_MINIFIED", 0)))
@@ -309,7 +327,8 @@ class Config:
     # Optionally, the compiled forms of annos and deducs (their HTML and JSON),
     # and the source files for modules at numbered versions, may be stored in
     # the graph database, instead of in the build dir. The build dir is then
-    # not used at all, and `PFSC_BUILD_ROOT` (see below) need not be defined.
+    # still used for caching though, so `PFSC_BUILD_ROOT` (see below) still has
+    # to be defined.
     BUILD_IN_GDB = bool(int(os.getenv("BUILD_IN_GDB", 0)))
 
     PFSC_LIB_ROOT = os.getenv("PFSC_LIB_ROOT")

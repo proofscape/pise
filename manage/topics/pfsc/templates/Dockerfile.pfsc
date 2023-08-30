@@ -20,7 +20,7 @@
 RUN adduser --disabled-password --gecos "" pfsc \
  && sed -i -e "s/#alias ll=/alias ll=/" /home/pfsc/.bashrc \
  && sed -i -e "s%# \(export\|eval\|alias l\)%\1%" /root/.bashrc \
- && bash -c "mkdir -p /proofscape/{lib,build,graphdb/re,deploy,PDFLibrary}"
+ && bash -c "mkdir -p /proofscape/{lib,build/_sphinx,graphdb/re,deploy,PDFLibrary}"
 {% else %}
 RUN adduser -D pfsc \
  && mkdir /proofscape
@@ -57,12 +57,15 @@ RUN {{ 'venv/bin/pip' if use_venv else 'pip' }} install --no-deps -r requirement
 
 COPY pfsc-server/pfsc pfsc
 COPY pfsc-server/static static
+RUN ln -s /proofscape/build/html/_sphinx static/sphinx
+
 COPY pfsc-server/config.py ./
 COPY pfsc-server/web.py ./
 COPY pfsc-server/worker.py ./
 COPY pfsc-server/getg.py ./
 
 COPY pfsc-ise/package.json /home/pfsc/proofscape/src/client/
+COPY pfsc-ise/package-lock.json /home/pfsc/proofscape/src/client/
 
 {% if demos %}
 COPY pfsc-demo-repos /home/pfsc/demos

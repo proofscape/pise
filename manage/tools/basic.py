@@ -48,7 +48,7 @@ def makestruct(yes):
         log(f'Making directory {PFSC_ROOT}.')
         trymakedirs(PFSC_ROOT)
 
-    for name in "lib build PDFLibrary graphdb deploy/.ssl src/tmp".split():
+    for name in "lib build/cache build/html PDFLibrary graphdb deploy/.ssl src/tmp".split():
         path = os.path.join(PFSC_ROOT, name)
         if os.path.exists(path):
             log(f'Directory {path} already exists.')

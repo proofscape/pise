@@ -328,7 +328,7 @@ var Hub = declare(null, {
      * startup, and to terminate an existing worker and start up another.
      */
     restartMathWorker: function() {
-        document.querySelector('body').classList.remove('pyodideLoaded');
+        this.markPyodideLoadedInAllDocuments(false);
         let trueRestart = false;
         if (this.mathWorkerPeer) {
             trueRestart = true;
@@ -343,8 +343,33 @@ var Hub = declare(null, {
             this.mathWorkerPeer = info.peer;
             console.log('Math worker startup:', info.result);
             this.pyodidePackageInfo = info.result.pkginfo;
-            document.querySelector('body').classList.add('pyodideLoaded');
+            this.markPyodideLoadedInAllDocuments(true);
         });
+    },
+
+    pyodideIsLoaded: function() {
+        return document.body.classList.contains('pyodideLoaded');
+    },
+
+    markPyodideLoadedInAllDocuments: function(isLoaded) {
+        const docs = [document];
+        if (this.notesManager) {
+            const sphinxWindows = this.notesManager.getAllSphinxWindows();
+            for (const win of sphinxWindows) {
+                docs.push(win.document);
+            }
+        }
+        for (const doc of docs) {
+            this.markPyodideLoadedInDocument(doc, isLoaded);
+        }
+    },
+
+    markPyodideLoadedInDocument: function(doc, isLoaded) {
+        if (isLoaded) {
+            doc.body.classList.add('pyodideLoaded');
+        } else {
+            doc.body.classList.remove('pyodideLoaded');
+        }
     },
 
     /* Ping the math worker. Return true if answered, false if timeout.
@@ -904,6 +929,18 @@ var Hub = declare(null, {
         this.notesManager.setTheme(theme);
         // Store the new theme value.
         this.currentTheme = theme;
+
+        // Accommodation for Furo:
+        // As long as we can use Furo itself, i.e. can manage without needing our
+        // own custom fork thereof, we are better off in terms of maintenance burden.
+        // Because Furo's `base.html` template includes a script tag,
+        //    <script>
+        //       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+        //    </script>
+        // and because we don't want to risk any visible flicker before we have a chance
+        // to set the theme on a new Sphinx panel ourselves, we store the right value
+        // where Furo will find it:
+        localStorage.setItem("theme", theme);
     },
 
     /*
@@ -924,9 +961,13 @@ var Hub = declare(null, {
         query('#appLayout').removeClass(oldZoomClass).addClass(newZoomClass);
         // Store the new value.
         this.currentGlobalZoom = newZoomLevel;
-        // Ask the EditManager to update all editors.
+
+        // Ace Editor panels
         var fs = this.getCurrentEditorFontSize();
         this.editManager.setFontSize(fs);
+
+        // For Sphinx panels (old-style anno pages update automatically via global CSS):
+        this.notesManager.setZoom(newZoomLevel);
     },
 
     setAppUrlPrefix: function(prefix) {

@@ -18,22 +18,18 @@ import pytest
 
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.repo import RepoInfo, get_repo_info
-from pfsc.lang.modules import load_module, PathInfo, strip_comments
+from pfsc.lang.modules import (
+    load_module, PathInfo, strip_comments, remove_modules_from_disk_cache
+)
 from pfsc.lang.annotations import json_parser, PfscJsonTransformer
+from pfsc.lang.widgets import ChartWidget
+from pfsc.sphinx.pages import SphinxPage
+from pfsc.constants import WIP_TAG
 
 
 error = [
-    # (0) Duplicate definition within a Node
-    ("deduc Thm { exis E10 { intr I10 {} intr I10 {} } }", PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (1) Duplicate definition within a Node again
-    ('deduc Thm {  intr I { en = "foo" en = "bar"  }  }', PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (2) Duplicate definition within a Deduc
-    ('deduc Thm {  intr I { en = "foo" }  intr I { en = "bar" }  }', PECode.DUPLICATE_DEFINITION_IN_PFSC_MODULE),
-    # (3)
     ('deduc Thm { asrt C {} meson="C" } deduc Pf of Thm.A {}', PECode.TARGET_DOES_NOT_EXIST),
-    # (4)
     ('deduc Thm { asrt C {} meson="C" } deduc Pf of Thm {}', PECode.TARGET_OF_WRONG_TYPE),
-    # (5)
     ('deduc Thm1 { asrt C {} meson="C" }  deduc Thm2 { asrt C {} meson="C" }  deduc Pf of Thm1.C, Thm2.C {}', PECode.TARGETS_BELONG_TO_DIFFERENT_DEDUCS),
 ]
 @pytest.mark.parametrize(['pfsc_text', 'err_code'], error)
@@ -41,7 +37,8 @@ error = [
 def test_load_module_error(app, pfsc_text, err_code):
     with app.app_context():
         with pytest.raises(PfscExcep) as ei:
-            load_module('foo.dummy.path', text=pfsc_text)
+            mod = load_module('foo.dummy.path', text=pfsc_text)
+            mod.resolve()
         assert ei.value.code() == err_code
 
 
@@ -87,18 +84,35 @@ def test_parse(app):
         assert d_alp.lhs == r"$\alpha$"
 
 @pytest.mark.psm
-def test_cyclic_import_error(app):
+def test_no_cyclic_import_error(app):
     """
-    This test shows that we catch the case in which module
-    A imports something from module B, while module B also
+    This test shows that, FOR NOW at least, there is no error in the case in
+    which module A imports something from module B, while module B also
     imports something from module A.
+
+    In our old system, with early resolution, we detected this case and raised
+    a PECode.CYCLIC_IMPORT_ERROR. Having now moved to a system with separate
+    READ and RESOLVE phases, cyclic imports don't *have to* be an error.
+
+    However, they are still an odd case, and it remains to be seen whether we
+    should make them an error or not. If we wanted to detect them now, we
+    might do that in `pfsc.lang.modules.PfscModule.resolve()`, under an
+    `if self.resolving:` block.
+
+    The potential remaining problem is that, while the second module gets away
+    with importing an object from the first, that object is, as yet, unresolved.
+    As the second module proceeds with its own resolution, might something go
+    wrong as it attempts to *use* this "unsaturated" object?
+
+    It seems like some imports of this kind could be fine, while others could
+    be problematic, depending on the types of objects involved.
     """
     with app.app_context():
-        with pytest.raises(PfscExcep) as ei:
-            ri = get_repo_info('test.foo.bar')
-            ri.checkout('v6')
-            load_module('test.foo.bar.results', caching=0)
-        assert ei.value.code() == PECode.CYCLIC_IMPORT_ERROR
+        ri = get_repo_info('test.foo.bar')
+        ri.checkout('v6')
+        mod = load_module('test.foo.bar.results', caching=0)
+        mod.resolve()
+
 
 @pytest.mark.parametrize(['vers_num', 'err_code'], [
     (0, PECode.PLAIN_RELATIVE_IMPORT_MISSING_LOCAL_NAME),
@@ -128,10 +142,38 @@ def test_isolated_import_error(app, vers_num, err_code):
         with pytest.raises(PfscExcep) as ei:
             ri = get_repo_info('test.foo.imp')
             ri.checkout(vers)
-            load_module('test.foo.imp.A.B', caching=0)
+            mod = load_module('test.foo.imp.A.B', caching=0)
+            mod.resolve()
         print('\n', vers)
         print(ei.value)
         assert ei.value.code() == err_code
+
+
+@pytest.mark.psm
+def test_import_unbuilt_external_rst_module_at_wip(app):
+    """
+    Test that we can import from an rst module defined in another repo,
+    at WIP version, which has not been built yet (or anyway, which has no
+    pickle file).
+
+    What's special about this case is that it prompts a call to
+    `Builder.build()` from within the `load_module()` function.
+    """
+    with app.app_context():
+        # Purge pickle file, ensuring that the module has to be rebuilt.
+        remove_modules_from_disk_cache(['test.spx.doc0.index'], version=WIP_TAG)
+
+        ri = get_repo_info('test.foo.imp')
+        ri.checkout('v11')
+        mod = load_module('test.foo.imp.A.B', caching=0)
+        mod.resolve()
+
+        assert mod
+        ix = mod.get('doc0_index')
+        assert isinstance(ix, SphinxPage)
+        w0 = ix.get('w0')
+        assert isinstance(w0, ChartWidget)
+
 
 @pytest.mark.psm
 def test_import_submodule_through_self(app):
@@ -143,6 +185,7 @@ def test_import_submodule_through_self(app):
         ri = get_repo_info('test.foo.imp')
         ri.checkout('v10')
         mod = load_module('test.foo.imp.A.B', caching=0)
+        mod.resolve()
         assert mod['C.c'].typename == 'annotation'
 
 @pytest.mark.psm
@@ -154,8 +197,10 @@ def test_supp_alts_and_flse_contras(app):
     with app.app_context():
         ri = get_repo_info('test.foo.bar')
         ri.checkout('v7')
-        res = load_module('test.foo.bar.results', caching=0)
-        exp = load_module('test.foo.bar.expansions', caching=0)
+        cache = {}
+        res = load_module('test.foo.bar.results', cache=cache)
+        exp = load_module('test.foo.bar.expansions', cache=cache)
+        exp.resolve(cache=cache)
         assert res['Pf.F'].get_contras()[0]['en'] == "Suppose not C."
         assert res['Pf.T'].wolog
         assert res['Pf.Case1.S'].get_alternates().pop()['en'] == "The assumption of the second case."
@@ -243,6 +288,7 @@ def test_extended_json_syntax(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v11')
         mod = load_module('test.foo.bar.expansions', caching=0)
+        mod.resolve()
         print(mod['obj1'].rhs)
         obj1 = {'foo': ['bar', 3, True, False, None]}
         assert mod['obj1'].rhs == obj1
@@ -290,7 +336,8 @@ def test_empty_meson_script(app):
         ri = RepoInfo('test.foo.bar')
         ri.checkout('v15')
         with pytest.raises(PfscExcep) as ei:
-            load_module('test.foo.bar.results', caching=0)
+            mod = load_module('test.foo.bar.results', caching=0)
+            mod.resolve()
         assert ei.value.code() == PECode.DEDUCTION_DEFINES_NO_GRAPH
 
 
