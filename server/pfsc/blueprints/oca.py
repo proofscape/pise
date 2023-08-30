@@ -102,6 +102,9 @@ def latest_version():
                     x, y = 0, n
                 parts[-1] = x
                 parts.append(y)
+            elif len(parts) == 3:
+                # Plain version comes after any alphas or betas on same.
+                parts.extend([99, 0])
 
             int_parts_padded.append(([26, 0] + [int(n) for n in parts], name))
 
