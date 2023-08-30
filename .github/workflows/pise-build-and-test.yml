@@ -657,7 +657,7 @@ jobs:
             --mount 'type=volume,src=${{env.BUILD_VOLUME}},dst=/proofscape/build' \
             pise-server:${{ env.PISE_VERS }} \
             -c "cd ~/proofscape/lib; ls -l test/hist/lit; \
-                cd ~/proofscape/build; ls -l test/hist/lit/WIP;"
+                cd ~/proofscape/build/html; ls -l test/hist/lit/WIP;"
       # -----------------------------------------
       # Stop the MCA
       - name: Stop MCA
