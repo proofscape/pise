@@ -1,4 +1,4 @@
-## 0.28.0 (------)
+## 0.28.0 (230830)
 
 This version introduces major changes to the build system, the most
 visible of which is that you can now write `rst` files alongside `pfsc`
