@@ -19,6 +19,9 @@ Bug Fixes:
   ([#37](https://github.com/proofscape/pise/pull/37)).
 * Support forward references for doc label clones
   ([#38](https://github.com/proofscape/pise/pull/38)).
+* Resolve issues with internal links in Sphinx panels, ensuring location
+  updates are not reset by panel splits or rebuilds
+  ([#41](https://github.com/proofscape/pise/pull/41)).
 
 
 ## 0.28.0 (230830)
