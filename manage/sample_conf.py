@@ -199,7 +199,7 @@ APP_URL_PREFIX = None
 #
 # In `DOCKER_CMD` set the (basic) command name that is used for all Docker
 # operations (such as `docker build`, `docker run`, etc.). Depending on your
-# environment, you may need to substitute 'sudo docker' here.
+# environment (e.g. Ubuntu), you may need to substitute 'sudo docker' here.
 DOCKER_CMD = 'docker'
 # In `DOCKER_PLATFORM` you can specify your system's platform, so that the
 # correct images are used. Depending on your architecture, you may need to

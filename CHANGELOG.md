@@ -1,5 +1,11 @@
 ## next (------)
 
+Improvements:
+
+* Update management docs
+  ([#34](https://github.com/proofscape/pise/pull/34)).
+
+
 ## 0.28.0 (230830)
 
 This version introduces major changes to the build system, the most
