@@ -25,7 +25,7 @@ from pfsc.sphinx.widgets import (
     pfsc_block_widget, pfsc_inline_widget,
     visit_pfsc_widget_html, depart_pfsc_widget_html,
     PfscChartRole, PfscChartDirective,
-    PfscPdfWidgetRole, PfscPdfWidgetDirective,
+    PfscDocWidgetRole, PfscDocWidgetDirective,
     PfscDispWidgetDirective, PfscParamWidgetDirective,
     PfscQnAWidgetDirective,
 )
@@ -36,7 +36,7 @@ from pfsc.sphinx.vertex import VerTeX2TeX
 
 widgets = (
     ('chart', PfscChartRole, PfscChartDirective),
-    ('pdf', PfscPdfWidgetRole, PfscPdfWidgetDirective),
+    ('doc', PfscDocWidgetRole, PfscDocWidgetDirective),
     ('disp', None, PfscDispWidgetDirective),
     ('param', None, PfscParamWidgetDirective),
     ('qna', None, PfscQnAWidgetDirective),

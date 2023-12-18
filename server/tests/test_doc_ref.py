@@ -129,7 +129,7 @@ def test_doc_ref_assemble_2(app):
 def test_doc_ref_formats_1(app):
     """
     Test that doc refs can be made in various formats, both on nodes,
-    and in pdf widgets.
+    and in doc widgets.
     """
     with app.app_context():
         ri = get_repo_info('test.foo.doc')
@@ -170,7 +170,7 @@ def test_doc_ref_formats_1(app):
             for hld in refs
         )
 
-        # Getting widget uids for siids for pdf widgets:
+        # Getting widget uids for siids for doc widgets:
         assert refs[0]["siid"] == "test-foo-doc-results-Discussion-wFoo_WIP"
 
         # Clone widget has its own siid and slp, but also has expected osiid and oslp:

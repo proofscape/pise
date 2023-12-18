@@ -28,7 +28,7 @@ from pfsc.excep import PfscExcep
 
 class pfsc_inline_widget(nodes.General, nodes.Inline, nodes.Element):
     """
-    Proofscape widgets like Chart, Pdf, and others whose HTML form is
+    Proofscape widgets like Chart, Doc, and others whose HTML form is
     an inline element.
     """
 

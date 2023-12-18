@@ -16,12 +16,12 @@
 
 from docutils.parsers.rst.directives import unchanged
 
-from pfsc.lang.widgets import PdfWidget
+from pfsc.lang.widgets import DocWidget
 from pfsc.sphinx.widgets.nav_widgets import PfscNavWidgetRole
 from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
 
 
-class PfscPdfWidgetRole(PfscNavWidgetRole):
+class PfscDocWidgetRole(PfscNavWidgetRole):
     """
     Role syntax for doc widgets.
 
@@ -36,14 +36,14 @@ class PfscPdfWidgetRole(PfscNavWidgetRole):
 
         Compare :pfsc-doc:`the original proof <doc1#v2;s3;(1:1758:2666:400:200:100:50)>`.
     """
-    widget_class = PdfWidget
-    widget_type_name = 'pdf'
+    widget_class = DocWidget
+    widget_type_name = 'doc'
     target_field_name = 'sel'
 
 
-class PfscPdfWidgetDirective(PfscOneArgWidgetDirective):
+class PfscDocWidgetDirective(PfscOneArgWidgetDirective):
     """
-    Directive syntax for PDF widgets.
+    Directive syntax for doc widgets.
 
     Fields
     ======
@@ -65,7 +65,7 @@ class PfscPdfWidgetDirective(PfscOneArgWidgetDirective):
         field (see above) is undefined.
 
     """
-    widget_class = PdfWidget
+    widget_class = DocWidget
 
     label_required = True
 
