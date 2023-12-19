@@ -40,17 +40,17 @@ const ChartWidget = declare(NavWidget, {
         this.checkboxes = {};
     },
 
-    getInfoCopy: function() {
+    getInfoCopy: function getInfoCopy() {
         // Start with a deep copy, as in the basic Widget class.
-        var copy = this.inherited(arguments);
+        var copy = this.inherited(getInfoCopy, arguments);
         // Set self as study manager, if there are any checkbox settings.
         if (copy.checkboxes) copy.studyManager = this;
         return copy;
     },
 
-    activate: function(wdq, uid, nm, pane) {
+    activate: function activate(wdq, uid, nm, pane) {
         // Let our superclass set up the click handler.
-        this.inherited(arguments);
+        this.inherited(activate, arguments);
         // If we have hovercolor, set that up.
         const info = this.origInfo;
         if (info.hovercolor) {
@@ -89,9 +89,9 @@ const ChartWidget = declare(NavWidget, {
         }
     },
 
-    updateInfo: function(newInfo) {
+    updateInfo: function updateInfo(newInfo) {
         // Begin by updating both our `origInfo` and `liveInfo` fields, as in the base class.
-        this.inherited(arguments);
+        this.inherited(updateInfo, arguments);
         // Now update checkboxes.
         var cbInfo = this.liveInfo.checkboxes;
         if (!cbInfo) {

@@ -16,6 +16,7 @@
 
 import { softwareTableRows } from "../piseAboutDialogContents";
 const makeSoftwareTableRow = require('../dialog');
+import { util as iseUtil } from "../util";
 
 define([
     "dojo/_base/declare",
@@ -32,7 +33,6 @@ define([
     "dijit/DropDownMenu",
     "dijit/MenuSeparator",
     "dijit/ConfirmDialog",
-    "ise/util",
     "ise/errors"
 ], function(
     declare,
@@ -49,7 +49,6 @@ define([
     DropDownMenu,
     MenuSeparator,
     ConfirmDialog,
-    iseUtil,
     pfscErrors
 ){
 

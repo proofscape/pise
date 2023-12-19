@@ -16,22 +16,20 @@
 
 const dojo = {};
 const ise = {};
+import { util as iseUtil } from "../util";
 
 define([
     "dijit/Menu",
     "dijit/MenuItem",
-    "ise/content_types/pdf/pdf_util",
-    "ise/util"
+    "ise/content_types/pdf/pdf_util"
 ], function(
     Menu,
     MenuItem,
-    pdf_util,
-    iseUtil
+    pdf_util
 ) {
     dojo.Menu = Menu;
     dojo.MenuItem = MenuItem;
     ise.pdf_util = pdf_util;
-    ise.util = iseUtil;
 });
 
 /* This module solves the problem of multiple, intersecting highlights on a
@@ -71,7 +69,7 @@ export class Highlight {
     constructor(documentController, highlightDescriptor) {
         this.documentController = documentController;
         this.highlightDescriptorsBySlp = new Map();
-        this.highlightId = ise.util.extractOriginalHlidFromHlDescriptor(highlightDescriptor);
+        this.highlightId = iseUtil.extractOriginalHlidFromHlDescriptor(highlightDescriptor);
         this.depthsByPageNum = new Map();
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
@@ -289,7 +287,7 @@ export class Highlight {
             const hl = this;
             for (const hdo of this.highlightDescriptorsBySlp.values()) {
                 (hdo => {
-                    const hlid = ise.util.extractHlidFromHlDescriptor(hdo);
+                    const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
                     menu.addChild(new dojo.MenuItem({
                         // TODO: improve label
                         //  Should be human readable description

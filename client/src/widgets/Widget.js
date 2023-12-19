@@ -14,22 +14,22 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "dijit/layout/ContentPane",
     "dijit/Menu",
     "dijit/MenuItem",
     "dijit/PopupMenuItem",
-    "dijit/MenuSeparator",
-    "ise/util",
+    "dijit/MenuSeparator"
 ], function(
     declare,
     ContentPane,
     Menu,
     MenuItem,
     PopupMenuItem,
-    MenuSeparator,
-    iseUtil,
+    MenuSeparator
 ) {
 
 var Widget = declare(null, {

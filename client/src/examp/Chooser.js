@@ -14,14 +14,14 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
-    "dojo/query",
-    "ise/util",
+    "dojo/query"
 ], function(
     declare,
-    query,
-    iseUtil
+    query
 ) {
 
 /* Chooser base class

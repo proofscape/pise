@@ -16,8 +16,8 @@
 
 import { TreeManager } from "./TreeManager";
 import { dragulaWithContentPanelOverlays } from "../content_types/dnd";
+import { util as iseUtil } from "../util";
 
-const ise = {};
 const dojo = {};
 
 define([
@@ -27,7 +27,6 @@ define([
     "dijit/MenuItem",
     "dijit/PopupMenuItem",
     "dijit/layout/ContentPane",
-    "ise/util",
     "dojo/NodeList-traverse",
     "dojo/NodeList-manipulate",
 ], function(
@@ -36,8 +35,7 @@ define([
     MenuSeparator,
     MenuItem,
     PopupMenuItem,
-    ContentPane,
-    iseUtil,
+    ContentPane
 ) {
     dojo.query = query;
     dojo.domConstruct = domConstruct;
@@ -45,7 +43,6 @@ define([
     dojo.MenuItem = MenuItem;
     dojo.PopupMenuItem = PopupMenuItem;
     dojo.ContentPane = ContentPane;
-    ise.util = iseUtil;
 });
 
 // We make use of these in managing drag-and-drop:
@@ -149,7 +146,7 @@ export class BuildTreeManager extends TreeManager {
      *   by `ManifestTreeNode.build_relational_model` in `build.py` at the back-end.
      */
     loadTree({repopath, version, model}) {
-        const repopathv = ise.util.lv(repopath, version);
+        const repopathv = iseUtil.lv(repopath, version);
         if (this.repoIsOpen(repopathv)) return;
         const hub = this.hub;
         const mgr = this;
@@ -276,7 +273,7 @@ export class BuildTreeManager extends TreeManager {
         cm.destroyDescendants();
 
         const tsHome = dojo.domConstruct.create("div");
-        ise.util.addTailSelector(tsHome, item.libpath.split('.'));
+        iseUtil.addTailSelector(tsHome, item.libpath.split('.'));
         cm.addChild(new dojo.PopupMenuItem({
             label: 'Copy libpath',
             popup: new dojo.ContentPane({
@@ -386,7 +383,7 @@ export class BuildTreeManager extends TreeManager {
             }
         }
 
-        if (ise.util.libpathIsRemote(item.libpath)) {
+        if (iseUtil.libpathIsRemote(item.libpath)) {
             let modpath = item.libpath;
             let sourceRow = null;
             let modIsTerm;
@@ -400,13 +397,13 @@ export class BuildTreeManager extends TreeManager {
                 const parentItem = treeNode.tree.model.store.get(item.parent);
                 modIsTerm = parentItem.isTerminal;
             }
-            const url = ise.util.libpath2remoteHostPageUrl(modpath, version, false, sourceRow, modIsTerm);
+            const url = iseUtil.libpath2remoteHostPageUrl(modpath, version, false, sourceRow, modIsTerm);
             const host = modpath.startsWith('gh.') ? 'GitHub' : 'BitBucket';
             cm.addChild(new dojo.MenuSeparator());
             cm.addChild(new dojo.MenuItem({
                 label: `<span title="${url} (opens in new tab)">View at ${host}</span>`,
                 onClick: function(){
-                    ise.util.openInNewTab(url);
+                    iseUtil.openInNewTab(url);
                 }
             }));
         }
@@ -431,8 +428,8 @@ export class BuildTreeManager extends TreeManager {
      * retrieve the root item for that tree.
      */
     getRootItemForMemberLibpathAndVersion(libpath, version) {
-        const repopath = ise.util.getRepoPart(libpath);
-        const treeUid = ise.util.lv(repopath, version);
+        const repopath = iseUtil.getRepoPart(libpath);
+        const treeUid = iseUtil.lv(repopath, version);
         const store = this.stores.get(treeUid);
         return store.query({id: repopath})[0];
     }
@@ -442,8 +439,8 @@ export class BuildTreeManager extends TreeManager {
      * return: the tree item, or undefined if could not be found
      */
     getItemByLibpathAndVersion(libpath, version) {
-        const repopath = ise.util.getRepoPart(libpath);
-        const treeUid = ise.util.lv(repopath, version);
+        const repopath = iseUtil.getRepoPart(libpath);
+        const treeUid = iseUtil.lv(repopath, version);
         const store = this.stores.get(treeUid);
         return store?.query({id: libpath})[0];
     }
@@ -455,8 +452,8 @@ export class BuildTreeManager extends TreeManager {
      * @return: array of items
      */
     getAllDescendantsByLibpathAndVersion(libpath, version) {
-        const repopath = ise.util.getRepoPart(libpath);
-        const treeUid = ise.util.lv(repopath, version);
+        const repopath = iseUtil.getRepoPart(libpath);
+        const treeUid = iseUtil.lv(repopath, version);
         return this.getAllDescendants(treeUid, libpath);
     }
 

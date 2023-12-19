@@ -28,9 +28,9 @@ const PdfWidget = declare(NavWidget, {
 
     // Methods
 
-    activate: function(wdq, uid, nm, pane) {
+    activate: function activate(wdq, uid, nm, pane) {
         // Let our superclass set up the click handler.
-        this.inherited(arguments);
+        this.inherited(activate, arguments);
     },
 
 });

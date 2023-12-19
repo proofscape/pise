@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "dojo/on",
@@ -23,8 +25,7 @@ define([
     "dijit/layout/TabContainer",
     "dijit/Menu",
     "dijit/MenuItem",
-    "dijit/PopupMenuItem",
-    "ise/util"
+    "dijit/PopupMenuItem"
 ], function(
     declare,
     dojoOn,
@@ -34,8 +35,7 @@ define([
     TabContainer,
     Menu,
     MenuItem,
-    PopupMenuItem,
-    iseUtil
+    PopupMenuItem
 ) {
 
 const StudyManager = declare(null, {

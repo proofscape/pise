@@ -18,20 +18,19 @@ import { xhr, enrichXhrParams } from "browser-peers/src/util";
 import { DedicatedWorkerPeer } from "browser-peers/src/dedworkerpeer";
 import { ContentLoadTask } from "./delayed";
 const otherVersions = require('../other-versions.json');
+import { util as iseUtil } from "./util";
 
 
 define([
     "dojo/_base/declare",
     "dojo/query",
     "dijit/Dialog",
-    "dijit/ConfirmDialog",
-    "ise/util"
+    "dijit/ConfirmDialog"
 ], function(
     declare,
     query,
     Dialog,
-    ConfirmDialog,
-    iseUtil
+    ConfirmDialog
 ){
 
 /* The Hub class provides a central connection point, where the various

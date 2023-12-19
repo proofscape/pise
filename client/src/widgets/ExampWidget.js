@@ -14,15 +14,15 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "ise/widgets/Widget",
-    "ise/util",
     "ise/errors",
 ], function(
     declare,
     Widget,
-    iseUtil,
     iseErrors
 ) {
 
@@ -72,8 +72,8 @@ const ExampWidget = declare(Widget, {
         return this.descendants.has(uid);
     },
 
-    updateInfo: function(newInfo) {
-        this.inherited(arguments);
+    updateInfo: function updateInfo(newInfo) {
+        this.inherited(updateInfo, arguments);
         this.setupDependencyRelations();
     },
 

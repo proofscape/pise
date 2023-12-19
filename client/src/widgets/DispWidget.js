@@ -20,14 +20,14 @@ require("ace-builds/src-noconflict/theme-tomorrow.js");
 require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
-    "ise/widgets/ExampWidget",
-    "ise/util",
+    "ise/widgets/ExampWidget"
 ], function(
     declare,
-    ExampWidget,
-    iseUtil
+    ExampWidget
 ) {
 
 const DispWidget = declare(ExampWidget, {
@@ -82,8 +82,8 @@ const DispWidget = declare(ExampWidget, {
         this.editorsByPaneId.set(pane.id, editors);
     },
 
-    activate: function(wdq, uid, nm, pane) {
-        this.inherited(arguments);
+    activate: function activate(wdq, uid, nm, pane) {
+        this.inherited(activate, arguments);
         const activation = this.activationByPaneId.get(pane.id);
         activation.then(() => {
             // Procede only if the pane still exists. It could have been closed while waiting
@@ -344,8 +344,8 @@ const DispWidget = declare(ExampWidget, {
         }
     },
 
-    noteClosingPane: function(pane) {
-        this.inherited(arguments);
+    noteClosingPane: function noteClosingPane(pane) {
+        this.inherited(noteClosingPane, arguments);
         const paneId = pane.id;
 
         this.destroyEditors(paneId);

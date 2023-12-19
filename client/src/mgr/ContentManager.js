@@ -18,6 +18,7 @@
 // in the ContentPanes in the Proofscape ISE app.
 
 import { v4 as uuid4 } from 'uuid';
+import { util as iseUtil } from "../util";
 
 define([
     "dojo/_base/declare",
@@ -29,7 +30,6 @@ define([
     "dijit/PopupMenuItem",
     "dijit/MenuSeparator",
     "dijit/layout/ContentPane",
-    "ise/util",
     "dojo/NodeList-dom",
     "dojo/NodeList-manipulate"
 ], function(
@@ -41,8 +41,7 @@ define([
     MenuItem,
     PopupMenuItem,
     MenuSeparator,
-    ContentPane,
-    iseUtil
+    ContentPane
 ) {
 
 // ContentManager class
