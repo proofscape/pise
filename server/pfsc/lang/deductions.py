@@ -383,18 +383,22 @@ class Deduction(Enrichment, NodeLikeObj):
         self.resolveComparisons()
 
     def resolveDocRefs(self):
-        default_doc_info = self.get('docInfo', lazy_load=False)
-        if default_doc_info is not None and not isinstance(default_doc_info, dict):
-            # It will be a common error to pass a string here, instead of a libpath,
-            # which would resolve to an actual doc info dictionary.
-            msg = f'docInfo in deduc "{self.libpath}" should be a dictionary'
-            raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
+        default_doc_info = self.get_default_doc_info()
 
         def visit(item):
             if isinstance(item, Node):
                 item.resolveDocRefs(default_doc_info)
 
         self.recursiveItemVisit(visit)
+
+    def get_default_doc_info(self):
+        default_doc_info = self.get('docInfo', lazy_load=False)
+        if default_doc_info is not None and not isinstance(default_doc_info, dict):
+            # It will be a common error to pass a string here, instead of a libpath,
+            # which would resolve to an actual doc info dictionary.
+            msg = f'docInfo in deduc "{self.libpath}" should be a dictionary'
+            raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
+        return default_doc_info
 
     def find_rdefs(self):
         """
@@ -983,6 +987,13 @@ class Node(NodeLikeObj):
                 code=ref_text, doc_info_obj=default_doc_info, context=mod)
 
     def getDocRef(self):
+        if self.get('doc') and not self.docReference:
+            # This case can arise if an anno is declared *before* a deduc in a module,
+            # and the anno wants to clone one of the deduc's doc labels.
+            # The deduc will be doing its own resolving of doc refs later, but the operation
+            # is idempotent, so it doesn't hurt anything to do this node now.
+            default_doc_info = self.getDeduction().get_default_doc_info()
+            self.resolveDocRefs(default_doc_info)
         return self.docReference or None
 
     def listNativeNodesByLibpath(self, nodelist):

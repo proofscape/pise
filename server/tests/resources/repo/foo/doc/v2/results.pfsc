@@ -63,4 +63,24 @@ Next let's make
 libpath, and this is interpreted to mean that we want exactly the same
 selection made by the doc reference on that node. Because the node already
 specified the doc, we do not need a `doc` field here.
+
+We also want to test that we can make
+<doc:>[a "forward" clone reference]{
+    sel: X1.A1
+}, meaning that we can clone from a node that is defined *after* this annotation, in
+the same module.
 @@@
+
+
+deduc X1 of Pf.S {
+
+    docInfo=doc1
+
+    asrt A1 {
+        en = "Something that helps to clarify."
+
+        doc = "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)"
+    }
+
+    meson = "Pf.S by A1 and Pf.R."
+}

@@ -14,6 +14,8 @@ Bug Fixes:
 
 * Make Sphinx doc widgets properly accept libpaths for `sel` field
   ([#37](https://github.com/proofscape/pise/pull/37)).
+* Support forward references for doc label clones
+  ([#38](https://github.com/proofscape/pise/pull/38)).
 
 
 ## 0.28.0 (230830)
