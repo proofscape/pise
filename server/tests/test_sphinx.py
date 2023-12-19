@@ -488,7 +488,7 @@ PAGE_D_PAGE_DATA = {
     "widgets": {
         "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0": {
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-            "type": "DOC",
+            "type": "PDF",
             "src_line": 35,
             "widget_libpath": "test.spx.doc1.foo.pageD._page._w0",
             "uid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
@@ -501,7 +501,7 @@ PAGE_D_PAGE_DATA = {
         "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0": {
             "alt": "wDirDoc1: a directive doc widget",
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-            "type": "DOC",
+            "type": "PDF",
             "src_line": 40,
             "widget_libpath": "test.spx.doc1.foo.pageD._page.wDirDoc1",
             "uid": "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",

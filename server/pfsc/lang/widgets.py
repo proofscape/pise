@@ -19,6 +19,7 @@ import re, json
 from markupsafe import escape, Markup
 import jinja2
 
+from pfsc.checkinput.doc import DocIdType
 from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
@@ -598,6 +599,11 @@ def set_up_hovercolor(hc):
     }
 
 
+DOC_ID_TYPE_TO_CLIENTSIDE_CONTENT_TYPE = {
+    DocIdType.PDF_FINGERPRINT_ID_TYPE: "PDF",
+}
+
+
 class DocWidget(NavWidget):
     """
     A Widget class for controlling document panes (PDF etc.).
@@ -669,6 +675,15 @@ class DocWidget(NavWidget):
         doc_id = doc_info[doc_id_field_name]
         self.data[doc_id_field_name] = doc_id
         self.set_pane_group(subtype=doc_id)
+
+        # `type` field
+        # For use by the client, we need the `type` field in the data object for this widget
+        # to indicate the *content* type ("PDF", etc.), not the *widget* type ("DOC").
+        id_type = self.docReference.id_type
+        content_type = DOC_ID_TYPE_TO_CLIENTSIDE_CONTENT_TYPE.get(id_type)
+        if not content_type:
+            raise PfscExcep(f"Unknown doc ID type: {id_type}", PECode.MALFORMED_DOC_ID)
+        self.data["type"] = content_type
 
         # Do we define a doc highlight?
         if (cc := self.docReference.combiner_code) is not None:

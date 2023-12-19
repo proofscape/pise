@@ -207,7 +207,7 @@ const MenuManager = declare(null, {
         this.rhMenuBar.addChild(this.viewMenuPopup);
 
         this.pdfMenuPopup = new PopupMenuBarItem({
-            label: "PDF",
+            label: "Doc",
             popup: this.pdfMenu
         });
         this.rhMenuBar.addChild(this.pdfMenuPopup);
@@ -1083,7 +1083,7 @@ const MenuManager = declare(null, {
 
         // Clear mem cache
         this.pdfOpt_ClearMemCache = new MenuItem({
-            label: 'Clear in-memory cache',
+            label: 'Clear in-memory PDF cache',
             onClick: function(evt) {
                 mgr.hub.pdfManager.clearPdfCache();
                 console.log('PDF mem cache cleared.');
