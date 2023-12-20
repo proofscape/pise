@@ -1,0 +1,37 @@
+/* Styling for highlight context menus */
+
+ul.context-menu-list {
+    background: #fff;
+}
+
+li.context-menu-item {
+    background: #fff;
+    color: #222;
+    font-weight: bold;
+}
+
+li.context-menu-item.context-menu-hover {
+    background: #ccc;
+    color: #222;
+    font-weight: bold;
+}
+
+.htViewer li.context-menu-item {
+    font-size: small;
+}
+
+.themeDark ul.context-menu-list {
+    background: #222;
+}
+
+.themeDark li.context-menu-item {
+    background: #222;
+    color: #ddd;
+    font-weight: bold;
+}
+
+.themeDark li.context-menu-item.context-menu-hover {
+    background: #444;
+    color: #ddd;
+    font-weight: bold;
+}

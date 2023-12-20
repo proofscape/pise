@@ -14,6 +14,11 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+const $ = require('jquery');
+require('jquery-contextmenu/dist/jquery.contextMenu')
+require('jquery-contextmenu/dist/jquery.ui.position')
+require('jquery-contextmenu/dist/jquery.contextMenu.css')
+import { v4 as uuid4 } from 'uuid';
 const dojo = {};
 const ise = {};
 import { util as iseUtil } from "../util";
@@ -63,6 +68,27 @@ define([
  * application!) on events like `mouseover` that can happen many times in rapid succession.
  */
 
+
+/* Define a custom command type, "pfscHlSupplier", for use with the jQuery contextMenu plugin.
+ */
+$.contextMenu.types.pfscHlSupplier = function(item, opt, root) {
+    $('<span>' + item.name + '</span>').appendTo(this);
+    this.on('mouseover', function(e) {
+        // Grab the custom fields we store in the item, being the
+        // `HighlightLowerHalf` instance (`pfscHl`), and the HDO ('pfscHdo').
+        const hl = item.pfscHl;
+        const hdo = item.pfscHdo;
+        const event = e.originalEvent;
+        hl.handleMouseEvent(event, hdo);
+    }).on('mouseout', function(e) {
+        const hl = item.pfscHl;
+        const hdo = item.pfscHdo;
+        const event = e.originalEvent;
+        hl.handleMouseEvent(event, hdo);
+    });
+};
+
+
 // A collection of boxes, potentially spanning multiple pages.
 export class Highlight {
     
@@ -74,10 +100,6 @@ export class Highlight {
         this.selectionBoxesByPageNum = new Map();
         this.refinedRegionsByPageNum = new Map();
         this.zoneDivsByPageNum = new Map();
-        this.supplierMenu = new dojo.Menu({
-            leftClickToOpen: true,
-            disabled: true,
-        });
 
         this.addSupplier(highlightDescriptor);
 
@@ -102,6 +124,10 @@ export class Highlight {
             this.depthsByPageNum.set(p, depths[p - p0] || 0);
         }
 
+    }
+
+    get currentSupplierHdos() {
+        return Array.from(this.highlightDescriptorsBySlp.values());
     }
 
     // Add a new supplier, by its highlight descriptor.
@@ -158,8 +184,6 @@ export class Highlight {
     // Dump all existing graphical elements for a single given page.
     clearGraphicalElementsForPage(pageNum) {
         this.refinedRegionsByPageNum.set(pageNum, []);
-        const div = this.zoneDivsByPageNum.get(pageNum);
-        this.supplierMenu.unBindDomNode(div);
         this.zoneDivsByPageNum.delete(pageNum);
     }
 
@@ -278,41 +302,19 @@ export class Highlight {
     }
 
     // Redo the supplier menu, based on our latest set of suppliers.
+    // Note: The method name is now a bit misleading. Originally, we actually rebuilt a menu
+    //  object at this time. Now we just record new info that will be used when the menu is
+    //  opened, at which time it is also reconstructed.
     redoSupplierMenu() {
-        const menu = this.supplierMenu;
-        const n = this.getSupplierCount();
-        menu.set('disabled', n < 2);
-        menu.destroyDescendants();
-        if (n >= 2) {
-            const hl = this;
-            for (const hdo of this.highlightDescriptorsBySlp.values()) {
-                (hdo => {
-                    const hlid = iseUtil.extractHlidFromHlDescriptor(hdo);
-                    menu.addChild(new dojo.MenuItem({
-                        // TODO: improve label
-                        //  Should be human readable description
-                        label: hlid,
-                        onClick: function(event) {
-                            hl.registerClick(event);
-                            hl.handleMouseEvent(event, hdo);
-                        },
-                        onMouseOver: function(event) {
-                            hl.handleMouseEvent(event, hdo);
-                        },
-                        onMouseOut: function(event) {
-                            hl.handleMouseEvent(event, hdo);
-                        },
-                    }));
-                })(hdo);
-            }
-        }
+        const hdos = this.currentSupplierHdos;
+        const n = hdos.length;
+        this.supplierMenuDisabled = (n < 2);
         // Since number of suppliers may have changed, need to reassess multi class.
-        this.setZoneDivMultiClass();
+        this.setZoneDivMultiClass(n);
     }
 
     // Based on number of suppliers, set multi class on zone divs.
-    setZoneDivMultiClass() {
-        const n = this.getSupplierCount();
+    setZoneDivMultiClass(n) {
         if (n >= 2) {
             for (const zoneDiv of this.zoneDivsByPageNum.values()) {
                 zoneDiv.classList.add('hl-multi');
@@ -327,41 +329,131 @@ export class Highlight {
     // Build the div that will represent our zone on a given page graphically,
     // and will receive mouse events.
     buildZoneDiv(pageNum) {
-        const div = document.createElement('div');
+        const windowDocument = this.documentController.contentWindow.document;
+        const div = windowDocument.createElement('div');
+        div.setAttribute('id', `hl-zone-${uuid4()}`);
         div.classList.add('hl-zone');
         for (const region of this.refinedRegionsByPageNum.get(pageNum) || []) {
-            div.appendChild(region.buildDiv());
+            div.appendChild(region.buildDiv(windowDocument));
         }
 
         div.addEventListener('mouseover', event => {
             this.setTempColor(true, 0);
-            const hdo = this.getSingletonSupplier();
-            if (hdo) {
-                this.handleMouseEvent(event, hdo);
-            }
+            this.handleMouseEvent(event, null);
         });
         div.addEventListener('mouseout', event => {
             this.setTempColor(false, 0);
-            const hdo = this.getSingletonSupplier();
-            if (hdo) {
-                this.handleMouseEvent(event, hdo);
-            }
+            this.handleMouseEvent(event, null);
         });
         div.addEventListener('click', event => {
-            const hdo = this.getSingletonSupplier();
-            if (hdo) {
+            if (this.supplierMenuDisabled) {
                 this.registerClick(event);
-                this.handleMouseEvent(event, hdo);
             }
+            this.handleMouseEvent(event, null);
         });
-
-        this.supplierMenu.bindDomNode(div);
 
         this.zoneDivsByPageNum.set(pageNum, div);
         // Since zone may have been constructed after last call to redoSupplierMenu,
         // this is another place where we must reassess use of the multi class.
-        this.setZoneDivMultiClass();
+        const numSuppliers = this.currentSupplierHdos.length
+        this.setZoneDivMultiClass(numSuppliers);
+
+        this.registerContextMenu(pageNum);
+
         return div;
+    }
+
+    registerContextMenu(pageNum) {
+        const zoneDiv = this.zoneDivsByPageNum.get(pageNum);
+        const divId = zoneDiv.getAttribute('id');
+
+        // Store a ref to the Highlight instance on the zone div:
+        const hlDataAttrName = 'pfsc-venn-hl';
+        $(zoneDiv).data(hlDataAttrName, this);
+
+        $.contextMenu({
+            itemClickEvent: 'click',
+            selector: `#${divId}`,
+            trigger: 'left',
+            // The `context` has to be (an array whose first element is) the `document` where the `zoneDiv` lives.
+            // Otherwise, I found that the menu won't even trigger on click.
+            // If we're running this code in the iframe where that document lives,
+            // then there's no need to set it explicitly; but, if
+            // we're running this code in the surrounding, top-level window, as we currently
+            // do for PDF docs, then we have to explicitly set the `context`:
+            context: [zoneDiv.ownerDocument],
+            build: function(triggerElement, e){
+                // Retrieve Highlight instance from zone div:
+                const hl = triggerElement.data(hlDataAttrName);
+                if (hl.supplierMenuDisabled) {
+                    // Returning `false` means: don't open context menu.
+                    //   https://swisnl.github.io/jQuery-contextMenu/docs.html#build
+                    return false;
+                }
+
+                // Offset adjustment hack
+                // This is only needed for cases where this code is running outside the iframe
+                // where the document lives, as we currently do for PDFs.
+                //
+                // In those cases, we add the displacement [dx, dy] of the iframe from the outer
+                // document to the click location recorded in [e.pageX, e.pageY], which represents an
+                // offset *within* the iframe. Because the menu is then drawn relative to the outer
+                // document, this results in it being placed where the user clicked.
+                //
+                // In cases where this code is running inside the iframe where the document lives,
+                // this call should return [0, 0], and thus have no effect.
+                const [dx, dy] = hl.documentController.getContextMenuOffsetAdjustment();
+                e.pageX += dx;
+                e.pageY += dy;
+
+                const items = {};
+                const hdos = hl.currentSupplierHdos;
+                let n = 0;
+                for (const hdo of hdos) {
+                    (hdo => {
+                        n++;
+
+                        let label = {
+                            NOTES: "Anno page",
+                            CHART: "Chart",
+                            SPHINX: "Sphinx page",
+                        }[hdo.stype] || "";
+                        if (label.length > 0) {
+                            label += ": ";
+                        }
+                        label += hdo.slp;
+
+                        const itemKey = `supplier${n}`;
+                        items[itemKey] = {
+                            // Use the custom 'pfscHlSupplier' command type we defined earlier.
+                            type: 'pfscHlSupplier',
+                            name: label,
+                            callback: (itemKey, opt, e) => {
+                                const event = e.originalEvent;
+                                hl.registerClick(event);
+                                hl.handleMouseEvent(event, hdo);
+                            },
+                            // Storing the hdo and hl in the item allows the custom 'pfscHlSupplier'
+                            // command type to handle the mouseover/mouseout events.
+                            pfscHdo: hdo,
+                            pfscHl: hl,
+                        };
+                    })(hdo);
+                }
+
+                return {
+                    // This callback should never actually engage; it's just the fallback if
+                    // one of our items doesn't have its own callback, but they all (currently) do.
+                    // Keeping here because could be useful if/when experimenting with new
+                    // item types.
+                    callback: function(itemKey, opt){
+                        console.log(itemKey);
+                        console.log(opt);
+                    },
+                    items: items
+                };
+            }
+        });
     }
 
     registerClick(event) {
@@ -373,7 +465,7 @@ export class Highlight {
 
     handleMouseEvent(event, hdo) {
         this.documentController.handleHighlightMouseEvent(
-            event, hdo
+            this.highlightId, event, hdo
         );
     }
 
@@ -422,8 +514,8 @@ class Region {
         }, 0);
     }
 
-    buildDiv() {
-        const div = document.createElement('div');
+    buildDiv(windowDocument) {
+        const div = windowDocument.createElement('div');
         div.classList.add('hl-region');
         div.style.left = this.x + 'px';
         div.style.width = (this.X - this.x) + 'px';
