@@ -911,7 +911,7 @@ var PdfController = declare(null, {
                                 }
                             }
                         }
-                    })
+                    }, {requireHighlightLayer: true});
                 }
             }
         }
@@ -1307,6 +1307,10 @@ var PdfController = declare(null, {
      * param operation: the function that carries out the desired operation.
      *   Should accept a single argument, being a PDFPageView instance representing
      *   the rendered page.
+     * param options: {
+     *   requireHighlightLayer: Set true to require that the highlight layer be
+     *     present, before we will say that a page is rendered. Default false.
+     * }
      *
      * Note that if the page is not currently rendered AND we do not want to autoscroll,
      * then the operation will not be performed.
@@ -1314,14 +1318,18 @@ var PdfController = declare(null, {
      * return: a promise that resolves when we are through with everything we
      *   wanted to do.
      */
-    operateOnRenderedPage: function(pageNumber, doAutoScroll, operation) {
+    operateOnRenderedPage: function(pageNumber, doAutoScroll, operation, options) {
+        const {
+            requireHighlightLayer = false,
+        } = options || {};
         var pageIdx = pageNumber - 1;
         var view = this.viewer.getPageView(pageIdx);
         var ctrl = this;
         function performScroll() {
             ctrl.viewer.scrollPageIntoView({pageNumber: pageNumber});
         }
-        if (!view.canvas || !view.textLayer) {
+        const hlNotOkay = !!requireHighlightLayer && !view.div.querySelector('.highlightLayer');
+        if (!view.canvas || !view.textLayer || hlNotOkay) {
             // The page isn't rendered yet.
             if (doAutoScroll) {
                 var renderPage = new Promise((resolve, reject) => {

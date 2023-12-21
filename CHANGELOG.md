@@ -26,6 +26,8 @@ Bug Fixes:
   ([#41](https://github.com/proofscape/pise/pull/41)).
 * Make Sphinx panels become the active tab, upon internal click
   ([#42](https://github.com/proofscape/pise/pull/42)).
+* Repair load-and-nav operation for PDF panels
+  ([#44](https://github.com/proofscape/pise/pull/44)).
 
 
 ## 0.28.0 (230830)
