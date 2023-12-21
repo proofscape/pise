@@ -22,6 +22,8 @@ Bug Fixes:
 * Resolve issues with internal links in Sphinx panels, ensuring location
   updates are not reset by panel splits or rebuilds
   ([#41](https://github.com/proofscape/pise/pull/41)).
+* Make Sphinx panels become the active tab, upon internal click
+  ([#42](https://github.com/proofscape/pise/pull/42)).
 
 
 ## 0.28.0 (230830)

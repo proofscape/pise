@@ -146,6 +146,15 @@ export class SphinxViewer extends BasePageViewer {
             this.observeLocationChange();
         });
 
+        // We want click events happening inside the iframe to bubble up out of the frame,
+        // so that the tab becomes active in PISE, when clicks take place inside of it.
+        this.cw.document.body.addEventListener('click', event => {
+            // Need a new event object, since the browser won't let you dispatch one that
+            // is already being dispatched.
+            const newEvent = new event.constructor(event.type, event);
+            this.iframe.dispatchEvent(newEvent);
+        });
+
         const hub = this.mgr.hub;
         hub.markPyodideLoadedInDocument(this.cw.document, hub.pyodideIsLoaded());
 
