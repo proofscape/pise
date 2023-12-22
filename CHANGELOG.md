@@ -28,6 +28,8 @@ Bug Fixes:
   ([#42](https://github.com/proofscape/pise/pull/42)).
 * Repair load-and-nav operation for PDF panels
   ([#44](https://github.com/proofscape/pise/pull/44)).
+* Make doc panels enter enrichments mode before auto-navigating to highlights
+  ([#45](https://github.com/proofscape/pise/pull/45)).
 
 
 ## 0.28.0 (230830)
