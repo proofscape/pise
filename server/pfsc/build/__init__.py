@@ -84,7 +84,7 @@ from pfsc.lang.annotations import Annotation
 from pfsc.lang.deductions import Deduction, Node, GhostNode
 from pfsc.lang.widgets import GoalWidget
 from pfsc.sphinx.pages import (
-    build_libpath_for_rst, SphinxPage,
+    build_libpath_for_rst, SphinxPage, get_pfsc_env
 )
 
 import pfsc.util
@@ -473,6 +473,17 @@ class Builder:
                 missing.append(name)
         return missing
 
+    def list_present_prohibited_sphinx_files(self):
+        prohibited = []
+        names = [
+            f'{docname}.rst' for docname in pfsc.constants.PROHIBITED_RST_DOCNAMES
+        ]
+        for name in names:
+            p = pathlib.Path(self.repo_info.abs_fs_path_to_dir) / name
+            if p.exists():
+                prohibited.append(name)
+        return prohibited
+
     def raise_missing_change_log_excep(self):
         msg = f'Repo `{self.repopath}` failed to declare a change log for release `{self.version}`'
         msg += ', which is a major version increment.'
@@ -556,12 +567,24 @@ class Builder:
                         f' which {verb} required for a Sphinx build.'
                     )
                     raise PfscExcep(msg, PECode.SPHINX_ERROR)
+
+                prohibited = self.list_present_prohibited_sphinx_files()
+                if prohibited:
+                    prohibited_files = " and ".join(prohibited)
+                    noun_phrase = 'file' if len(prohibited) == 1 else 'files'
+                    msg = (
+                        f'Repo {self.repopath} defines prohibited {noun_phrase}'
+                        f' {prohibited_files} at the root level.'
+                    )
+                    raise PfscExcep(msg, PECode.SPHINX_ERROR)
+
                 if self.build_in_gdb:
                     msg = (
                         'rst modules are not yet supported with `build_in_gdb` option.'
                         ' Please contact your system admin.'
                     )
                     raise PfscExcep(msg, PECode.OPTION_NOT_SUPPORTED_WITH_BUILD_IN_GDB)
+
                 # Our own `self.read_and_resolve()` will be called during our
                 # handler for the Sphinx 'env-updated' event. This results in the following
                 # order of events:
@@ -758,6 +781,10 @@ class Builder:
         logger = logging.getLogger('sphinx.sphinx.util')
         logger.addHandler(handler)
 
+        def set_builder_in_environment(app, env, docnames):
+            pfsc_env = get_pfsc_env(env)
+            pfsc_env.set_builder(self)
+
         def add_and_record_rereads(app, env, docnames):
             # Sphinx is unaware of our pickle files, so it's up to us to ensure
             # they stay up to date.
@@ -823,6 +850,7 @@ class Builder:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              buildername, confoverrides=confoverrides)
+                app.connect('env-before-read-docs', set_builder_in_environment)
                 app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)
                 # Set html assets policy 'always', to ensure that MathJax is

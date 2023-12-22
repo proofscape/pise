@@ -30,6 +30,9 @@ Bug Fixes:
   ([#44](https://github.com/proofscape/pise/pull/44)).
 * Make doc panels enter enrichments mode before auto-navigating to highlights
   ([#45](https://github.com/proofscape/pise/pull/45)).
+* Debug issue with extra rewrites on Sphinx rebuilds, wherein certain unchanged
+  pages were becoming broken (due to losing required Proofscape data object)
+  ([#46](https://github.com/proofscape/pise/pull/46)).
 
 
 ## 0.28.0 (230830)

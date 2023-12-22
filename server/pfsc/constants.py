@@ -130,6 +130,12 @@ RST_EXT = '.rst'
 # Extension used for pickled cache files
 PICKLE_EXT = '.pickle'
 
+# These are the names of "special" pages that Sphinx generates, which must
+# therefore not have user-defined rst files at the root level of a repo.
+PROHIBITED_RST_DOCNAMES = [
+    'genindex', 'search',
+]
+
 
 class ContentDescriptorType:
     """
