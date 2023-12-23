@@ -1982,7 +1982,7 @@ const combinerDialogHtml = `
 <div class="ccdSectionLabel">Preview:</div>
 <canvas class="selectionCombiner"></canvas>
 <div class="ccdSectionLabel">Template:</div>
-<textarea class="templateBox" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<input class="templateBox" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
 <div class="ccdSectionLabel">Result:</div>
 <div class="copyBox">
   <div class="copyBoxText"></div>

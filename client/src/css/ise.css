@@ -1172,6 +1172,7 @@ a {
     height: 1em;
 }
 
+.combinerCodeDialog input,
 .combinerCodeDialog textarea {
     margin-bottom: 1em;
 }
