@@ -12,8 +12,10 @@ Improvements:
 * Improve context menus for highlights in doc panels, correcting the offset,
   and increasing readability of the options
   ([#39](https://github.com/proofscape/pise/pull/39)).
-* Improve the box combiner code dialog
+* Improve the selection combiner dialog, in overall layout and copy functionality
   ([#43](https://github.com/proofscape/pise/pull/43)).
+* Improve the template box in the selection combiner dialog
+  ([#47](https://github.com/proofscape/pise/pull/47)).
 
 Bug Fixes:
 
