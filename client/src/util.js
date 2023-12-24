@@ -242,6 +242,8 @@ util.getRepoPart = moose.getRepoPart;
  * @param isDir: set true if this libpath points to a module and
  *   you want the page for that module _as a directory_. Otherwise
  *   we make the URL for the given libpath _as a file_.
+ * @param fileExt: when `isDir` is false, you should pass the appropriate
+ *   file extension, including the lead dot, e.g. '.pfsc' or '.rst'
  * @param sourceRow: when `isDir` is false, you may pass a positive integer
  *   here, naming a row in the source file you want to select.
  * @param modIsTerm: when `isDir` is false, you may pass a boolean indicating
@@ -250,7 +252,7 @@ util.getRepoPart = moose.getRepoPart;
  * @return: URL string, or null if the given libpath does not
  *   point to a known remote host.
  */
-util.libpath2remoteHostPageUrl = function(libpath, version, isDir, sourceRow, modIsTerm) {
+util.libpath2remoteHostPageUrl = function(libpath, version, isDir, fileExt, sourceRow, modIsTerm) {
     const lpParts = libpath.split('.');
     let host = lpParts[0];
     // For testing purposes (and doesn't hurt anything in production):
@@ -266,13 +268,20 @@ util.libpath2remoteHostPageUrl = function(libpath, version, isDir, sourceRow, mo
         bb: 'https://bitbucket.org',
         ex: 'https://example.org',
     }[host]);
-    urlParts.push(lpParts[1]); // owner
-    urlParts.push(lpParts[2]); // repo
+
+    // Rule: Underscores in the owner and repo segments of a libpath
+    // are replaced by hyphens when building a URL for GitHub or BitBucket.
+    // GitHub allows hyphens but not underscores in usernames, so that one has to change.
+    // Hyphens also seem to be more popular than underscores in repo names, generally,
+    // so we extend the rule there too.
+    urlParts.push(lpParts[1].replaceAll('_', '-')); // owner
+    urlParts.push(lpParts[2].replaceAll('_', '-')); // repo
+
     urlParts.push(host === 'bb' ? 'src' : isDir ? 'tree' : 'blob');
     urlParts.push(version === "WIP" ? 'main' : version);
     urlParts = urlParts.concat(lpParts.slice(3));
     if (!isDir) {
-        let suffix = '.pfsc'
+        let suffix = fileExt
         if (sourceRow) {
             suffix += `#${host !== 'bb' ? "L" : "lines-"}${sourceRow}`;
         }

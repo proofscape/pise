@@ -235,7 +235,10 @@ export class FsTreeManager extends TreeManager {
             const modpath = item.libpath;
             const isDir = item.type === "DIR";
             const modIsTerm = (!isDir && item.name !== '__.pfsc');
-            const url = iseUtil.libpath2remoteHostPageUrl(modpath, "WIP", isDir, null, modIsTerm);
+            const fileExt = isDir ? null : '.' + item.name.split('.')[1];
+            const url = iseUtil.libpath2remoteHostPageUrl(
+                modpath, "WIP", isDir, fileExt, null, modIsTerm
+            );
             const host = modpath.startsWith('gh.') ? 'GitHub' : 'BitBucket';
             cm.addChild(new dojo.MenuSeparator());
             cm.addChild(new dojo.MenuItem({
