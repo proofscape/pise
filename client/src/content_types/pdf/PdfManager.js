@@ -339,6 +339,11 @@ var PdfManager = declare(AbstractContentManager, {
         return pdfc?.docId;
     },
 
+    getLinkedTreeItemForPaneId: function(paneId) {
+        const pdfc = this.pdfcsByPaneId[paneId];
+        return pdfc.getLinkedTreeItem();
+    },
+
     /* Given an array of panes, return the PdfController for the most recently
      * active one. If the array is empty, return null.
      */

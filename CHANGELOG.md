@@ -37,6 +37,9 @@ Bug Fixes:
 * Debug issue with extra rewrites on Sphinx rebuilds, wherein certain unchanged
   pages were becoming broken (due to losing required Proofscape data object)
   ([#46](https://github.com/proofscape/pise/pull/46)).
+* Repair issues with the linking dialog, in the case that the only existing
+  link is a tree-link
+  ([#49](https://github.com/proofscape/pise/pull/49)).
 
 
 ## 0.28.0 (230830)
