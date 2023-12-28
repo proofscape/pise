@@ -40,6 +40,8 @@ Bug Fixes:
 * Repair issues with the linking dialog, in the case that the only existing
   link is a tree-link
   ([#49](https://github.com/proofscape/pise/pull/49)).
+* Repair issues with the linking dialog, when adding new tree-links
+  ([#50](https://github.com/proofscape/pise/pull/50)).
 
 
 ## 0.28.0 (230830)
