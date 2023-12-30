@@ -15,6 +15,8 @@ Let's try another inline :pfsc-chart:`chart widget <Pf>`.
 And confirm that the auto-generated numbers for these
 :pfsc-chart:`chart widgets <Thm>` are properly incrementing.
 
+Let's also have an inline one where we specify the name,
+:pfsc-chart:`name1: like this <Thm.C>`.
 
 Next we try defining chart widgets using the full directive form.
 We still want the links they generate to be inline, so we're supposed
@@ -29,7 +31,14 @@ to be sure that rST will accept a substitution text with a leading colon,
 the final label text contain a colon, while *also* having the system supply the
 widget name for you.
 
-Now we'll need a series of chart widgets, for unit tests.
+It probably won't be too common in actual usage, but let's at least see that we
+*can* write a chart widget in pure *directive format* (not *substitution format*):
+
+.. pfsc-chart:: name2: This is a standalone chart widget.
+    :view: Pf
+
+Finally, we'll need a series of chart widgets, to test the various options
+that can be passed to them.
 
 |w001: one-line color definition|
 |w002: color defn with: repeated LHS, plus use of update|

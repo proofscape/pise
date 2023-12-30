@@ -21,15 +21,15 @@ from sphinx.errors import SphinxError
 
 from pfsc.sphinx.pages import get_sphinx_page
 from pfsc.sphinx.widgets.util import (
-    process_widget_label, check_widget_name,
+    process_widget_subtext, check_widget_name,
 )
 from pfsc.excep import PfscExcep
 
 
 class pfsc_inline_widget(nodes.General, nodes.Inline, nodes.Element):
     """
-    Proofscape widgets like Chart, Doc, and others whose HTML form is
-    an inline element.
+    This is a doctree node class for Proofscape widgets like Chart, Doc,
+    and others whose HTML form is an inline element.
     """
 
     def __init__(self, rawsource='', libpath='', *children, **attributes):
@@ -38,8 +38,8 @@ class pfsc_inline_widget(nodes.General, nodes.Inline, nodes.Element):
 
 class pfsc_block_widget(nodes.General, nodes.Element):
     """
-    Proofscape widgets like Param, Disp, and others whose HTML form is
-    a block element.
+    This is a doctree node class for Proofscape widgets like Param, Disp,
+    and others whose HTML form is a block element.
     """
 
     def __init__(self, rawsource='', libpath='', *children, **attributes):
@@ -48,6 +48,8 @@ class pfsc_block_widget(nodes.General, nodes.Element):
 
 def visit_pfsc_widget_html(self, node):
     """
+    This is the visitor function for the doctree nodes of Proofscape widgets.
+
     Each pfsc widget doctree node carries the libpath of the widget. We can
     use this to look up the Widget instance itself, and ask it to generate
     the HTML.
@@ -84,7 +86,7 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
     Subclasses may override:
         * has_content (set True if the directive has content)
-        * content_field_name (string of widget data field under which content should
+        * content_field_name (name of widget data field under which content should
             be passed to the widget class, when `has_content` is `True`)
         * label_allowed (set False if only a name may be passed)
         * label_required (set True if a label must be given)
@@ -98,7 +100,7 @@ class PfscOneArgWidgetDirective(SphinxDirective):
                 }
     """
     optional_arguments = 1
-    final_argument_whitespace = False
+    final_argument_whitespace = True
 
     widget_class = None
     label_allowed = True
@@ -123,8 +125,8 @@ class PfscOneArgWidgetDirective(SphinxDirective):
         if n > 1:
             raise SphinxError(
                 f'{self.get_location()}: too many args.'
-                'Widget accepts at most one arg, being the name'
-                f'{" and/or label text." if label_allowed else "."}'
+                'Widget accepts at most one arg, being the SUBTEXT'
+                ', which specifies NAME and/or LABEL.'
             )
         arg_raw = self.arguments[0] if n == 1 else None
 
@@ -135,16 +137,16 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
         if arg_raw and alt_raw:
             raise SphinxError(
-                f'{self.get_location()}: double label definition.'
-                'Widget name/label should be defined either via directive argument, '
+                f'{self.get_location()}: double SUBTEXT definition.'
+                'Widget SUBTEXT should be defined either via directive argument, '
                 'or via alt text, but not both.'
             )
 
         if not arg_raw and not alt_raw:
             if required:
                 raise SphinxError(
-                    f'{self.get_location()}: missing label definition.'
-                    'Widget name/label should be defined either via directive argument, '
+                    f'{self.get_location()}: missing SUBTEXT.'
+                    'Widget SUBTEXT should be defined either via directive argument, '
                     'or via alt text.'
                 )
             else:
@@ -152,28 +154,27 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
         raw_text = arg_raw or alt_raw
 
-        if label_allowed:
-            try:
-                widget_name, label_text = process_widget_label(raw_text)
-            except PfscExcep:
-                raise SphinxError(
-                    f'{self.get_location()}: widget name (text before colon) malformed.'
-                    ' Must be valid libpath segment, or empty.'
-                )
-        else:
-            widget_name, label_text = raw_text, ''
-            try:
-                check_widget_name(widget_name)
-            except PfscExcep:
-                raise SphinxError(
-                    f'{self.get_location()}: widget name malformed.'
-                    ' Must be valid libpath segment, or empty.'
-                )
+        try:
+            widget_name, widget_label = process_widget_subtext(raw_text)
+        except PfscExcep:
+            raise SphinxError(
+                f'{self.get_location()}: widget name (text before colon) malformed.'
+                ' Must be valid libpath segment, or empty.'
+            )
 
-        return raw_text, widget_name, label_text
+        if widget_label and not label_allowed:
+            msg = f'{self.get_location()}: Widget does not accept label'
+            if widget_name:
+                msg += ', but both name and label were given.'
+            else:
+                msg += ', but label was given. To set a name, put colon after name.'
+
+            raise SphinxError(msg)
+
+        return raw_text, widget_name, widget_label
 
     def run(self):
-        raw_text, widget_name, label_text = self.get_name_and_label(
+        raw_text, widget_name, widget_label = self.get_name_and_label(
             label_allowed=self.label_allowed, required=self.label_required
         )
 
@@ -183,7 +184,7 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
         node = finish_run(
             self, self.widget_class,
-            raw_text, label_text, opts,
+            raw_text, widget_label, opts,
             widget_name=widget_name
         )
         return [node]

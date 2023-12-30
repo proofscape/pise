@@ -26,7 +26,7 @@ from pfsc.build.repo import get_repo_info
 from pfsc.build.manifest import load_manifest
 from pfsc.build.products import load_annotation, load_dashgraph
 from pfsc.sphinx.pages import SCRIPT_INTRO, SCRIPT_ID
-from pfsc.sphinx.widgets.util import process_widget_label
+from pfsc.sphinx.widgets.util import process_widget_subtext
 from pfsc.excep import PfscExcep
 
 
@@ -107,26 +107,27 @@ def get_highlights(soup, language):
     return list(soup.find_all('div', class_=f'highlight-{language}'))
 
 
-@pytest.mark.parametrize('raw_label, name0, text0', [
+@pytest.mark.parametrize('subtext, name0, text0', [
+    ['', None, ''],
     ['foo bar ', None, 'foo bar'],
     ['foo: bar ', 'foo', 'bar'],
     ['myGreatWidget: foo: bar', 'myGreatWidget', 'foo: bar'],
     [': foo: bar', '', 'foo: bar'],
     [':foo: bar', '', 'foo: bar'],
-
+    ['foo:', 'foo', ''],
 ])
-def test_process_widget_label(raw_label, name0, text0):
-    name1, text1 = process_widget_label(raw_label)
+def test_process_widget_subtext(subtext, name0, text0):
+    name1, text1 = process_widget_subtext(subtext)
     assert name1 == name0
     assert text1 == text0
 
 
-@pytest.mark.parametrize('raw_label', [
+@pytest.mark.parametrize('subtext', [
     '23w: the proof',
 ])
-def test_process_widget_label_exception(raw_label):
+def test_process_widget_subtext_exception(subtext):
     with pytest.raises(PfscExcep):
-        process_widget_label(raw_label)
+        process_widget_subtext(subtext)
 
 
 expected_widget_data_spx_doc0 = json.loads("""
@@ -216,7 +217,7 @@ def test_spx_doc1(app):
 
         D = get_qna_widget_divs(soup)
         assert len(D) == 1
-        assert f'test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0' in D[0].get('class')
+        assert f'test-spx-doc1-pageA-_page-penultimateQuestion_v0-1-0' in D[0].get('class')
     
         # Defines the expected pfsc_page_data
         page_data = get_page_data_from_script_tag(soup)
@@ -315,13 +316,13 @@ PAGE_A_PAGE_DATA = {
             "icon_type": "nav",
             "version": "v0.1.0"
         },
-        "test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0": {
+        "test-spx-doc1-pageA-_page-penultimateQuestion_v0-1-0": {
             "question": "What is the answer?",
             "answer": "42",
             "type": "QNA",
             "src_line": 15,
-            "widget_libpath": "test.spx.doc1.pageA._page.ultimateQuestion",
-            "uid": "test-spx-doc1-pageA-_page-ultimateQuestion_v0-1-0",
+            "widget_libpath": "test.spx.doc1.pageA._page.penultimateQuestion",
+            "uid": "test-spx-doc1-pageA-_page-penultimateQuestion_v0-1-0",
             "version": "v0.1.0"
         }
     },
@@ -332,14 +333,16 @@ PAGE_A_PAGE_DATA = {
 }
 
 PAGE_C_WIDGET_NAMES = [
-    '_w0', '_w1', 'w000', '_w2', 'w001', 'w002'
+    '_w0', '_w1', 'name1', 'w000', '_w2', 'name2', 'w001', 'w002'
 ]
 
 PAGE_C_WIDGET_LABELS = [
     'chart widget',
     'chart widgets',
+    'like this',
     'substitutions',
     'like: this one',
+    'This is a standalone chart widget.',
     'one-line color definition',
     'color defn with: repeated LHS, plus use of update',
 ]
@@ -376,13 +379,43 @@ PAGE_C_PAGE_DATA = {
             "icon_type": "nav",
             "version": "v0.1.0"
         },
+        "test-spx-doc1-foo-pageC-_page-name1_v0-1-0": {
+            "view": "test.moo.bar.results.Thm.C",
+            "type": "CHART",
+            "src_line": 18,
+            "widget_libpath": "test.spx.doc1.foo.pageC._page.name1",
+            "uid": "test-spx-doc1-foo-pageC-_page-name1_v0-1-0",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "versions": {
+                "test.moo.bar": "v1.0.0"
+            },
+            "title_libpath": "test.spx.doc1.foo.pageC._page",
+            "icon_type": "nav",
+            "version": "v0.1.0"
+        },
+        "test-spx-doc1-foo-pageC-_page-name2_v0-1-0": {
+            "view": [
+                "test.moo.bar.results.Pf"
+            ],
+            "type": "CHART",
+            "src_line": 37,
+            "widget_libpath": "test.spx.doc1.foo.pageC._page.name2",
+            "uid": "test-spx-doc1-foo-pageC-_page-name2_v0-1-0",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "versions": {
+                "test.moo.bar": "v1.0.0"
+            },
+            "title_libpath": "test.spx.doc1.foo.pageC._page",
+            "icon_type": "nav",
+            "version": "v0.1.0"
+        },
         "test-spx-doc1-foo-pageC-_page-_w2_v0-1-0": {
             "alt": ": like: this one",
             "view": [
                 "test.moo.bar.results.Pf"
             ],
             "type": "CHART",
-            "src_line": 38,
+            "src_line": 47,
             "widget_libpath": "test.spx.doc1.foo.pageC._page._w2",
             "uid": "test-spx-doc1-foo-pageC-_page-_w2_v0-1-0",
             "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
@@ -412,7 +445,7 @@ PAGE_C_PAGE_DATA = {
                 ]
             },
             "type": "CHART",
-            "src_line": 41,
+            "src_line": 50,
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w000",
             "uid": "test-spx-doc1-foo-pageC-_page-w000_v0-1-0",
             "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
@@ -436,7 +469,7 @@ PAGE_C_PAGE_DATA = {
                 ]
             },
             "type": "CHART",
-            "src_line": 49,
+            "src_line": 58,
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w001",
             "uid": "test-spx-doc1-foo-pageC-_page-w001_v0-1-0",
             "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
@@ -458,7 +491,7 @@ PAGE_C_PAGE_DATA = {
                 ":update": True
             },
             "type": "CHART",
-            "src_line": 53,
+            "src_line": 62,
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w002",
             "uid": "test-spx-doc1-foo-pageC-_page-w002_v0-1-0",
             "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
@@ -470,7 +503,10 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         }
     },
-    "docInfo": {'docs': {}, 'refs': {}}
+    "docInfo": {
+        "docs": {},
+        "refs": {}
+    }
 }
 
 PAGE_D_WIDGET_NAMES = [

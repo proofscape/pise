@@ -19,14 +19,14 @@ import re
 from sphinx.util.docutils import SphinxRole
 
 from pfsc.sphinx.widgets.base import finish_run
-from pfsc.sphinx.widgets.util import process_widget_label
+from pfsc.sphinx.widgets.util import process_widget_subtext
 from pfsc.excep import PfscExcep
 
 
 class PfscNavWidgetRole(SphinxRole):
     """
     A simple, inline syntax for minimal nav widgets:
-        - The label may optionally begin with a widget name.
+        - The SUBTEXT may optionally begin with a widget NAME.
         - Must define exactly one "target" field, which maps onto an
             appropriate field for each subclass (e.g. the `view` field
             for chart widgets).
@@ -50,15 +50,15 @@ class PfscNavWidgetRole(SphinxRole):
         if not M:
             return self.write_error_return_values(
                 f'Inline Proofscape {self.widget_type_name} widgets must have'
-                f' the form `LABEL <{self.target_field_name.upper()}>`.'
+                f' the form `SUBTEXT <{self.target_field_name.upper()}>`.'
             )
-        raw_label, target = [g.strip() for g in M.groups()]
+        subtext, target = [g.strip() for g in M.groups()]
 
         try:
-            widget_name, final_label_text = process_widget_label(raw_label)
+            widget_name, widget_label = process_widget_subtext(subtext)
         except PfscExcep:
             return self.write_error_return_values(
-                'Widget name (text before colon) malformed.'
+                'Widget name (text before colon in subtext) malformed.'
                 ' Must be valid libpath segment, or empty.'
             )
 
@@ -68,7 +68,7 @@ class PfscNavWidgetRole(SphinxRole):
 
         node = finish_run(
             self, self.widget_class,
-            self.rawtext, final_label_text, fields,
+            self.rawtext, widget_label, fields,
             widget_name=widget_name
         )
         return [node], []
