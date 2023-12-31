@@ -22,7 +22,7 @@ define([
     NavWidget
 ) {
 
-const PdfWidget = declare(NavWidget, {
+const DocWidget = declare(NavWidget, {
 
     // Properties
 
@@ -35,6 +35,6 @@ const PdfWidget = declare(NavWidget, {
 
 });
 
-return PdfWidget;
+return DocWidget;
 
 });

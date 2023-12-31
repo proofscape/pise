@@ -23,7 +23,8 @@ from pfsc.excep import PfscExcep, PECode
 
 NONEMPTY_HEXADECIMAL_PATTERN = re.compile(r'^[a-fA-F0-9]+$')
 
-PDF_FINGERPRINT_ID_TYPE = 'pdffp'
+class DocIdType:
+    PDF_FINGERPRINT_ID_TYPE = 'pdffp'
 
 
 class CheckedDocId:
@@ -53,6 +54,8 @@ def check_doc_id(key, raw, typedef):
 
         pdffp:ae4cc6056dbf2e389704cc8ef99f9720
 
+    In PISE, you can obtain a PDF's fingerprint by opening it and then clicking
+    the "fingerprint" icon in the viewer's toolbar.
     """
     def reject():
         raise PfscExcep('Malformed doc ID', PECode.MALFORMED_DOC_ID, bad_field=key)
@@ -67,7 +70,7 @@ def check_doc_id(key, raw, typedef):
     id_type = raw[:first_colon]
     id_code = raw[first_colon + 1:]
 
-    if id_type == PDF_FINGERPRINT_ID_TYPE:
+    if id_type == DocIdType.PDF_FINGERPRINT_ID_TYPE:
         if not NONEMPTY_HEXADECIMAL_PATTERN.match(id_code):
             reject()
     else:

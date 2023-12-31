@@ -29,15 +29,15 @@ does *not* contain ``_page`` as penultimate segment. Entities defined under
 ``pfsc`` directives live at the *top* level of the module, alongside the
 ``SphinxPage`` called ``_page``.
 
-PDF Widgets
+Doc Widgets
 ===========
 
-Here is :pfsc-pdf:`an inline PDF widget <doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)>`.
+Here is :pfsc-doc:`an inline doc widget <doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)>`.
 
-Here is a substitution referring to |wDirPdf1: a directive PDF widget|.
+Here is a substitution referring to |wDirDoc1: a directive doc widget|.
 
 
-.. |wDirPdf1: a directive PDF widget| pfsc-pdf::
+.. |wDirDoc1: a directive doc widget| pfsc-doc::
     :doc: doc1
     :sel: v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)
 

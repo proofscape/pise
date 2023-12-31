@@ -1,5 +1,10 @@
 ## next (------)
 
+Breaking Changes:
+
+* `pdf` widgets are now `doc` widgets
+  ([#36](https://github.com/proofscape/pise/pull/36)).
+
 Improvements:
 
 * Update management docs

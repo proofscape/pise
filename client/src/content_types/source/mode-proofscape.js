@@ -371,7 +371,7 @@ var ProofscapeHighlightRules = function() {
     this.embedRules(MarkdownHighlightRules, "md-", [
         {
             token : ["keyword.operator", "keyword", "keyword.operator", "constant.numeric", "keyword.operator"],
-            regex : "(<)(chart|ctl|disp|examp|goal|label|link|param|pdf|qna)(:)([^>]*)(>\\[)",
+            regex : "(<)(chart|ctl|disp|doc|examp|goal|label|link|param|qna)(:)([^>]*)(>\\[)",
             next: function(currentState, stack){
                 stack.unshift(currentState);
                 return "wlmd-start";

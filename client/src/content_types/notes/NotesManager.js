@@ -30,7 +30,7 @@ define([
     "ise/widgets/QnAWidget",
     "ise/widgets/LabelWidget",
     "ise/widgets/GoalWidget",
-    "ise/widgets/PdfWidget",
+    "ise/widgets/DocWidget",
     "ise/widgets/ParamWidget",
     "ise/widgets/DispWidget",
     "ise/errors",
@@ -47,7 +47,7 @@ define([
     QnAWidget,
     LabelWidget,
     GoalWidget,
-    PdfWidget,
+    DocWidget,
     ParamWidget,
     DispWidget,
     iseErrors
@@ -67,7 +67,7 @@ function constructWidget(hub, libpath, info) {
     case "GOAL":
         return new GoalWidget(hub, libpath, info);
     case "PDF":
-        return new PdfWidget(hub, libpath, info);
+        return new DocWidget(hub, libpath, info);
     case "PARAM":
         return new ParamWidget(hub, libpath, info);
     case "DISP":
@@ -76,6 +76,10 @@ function constructWidget(hub, libpath, info) {
         return new Widget(hub, libpath, info);
     }
 }
+
+const DOC_CONTENT_TYPES = [
+    "PDF",
+];
 
 // NotesManager class
 var NotesManager = declare(AbstractContentManager, {
@@ -712,14 +716,14 @@ var NotesManager = declare(AbstractContentManager, {
         }
     },
 
-    /* "Claim" linking: a pdf widget may be left without a default link, even when its doc
+    /* "Claim" linking: a doc widget may be left without a default link, even when its doc
      * is present; however, in such cases, a doc panel may sometimes be claimed for it at
      * click time.
      *
      * Default links are turned down when there are two or more widget groups in a page that
      * reference the same doc; it would be unfair to give either one the default link, so we
      * give it to neither. However, such a doc panel can be "claimed" at the time that such
-     * a pdf widget is actually clicked, and we call this "claim linking". This method
+     * a doc widget is actually clicked, and we call this "claim linking". This method
      * determines whether there is a panel that could be claimed, and chooses a best one.
      *
      * param d0: the docId for which we want to claim an existing panel (if any)
@@ -954,7 +958,7 @@ var NotesManager = declare(AbstractContentManager, {
         // to see if there is a claim-link to be made.
         let claimable = null;
         const info = widget.getInfoCopy();
-        if (info.type === "PDF" && existing.length === 0) {
+        if (DOC_CONTENT_TYPES.includes(info.type) && existing.length === 0) {
             const d = info.docId;
             claimable = await this.findClaimableDocPanel(d, gid, clickedPanelUuid);
             if (claimable) {
@@ -965,7 +969,7 @@ var NotesManager = declare(AbstractContentManager, {
         if (action === 'click') {
             const viewer = this.viewers[clickedPane.id];
             viewer.markWidgetElementAsSelected(clickedElt);
-            if (info.type === "PDF") {
+            if (DOC_CONTENT_TYPES.includes(info.type)) {
                 if (existing.length === 0) {
                     // The only reason not to auto-scroll to a selection is to avoid disrupting sth
                     // the user was already looking at; hence, with a newly spawned panel, we should
@@ -975,13 +979,13 @@ var NotesManager = declare(AbstractContentManager, {
                     // This is our hacky way of getting the "alt key semantics" passed all the
                     // way to the content update, without trying to pipe an event object all the
                     // way there.
-                    // Currently just doing this for PDF widgets.
+                    // Currently just doing this for DOC widgets.
                     // Do we want sth similar for chart widgets? There we have long supported the
                     // author in saying whether navigation happens. It seems we're moving toward
                     // making this the user's choice instead, but, not ready to implement this today.
                     info.gotosel = event.altKey ? 'never' : 'always';
                 }
-                // Another hack. This is so that, if a PDF panel is to be spawned, it knows how
+                // Another hack. This is so that, if a doc panel is to be spawned, it knows how
                 // to obtain named highlights, if we requested one under `highlightId`.
                 info.requestingUuid = clickedPanelUuid;
             }

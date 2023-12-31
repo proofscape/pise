@@ -23,7 +23,7 @@ from .chart_widget import (
     PfscChartRole, PfscChartDirective,
 )
 from .doc_widget import (
-    PfscPdfWidgetRole, PfscPdfWidgetDirective,
+    PfscDocWidgetRole, PfscDocWidgetDirective,
 )
 from .examp_widgets import (
     PfscDispWidgetDirective, PfscParamWidgetDirective,

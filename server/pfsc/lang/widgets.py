@@ -19,6 +19,7 @@ import re, json
 from markupsafe import escape, Markup
 import jinja2
 
+from pfsc.checkinput.doc import DocIdType
 from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
@@ -508,13 +509,13 @@ in a lookup, instead of storing them as attributes of their respective Widget
 classes.
 """
 chart_widget_template = jinja2.Template("""<a class="widget chartWidget {{ classes }}" href="#">{{ label }}</a>""")
-pdf_widget_template = jinja2.Template("""<a class="widget pdfWidget {{ classes }}" tabindex="-1" href="#">{{ label }}</a>""")
+doc_widget_template = jinja2.Template("""<a class="widget docWidget {{ classes }}" tabindex="-1" href="#">{{ label }}</a>""")
 link_widget_template = jinja2.Template("""<a class="widget linkWidget {{ classes }}" href="#">{{ label }}</a>""")
 label_widget_template = jinja2.Template("""<{{tag}} class="widget labelWidget {{ classes }}">{{contents}}<span class="labellink">¶</span></{{tag}}>""")
 goal_widget_template = jinja2.Template("""<{{tag}} class="widget goalWidget {{ classes }}"><span class="graphics"></span>{{contents}}</{{tag}}>""")
 widget_templates = {
     'chart_widget_template': chart_widget_template,
-    'pdf_widget_template': pdf_widget_template,
+    'doc_widget_template': doc_widget_template,
     'link_widget_template': link_widget_template,
     'label_widget_template': label_widget_template,
     'goal_widget_template': goal_widget_template,
@@ -598,13 +599,18 @@ def set_up_hovercolor(hc):
     }
 
 
-class PdfWidget(NavWidget):
+DOC_ID_TYPE_TO_CLIENTSIDE_CONTENT_TYPE = {
+    DocIdType.PDF_FINGERPRINT_ID_TYPE: "PDF",
+}
+
+
+class DocWidget(NavWidget):
     """
-    A Widget class for controlling PDF panes.
+    A Widget class for controlling document panes (PDF etc.).
     """
 
     def __init__(self, name, label, data, anno, lineno):
-        NavWidget.__init__(self, WidgetTypes.PDF, 'pdf_widget_template', name, label, data, anno, lineno)
+        NavWidget.__init__(self, WidgetTypes.DOC, 'doc_widget_template', name, label, data, anno, lineno)
         self.docReference = None
 
     def enrich_data(self):
@@ -650,11 +656,11 @@ class PdfWidget(NavWidget):
                 context=self.parent, doc_info_libpath=doc_info_libpath
             )
         except PfscExcep as e:
-            e.extendMsg(f'in pdf widget {self.libpath}')
+            e.extendMsg(f'in doc widget {self.libpath}')
             raise
 
         # Clean up. Doc descriptors go at top level of anno.json; don't need
-        # to repeat them in each pdf widget.
+        # to repeat them in each doc widget.
         if doc_field_name in self.data:
             del self.data[doc_field_name]
 
@@ -669,6 +675,15 @@ class PdfWidget(NavWidget):
         doc_id = doc_info[doc_id_field_name]
         self.data[doc_id_field_name] = doc_id
         self.set_pane_group(subtype=doc_id)
+
+        # `type` field
+        # For use by the client, we need the `type` field in the data object for this widget
+        # to indicate the *content* type ("PDF", etc.), not the *widget* type ("DOC").
+        id_type = self.docReference.id_type
+        content_type = DOC_ID_TYPE_TO_CLIENTSIDE_CONTENT_TYPE.get(id_type)
+        if not content_type:
+            raise PfscExcep(f"Unknown doc ID type: {id_type}", PECode.MALFORMED_DOC_ID)
+        self.data["type"] = content_type
 
         # Do we define a doc highlight?
         if (cc := self.docReference.combiner_code) is not None:
@@ -1216,7 +1231,7 @@ class WidgetTypes:
     LABEL = "LABEL"
     GOAL = "GOAL"
     PARAM = "PARAM"
-    PDF = "PDF"
+    DOC = "DOC"
 
 
 # We use a dictionary to map widget type names to subclasses of the Widget class.
@@ -1230,5 +1245,5 @@ WIDGET_TYPE_TO_CLASS = {
     WidgetTypes.LABEL: LabelWidget,
     WidgetTypes.GOAL:  GoalWidget,
     WidgetTypes.PARAM: ParamWidget,
-    WidgetTypes.PDF:   PdfWidget,
+    WidgetTypes.DOC:   DocWidget,
 }

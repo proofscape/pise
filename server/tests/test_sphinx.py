@@ -493,21 +493,21 @@ PAGE_D_PAGE_DATA = {
             "widget_libpath": "test.spx.doc1.foo.pageD._page._w0",
             "uid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
             "docId": "pdffp:fedcba9876543210",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:PDF:pdffp:fedcba9876543210:",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:DOC:pdffp:fedcba9876543210:",
             "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
             "url": "https://example.org/pdf/foo1.pdf",
             "version": "v0.1.0"
         },
-        "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0": {
-            "alt": "wDirPdf1: a directive PDF widget",
+        "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0": {
+            "alt": "wDirDoc1: a directive doc widget",
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
             "type": "PDF",
             "src_line": 40,
-            "widget_libpath": "test.spx.doc1.foo.pageD._page.wDirPdf1",
-            "uid": "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+            "widget_libpath": "test.spx.doc1.foo.pageD._page.wDirDoc1",
+            "uid": "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",
             "docId": "pdffp:fedcba9876543210",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:PDF:pdffp:fedcba9876543210:",
-            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:DOC:pdffp:fedcba9876543210:",
+            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",
             "url": "https://example.org/pdf/foo1.pdf",
             "version": "v0.1.0"
         }
@@ -529,7 +529,7 @@ PAGE_D_PAGE_DATA = {
                 },
                 {
                     "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-                    "siid": "test-spx-doc1-foo-pageD-_page-wDirPdf1_v0-1-0",
+                    "siid": "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",
                     "slp": "test.spx.doc1.foo.pageD._page",
                     "stype": "SPHINX"
                 }
