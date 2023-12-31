@@ -106,7 +106,7 @@ var PdfController = declare(null, {
 
     highlightPageIdx: null,
     selboxCombineDialog: null,
-    combineDialogUpdateHandler: null,
+    combineDialogHandlers: null,
 
     lastOpenedFilelist: null,
 
@@ -143,6 +143,7 @@ var PdfController = declare(null, {
 
         this.callbackOnTextLayerRenderLookup = {};
         this.selboxCombineDialog = this.buildSelboxCombineDialog();
+        this.combineDialogHandlers = [];
 
         this.stateRequestPromise = Promise.resolve();
 
@@ -1775,13 +1776,18 @@ var PdfController = declare(null, {
         // Load up the dialog box and set it to render a preview canvas on
         // each keystroke in the code box.
         var dlg = this.selboxCombineDialog;
-        var tas = dlg.domNode.querySelectorAll('textarea');
-        var codeArea = tas[0],
-            copyBox = tas[1],
-            templateBox = tas[2];
-        var previewCanvas = dlg.domNode.querySelector('canvas');
+        const codeArea = dlg.domNode.querySelector('.codeArea');
+        const copyBoxText = dlg.domNode.querySelector('.copyBox .copyBoxText');
+        const copyButton = dlg.domNode.querySelector('.copyBox .copyButton');
+        const templateBox = dlg.domNode.querySelector('.templateBox');
+        const previewCanvas = dlg.domNode.querySelector('canvas.selectionCombiner');
 
-        if (this.combineDialogUpdateHandler !== null) this.combineDialogUpdateHandler.remove();
+        if (this.combineDialogHandlers.length > 0) {
+            for (const handler of this.combineDialogHandlers) {
+                handler.remove();
+            }
+            this.combineDialogHandlers = [];
+        }
         codeArea.value = initialCode;
 
         var displayScaling = 1/renderingZoom;
@@ -1800,12 +1806,25 @@ var PdfController = declare(null, {
             let toCopy = templateBox.value;
             toCopy = toCopy.replaceAll('${code}', fullCode);
             //toCopy += '\n' + `size="${w}x${h}"`;
-            copyBox.value = toCopy;
+            copyBoxText.innerText = toCopy;
             return fullCode;
         }
 
         var fullCode = update();
-        this.combineDialogUpdateHandler = dojoOn(codeArea, 'input', update);
+
+        this.combineDialogHandlers.push(dojoOn(codeArea, 'input', update));
+        this.combineDialogHandlers.push(dojoOn(templateBox, 'input', update));
+        this.combineDialogHandlers.push(dojoOn(copyButton, 'click', event => {
+            // If we allow the "copy box" to be appended to `document.body` (the
+            // default location), the dialog box somehow prevents this element from
+            // getting focus, and the copy doesn't work. So we request that the
+            // copy boxy be appended to the dialog box's dom node instead. This seems
+            // to work.
+            iseUtil.copyTextWithMessageFlashAtClick(
+                copyBoxText.innerText, event, "Copied!", dlg.domNode
+            );
+        }));
+
         if (showDialog) dlg.show();
         return fullCode
     },
@@ -1816,38 +1835,11 @@ var PdfController = declare(null, {
             class: "pfsc-ise"
         });
         var pane = new ContentPane({
-            style: "width: 650px; height: 300px;"
+            class: "combinerCodeDialog",
+            content: combinerDialogHtml,
         });
         dlg.addChild(pane);
-
-        var codeArea = document.createElement('textarea');
-        codeArea.style.width = '100%';
-        codeArea.style.height = '20%';
-        iseUtil.noCorrect(codeArea);
-        pane.domNode.appendChild(codeArea);
-
-        var display = document.createElement('canvas');
-        display.classList.add('selectionCombiner');
-        display.style.border = '1px solid';
-        pane.domNode.appendChild(display);
-
-        var copyBox = document.createElement('textarea');
-        copyBox.style.width = '100%';
-        copyBox.style.height = '10%';
-        iseUtil.noCorrect(copyBox);
-        pane.domNode.appendChild(copyBox);
-
-        const templateLabel = document.createElement('div');
-        templateLabel.innerHTML = "Template:"
-        pane.domNode.appendChild(templateLabel);
-
-        const templateBox = document.createElement('textarea');
-        templateBox.style.width = '50%';
-        templateBox.style.height = '10%';
-        iseUtil.noCorrect(templateBox);
-        templateBox.value = 'doc = "#${code}"';
-        pane.domNode.appendChild(templateBox);
-
+        pane.domNode.querySelector('.templateBox').value = "${code}";
         return dlg;
     },
 
@@ -1936,6 +1928,24 @@ var PdfController = declare(null, {
 
 });
 
+const combinerDialogHtml = `
+<div class="ccdSectionLabel">Edit:</div>
+<textarea class="codeArea" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<div class="ccdSectionLabel">Preview:</div>
+<canvas class="selectionCombiner"></canvas>
+<div class="ccdSectionLabel">Template:</div>
+<textarea class="templateBox" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<div class="ccdSectionLabel">Result:</div>
+<div class="copyBox">
+  <div class="copyBoxText"></div>
+  <div class="copyButton" title="Copy to clipboard">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="20" height="20" rx="3" stroke-width="2" />
+      <rect x="10" y="10" width="20" height="20" rx="3" stroke-width="2" />
+    </svg>
+  </div>  
+</div>
+`;
 
 return PdfController;
 

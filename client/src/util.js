@@ -44,13 +44,20 @@ util.assign = function(target, props, sources) {
     });
 };
 
-util.copyTextToClipboard = function(text) {
+/* Copy text to clipboard
+ *
+ * param text: the text to be copied
+ * param copyBoxHost: optional dom element to which the (invisible) copy
+ *   box should be appended, while copying. Default: `document.body`
+ */
+util.copyTextToClipboard = function(text, copyBoxHost) {
+    copyBoxHost = copyBoxHost || document.body;
     const box = document.createElement("textarea");
     box.value = text;
     box.style.opacity = 0;
     box.style.position = 'fixed';
     box.style.zIndex = -1;
-    document.body.appendChild(box);
+    copyBoxHost.appendChild(box);
     box.focus();
     box.select();
     document.execCommand('copy');
@@ -63,12 +70,14 @@ util.copyTextToClipboard = function(text) {
  * param text: (str) the text to be copied to clipboard
  * param pt: [x, y] coords where message should be displayed
  * param message: (str) optional text of message. Default: "Copied!"
+ * param copyBoxHost: optional dom element to which the (invisible) copy
+ *   box should be appended, while copying. Default: `document.body`
  */
-util.copyTextWithMessageFlash = function(text, pt, message) {
+util.copyTextWithMessageFlash = function(text, pt, message, copyBoxHost) {
     message = message || "Copied!";
     var x = pt[0],
         y = pt[1];
-    util.copyTextToClipboard(text);
+    util.copyTextToClipboard(text, copyBoxHost);
     // Display a brief notice saying "Copied!"
     var note = document.createElement('div');
     note.classList.add("briefNotice");
@@ -90,10 +99,10 @@ util.copyTextWithMessageFlash = function(text, pt, message) {
 /* Same as `copyTextWithMessageFlash` only the display point is automatically
  * set up based on a click event.
  */
-util.copyTextWithMessageFlashAtClick = function(text, event, message) {
+util.copyTextWithMessageFlashAtClick = function(text, event, message, copyBoxHost) {
     var x = event.pageX + 8;
     var y = event.pageY + 8;
-    util.copyTextWithMessageFlash(text, [x, y], message);
+    util.copyTextWithMessageFlash(text, [x, y], message, copyBoxHost);
 };
 
 /* Display a notification box in a corner of the screen.
