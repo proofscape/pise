@@ -387,6 +387,23 @@ var ContentManager = declare(null, {
         return linkingMap.localComponent.getTriples({u: uuid});
     },
 
+    localPaneHasOutgoingLinks: function(paneId) {
+        // Is it a doc pane, with a linked tree item? Have to treat this case
+        // specially, because in this case we do have a link that can be managed
+        // in the linking dialog, even though at the moment it may be that no
+        // actual link triples are currently *loaded* into the panel.
+        const contentType = this.getContentTypeOfLocalPane(paneId);
+        if (contentType === this.crType.PDF) {
+            const mgr = this.getManager(contentType);
+            const item = mgr.getLinkedTreeItemForPaneId(paneId);
+            if (item.libpath) {
+                return true;
+            }
+        }
+        // Otherwise, do we have outgoing link triples?
+        return this.getOutgoingLinkTriplesForLocalPane(paneId).length > 0;
+    },
+
     /*
      * Make a title for a tab.
      *
@@ -682,7 +699,7 @@ var ContentManager = declare(null, {
         menu.pfsc_ise_editSrcItem.set('disabled', !this.editableTypes.includes(info.type));
         menu.pfsc_ise_editSrcItem.set('label', `${isWIP ? "Edit" : "View"} Source`);
         menu.pfsc_ise_studyPageItem.set('disabled', !this.studyPageTypes.includes(info.type));
-        menu.pfsc_ise_linksItem.set('disabled', this.getOutgoingLinkTriplesForLocalPane(pane.id).length === 0);
+        menu.pfsc_ise_linksItem.set('disabled', !this.localPaneHasOutgoingLinks(pane.id));
         menu.pfsc_ise_linksItem.set('onClick', event => {
             this.showLinkingDialog(pane.id);
         });
@@ -1406,7 +1423,7 @@ var ContentManager = declare(null, {
 
         let existingLinkTab;
         let existingTreeItemLabel;
-        if (n > 0) {
+        if (n > 0 || existingTreeItem) {
             // Source tab always gets label "A". If target given, it gets "B", while
             // existing targets start at "C"; else the latter start at "B".
             let q = 0;

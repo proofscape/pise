@@ -436,6 +436,13 @@ var PdfController = declare(null, {
         return info;
     },
 
+    getLinkedTreeItem: function() {
+        return {
+            libpath: this.linkedTreeItemLibpath,
+            version: this.linkedTreeItemVersion,
+        };
+    },
+
     /* Request state according to an info object of the kind returned by
      * our `describeState` method.
      *
