@@ -44,6 +44,7 @@ define([
     "css!dragula/dist/dragula.css",
     "css!ise/css/pfsc.css",
     "css!ise/css/ise.css",
+    "css!ise/css/hlcm.css",
     "css!ise/examp/examp.css"
 ], function(
     ready,

@@ -34,6 +34,8 @@
     "dojox": "^1.16.5",
     "dragula": "^3.7.3",
     "elkjs": "^0.8.1",
+    "jquery": "^3.5.1",
+    "jquery-contextmenu": "^2.9.2",
     "lru-cache": "^6.0.0",
     "mathjax": "^3.0.1",
     "nanobar": "^0.4.2",

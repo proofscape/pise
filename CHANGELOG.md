@@ -9,6 +9,9 @@ Improvements:
 
 * Update management docs
   ([#34](https://github.com/proofscape/pise/pull/34)).
+* Improve context menus for highlights in doc panels, correcting the offset,
+  and increasing readability of the options
+  ([#39](https://github.com/proofscape/pise/pull/39)).
 
 Bug Fixes:
 

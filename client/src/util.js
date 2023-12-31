@@ -609,6 +609,27 @@ util.extractOriginalHlidFromHlDescriptor = function(hld) {
     return `${oslp}:${osiid}`
 };
 
+/* Return the full offset [dx, dy] of a given document element from one of
+ * its offset ancestors (i.e. an element that can be reached by repeatedly
+ * dereferencing through `offsetParent`).
+ */
+util.getFullOffset = function(element, ancestor) {
+    let left = 0;
+    let top = 0;
+    let lastElt = null;
+    let elt = element;
+    // Check for elt being truthy, to avoid trouble in case you pass an
+    // element that has no offsetParent. This can happen e.g. if the element has been
+    // removed from the document.
+    while (elt && elt !== lastElt && elt !== ancestor) {
+        left += elt.offsetLeft;
+        top += elt.offsetTop;
+        lastElt = elt;
+        elt = elt.offsetParent;
+    }
+    return [left, top];
+}
+
 /* Scroll a given element into view.
  *
  * param element: the element to be scrolled into view
@@ -651,16 +672,7 @@ util.scrollIntoView = function(element, scroller, options) {
     const [r0, r1] = [T0 + pad, T0 + pad + H1];
 
     const h = element.offsetHeight;
-
-    let elt = element;
-    let t0 = 0;
-    // Check for elt being null just to avoid weird crash in case you pass an
-    // element that has no offsetParent. This can happen if the element has been
-    // removed from the document.
-    while (elt !== scroller && elt !== null) {
-        t0 += elt.offsetTop;
-        elt = elt.offsetParent;
-    }
+    const [l0, t0] = util.getFullOffset(element, scroller);
     const t1 = t0 + h;
 
     // Minimum scroll displacement to bring the

@@ -743,11 +743,20 @@ var PdfController = declare(null, {
 
     /* Handle a mouse event on a highlight we are hosting.
      *
+     * param highlightId: the ID of the highlight on which the event occurred
      * param event: the browser-native mouse event object itself
      * param highlightDescriptor: the HDO of the highlight on which the event occurred
      */
-    handleHighlightMouseEvent: function(event, highlightDescriptor) {
-        return this.mgr.handleHighlightMouseEvent(this.uuid, event, highlightDescriptor);
+    handleHighlightMouseEvent: function(highlightId, event, highlightDescriptor) {
+        const hl = this.highlightsBySlpSiid.get(highlightId);
+        const hdo = highlightDescriptor || hl.getSingletonSupplier();
+        if (hdo) {
+            return this.mgr.handleHighlightMouseEvent(this.uuid, event, hdo);
+        }
+    },
+
+    getContextMenuOffsetAdjustment: function() {
+        return iseUtil.getFullOffset(this.iframe, document.body);
     },
 
     /* Receive an array of highlight descriptors.
@@ -1524,6 +1533,12 @@ var PdfController = declare(null, {
         const hlPage = new PageOfHighlights(this, pageNumber, pageWidth);
         hlPage.addHighlights(hls);
         hlPage.populateHighlightLayer(highlightLayer);
+
+        // Wait until now to redo the menus, because we need all zone divs to have been
+        // formed first, so that appropriate classes can be set on them.
+        for (const hl of hls) {
+            hl.redoSupplierMenu();
+        }
     },
 
     // Named highlights are those that appear in the highlightLayer of a page, and come from
