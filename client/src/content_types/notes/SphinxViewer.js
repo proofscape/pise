@@ -174,13 +174,13 @@ export class SphinxViewer extends BasePageViewer {
             this.cw.document.querySelector('body').appendChild(styleScript);
 
             this.activateWidgets();
+            this.customizeInternalLinks();
         }
 
         this.observeLocationChange();
     }
 
     observeLocationChange() {
-        const loc = this.getContentDescriptor();
         if (this.resolvePageUpdate) {
             // The location change resulted from a deliberate call to this.updatePage().
             // Let the Promise returned by that method now resolve.
@@ -191,11 +191,6 @@ export class SphinxViewer extends BasePageViewer {
             // The page was reloaded due to the iframe being moved in the document.
             this.resolveMovementInducedReload();
             this.resolveMovementInducedReload = null;
-        } else {
-            // The location change did not result for a deliberate call to this.updatePage().
-            // This means it must have resulted from the user clicking an <a> tag within the
-            // panel. We must update our history accordingly.
-            this.recordNewHistory(loc);
         }
     }
 
@@ -205,6 +200,61 @@ export class SphinxViewer extends BasePageViewer {
         this.currentPageData = data;
         const elt = this.cw.document.body;
         this.mgr.setupWidgets(data, elt, this.pane);
+    }
+
+    /* Get the URL of the top-level window, and make sure it is "clean," meaning
+     * that it does *not* have any trailing `#`.
+     */
+    getCleanTopLevelWindowUrl() {
+        // We don't use `window.location.href`, since that will include
+        // any trailing `#` that may have been added to the page URL due to
+        // clicks on various <a> tags that use that. Instead, use `origin`
+        // plus `pathname`.
+        return window.location.origin + window.location.pathname;
+    }
+
+    /* Unfortunately, when the user clicks a link in an iframe, the web browser does
+     * not update the `src` attribute of the `iframe` element. For us, it's important
+     * that the `src` attribute stay up to date, because if the iframe is moved in the
+     * DOM (due to changes in the TCT splits), the frame is going to reload at this
+     * address.
+     */
+    customizeInternalLinks() {
+        // Note: We do not just search for 'a.internal', because there are `a` tags in Sphinx
+        // pages that *are* internal, but do *not* have this class. (They have other classes, like
+        // 'sidebar-brand', 'next-page', and 'prev-page'.) So, we grab *all* the `a` tags, and then
+        // determine by checking their `href` whether they are internal or not.
+        const links = this.cw.document.querySelectorAll('a');
+
+        const pisePageUrl = this.getCleanTopLevelWindowUrl();
+        let sphinxRootUrl = pisePageUrl;
+        if (!sphinxRootUrl.endsWith('/')) {
+            sphinxRootUrl += '/';
+        }
+        sphinxRootUrl += 'static/sphinx/';
+
+        for (const link of links) {
+            const hrefAsWritten = link.getAttribute('href');
+            // In testing, I found that for hash navigations within the same page, setting
+            // the iframe's `src` attribute does not cause the desired navigation. So we leave
+            // those links alone.
+            if (!hrefAsWritten.startsWith("#")) {
+                // In both Chrome and Firefox, the `.href` property of an anchor element returns the absolute URL,
+                // starting with scheme, even when the text of the 'href' attribute is relative.
+                const absoluteUrl = link.href;
+                if (absoluteUrl.startsWith(sphinxRootUrl)) {
+                    // It appears to be an internal link (to the collection of Sphinx pages).
+                    const urlRelativeToPisePage = absoluteUrl.slice(pisePageUrl.length);
+                    link.setAttribute('href', '#');
+                    (url => {
+                        link.addEventListener('click', () => {
+                            const loc = this.urlToFullLoc(url);
+                            this.goTo(loc);
+                        });
+                    })(urlRelativeToPisePage);
+                }
+            }
+        }
     }
 
     /* Extract the URL from a content descriptor object of SPHINX type.
@@ -346,11 +396,7 @@ export class SphinxViewer extends BasePageViewer {
         super.normalizeHistoryRecord(rec);
         if (rec.url) {
             let url = rec.url;
-            // Note: don't use `window.location.href`, since that will include
-            // any trailing `#` that may have been added to the page URL due to
-            // clicks on various <a> tags that use that. Instead, use `origin`
-            // plus `pathname`.
-            const pageUrl = window.location.origin + window.location.pathname;
+            const pageUrl = this.getCleanTopLevelWindowUrl();
             if (url.startsWith(pageUrl)) {
                 url = url.slice(pageUrl.length);
             }
@@ -365,6 +411,18 @@ export class SphinxViewer extends BasePageViewer {
                 this.mgr.hub.errAlert(`Bad Sphinx URL: ${rec.url}`);
             }
         }
+    }
+
+    /* Turn the URL for a Sphinx page into a full location descriptor object,
+     * with which to load that page.
+     */
+    urlToFullLoc(url) {
+        const loc = {
+            type: this.mgr.hub.contentManager.crType.SPHINX,
+            url: url,
+        };
+        this.normalizeHistoryRecord(loc);
+        return loc;
     }
 
 }
