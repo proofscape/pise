@@ -95,9 +95,14 @@ class RepoInfo:
             RepoFamily.GITHUB: 'https://github.com/%(user)s/%(repo)s',
             RepoFamily.BITBUCKET: 'https://bitbucket.org/%(user)s/%(repo)s'
         }[self.family]
+        # Rule: Underscores in the owner and repo segments of a libpath
+        # are replaced by hyphens when building a URL for GitHub or BitBucket.
+        # GitHub allows hyphens but not underscores in usernames, so that one has to change.
+        # Hyphens also seem to be more popular than underscores in repo names, generally,
+        # so we extend the rule there too.
         url = fmt % {
-            'user': self.user,
-            'repo': self.project
+            'user': self.user.replace('_', '-'),
+            'repo': self.project.replace('_', '-')
         }
         return url
 

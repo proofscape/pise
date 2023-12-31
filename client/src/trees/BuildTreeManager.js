@@ -384,20 +384,51 @@ export class BuildTreeManager extends TreeManager {
         }
 
         if (iseUtil.libpathIsRemote(item.libpath)) {
-            let modpath = item.libpath;
-            let sourceRow = null;
-            let modIsTerm;
-            if (item.type === "MODULE") {
-                modIsTerm = item.isTerminal;
-            } else {
-                // Any item in the structure tree that is not a module, must be an entity
-                // defined within (and at the top level of) a module.
-                modpath = item.modpath;
-                sourceRow = item.sourceRow;
-                const parentItem = treeNode.tree.model.store.get(item.parent);
-                modIsTerm = parentItem.isTerminal;
+            // Any item in the structure tree that is not a module must be an entity
+            // defined within (and at the top level of) a module. However, due to the
+            // "Sphinx page lifting" behavior of the server-side `ManifestTreeNode.build_relational_model()`
+            // method, the model we receive is altered so that:
+            //   - rst module nodes are replaced with their Sphinx page nodes
+            //   - any other contents of the module are made to look like children of the page element
+
+            function checkItem(item) {
+                if (item.type === "MODULE") {
+                    return {
+                        modpath: item.libpath,
+                        sourceRow: null,
+                        fileExt: '.pfsc',
+                        modIsTerm: !!item.isTerminal,
+                    };
+                } else if (item.type === "SPHINX") {
+                    return {
+                        modpath: item.modpath,
+                        sourceRow: null,
+                        fileExt: '.rst',
+                        modIsTerm: true,
+                    };
+                } else {
+                    return {
+                        modpath: item.modpath,
+                        sourceRow: item.sourceRow,
+                        fileExt: null,
+                        modIsTerm: null,
+                    };
+                }
             }
-            const url = iseUtil.libpath2remoteHostPageUrl(modpath, version, false, sourceRow, modIsTerm);
+
+            let {
+                modpath, sourceRow, fileExt, modIsTerm
+            } = checkItem(item);
+            if (fileExt === null) {
+                const parentItem = treeNode.tree.model.store.get(item.parent);
+                const parentInfo = checkItem(parentItem);
+                fileExt = parentInfo.fileExt;
+                modIsTerm = parentInfo.modIsTerm;
+            }
+
+            const url = iseUtil.libpath2remoteHostPageUrl(
+                modpath, version, false, fileExt, sourceRow, modIsTerm
+            );
             const host = modpath.startsWith('gh.') ? 'GitHub' : 'BitBucket';
             cm.addChild(new dojo.MenuSeparator());
             cm.addChild(new dojo.MenuItem({

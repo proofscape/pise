@@ -4,6 +4,8 @@ Breaking Changes:
 
 * `pdf` widgets are now `doc` widgets
   ([#36](https://github.com/proofscape/pise/pull/36)).
+* Underscores in `owner` and `repo` libpath segments translate to hyphens in remote URLs
+  ([#48](https://github.com/proofscape/pise/pull/48)).
 
 Improvements:
 
