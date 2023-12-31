@@ -16,6 +16,7 @@
 
 from docutils.parsers.rst.directives import unchanged
 
+from pfsc.lang.freestrings import Libpath
 from pfsc.lang.widgets import DocWidget
 from pfsc.sphinx.widgets.nav_widgets import PfscNavWidgetRole
 from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
@@ -39,6 +40,15 @@ class PfscDocWidgetRole(PfscNavWidgetRole):
     widget_class = DocWidget
     widget_type_name = 'doc'
     target_field_name = 'sel'
+
+
+def libpath_or_combiner_code(s):
+    """
+    Pass a string, which should be either a combiner code, or a libpath (potentially
+    relative). We decide which one it is, return it as a `Libpath` instance if we think
+    it's a libpath, or unchanged if we think it's a combiner code.
+    """
+    return s if s.find(';') >= 0 else Libpath(s)
 
 
 class PfscDocWidgetDirective(PfscOneArgWidgetDirective):
@@ -72,5 +82,5 @@ class PfscDocWidgetDirective(PfscOneArgWidgetDirective):
     option_spec = {
         **PfscOneArgWidgetDirective.option_spec,
         "doc": unchanged,
-        "sel": unchanged,
+        "sel": libpath_or_combiner_code,
     }

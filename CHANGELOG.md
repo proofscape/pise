@@ -10,6 +10,11 @@ Improvements:
 * Update management docs
   ([#34](https://github.com/proofscape/pise/pull/34)).
 
+Bug Fixes:
+
+* Make Sphinx doc widgets properly accept libpaths for `sel` field
+  ([#37](https://github.com/proofscape/pise/pull/37)).
+
 
 ## 0.28.0 (230830)
 
