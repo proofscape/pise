@@ -14,23 +14,21 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../../util";
+
 const dojo = {};
-const ise = {};
 define([
     "dijit/Menu",
     "dijit/MenuItem",
-    "dijit/MenuSeparator",
-    "ise/util"
+    "dijit/MenuSeparator"
 ], function(
     Menu,
     MenuItem,
-    MenuSeparator,
-    util
+    MenuSeparator
 ){
     dojo.Menu = Menu;
     dojo.MenuItem = MenuItem;
     dojo.MenuSeparator = MenuSeparator;
-    ise.util = util;
 });
 
 export class SrcViewManager {
@@ -68,7 +66,7 @@ export class SrcViewManager {
     setContent(editor, modpath, version, paneId, text, fvr, cpos) {
         editor.setValue(text);
         editor.clearSelection();
-        const vmp = ise.util.lv(modpath, version);
+        const vmp = iseUtil.lv(modpath, version);
         this.vmpsByPaneId.set(paneId, vmp);
 
         const oed = editor.pfscIseOverviewEditor;
@@ -94,7 +92,7 @@ export class SrcViewManager {
     getExistingPaneIds(info) {
         const modpath = info.modpath;
         const version = info.version;
-        const vmp0 = ise.util.lv(modpath, version);
+        const vmp0 = iseUtil.lv(modpath, version);
         const ids = [];
         for (let [id, vmp] of this.vmpsByPaneId) {
             if (vmp === vmp0) {

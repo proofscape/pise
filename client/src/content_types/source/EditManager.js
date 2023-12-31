@@ -24,6 +24,7 @@ require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
 
 import { SrcViewManager } from "./SrcViewManager";
+import { util as iseUtil } from "../../util";
 
 define([
     "dojo/_base/declare",
@@ -34,7 +35,6 @@ define([
     "dijit/MenuSeparator",
     "dijit/ConfirmDialog",
     "ise/content_types/AbstractContentManager",
-    "ise/util",
     "dojo/NodeList-dom",
     "dojo/NodeList-manipulate",
     "dojo/NodeList-traverse",
@@ -46,8 +46,7 @@ define([
     PopupMenuItem,
     MenuSeparator,
     ConfirmDialog,
-    AbstractContentManager,
-    iseUtil
+    AbstractContentManager
 ) {
 
 // EditManager class

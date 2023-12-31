@@ -17,8 +17,8 @@
 import { BuildTreeManager } from "./BuildTreeManager";
 import { FsTreeManager } from "./FsTreeManager";
 import { NodeExpandTask } from "../delayed";
+import { util as iseUtil } from "../util";
 
-const ise = {};
 const dojo = {};
 
 define([
@@ -31,7 +31,6 @@ define([
     "dijit/layout/TabContainer",
     "dijit/layout/ContentPane",
     "dijit/ConfirmDialog",
-    "ise/util",
     "dojo/NodeList-traverse",
     "dojo/NodeList-manipulate",
 ], function(
@@ -43,8 +42,7 @@ define([
     LayoutContainer,
     TabContainer,
     ContentPane,
-    ConfirmDialog,
-    iseUtil,
+    ConfirmDialog
 ) {
     dojo.query = query;
     dojo.on = on;
@@ -55,7 +53,6 @@ define([
     dojo.TabContainer = TabContainer;
     dojo.ContentPane = ContentPane;
     dojo.ConfirmDialog = ConfirmDialog;
-    ise.util = iseUtil;
 });
 
 export class RepoManager {
@@ -169,7 +166,7 @@ export class RepoManager {
 
         // Catch malformed input and alert the user.
         try {
-            ise.util.parseTailVersionedLibpath(repopathv);
+            iseUtil.parseTailVersionedLibpath(repopathv);
         } catch (e) {
             this.hub.errAlert(e.message);
             return;
@@ -222,7 +219,7 @@ export class RepoManager {
      *   if the request results in any asynchronous processing.
      */
     openRepo({repopathv, doBuild, doClone, fail_silently, ignoreBuildTree, ignoreFsTree, defaultVersion = "WIP"}) {
-        let {libpath, version} = ise.util.parseTailVersionedLibpath(repopathv, {
+        let {libpath, version} = iseUtil.parseTailVersionedLibpath(repopathv, {
             defaultVersion: defaultVersion,
         });
         const repopath = libpath;
@@ -302,7 +299,7 @@ export class RepoManager {
                 content: msg,
                 onExecute: function() {
                     mgr.openRepo({
-                        repopathv: ise.util.lv(repopath, version),
+                        repopathv: iseUtil.lv(repopath, version),
                         doBuild: doBuild,
                         doClone: doClone,
                     });
@@ -362,14 +359,14 @@ export class RepoManager {
         // numbered release then the server would also build after cloning, and
         // it would suppress the `repoIsPresent` event in favor of a `repoIsBuilt`
         // event.
-        const repopathv = ise.util.lv(repopath, "WIP");
+        const repopathv = iseUtil.lv(repopath, "WIP");
         this.openRepo({
             repopathv: repopathv,
         });
     }
 
     noteRepoIsBuilt({ repopath, version }) {
-        const repopathv = ise.util.lv(repopath, version);
+        const repopathv = iseUtil.lv(repopath, version);
         if (this.buildMgr.repoIsOpen(repopathv)) {
             this.reloadBuildTree(repopathv);
         } else {
@@ -380,7 +377,7 @@ export class RepoManager {
     }
 
     closeRepo(repopath, version = "WIP") {
-        const repopathv = ise.util.lv(repopath, version);
+        const repopathv = iseUtil.lv(repopath, version);
         this.buildMgr.closeRepo(repopathv);
         this.fsMgr.closeRepo(repopath);
     }
@@ -410,7 +407,7 @@ export class RepoManager {
         const trees = {};
         // repos @WIP:
         for (let [repopath, fsNodeIds] of fs) {
-            const repopathv = ise.util.lv(repopath, "WIP");
+            const repopathv = iseUtil.lv(repopath, "WIP");
             const info = {
                 expand: {
                     fsNodeIds: fsNodeIds,
@@ -490,8 +487,8 @@ export class RepoManager {
      * }
      */
     repoIsLoaded({ repopathv, repopath }) {
-        repopathv = repopathv || ise.util.lv(repopath, "WIP");
-        repopath = repopath || ise.util.parseTailVersionedLibpath(repopathv).libpath;
+        repopathv = repopathv || iseUtil.lv(repopath, "WIP");
+        repopath = repopath || iseUtil.parseTailVersionedLibpath(repopathv).libpath;
         return {
             fs: this.fsMgr.repoIsOpen(repopath),
             build: this.buildMgr.repoIsOpen(repopathv),
@@ -500,7 +497,7 @@ export class RepoManager {
 
     expandNodesPlusAncestors(repopathv, toExpand) {
         if (toExpand.fsNodeIds) {
-            const repopath = ise.util.parseTailVersionedLibpath(repopathv).libpath;
+            const repopath = iseUtil.parseTailVersionedLibpath(repopathv).libpath;
             this.fsMgr.expandNodesPlusAncestors(repopath, toExpand.fsNodeIds);
         }
         if (toExpand.buildNodeIds) {
@@ -525,7 +522,7 @@ export class RepoManager {
         const itemIds = this.fsMgr.findEssentialExpandedIds([repopath]).get(repopath);
         this.fsMgr.closeRepo(repopath);
         return this.openRepo({
-            repopathv: ise.util.lv(repopath, "WIP"),
+            repopathv: iseUtil.lv(repopath, "WIP"),
             ignoreBuildTree: true,
         }).then(resp => {
             if (resp.fs_model) {

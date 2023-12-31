@@ -15,8 +15,8 @@
  * ------------------------------------------------------------------------- */
 
 import { TreeManager } from "./TreeManager";
+import { util as iseUtil } from "../util";
 
-const ise = {};
 const dojo = {};
 
 define([
@@ -28,7 +28,6 @@ define([
     "dijit/PopupMenuItem",
     "dijit/layout/ContentPane",
     "dijit/ConfirmDialog",
-    "ise/util",
     "dojo/NodeList-traverse",
     "dojo/NodeList-manipulate",
 ], function(
@@ -39,8 +38,7 @@ define([
     MenuItem,
     PopupMenuItem,
     ContentPane,
-    ConfirmDialog,
-    iseUtil,
+    ConfirmDialog
 ) {
     dojo.query = query;
     dojo.on = on;
@@ -50,7 +48,6 @@ define([
     dojo.PopupMenuItem = PopupMenuItem;
     dojo.ContentPane = ContentPane;
     dojo.ConfirmDialog = ConfirmDialog;
-    ise.util = iseUtil;
 });
 
 export class FsTreeManager extends TreeManager {
@@ -92,7 +89,7 @@ export class FsTreeManager extends TreeManager {
         this.dispatch({
             type: 'treeLoaded',
             repopath: repopath,
-            repopathv: ise.util.lv(repopath, "WIP"),
+            repopathv: iseUtil.lv(repopath, "WIP"),
         });
     }
 
@@ -123,7 +120,7 @@ export class FsTreeManager extends TreeManager {
     }
 
     libpath2treeUid(libpath) {
-        return ise.util.getRepoPart(libpath);
+        return iseUtil.getRepoPart(libpath);
     }
 
     lookupItemByLibpathAndType(libpath, type) {
@@ -157,7 +154,7 @@ export class FsTreeManager extends TreeManager {
         cm.destroyDescendants();
 
         const tsHome = dojo.domConstruct.create("div");
-        ise.util.addTailSelector(tsHome, item.libpath.split('.'));
+        iseUtil.addTailSelector(tsHome, item.libpath.split('.'));
         cm.addChild(new dojo.PopupMenuItem({
             label: 'Copy libpath',
             popup: new dojo.ContentPane({
@@ -234,17 +231,17 @@ export class FsTreeManager extends TreeManager {
             }));
         }
 
-        if (ise.util.libpathIsRemote(item.libpath)) {
+        if (iseUtil.libpathIsRemote(item.libpath)) {
             const modpath = item.libpath;
             const isDir = item.type === "DIR";
             const modIsTerm = (!isDir && item.name !== '__.pfsc');
-            const url = ise.util.libpath2remoteHostPageUrl(modpath, "WIP", isDir, null, modIsTerm);
+            const url = iseUtil.libpath2remoteHostPageUrl(modpath, "WIP", isDir, null, modIsTerm);
             const host = modpath.startsWith('gh.') ? 'GitHub' : 'BitBucket';
             cm.addChild(new dojo.MenuSeparator());
             cm.addChild(new dojo.MenuItem({
                 label: `<span title="${url} (opens in new tab)">View at ${host}</span>`,
                 onClick: function(){
-                    ise.util.openInNewTab(url);
+                    iseUtil.openInNewTab(url);
                 }
             }));
         }
@@ -307,7 +304,7 @@ export class FsTreeManager extends TreeManager {
             //onCancel: function() { console.log('cancel'); }
         });
         name_input = dlg.domNode.querySelector('input')
-        ise.util.noCorrect(name_input);
+        iseUtil.noCorrect(name_input);
         dojo.on(name_input, 'keydown', e => {
             if (e.code === "Enter") {
                 dlg.okButton.domNode.querySelector('.dijitButtonNode').click();
@@ -390,7 +387,7 @@ export class FsTreeManager extends TreeManager {
                                     // a bug in Dojo code? Should investigate....
                                     // Until then, our workaround is to reload the subtree rooted at the _parent_
                                     // of the renamed item:
-                                    const parentpath = ise.util.getParentPath(msg.newLibpath);
+                                    const parentpath = iseUtil.getParentPath(msg.newLibpath);
                                     this.reloadSubtree(parentpath, "DIR");
                                 }
                             })
@@ -407,7 +404,7 @@ export class FsTreeManager extends TreeManager {
 
     reloadSubtree(oldLibpath, oldType, newLibpath) {
         newLibpath = newLibpath || oldLibpath;
-        const repopath = ise.util.getRepoPart(oldLibpath);
+        const repopath = iseUtil.getRepoPart(oldLibpath);
         return this.hub.socketManager.xhrFor('loadRepoTree', {
             query: { repopath: repopath, vers: "WIP" },
             handleAs: 'json',

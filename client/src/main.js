@@ -18,6 +18,7 @@ import { ExtensionClient } from "browser-peers/src/ext";
 import { SocketManager } from "./mgr/SocketManager";
 import { WindowManager } from "./mgr/WindowManager";
 import { RepoManager } from "./trees/RepoManager";
+import { util as iseUtil } from "./util";
 
 require("pfsc-moose/src/css/moose.css")
 
@@ -38,7 +39,6 @@ define([
     "ise/content_types/chart/TheorymapManager",
     "ise/KeyListener",
     "ise/Hub",
-    "ise/util",
     "css!dijit/themes/claro/claro.css",
     "css!dojox/layout/resources/ExpandoPane.css",
     "css!dragula/dist/dragula.css",
@@ -61,8 +61,7 @@ define([
     StudyManager,
     TheorymapManager,
     KeyListener,
-    Hub,
-    iseUtil
+    Hub
 ) {
 
 async function loadScripts() {

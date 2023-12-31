@@ -24,6 +24,7 @@ import {
 import {
     GlobalLinkingMap,
 } from "../linking";
+import { util as iseUtil } from "../../util";
 
 define([
     "dojo/_base/declare",
@@ -31,7 +32,6 @@ define([
     "dijit/Dialog",
     "ise/content_types/AbstractContentManager",
     "ise/content_types/pdf/PdfController",
-    "ise/util",
     "ise/errors"
 ], function(
     declare,
@@ -39,7 +39,6 @@ define([
     Dialog,
     AbstractContentManager,
     PdfController,
-    iseUtil,
     pfscErrors
 ) {
 

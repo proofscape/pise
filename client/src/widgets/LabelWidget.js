@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "dojo/dom-construct",
@@ -21,8 +23,7 @@ define([
     "dijit/Menu",
     "dijit/PopupMenuItem",
     "dijit/layout/ContentPane",
-    "ise/widgets/Widget",
-    "ise/util"
+    "ise/widgets/Widget"
 ], function(
     declare,
     domConstruct,
@@ -30,8 +31,7 @@ define([
     Menu,
     PopupMenuItem,
     ContentPane,
-    Widget,
-    iseUtil
+    Widget
 ) {
 
 const LabelWidget = declare(Widget, {

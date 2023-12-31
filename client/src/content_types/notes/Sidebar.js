@@ -14,24 +14,22 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../../util";
+
 const dojo = {};
-const ise = {};
 
 define([
     "dijit/Menu",
     "dijit/MenuItem",
-    "dijit/PopupMenuItem",
-    "ise/util",
+    "dijit/PopupMenuItem"
 ], function(
     Menu,
     MenuItem,
-    PopupMenuItem,
-    util
+    PopupMenuItem
 ) {
     dojo.Menu = Menu;
     dojo.MenuItem = MenuItem;
     dojo.PopupMenuItem = PopupMenuItem;
-    ise.util = util;
 });
 
 export class Sidebar {
@@ -64,7 +62,7 @@ export class Sidebar {
         const clone = this.viewedElt.cloneNode(doCloneChildren);
         clone.classList.add('sidebarContents');
         clone.style.transform = `scale(${this.scale/100})`;
-        ise.util.removeAllChildNodes(this.displayElt);
+        iseUtil.removeAllChildNodes(this.displayElt);
         this.displayElt.appendChild(clone);
 
         const glass = this.makeOverviewGlass();

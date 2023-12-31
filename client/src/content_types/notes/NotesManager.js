@@ -18,6 +18,7 @@ import { GlobalLinkingMap } from "../linking";
 import { DynamicSubscriptionManager, StaticSubscriptionManager } from "../SubscriptionManager";
 import { AnnoViewer } from "./AnnoViewer";
 import { SphinxViewer } from "./SphinxViewer";
+import { util as iseUtil } from "../../util";
 
 define([
     "dojo/_base/declare",
@@ -32,7 +33,6 @@ define([
     "ise/widgets/PdfWidget",
     "ise/widgets/ParamWidget",
     "ise/widgets/DispWidget",
-    "ise/util",
     "ise/errors",
     "dojo/NodeList-dom",
     "dojo/NodeList-manipulate",
@@ -50,7 +50,6 @@ define([
     PdfWidget,
     ParamWidget,
     DispWidget,
-    iseUtil,
     iseErrors
 ) {
 

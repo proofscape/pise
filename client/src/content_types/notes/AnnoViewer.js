@@ -16,19 +16,16 @@
 
 import { BasePageViewer } from "./BasePageViewer";
 import { Sidebar } from "./Sidebar";
+import { util as iseUtil } from "../../util";
 
 const dojo = {};
-const ise = {};
 
 define([
-    "dojo/query",
-    "ise/util",
+    "dojo/query"
 ], function(
-    query,
-    util
+    query
 ) {
     dojo.query = query;
-    ise.util = util;
 });
 
 
@@ -150,7 +147,7 @@ export class AnnoViewer extends BasePageViewer {
     setPageContents(html, data) {
         const elt = this.contentElement;
         dojo.query(elt).innerHTML(html);
-        ise.util.typeset([elt]);
+        iseUtil.typeset([elt]);
         this.currentPageData = data;
         this.nm.setupWidgets(data, this.elt, this.pane);
     }
@@ -224,7 +221,7 @@ export class AnnoViewer extends BasePageViewer {
 
     getCurrentLibpathv() {
         const loc = this.getCurrentLoc();
-        return loc === null ? null : ise.util.lv(loc.libpath, loc.version);
+        return loc === null ? null : iseUtil.lv(loc.libpath, loc.version);
     }
 
     setTheme(theme) {

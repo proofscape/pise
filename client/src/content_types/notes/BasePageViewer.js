@@ -15,22 +15,19 @@
  * ------------------------------------------------------------------------- */
 
 import { Listenable } from "browser-peers/src/util";
+import { util as iseUtil } from "../../util";
 
-const ise = {};
 const dojo = {};
 
 define([
     "dijit/Menu",
-    "dijit/MenuItem",
-    "ise/util",
+    "dijit/MenuItem"
 ], function(
     Menu,
-    MenuItem,
-    util
+    MenuItem
 ) {
     dojo.Menu = Menu;
     dojo.MenuItem = MenuItem;
-    ise.util = util;
 });
 
 export class BasePageViewer extends Listenable {
@@ -104,7 +101,7 @@ export class BasePageViewer extends Listenable {
     }
 
     typeset(elements, win) {
-        return ise.util.typeset(elements, win);
+        return iseUtil.typeset(elements, win);
     }
 
     setupBackgroundClickHandler() {
@@ -472,7 +469,7 @@ export class BasePageViewer extends Listenable {
 
         this.addScrollPadding(options);
 
-        ise.util.scrollIntoView(elt, display, options);
+        iseUtil.scrollIntoView(elt, display, options);
         return true;
     }
 

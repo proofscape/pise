@@ -14,6 +14,8 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "dijit/layout/ContentPane",
@@ -21,8 +23,7 @@ define([
     "dijit/MenuItem",
     "dijit/CheckedMenuItem",
     "dijit/PopupMenuItem",
-    "dijit/MenuSeparator",
-    "ise/util"
+    "dijit/MenuSeparator"
 ], function(
     declare,
     ContentPane,
@@ -30,8 +31,7 @@ define([
     MenuItem,
     CheckedMenuItem,
     PopupMenuItem,
-    MenuSeparator,
-    iseUtil
+    MenuSeparator
 ){
 
 /* This class implements the necessary interface to serve as a

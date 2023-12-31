@@ -14,18 +14,18 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 define([
     "dojo/_base/declare",
     "ise/widgets/ExampWidget",
     "ise/examp/Chooser",
-    "ise/examp/NfChooser",
-    "ise/util",
+    "ise/examp/NfChooser"
 ], function(
     declare,
     ExampWidget,
     Chooser,
-    NfChooser,
-    iseUtil
+    NfChooser
 ) {
 
 const ParamWidget = declare(ExampWidget, {
@@ -107,24 +107,24 @@ const ParamWidget = declare(ExampWidget, {
         return this.receiveNewValue(paneId, newValue, writeHtml);
     },
 
-    grayOut: function(paneId, makeGray) {
-        this.inherited(arguments); // <-- superclass call in Dojo
+    grayOut: function grayOut(paneId, makeGray) {
+        this.inherited(grayOut, arguments); // <-- superclass call in Dojo
         const chooser = this.choosersByPaneId.get(paneId);
         if (chooser) {
             chooser.enable(!makeGray || this.hasError(paneId));
         }
     },
 
-    setErrorMessage: function(paneId, msg) {
-        this.inherited(arguments);
+    setErrorMessage: function setErrorMessage(paneId, msg) {
+        this.inherited(setErrorMessage, arguments);
         const chooser = this.choosersByPaneId.get(paneId);
         if (chooser) {
             chooser.enable(true);
         }
     },
 
-    noteClosingPane: function(pane) {
-        this.inherited(arguments);
+    noteClosingPane: function noteClosingPane(pane) {
+        this.inherited(noteClosingPane, arguments);
         this.choosersByPaneId.delete(pane.id);
     },
 

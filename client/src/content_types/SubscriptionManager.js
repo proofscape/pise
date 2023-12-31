@@ -14,15 +14,7 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
-const dojo = {};
-
-define([
-    "ise/util",
-], function(
-    iseUtil,
-) {
-    dojo.iseUtil = iseUtil;
-});
+import { util as iseUtil } from "../util";
 
 /* Helper for content type managers (like ChartManager and NotesManager) that host
  * content that can be rebuilt (and for which a "subscription" is therefore needed).
@@ -52,8 +44,8 @@ export class SubscriptionManager {
         this.missingObjHandler = missingObjHandler;
         this.reloader = reloader;
 
-        this.libpathsToSubscribedPaneIds = new dojo.iseUtil.LibpathSetMapping();
-        this.modpathsToLibpathsHavingSubscribers = new dojo.iseUtil.LibpathSetMapping();
+        this.libpathsToSubscribedPaneIds = new iseUtil.LibpathSetMapping();
+        this.modpathsToLibpathsHavingSubscribers = new iseUtil.LibpathSetMapping();
 
         this.hub.socketManager.on('repoBuilt', this.handleRepoBuiltEvent.bind(this));
     }
@@ -65,7 +57,7 @@ export class SubscriptionManager {
      * param doSubscripe: boolean true to subscribe, false to unsubscribe
      */
     setSubscription(paneId, libpath, doSubscribe) {
-        const modpath = dojo.iseUtil.getModpathFromTopLevelEntityPath(libpath);
+        const modpath = iseUtil.getModpathFromTopLevelEntityPath(libpath);
         if (doSubscribe) {
             this.libpathsToSubscribedPaneIds.add(libpath, paneId);
             this.modpathsToLibpathsHavingSubscribers.add(modpath, libpath);
@@ -86,7 +78,7 @@ export class SubscriptionManager {
     /* Unsubscribe all panes from a given libpath.
      */
     removeAllSubscriptionsForLibpath(libpath) {
-        const modpath = dojo.iseUtil.getModpathFromTopLevelEntityPath(libpath);
+        const modpath = iseUtil.getModpathFromTopLevelEntityPath(libpath);
         this.libpathsToSubscribedPaneIds.mapping.delete(libpath);
         this.modpathsToLibpathsHavingSubscribers.remove(modpath, libpath);
     }

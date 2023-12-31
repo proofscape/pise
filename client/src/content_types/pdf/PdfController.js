@@ -41,6 +41,7 @@
 
 import { LackingHostPermissionError } from "browser-peers/src/errors";
 import { Highlight, PageOfHighlights } from "../venn";
+import { util as iseUtil } from "../../util";
 
 define([
     "dojo/_base/declare",
@@ -48,7 +49,6 @@ define([
     "dijit/Dialog",
     "dijit/layout/ContentPane",
     "ise/content_types/pdf/pdf_util",
-    "ise/util",
     "ise/errors"
 ], function(
     declare,
@@ -56,7 +56,6 @@ define([
     Dialog,
     ContentPane,
     pdf_util,
-    iseUtil,
     pfscErrors
 ) {
 

@@ -14,16 +14,15 @@
  *  limitations under the License.                                           *
  * ------------------------------------------------------------------------- */
 
+import { util as iseUtil } from "../util";
+
 const ise = {};
 define([
-    "ise/content_types/pdf/pdf_util",
-    "ise/util"
+    "ise/content_types/pdf/pdf_util"
 ], function(
-    pdf_util,
-    util
+    pdf_util
 ){
     ise.pdf_util = pdf_util;
-    ise.util = util;
 });
 
 /* This class supports the MooseNodeLabelPlugin by providing the tools
@@ -228,7 +227,7 @@ export class PdfLabelRenderer {
                 const divs = codes2divs.get(code);
                 for (let div of divs) {
                     // Clear any prior contents.
-                    ise.util.removeAllChildNodes(div);
+                    iseUtil.removeAllChildNodes(div);
                     if (missing) {
                         div.innerHTML = learnMoreHtml;
                         const lm = div.querySelector('.pdfLearnMore');

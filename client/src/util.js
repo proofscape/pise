@@ -16,8 +16,8 @@
 
 import { moose } from "pfsc-moose/src/moose/head";
 
-define([], function(){
-var util = {};
+
+export const util = {};
 
 /* Assign property values to a target object from alternative source objects.
  * The source objects are checked, in order, for a defined value of each
@@ -1062,8 +1062,3 @@ util.detachListeners = function(editor, ace) {
     sesh.setDocument(emptyDoc);
     editor.setSession(emptySesh);
 };
-
-// ---------------------------------------------------------------------------
-
-return util;
-});

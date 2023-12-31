@@ -105,8 +105,8 @@ var TheorymapManager = declare(ChartManager, {
      * param serialOnly: boolean; set true if you want only serializable info.
      * return: The info object.
      */
-    writeStateInfo: function(oldPaneId, serialOnly) {
-        var state = this.inherited(arguments);
+    writeStateInfo: function writeStateInfo(oldPaneId, serialOnly) {
+        var state = this.inherited(writeStateInfo, arguments);
         state.theorymap = this.mapDescripsByPaneId[oldPaneId];
         state.type = this.hub.contentManager.crType.THEORYMAP;
         return state;
@@ -117,8 +117,8 @@ var TheorymapManager = declare(ChartManager, {
      * param closingPane: The ContentPane that is about to close.
      * return: nothing
      */
-    noteClosingContent: function(closingPane) {
-        this.inherited(arguments);
+    noteClosingContent: function noteClosingContent(closingPane) {
+        this.inherited(noteClosingContent, arguments);
         delete this.mapDescripsByPaneId[closingPane.id];
     },
 
