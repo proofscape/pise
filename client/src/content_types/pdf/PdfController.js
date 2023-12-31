@@ -60,6 +60,7 @@ define([
 ) {
 
 const defaultPdfHighlightColor = 'blue';
+const defaultCombinerTemplate = '${code}';
 
 var makeSelectionBoxFromDomNode = pdf_util.makeSelectionBoxFromDomNode;
 var makeSelectionBoxFromDescrip = pdf_util.makeSelectionBoxFromDescrip;
@@ -1828,6 +1829,7 @@ var PdfController = declare(null, {
         const copyBoxText = dlg.domNode.querySelector('.copyBox .copyBoxText');
         const copyButton = dlg.domNode.querySelector('.copyBox .copyButton');
         const templateBox = dlg.domNode.querySelector('.templateBox');
+        const templateResetButton = dlg.domNode.querySelector('.templateResetButton');
         const previewCanvas = dlg.domNode.querySelector('canvas.selectionCombiner');
 
         if (this.combineDialogHandlers.length > 0) {
@@ -1872,6 +1874,10 @@ var PdfController = declare(null, {
                 copyBoxText.innerText, event, "Copied!", dlg.domNode
             );
         }));
+        this.combineDialogHandlers.push(dojoOn(templateResetButton, 'click', event => {
+            templateBox.value = defaultCombinerTemplate;
+            update();
+        }));
 
         if (showDialog) dlg.show();
         return fullCode
@@ -1887,7 +1893,7 @@ var PdfController = declare(null, {
             content: combinerDialogHtml,
         });
         dlg.addChild(pane);
-        pane.domNode.querySelector('.templateBox').value = "${code}";
+        pane.domNode.querySelector('.templateBox').value = defaultCombinerTemplate;
         return dlg;
     },
 
@@ -1982,7 +1988,12 @@ const combinerDialogHtml = `
 <div class="ccdSectionLabel">Preview:</div>
 <canvas class="selectionCombiner"></canvas>
 <div class="ccdSectionLabel">Template:</div>
-<textarea class="templateBox" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<input class="templateBox" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+<div class="templateResetButton" title="Reset to default">
+  <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+    <path d="M 264 10 l 0 110 m 0 -16 l -94 0 M 160 160 m 104 60 a 120 120 0 1 1 0 -120" stroke-width="28" fill="none"/>
+  </svg>
+</div>
 <div class="ccdSectionLabel">Result:</div>
 <div class="copyBox">
   <div class="copyBoxText"></div>

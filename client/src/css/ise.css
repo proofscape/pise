@@ -1172,6 +1172,7 @@ a {
     height: 1em;
 }
 
+.combinerCodeDialog input,
 .combinerCodeDialog textarea {
     margin-bottom: 1em;
 }
@@ -1228,6 +1229,30 @@ a {
 
 .combinerCodeDialog .copyBox .copyButton:hover rect {
     stroke: #2f65ca;
+}
+
+.combinerCodeDialog .templateResetButton {
+    width: 1.3em;
+    height: 1.3em;
+    display: inline-block;
+    position: relative;
+    top: 0.2em;
+}
+
+.themeDark .combinerCodeDialog .templateResetButton path {
+    stroke: #555555;
+}
+
+.themeDark .combinerCodeDialog .templateResetButton:hover path {
+    stroke: #dddddd;
+}
+
+.combinerCodeDialog .templateResetButton path {
+    stroke: #999999;
+}
+
+.combinerCodeDialog .templateResetButton:hover path {
+    stroke: #333333;
 }
 
 
