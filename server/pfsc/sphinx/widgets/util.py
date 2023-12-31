@@ -22,47 +22,46 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.checkinput import check_boxlisting, check_libseg, check_dict
 
 
-def process_widget_label(raw_label):
+def process_widget_subtext(subtext):
     """
-    Process a raw widget label, extracting an optional widget name, and
-    stripping external whitespace.
+    Process a widget SUBTEXT, separating into NAME and/or LABEL, and stripping external whitespace.
 
-    * If the raw label does not contain any colons, then the entire thing (stripped of external
-        whitespace) is the final label, and the widget gets a system-supplied name.
+    * If the SUBTEXT does not contain any colons, then the entire thing (stripped of external
+        whitespace) is the LABEL, and the widget gets a system-supplied NAME.
 
-    * If the raw label does contain one or more colons, then everything coming before the
-        *first* one must be either a valid widget name, or empty (otherwise it's an error).
+    * If the SUBTEXT does contain one or more colons, then everything coming before the
+        *first* one must be either a valid widget NAME, or empty (otherwise it's an error).
 
         In the first case, the widget takes the given name; in the second case, the system
         supplies one.
 
         In all cases, everything up to and including the first colon will be deleted, external
-        whitespace will be stripped from what remains, and that will be the final label text.
+        whitespace will be stripped from what remains, and that will be the final LABEL.
 
-    :returns: pair (name, text) being the widget name (possibly None, possibly empty string),
-        and final label text
-    :raises: PfscExcep if the raw text contains a colon, but what comes before
+    :returns: pair (name, label) being the widget NAME (possibly None, possibly empty string),
+        and widget LABEL (possibly empty string)
+    :raises: PfscExcep if the SUBTEXT contains a colon, but what comes before
         the first colon is neither empty nor a valid libpath segment.
     """
     name = None
-    text = raw_label
+    label = subtext
 
     # If there is a colon...
-    i0 = raw_label.find(":")
+    i0 = subtext.find(":")
     if i0 >= 0:
         # ...and if the text up to the first colon is either empty or a valid libseg...
-        prefix = raw_label[:i0]
+        prefix = subtext[:i0]
         if i0 > 0:
             check_widget_name(prefix)
         # ...then that prefix is the widget name, while everything coming
-        # *after* the colon, minus external whitespace, is the text.
+        # *after* the colon, minus external whitespace, is the label.
         name = prefix
-        text = raw_label[i0 + 1:]
+        label = subtext[i0 + 1:]
 
-    # Strip external whitespace off the text.
-    text = text.strip()
+    # Strip external whitespace off of what remains.
+    label = label.strip()
 
-    return name, text
+    return name, label
 
 
 def check_widget_name(raw):

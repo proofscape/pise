@@ -6,6 +6,8 @@ Breaking Changes:
   ([#36](https://github.com/proofscape/pise/pull/36)).
 * Underscores in `owner` and `repo` libpath segments translate to hyphens in remote URLs
   ([#48](https://github.com/proofscape/pise/pull/48)).
+* Require colon after name in Sphinx widgets that do not accept a label
+  ([#51](https://github.com/proofscape/pise/pull/51)).
 
 Improvements:
 

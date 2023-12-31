@@ -12,7 +12,7 @@ This is `another one <https://proofscape.org>`_.
 Examp Widgets
 -------------
 
-.. pfsc-param:: eg1_k
+.. pfsc-param:: eg1_k:
     :ptype: NumberField
     :name: k
     :default: "cyc(7)"
@@ -23,7 +23,7 @@ Examp Widgets
             ]
         bar: false
 
-.. pfsc-disp:: eg1_disp1
+.. pfsc-disp:: eg1_disp1:
     :import:
         k: eg1_k
     :export: B
