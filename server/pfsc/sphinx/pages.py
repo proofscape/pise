@@ -17,7 +17,7 @@
 import json
 
 from pfsc.lang.objects import EnrichmentPage, EnrichmentType
-from pfsc.lang.modules import PfscModule, make_timestamp_for_module
+from pfsc.lang.modules import PfscModule, make_timestamp_for_module, load_module
 
 import pfsc.constants
 
@@ -153,11 +153,31 @@ def get_sphinx_page(env, docname=None) -> SphinxPage:
         use ``env.docname``
     :return: ``SphinxPage`` or ``None``
     """
-    pfsc_env = get_pfsc_env(env)
     docname = docname or env.docname
+
+    if docname in pfsc.constants.PROHIBITED_RST_DOCNAMES:
+        return None
+
+    pfsc_env = get_pfsc_env(env)
     config = env.config
     modpath = build_libpath_for_rst(config, docname, within_page=False)
     module = pfsc_env.get_module(modpath)
+
+    # Second chance:
+    # On (non-clean) rebuilds, Sphinx may rewrite some docs that were not changed.
+    # In particular (don't know if there may be others too), some such files
+    # are added in `sphinx.builders.Builder.write()`, and are referred to
+    # there as "toctree-containing files that may have changed". It's critical that
+    # we reload such modules here, or else our `inject_page_data()` function will fail
+    # to set the `window.pfsc_page_data` in these pages, resulting in all these pages
+    # being broken (PISE will fail to reload them).
+    if not module:
+        module = load_module(
+            modpath, version=pfsc_env.builder.version,
+            fail_gracefully=False,  # Do want an exception if module not present.
+            cache=pfsc_env.builder.module_cache
+        )
+
     return module[FIXED_PAGE_NAME] if module else None
 
 
@@ -176,6 +196,8 @@ def inject_page_data(app, pagename, templatename, context, event_arg):
         return
     page = get_sphinx_page(app.env, pagename)
     if not page:
+        # This handles legitimate cases like the special `genindex` and `search` pages,
+        # where we do not expect to get a SphinxPage object.
         return
     page_data = page.get_page_data()
     body = f'\n{SCRIPT_INTRO}{json.dumps(page_data, indent=4)}\n'
@@ -191,15 +213,23 @@ class SphinxPfscEnvironment:
     sphinx-proofscape extension.
 
     It supports merge/purge operations, for Sphinx parallel builds.
-
-    At this point, it is essentially just a wrapper around a dictionary of
-    PfscModule instances, by libpath. Could just use a dictionary instead, but
-    we keep this class in case useful in the future.
     """
 
     def __init__(self, app):
         # Lookup for PfscModule instances, by libpath.
         self.pfsc_modules = {}
+        # It's handy to have a reference to the Proofscape `Builder` instance.
+        # This is omitted from pickling via `__getstate__()`.
+        self.builder = None
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        del state['builder']
+        return state
+
+    def set_builder(self, builder):
+        self.builder = builder
 
     def update_modules(self, modules):
         """
