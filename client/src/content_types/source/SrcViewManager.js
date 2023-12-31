@@ -54,13 +54,18 @@ export class SrcViewManager {
             }
         }));
         menu.addChild(new dojo.MenuSeparator());
-        menu.addChild(new dojo.MenuItem({
-            label: 'Jog',
-            onClick: function (evt) {
-                theEditManager.resizeAll();
-                theEditManager.freezeAllEditors(false);
-            }
-        }));
+
+        // jog: to hit, like the Fonz, in order to regain functionality
+        const provideJogOption = false;
+        if (provideJogOption) {
+            menu.addChild(new dojo.MenuItem({
+                label: 'Jog',
+                onClick: function (evt) {
+                    theEditManager.resizeAll();
+                    theEditManager.freezeAllEditors(false);
+                }
+            }));
+        }
     }
 
     setContent(editor, modpath, version, paneId, text, fvr, cpos) {

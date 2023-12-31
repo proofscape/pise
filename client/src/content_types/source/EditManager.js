@@ -1237,14 +1237,19 @@ var EditManager = declare(AbstractContentManager, {
                 theEditManager.toggleOverviewSidebar(paneId);
             }
         }));
-        menu.addChild(new MenuSeparator());
-        menu.addChild(new MenuItem({
-            label: 'Jog',
-            onClick: function (evt) {
-                theEditManager.resizeAll();
-                theEditManager.freezeAllEditors(false);
-            }
-        }));
+
+        // jog: to hit, like the Fonz, in order to regain functionality
+        const provideJogOption = false;
+        if (provideJogOption) {
+            menu.addChild(new MenuSeparator());
+            menu.addChild(new MenuItem({
+                label: 'Jog',
+                onClick: function (evt) {
+                    theEditManager.resizeAll();
+                    theEditManager.freezeAllEditors(false);
+                }
+            }));
+        }
     },
 
     /* Deactivate the auto-save mechanism for a module a number of miliseconds.
