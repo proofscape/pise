@@ -10,10 +10,6 @@ You will need `git` and `docker`, and the ability to install
 a Python 3.8 virtual environment. If you want to develop client-side code, you
 need `npm`.
 
-You will also need a good internet connection, as various steps involve pulling
-git repos, libraries from package repositories, and Docker images from the
-web.
-
 
 ## Make a `conf.py`
 
@@ -126,29 +122,32 @@ Now enter the `server` project directory, and install the dependencies:
 
 ### `client`
 
+In the `client` directory is a JavaScript project. Here you can simply use
+`npm` to install the dependencies:
+
     $ cd client
     $ npm install
 
 
 ## Build Docker images
 
-For most development tasks you're going to need at least the `pfsc-server`
+For most development tasks, you're going to need at least the `pfsc-server`
 Docker image. The first time you build this can be slow, since we need
 to begin by pulling base images.
 
-First make sure the `DOCKER_CMD` setting in your `conf.py` is what it needs
-to be (see comments in `conf.py`).
+First make sure the `DOCKER_CMD` and `DOCKER_PLATFORM` settings in your
+`conf.py` are what they need to be (see comments in `conf.py`).
 
-You're encouraged to look at
+Next, you're encouraged to look at
 
     (venv) $ pfsc build server --help
 
 and read about options that may eventually become relevant for you, but in
 order to get started quickly just do
 
-    (venv) $ pfsc build server latest
+    (venv) $ pfsc build server --no-demos testing
 
-Again, this may take a while.
+Again, the first build may be slow.
 
 
 ## Make a first deployment directory
@@ -170,7 +169,7 @@ its name be automatically generated, using random words and a timestamp.
 We will refer to each such directory as a _deployment directory_.
 You can feel free to delete these directories any time you want, but do not rename
 them, since their names are built into the code they contain, and they will not
-work if renamed.
+work properly if renamed.
 
 In order to generate your first deployment directory, run
 
@@ -187,9 +186,13 @@ Before we move on, you should `cd` into `FIRST_DEPLOY_DIR` and take a look aroun
 Examine the contents of each of the generated files, and understand (or at least guess)
 what they will do for you.
 
-Note that among the generated files is a copy of `conf.py` as it stood
-at the time that you ran `pfsc deploy generate`. This should help you to recreate the
-same deployment later, if need be.
+NOTE: Among the generated files is a copy of `conf.py` as it stood at the time
+that you ran `pfsc deploy generate`. This should help you to recreate the same
+deployment later, if need be.
+
+WARNING: If your `conf.py` contains any secret tokens, passwords, etc., be
+aware that these are now also in the copy of `conf.py` in the deployment
+directory.
 
 
 ## Set up databases
@@ -277,6 +280,9 @@ In fact even
 
 would work, since, rather than spelling out the entire name of the desired
 deployment dir, any prefix that uniquely determines the directory will work.
+
+You are also always free to skip these commands entirely, and manually update
+the symlink at `server/instance/.env`, if you prefer.
 
 
 ## Under construction
