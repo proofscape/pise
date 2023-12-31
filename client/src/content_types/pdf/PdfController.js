@@ -102,6 +102,9 @@ var PdfController = declare(null, {
     needPermissionDiv: null,
     openFileButton: null,
 
+    cursorBoxSelectToolButton: null,
+    cursorEnrichmentsToolButton: null,
+
     origInfo: null,
 
     highlightPageIdx: null,
@@ -251,6 +254,9 @@ var PdfController = declare(null, {
                             });
                         });
 
+                        pdfc.cursorBoxSelectToolButton = cw.document.getElementById("cursorBoxSelectTool");
+                        pdfc.cursorEnrichmentsToolButton = cw.document.getElementById("cursorEnrichmentsTool");
+
                         // Add custom CSS
                         var link = document.createElement("link");
                         link.href = pdfc.mgr.hub.urlFor('staticISE') + "/pdf.css";
@@ -320,6 +326,38 @@ var PdfController = declare(null, {
         } else {
             this.urlBar.classList.add('hidden');
         }
+    },
+
+    enterEnrichmentsMode: function() {
+        this.cursorEnrichmentsToolButton.click();
+    },
+
+    enterBoxSelectMode: function() {
+        this.cursorBoxSelectToolButton.click();
+    },
+
+    isInEnrichmentsMode: function() {
+        return this.viewerContainerDiv.classList.contains('enrichmentsMode');
+    },
+
+    /* Check whether we're already in enrichments mode and, if not, try to enter it.
+     *
+     * This means first checking whether we're currently in box-select mode, with one
+     * or more existing boxes. If so, prompt the user and give them a chance to cancel.
+     *
+     * return: boolean true if entered enrichments mode or were already in it; false
+     *   otherwise
+     */
+    ensureEnrichmentsMode: function() {
+        // TODO:
+        //   Check if in box-select mode with one or more boxes, and if so give
+        //   user a chance to cancel.
+        //   For now, we're just keeping this simple and entering enrichments mode
+        //   automatically.
+        if (!this.isInEnrichmentsMode()) {
+            this.enterEnrichmentsMode();
+        }
+        return true;
     },
 
     /* The iframe has been reloaded -- probably due to being moved in the DOM tree.
@@ -873,6 +911,7 @@ var PdfController = declare(null, {
         const hl = this.highlightsBySlpSiid.get(slpSiid);
         if (hl) {
             foundIt = true;
+            this.ensureEnrichmentsMode();
             this.clearNamedHighlight();
             let scrollElt = hl.getScrollElement();
             // Check that scrollElt still has an offsetParent. It will not if it has been removed from
@@ -1276,6 +1315,7 @@ var PdfController = declare(null, {
                     }
                 });
             }
+            ctrl.ensureEnrichmentsMode();
             ctrl.clearAdHocHighlight();
             startNextJob(0);
         });
