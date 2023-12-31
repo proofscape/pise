@@ -100,7 +100,7 @@ export class BuildTreeManager extends TreeManager {
                     if (cl.startsWith(libpathClassPrefix)) {
                         const p = cl.split('--');
                         libpath = p[1].replaceAll('-', '.');
-                        version = p[2];
+                        version = p[2].replaceAll('_', '.');
                     }
                 }
 
@@ -135,7 +135,7 @@ export class BuildTreeManager extends TreeManager {
      * by this tree node.
      */
     makeTreeIconLibpathClass(libpath, version) {
-        return `${libpathClassPrefix}--${libpath.replaceAll('.', '-')}--${version}`;
+        return `${libpathClassPrefix}--${libpath.replaceAll('.', '-')}--${version.replaceAll('.', '_')}`;
     }
 
     /* Given the data describing a repo tree model, load and display this repo tree.

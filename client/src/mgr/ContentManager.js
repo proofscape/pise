@@ -1326,15 +1326,18 @@ var ContentManager = declare(null, {
             }
         }
 
+        const sayAlreadyLinked = () => {
+            this.hub.alert({
+                title: "Linking",
+                content: "Already linked!",
+            });
+        }
+
         const existingLinks = this.getOutgoingLinkTriplesForLocalPane(sourceId);
         const existingTargetInfos = new Map();
         for (const [u, x, w] of existingLinks) {
             if (w === tUuid) {
-                // Already linked
-                this.hub.alert({
-                    title: "Linking",
-                    content: "Already linked!",
-                });
+                sayAlreadyLinked();
                 return;
             }
             const info = await this.getPaneInfoByUuidAllWindows(w);
@@ -1362,7 +1365,7 @@ var ContentManager = declare(null, {
         const sourceLabel = "A";
 
         function makeCheckboxId(targetLabel) {
-            return `linkingDialog--${targetLabel.replaceAll('.', '-')}`;
+            return `linkingDialog--${targetLabel.replaceAll('@', '--').replaceAll('.', '-')}`;
         }
 
         function buildLinkRow(targetColor, targetLabel, options) {
@@ -1405,6 +1408,16 @@ var ContentManager = declare(null, {
             return label;
         }
 
+        if (
+            targetTreeItem && existingTreeItem &&
+            writeTreeItemLabel(targetTreeItem) === writeTreeItemLabel(existingTreeItem)
+        ) {
+            sayAlreadyLinked();
+            return;
+        }
+
+        const thereAreAlternatives = n > 0 || !!existingTreeItem;
+
         let proposedLinkTab;
         let targetColor;
         let targetLabel;
@@ -1417,13 +1430,13 @@ var ContentManager = declare(null, {
         }
         if (targetLabel) {
             proposedLinkTab = buildLinkTable(
-                [buildLinkRow(targetColor, targetLabel, {includeCheckbox: n > 0})]
+                [buildLinkRow(targetColor, targetLabel, {includeCheckbox: thereAreAlternatives})]
             );
         }
 
         let existingLinkTab;
         let existingTreeItemLabel;
-        if (n > 0 || existingTreeItem) {
+        if (thereAreAlternatives) {
             // Source tab always gets label "A". If target given, it gets "B", while
             // existing targets start at "C"; else the latter start at "B".
             let q = 0;
