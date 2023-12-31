@@ -45,6 +45,11 @@ Bug Fixes:
 * Repair issues with the linking dialog, when adding new tree-links
   ([#50](https://github.com/proofscape/pise/pull/50)).
 
+Upgrades:
+
+* `urllib3 2.0.4 --> 2.0.7`
+* `Werkzeug 2.3.7 --> 2.3.8`
+
 
 ## 0.28.0 (230830)
 

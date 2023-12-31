@@ -67,7 +67,9 @@ coverage[toml]==7.3.0 \
     --hash=sha256:e61260ec93f99f2c2d93d264b564ba912bec502f679793c56f678ba5251f0393 \
     --hash=sha256:fac440c43e9b479d1241fe9d768645e7ccec3fb65dc3a5f6e90675e75c3f3e3a \
     --hash=sha256:fc0ed8d310afe013db1eedd37176d0839dc66c96bcfcce8f6607a73ffea2d6ba
-    # via pytest-cov
+    # via
+    #   coverage
+    #   pytest-cov
 displaylang==0.23.0 \
     --hash=sha256:15d8b9f37c325cdf0803bda328acefc4d13d50fc480a928cbc9738e9b4a7648f \
     --hash=sha256:dcb12d4ea52ea34524f431686eec39e7a1461cb721f43b1aa6ba397de10a180d
