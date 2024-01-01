@@ -1,6 +1,6 @@
 {
   "name": "@proofscape/pise-client",
-  "version": "0.29.1",
+  "version": "0.30.0-dev",
   "license": "Apache-2.0",
   "description": "Client-side code for PISE, the Proofscape Integrated Study Environment",
   "repository": {
