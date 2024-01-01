@@ -13,23 +13,27 @@ and accept pull requests against it, for last-minute additions to the next
 version.
 
 Step 1. To begin with, you should be on the `main` branch.
-Now make and checkout a release branch, of the form `releases/VERSION`.
-For example, if releasing version `0.26.0`,
-
-    $ git checkout -b releases/0.26.0
-
-Step 2. Edit `client/package.json`, setting the version number, and edit
+Edit `client/package.json`, setting the version number, and edit
 `CHANGELOG.md`, setting the version number (but not the date), for the
-release.
+release. (Do not start a `## next (------)` section yet; you'll do that later.)
+
 Then do an `npm install` so the `package-lock.json` updates accordingly:
 
     $ cd client
     $ npm install
 
-Commit these changes, and push:
+Commit these changes:
 
     $ git add .
     $ git commit -m "Set release version"
+
+Step 2. Now make and checkout a release branch, of the form `releases/VERSION`.
+For example, if releasing version `0.26.0`,
+
+    $ git checkout -b releases/0.26.0
+
+Push to remote:
+
     $ git push origin releases/0.26.0
 
 Step 3. Go back to the `main` branch
@@ -40,7 +44,7 @@ and bump the dev version number. For example, if the release branch is
 `releases/0.26.0`, then
 
 * Go into `client/package.json` and change the version to `0.27.0-dev`.
-* In `CHANGELOG.md`, make an entry with heading `## next (------)`.
+* In `CHANGELOG.md`, make a new entry with heading `## next (------)`.
 
 and again update `package-lock.json`:
 
@@ -114,3 +118,4 @@ version from the `main` branch:
 
 Then manually resolve any merge conflict in `CHANGELOG.md` -- *without changing
 the entry for the version that was just released* -- and complete the merge.
+Finally, push to `main` one more time.
