@@ -1,4 +1,9 @@
-## next (------)
+## 0.29.1 (------)
+
+Bug Fixes:
+
+* Repair panel spawn for `link` widgets
+  ([#53](https://github.com/proofscape/pise/pull/53)).
 
 ## 0.29.0 (240101)
 
