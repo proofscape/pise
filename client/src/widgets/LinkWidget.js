@@ -76,7 +76,7 @@ var LinkWidget = declare(Widget, {
         if (loadingPane === null) {
             // There is no existing pane where we want to load the content,
             // so open it beside the current tab.
-            nm.hub.contentManager.openContentBeside(targetInfo, pane);
+            nm.hub.contentManager.openContentBeside(targetInfo, pane.domNode);
         } else {
             // There already is a pane where we want to load the content.
             const makeActive = true;
