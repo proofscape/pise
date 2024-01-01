@@ -1,5 +1,7 @@
 ## next (------)
 
+## 0.29.0 (------)
+
 Breaking Changes:
 
 * `pdf` widgets are now `doc` widgets
