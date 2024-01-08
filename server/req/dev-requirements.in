@@ -8,3 +8,4 @@
 
 pip-tools==7.3.0
 rq-dashboard==0.6.1
+invoke==2.2.0
