@@ -177,7 +177,7 @@ JANUSGRAPH_IMAGE_TAG = '0.6.0'
 NGINX_IMAGE_TAG = '1.24.0'
 # If you want RedisInsight to be dispatched as part of the MCA when RedisGraph
 # is being used, set a version tag here. Otherwise leave as None.
-# REDISINSIGHT_IMAGE_TAG = '1.11.0'
+# REDISINSIGHT_IMAGE_TAG = '1.14.0'
 REDISINSIGHT_IMAGE_TAG = None
 
 # Other versions
