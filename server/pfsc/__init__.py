@@ -16,6 +16,7 @@
 
 import os
 import pathlib
+from collections import defaultdict
 from contextlib import nullcontext
 
 from flask import (
@@ -151,6 +152,77 @@ def get_js_url(package_name, version=None):
         )
 
 
+def check_build_dir_and_graph_db_sync(app):
+    """
+    Check that the build dir and the graph DB for the app are in sync.
+    Ideally this should mean that they show all the same repos and versions as having
+    been built & indexed so far. For today, I'm just implementing the check in one
+    direction, namely that if the build dir shows repo@vers as built, then the graph db
+    also shows it as having been indexed.
+
+    The main motivation for this check is that, in development, I have found it
+    to be a fairly common and subtle problem for the build dir to still have built
+    products in it, while we are connected to a fresh graph DB. In such cases,
+    we will run into weird, hard-to-diagnose issues. For example, requests to the
+    `ForestUpdateHelper` will silently fail to resolve nodes to their parent deductions.
+
+    For now I'm skipping the `test` family of repos, i.e. not checking anything there.
+    There are unit tests, e.g. `tests.test_index_2.test_various_errors()`
+    that try to build a repo with the expectation that the build
+    will fail. They go as far as generating some files in the build dir, but do not make
+    it as far as indexing. Rather than get into programmatically cleaning up these dirs,
+    I'm just skipping the `test` family. In practice, issues don't arise with these repos
+    anyway.
+    """
+    from pfsc.gdb import get_graph_reader
+    from pfsc.build.repo import RepoFamily
+
+    problems = defaultdict(list)
+    with app.app_context():
+        build_dir = get_build_dir()
+        gr = get_graph_reader()
+        for host_segment in RepoFamily.all_families:
+            # Skipping `test` family, for now.
+            if host_segment == RepoFamily.TEST:
+                continue
+            host_dir = build_dir / host_segment
+            if host_dir.exists():
+                for owner_dir in host_dir.iterdir():
+                    if not owner_dir.is_dir():
+                        continue
+                    for repo_dir in owner_dir.iterdir():
+                        if not repo_dir.is_dir():
+                            continue
+
+                        relative_repo_path = repo_dir.relative_to(build_dir)
+                        relative_repo_path_str = str(relative_repo_path)
+                        repo_libpath = relative_repo_path_str.replace('/', '.')
+
+                        indexed_version_prop_dicts = gr.get_versions_indexed(repo_libpath, include_wip=True)
+                        versions_indexed = {d['version'] for d in indexed_version_prop_dicts}
+
+                        for version_dir in repo_dir.iterdir():
+                            if not version_dir.is_dir():
+                                continue
+                            version_name = version_dir.name
+                            if version_name not in versions_indexed:
+                                problems[repo_libpath].append(version_name)
+
+    if problems:
+        msg = (
+            'Build dir and graph db are out of sync.\n'
+            'The following builds are present in the build dir but not in the graph db.'
+        )
+        for repopath, versions in problems.items():
+            for version in versions:
+                msg += f'\n    {repopath}@{version}'
+        msg += (
+            '\nSuggested fix is to manually delete built directories for numbered versions,'
+            ' and then rebuild.'
+        )
+        raise PfscExcep(msg, PECode.BUILD_DIR_AND_GRAPH_DB_OUT_OF_SYNC)
+
+
 def get_app():
     """
     Get a Proofscape Flask app, preferring the current one, or making a new
@@ -242,6 +314,8 @@ def make_app(config_name=None):
         trusted_prefixes[lp] = True
     from pfsc.build.lib.prefix import LibpathPrefixMapping
     app.config['trusted_prefix_mapping'] = LibpathPrefixMapping(trusted_prefixes)
+
+    check_build_dir_and_graph_db_sync(app)
 
     socketio.init_app(
         app,

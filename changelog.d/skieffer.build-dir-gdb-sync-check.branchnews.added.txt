@@ -1,0 +1,2 @@
+Sync check: Server will now refuse to start up if the build dir
+and graph db are out of sync.
