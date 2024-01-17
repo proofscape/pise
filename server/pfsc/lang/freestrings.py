@@ -257,7 +257,14 @@ class PfscJsonTransformer(Transformer):
     json_true = lambda self, _: True
     json_false = lambda self, _: False
 
+
 json_parser = Lark(json_grammar + json_grammar_imports, start='json_value', parser='lalr', lexer='standard')
+
+
+def build_pfsc_json(text, scope=None):
+    ast = json_parser.parse(text)
+    transformer = PfscJsonTransformer(scope=scope)
+    return transformer.transform(ast)
 
 
 ###############################################################################

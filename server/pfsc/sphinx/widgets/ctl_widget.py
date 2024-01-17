@@ -14,19 +14,24 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-from .base import (
-    pfsc_block_widget, pfsc_inline_widget,
-    visit_pfsc_widget_html, depart_pfsc_widget_html,
-)
+from pfsc.lang.freestrings import build_pfsc_json
+from pfsc.lang.widgets import CtlWidget, SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
+from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
 
-from .chart_widget import (
-    PfscChartRole, PfscChartDirective,
-)
-from .ctl_widget import PfscCtlWidgetDirective
-from .doc_widget import (
-    PfscDocWidgetRole, PfscDocWidgetDirective,
-)
-from .examp_widgets import (
-    PfscDispWidgetDirective, PfscParamWidgetDirective,
-)
-from .qna_widget import PfscQnAWidgetDirective
+
+class PfscCtlWidgetDirective(PfscOneArgWidgetDirective):
+    """
+    Directive for Proofscape "Ctl" widgets
+
+    Accepts one argument, of the form `NAME:` (SUBTEXT with no label).
+    """
+    widget_class = CtlWidget
+
+    label_allowed = False
+
+    option_spec = {
+        **PfscOneArgWidgetDirective.option_spec,
+        # Not declaring 'section_numbers' as a field, since (for now at least?) that is
+        # only a way of controlling Markdown rendering in annotations.
+        **{field_name: build_pfsc_json for field_name in SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS}
+    }

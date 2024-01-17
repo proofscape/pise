@@ -723,6 +723,11 @@ class EnrichmentPage(Enrichment):
         Enrichment.__init__(self, typename)
         self.page_data = None
 
+        # Pages can have "control widgets" in them, which can make settings
+        # that affect other things at build time. This is where their settings
+        # are recorded:
+        self.ctl_widget_settings = {}
+
     def get_proper_widgets(self):
         raise NotImplementedError
 
@@ -730,6 +735,26 @@ class EnrichmentPage(Enrichment):
         self.resolveLibpathsRec()
         for widget in self.get_proper_widgets():
             widget.enrich_data()
+
+    def make_ctl_widget_setting(self, key, value):
+        self.ctl_widget_settings[key] = value
+
+    def read_ctl_widget_setting(self, key, default=None):
+        """
+        See also: check_ctl_widget_setting_defined()
+        """
+        return self.ctl_widget_settings.get(key, default)
+
+    def check_ctl_widget_setting_defined(self, key):
+        """
+        In some cases, the values of various ctl widget settings may be set but
+        non-truthy, e.g. `False` or `None` could be a valid value. Therefore it's
+        important to be able to check whether a setting is defined at all, and
+        this method supports that.
+
+        See also: read_ctl_widget_setting()
+        """
+        return key in self.ctl_widget_settings
 
     def get_page_data(self, caching=True):
         """
@@ -744,7 +769,8 @@ class EnrichmentPage(Enrichment):
                 'libpath': self.getLibpath(),
                 'version': self.getVersion(),
                 'widgets': {
-                    w.writeUID(): w.writeData() for w in self.get_proper_widgets()
+                    w.writeUID(): w.writeData()
+                    for w in self.get_proper_widgets() if w.has_presence_in_page()
                 },
                 'docInfo': self.gather_doc_info(caching=caching),
             }
