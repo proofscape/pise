@@ -78,6 +78,9 @@ def doc_ref_factory(code=None, origin_node=None,
             combiner_code = parts[0]
         else:
             doc_info_libpath, combiner_code = parts
+            if len(doc_info_libpath) == 0:
+                msg = f'Error: doc ref begins with "#": {code}'
+                raise PfscExcep(msg, PECode.MALFORMED_DOC_REF_CODE)
 
     can_try_resolve = context is not None and doc_info_libpath is not None
 
