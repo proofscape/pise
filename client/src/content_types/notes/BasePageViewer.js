@@ -65,29 +65,6 @@ export class BasePageViewer extends Listenable {
         this.pageChangeEvent = null;
     }
 
-    // ---------------------------------------------------------------------------
-    // SUBCLASSES MUST OVERRIDE
-
-    /* Get the element where content is displayed.
-     */
-    get contentElement() {
-        return null;
-    }
-
-    /* Get the element where a background click should deselect any selected widget.
-     */
-    get mainContentArea() {
-        return null;
-    }
-
-    /* Get the element whose `scrollTop` should be adjusted, to scroll the page.
-     */
-    get scrollNode() {
-        return null;
-    }
-
-    // ---------------------------------------------------------------------------
-
     destroy() {
         this.unsubscribe();
     }
@@ -215,12 +192,6 @@ export class BasePageViewer extends Listenable {
         return this.history[this.ptr];
     }
 
-    // SUBCLASSES MUST OVERRIDE
-    // Return the tail-versioned libpath of the viewer's current location,
-    // or null if none.
-    getCurrentLibpathv() {
-    }
-
     /* Return a location object describing the current location, including up-to-date
      * scrollFrac, or `null` if we do not have a current location.
      *
@@ -309,13 +280,6 @@ export class BasePageViewer extends Listenable {
         this.observePageUpdate(loc);
     }
 
-    // SUBCLASSES MUST OVERRIDE
-    /* This is where subclasses implement the part of the `updatePage()` operation that
-     * is responsible for (possibly) loading content.
-     */
-    async pageContentsUpdateStep(loc) {
-    }
-
     /* param targetNode: dom element containing the background: must be iframe for Sphinx panels
      * param selector: CSS selector of background, within targetNode
      * param optNames: array of strings indicating which options should be added to the menu
@@ -372,11 +336,6 @@ export class BasePageViewer extends Listenable {
                 'label', `${this.locIsAtWip(loc) ? "Edit" : "View"} Source`
             );
         }
-    }
-
-    // SUBCLASSES SHOULD OVERRIDE
-    locIsAtWip(loc) {
-        return false;
     }
 
     /* Presuming the page data for a location is already loaded, do the scrolling
@@ -474,18 +433,6 @@ export class BasePageViewer extends Listenable {
 
         iseUtil.scrollIntoView(elt, display, options);
         return true;
-    }
-
-    /* SUBCLASSES MAY OVERRIDE
-     *
-     * Opportunity for subclasses to add (or otherwise adjust) the padding that will
-     * be used for scrolling to a selector.
-     *
-     * param options: As received by our `scrollToSelector()` method. Should be modified
-     *  in place.
-     * return: nothing
-     */
-    addScrollPadding(options) {
     }
 
     /* Given a location, describe (with booleans) in what way(s) it
@@ -648,4 +595,57 @@ export class BasePageViewer extends Listenable {
         }
         return update;
     }
+
+    // ---------------------------------------------------------------------------
+    // SUBCLASSES MUST OVERRIDE
+
+    /* Get the element where content is displayed.
+     */
+    get contentElement() {
+        return null;
+    }
+
+    /* Get the element where a background click should deselect any selected widget.
+     */
+    get mainContentArea() {
+        return null;
+    }
+
+    /* Get the element whose `scrollTop` should be adjusted, to scroll the page.
+     */
+    get scrollNode() {
+        return null;
+    }
+
+    // Return the tail-versioned libpath of the viewer's current location,
+    // or null if none.
+    getCurrentLibpathv() {
+    }
+
+    /* This is where subclasses implement the part of the `updatePage()` operation that
+     * is responsible for (possibly) loading content.
+     */
+    async pageContentsUpdateStep(loc) {
+    }
+
+    /* Say whether a given location descriptor object (of the kind that gets recorded
+     * in the viewer's history) represents a page @WIP version.
+     */
+    locIsAtWip(loc) {
+        return false;
+    }
+
+    // ---------------------------------------------------------------------------
+    // SUBCLASSES MAY OVERRIDE
+
+    /* Opportunity for subclasses to add (or otherwise adjust) the padding that will
+     * be used for scrolling to a selector.
+     *
+     * param options: As received by our `scrollToSelector()` method. Should be modified
+     *  in place.
+     * return: nothing
+     */
+    addScrollPadding(options) {
+    }
+
 }
