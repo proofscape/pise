@@ -473,8 +473,7 @@ var NotesManager = declare(AbstractContentManager, {
         const olv = event.oldLibpathv;
         if (olv) {
             this.notePageClose(olv);
-            const olp = olv.split("@")[0];
-            await this.updateLinkingForDepartedPage(olp, event.uuid, event.oldPageData);
+            await this.updateLinkingForPage(event.uuid, event.oldPageData, event.newPageData);
         }
 
         // Make default links for newly loaded page.
@@ -489,7 +488,7 @@ var NotesManager = declare(AbstractContentManager, {
     notePageReload: async function({uuid, libpath, oldPageData, newPageData}) {
         // First step handles widget groups that went away or stayed, and
         // doc references that went away or stayed:
-        await this.updateLinkingForRebuiltPage(libpath, uuid, oldPageData, newPageData);
+        await this.updateLinkingForPage(uuid, oldPageData, newPageData);
         // Second step handles new widget groups, and new doc references:
         await this.makeDefaultLinks(libpath, uuid);
     },
@@ -525,36 +524,19 @@ var NotesManager = declare(AbstractContentManager, {
         delete this.viewers[paneId];
     },
 
-    /* Handle the case of a notes panel N navigating away from page P to page Q,
+    /* Handle the case of a notes panel N for which either:
+     *   - the user has navigated away from page P to page Q, or
+     *   - the user has rebuilt the page P that is hosted in panel N
      * where panel N belongs to our window.
      *
      * When this method is invoked, the page viewer in the notes panel has finished
-     * navigating to the new page.
+     * navigating to the new page, or reloading the existing page.
      *
-     * param pagepath: the libpath of the page P from which we have navigated away
      * param uuid: the uuid of the notes panel N
-     * param pageData: the full page data object for page P
+     * param oldPageData: the full page data object for the page before the change
+     * param newPageData: the full page data object for the page after the change
      */
-    updateLinkingForDepartedPage: async function(pagepath, uuid, pageData) {
-        const LN = this.linkingMap;
-        const LD = this.hub.pdfManager.linkingMap;
-
-        // Clean up L_N.
-        // Compute the set G of all widget group IDs in the old page.
-        const gd = this.extractGroupsToDocsMapFromPageData(pageData);
-        // None of these group IDs belong to the panel anymore, so remove outgoing
-        // links for them from this panel.
-        for (const g of gd.keys()) {
-            await LN.removeTriples({u: uuid, x: g});
-        }
-
-        // Clean up L_D.
-        // If L_D is telling any doc panels to carry out navigations for the old page
-        // in this panel, it must remove such links.
-        await LD.removeTriples({x: pagepath, w: uuid});
-    },
-
-    updateLinkingForRebuiltPage: async function(pagepath, uuid, oldPageData, newPageData) {
+    updateLinkingForPage: async function(uuid, oldPageData, newPageData) {
         const LN = this.linkingMap;
         const LD = this.hub.pdfManager.linkingMap;
         const mD = await this.hub.pdfManager.getHostingMapping();
@@ -574,45 +556,63 @@ var NotesManager = declare(AbstractContentManager, {
         // the group id of that widget, it is impossible for any of the groups
         // that stayed to now reference a different doc than they did before.
 
-        // If a group went away, there can no longer be any outgoing mappings for
-        // it in L_N, from any panel.
+        // Clean up L_N for groups that went away.
         for (const g of Gminus) {
             // TODO:
             //  Should `removeTriples` accept a 'silent' option, telling it not
             //  to dispatch any newly-undefined-at event? Could save some wasted effort here.
-            await LN.removeTriples({x: g});
+            await LN.removeTriples({u: uuid, x: g});
         }
 
-        // Docs referenced before:
-        const D1 = new Set(Array.from(gd1.values()).filter(d => d !== null));
-        // Docs referenced now:
-        const D2 = new Set(Array.from(gd2.values()).filter(d => d !== null));
+        const pageChanged = (
+            newPageData.libpath !== oldPageData.libpath ||
+            newPageData.version !== oldPageData.version
+        );
 
-        // Docs that went away:
-        const Dminus = Array.from(D1).filter(d => !D2.has(d));
-        // Docs that stayed:
-        const D0 = Array.from(D1).filter(d => D2.has(d));
+        if (pageChanged) {
+            // We have moved to a new page.
+            const oldpagepath = oldPageData.libpath;
 
-        // For docs that went away, there should not be any linking from panels hosting
-        // those docs to this panel.
-        for (const d of Dminus) {
-            if (mD.has(d)) {
-                for (const u of mD.get(d)) {
-                    await LD.removeTriples({u, x: pagepath, w: uuid});
+            // Clean up L_D.
+            // If L_D is telling any doc panels to carry out navigations for the old page
+            // in this panel, it must remove such links.
+            await LD.removeTriples({x: oldpagepath, w: uuid});
+        } else {
+            // We are still on the same page, which therefore must have been rebuilt, which
+            // is the only other reason for calling this method.
+            const pagepath = newPageData.libpath;
+
+            // Docs referenced before:
+            const D1 = new Set(Array.from(gd1.values()).filter(d => d !== null));
+            // Docs referenced now:
+            const D2 = new Set(Array.from(gd2.values()).filter(d => d !== null));
+
+            // Docs that went away:
+            const Dminus = Array.from(D1).filter(d => !D2.has(d));
+            // Docs that stayed:
+            const D0 = Array.from(D1).filter(d => D2.has(d));
+
+            // For docs that went away, there should not be any linking from panels hosting
+            // those docs to this panel.
+            for (const d of Dminus) {
+                if (mD.has(d)) {
+                    for (const u of mD.get(d)) {
+                        await LD.removeTriples({u, x: pagepath, w: uuid});
+                    }
                 }
             }
-        }
 
-        // For docs that stayed, the set of highlights could have changed, so they have
-        // to be reloaded.
-        for (const d of D0) {
-            if (mD.has(d)) {
-                for (const u of mD.get(d)) {
-                    await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
-                        acceptFrom: [pagepath],
-                        linkTo: [],
-                        reload: true,
-                    });
+            // For docs that stayed, the set of highlights could have changed, so they have
+            // to be reloaded.
+            for (const d of D0) {
+                if (mD.has(d)) {
+                    for (const u of mD.get(d)) {
+                        await this.hub.pdfManager.loadHighlightsGlobal(u, uuid, {
+                            acceptFrom: [pagepath],
+                            linkTo: [],
+                            reload: true,
+                        });
+                    }
                 }
             }
         }
@@ -665,20 +665,23 @@ var NotesManager = declare(AbstractContentManager, {
                 if (LN_current.length === 0) {
                     await LN.add(uuid, g, w);
                     // Note: in the case that w is a doc panel, there is no need to load highlights
-                    // into it, since, by defn of R, it should already have them.
+                    // into it right now, since that will be handled (if necessary) at the end of
+                    // this method, where we iterate over the `mD` map.
                 }
             }
         }
 
         // Note: Except for any link (uuid, g) |--> R(g) that may have been formed above, we
         // deliberately do not form any default links N --> C. If a chart panel C was not already
-        // navigated by another, existing copy of our notes page, then there is no good reason for
-        // this copy to link to it by default. Either C is navigated by some *other* page, or
-        // the user is using it for manual exploration.
+        // navigated by any of the groups occurring in our notes page, then there is no good reason
+        // for any of them to link to it now. Chart panels are different from notes and doc panels
+        // in that their "topic" is completely free: they can host any (changing) combination of
+        // deductions. So we assume that C may already be navigated by some *other* group(s), or
+        // the user may just be using it for manual exploration, and we leave it alone.
 
         // For docs d referenced by doc widgets in N, if there's just a sole group referencing
         // that doc in N, and if that doc is already on the board, and if that group hasn't received
-        // a mapping for panel N yet, then we assign it to an mra panel in which the doc is found.
+        // a mapping for panel N yet, then we assign it to an m.r.a. panel in which the doc is found.
         for (const [d, Gd] of Ndg.mapping) {
             if (Gd.size === 1 && mD.has(d)) {
                 const g = Array.from(Gd)[0];
@@ -728,7 +731,7 @@ var NotesManager = declare(AbstractContentManager, {
      *
      * param d0: the docId for which we want to claim an existing panel (if any)
      * param g0: the widget group id of the group that wants to claim a panel
-     * param u0: the uuid of the panel where group g0 lives
+     * param u0: the uuid of the panel where group g0 was clicked
      *
      * return: uuid of panel to be claimed, or null if none can be claimed
      */
@@ -874,31 +877,7 @@ var NotesManager = declare(AbstractContentManager, {
      */
     purgeWidget: function(uid) {
         if (this.widgets.has(uid)) {
-            const widget = this.widgets.get(uid);
-
-            // Remove from lookup.
             this.widgets.delete(uid);
-
-            // Clean up our linking map.
-            // There are two circumstances under which we can find ourselves purging widgets:
-            // (1) the last open copy of a notes page is closing, and (2) a notes page has been
-            // rebuilt. If there were only case (1), we would have nothing to do here, because
-            // linking maps are already self-maintaining in response to closing panels. But because
-            // of case (2), we need to do some clean up here.
-            //
-            // Note that we only act locally, i.e. only within this window. This results in correct
-            // behavior in both cases (1) and (2). In case (1), generally it's just the last copy of
-            // a notes page in *this* window that's closing, so we shouldn't mess with linking map
-            // components held by other windows. Our behavior here will be redundant, but not incorrect.
-            //
-            // In case (2), any and all windows that have an open
-            // copy of a notes page that has just been rebuilt, will receive the socket event notifying
-            // about this, so each window will take the necessary clean up action on its own. There is
-            // no need for one window to broadcast an event to all others.
-            const gid = widget.groupId;
-            if (gid) {
-                this.linkingMap.localComponent.removeTriples({x: gid});
-            }
         }
     },
 
@@ -1104,6 +1083,10 @@ var NotesManager = declare(AbstractContentManager, {
             widget.on('widgetVisualUpdate', this.wvuCallback, {nodup: true});
         }
 
+        // Setting up the widgets is the last step of loading a new page, so signal to the
+        // viewer that it can now announce any waiting page change event.
+        const viewer = this.getViewerForPaneId(pane.id);
+        viewer.announcePageChangeIfAny();
     },
 
     observeWidgetVisualUpdate: function(event) {

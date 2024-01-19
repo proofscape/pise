@@ -60,6 +60,9 @@ export class BasePageViewer extends Listenable {
         this.subscriptionManager = null;
         this.contextMenu = null;
         this.lastScrollFrac = null;
+
+        // Page change events are built in stages, so we need to store the event.
+        this.pageChangeEvent = null;
     }
 
     // ---------------------------------------------------------------------------
@@ -505,19 +508,31 @@ export class BasePageViewer extends Listenable {
         };
     }
 
-    announcePageChange(loc, oldPageData) {
+    startPageChangeEvent(newLoc, oldPageData) {
         const event = {
             type: 'pageChange',
             uuid: this.uuid,
             oldLibpathv: null,
             oldPageData: oldPageData,
-            newLibpathv: `${loc.libpath}@${loc.version}`,
+            newLibpathv: `${newLoc.libpath}@${newLoc.version}`,
+            newPageData: null,
         }
-        const cur = this.getCurrentLoc();
-        if (cur) {
-            event.oldLibpathv = `${cur.libpath}@${cur.version}`;
+        // This method is called before the history is updated, so the
+        // "old" location is the current location.
+        const oldLoc = this.getCurrentLoc();
+        if (oldLoc) {
+            event.oldLibpathv = `${oldLoc.libpath}@${oldLoc.version}`;
         }
-        this.dispatch(event);
+        this.pageChangeEvent = event;
+    }
+
+    announcePageChangeIfAny() {
+        const event = this.pageChangeEvent;
+        if (event) {
+            event.newPageData = this.currentPageData;
+            this.dispatch(event);
+            this.pageChangeEvent = null;
+        }
     }
 
     /* Remove any existing subscription, and subscribe to the libpath
@@ -624,9 +639,12 @@ export class BasePageViewer extends Listenable {
         if (update.pageChange) {
             // Note: it is critical that these steps happen before
             // the `recordNewHistory` step, since that changes the
-            // _current_ location, which these methods rely upon.
-            this.announcePageChange(loc, oldPageData);
+            // *current* location, which these methods rely upon.
+            this.startPageChangeEvent(loc, oldPageData);
             this.updateSubscription(loc);
+        } else {
+            // Ensure that we do not announce a page change.
+            this.pageChangeEvent = null;
         }
         return update;
     }

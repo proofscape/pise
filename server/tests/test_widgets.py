@@ -300,3 +300,52 @@ def test_doc_ref_malformed(app):
             mod = build_module_from_text(text, 'test._foo._bar')
             mod.resolve()
         assert ei.value.code() == PECode.MALFORMED_DOC_REF_CODE
+
+
+test_widget_group_spec_module_template = """
+anno Notes @@@
+Here is <chart:>[a widget]{
+    "group": %s,
+}
+@@@
+"""
+
+
+@pytest.mark.psm
+@pytest.mark.parametrize("group_spec, expected_err_code", [
+    ['"this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long"',
+     PECode.WIDGET_GROUP_NAME_TOO_LONG],
+    ['"...this_has_too_many_dots"',
+     PECode.PARENT_DOES_NOT_EXIST],
+])
+def test_widget_group_spec_err(app, group_spec, expected_err_code):
+    """
+    Check various errors in widget group spec formats.
+    """
+    with app.app_context():
+        text = test_widget_group_spec_module_template % group_spec
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        assert ei.value.code() == expected_err_code
+
+
+@pytest.mark.psm
+@pytest.mark.parametrize("group_spec, expected_group_id", [
+    # No leading dots. Namespace is the anno.
+    ['"foo"', 'test._foo._bar@WIP.Notes:CHART:foo'],
+    # One leading dot. Namespace is the module; dot is pruned from name.
+    ['".foo"', 'test._foo._bar@WIP:CHART:foo'],
+])
+def test_widget_group_spec(app, group_spec, expected_group_id):
+    """
+    Check valid formats for widget group spec.
+    """
+    with app.app_context():
+        text = test_widget_group_spec_module_template % group_spec
+        mod = build_module_from_text(text, 'test._foo._bar')
+        mod.resolve()  # This is where widget data gets enriched.
+        anno = mod['Notes']
+        widget = anno.widget_seq[0]
+        group_id = widget.data['pane_group']
+        assert group_id == expected_group_id

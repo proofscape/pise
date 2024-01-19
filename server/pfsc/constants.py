@@ -107,6 +107,8 @@ VERTEX_KEY_CHAR = "@"
 MAX_LIBPATH_LEN = 192
 # Max length for a libseg:
 MAX_LIBSEG_LEN = 48
+# Max length for the name of a widget group (including leading dots):
+MAX_WIDGET_GROUP_NAME_LEN = 48
 
 # Recusion limits
 # For processing input that describes a forest of nested deductions:
