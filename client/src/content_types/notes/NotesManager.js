@@ -537,32 +537,15 @@ var NotesManager = declare(AbstractContentManager, {
      * param newPageData: the full page data object for the page after the change
      */
     updateLinkingForPage: async function(uuid, oldPageData, newPageData) {
-        const LN = this.linkingMap;
         const LD = this.hub.pdfManager.linkingMap;
-        const mD = await this.hub.pdfManager.getHostingMapping();
 
-        const gd1 = this.extractGroupsToDocsMapFromPageData(oldPageData);
-        const gd2 = this.extractGroupsToDocsMapFromPageData(newPageData);
-
-        // Groups present before:
-        const G1 = new Set(gd1.keys())
-        // Groups present now:
-        const G2 = new Set(gd2.keys())
-
-        // Groups that went away:
-        const Gminus = Array.from(G1).filter(g => !G2.has(g));
-
-        // Note: since the docId referenced by a doc widget is incorporated in
-        // the group id of that widget, it is impossible for any of the groups
-        // that stayed to now reference a different doc than they did before.
-
-        // Clean up L_N for groups that went away.
-        for (const g of Gminus) {
-            // TODO:
-            //  Should `removeTriples` accept a 'silent' option, telling it not
-            //  to dispatch any newly-undefined-at event? Could save some wasted effort here.
-            await LN.removeTriples({u: uuid, x: g});
-        }
+        // Note: We used to remove mappings from L_N for widget groups that were
+        // no longer present in the page, but that is not correct behavior. We want
+        // those mappings to persist until the panel is closed. Consider a user who
+        // is clicking through Sphinx pages P, Q, R, where pages P and R have chart
+        // widgets belonging to a common group, but Q does not. The user wants page R
+        // to continue navigating the same chart panel that P navigated. If we pruned
+        // the mapping when page Q was loaded, this would be broken.
 
         const pageChanged = (
             newPageData.libpath !== oldPageData.libpath ||
@@ -578,8 +561,13 @@ var NotesManager = declare(AbstractContentManager, {
             // in this panel, it must remove such links.
             await LD.removeTriples({x: oldpagepath, w: uuid});
         } else {
-            // We are still on the same page, which therefore must have been rebuilt, which
-            // is the only other reason for calling this method.
+            // We are still on the same page, which therefore must have been rebuilt, as
+            // that is the only other reason for calling this method.
+            const mD = await this.hub.pdfManager.getHostingMapping();
+
+            const gd1 = this.extractGroupsToDocsMapFromPageData(oldPageData);
+            const gd2 = this.extractGroupsToDocsMapFromPageData(newPageData);
+
             const pagepath = newPageData.libpath;
 
             // Docs referenced before:
@@ -601,6 +589,10 @@ var NotesManager = declare(AbstractContentManager, {
                     }
                 }
             }
+
+            // Note: since the docId referenced by a doc widget is incorporated in
+            // the group id of that widget, it is impossible for any of the groups
+            // that stayed to now reference a different doc than they did before.
 
             // For docs that stayed, the set of highlights could have changed, so they have
             // to be reloaded.
