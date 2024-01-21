@@ -65,6 +65,7 @@ from pfsc.checkinput.repo import (
     check_repo_dependencies_format,
 )
 
+
 def check_cdlist(key, raw, typedef):
     """
     'cdlist' stands for 'comma-delimited list'
@@ -76,6 +77,7 @@ def check_cdlist(key, raw, typedef):
     inputs = raw.split(',')
     if len(inputs) == 1 and inputs[0] == '': inputs = []
     return check_list(key, inputs, typedef)
+
 
 def check_dlist(key, raw, typedef):
     """
@@ -92,6 +94,7 @@ def check_dlist(key, raw, typedef):
     inputs = raw.split(d)
     if len(inputs) == 1 and inputs[0] == '': inputs = []
     return check_list(key, inputs, typedef)
+
 
 def check_list(key, raw, typedef):
     """
@@ -129,6 +132,7 @@ def check_list(key, raw, typedef):
         values = sum(values, [])
     return values
 
+
 def check_dict(key, raw, typedef):
     """
     :param raw: an actual dictionary or a string rep thereof
@@ -158,23 +162,20 @@ def check_dict(key, raw, typedef):
         checked_dict[k] = v
     return checked_dict
 
+
 class IType:
-    "Input Types"
+    """
+    Input Types
+    """
     BOOLEAN = 'boolean'
     INTEGER = 'integer'
     SIMPLE_DICT = 'simple_dict'
     DICT = 'dict'
     LIST = 'list'
-#    FLOAT = 'float'
     CDLIST = 'cdlist'
     DLIST = 'dlist'
-#    CHECKBOX = 'checkbox'
     STR = 'str'
     JSON = 'json'
-#    HASH = 'hash'
-#    USERNAME_FORMAT = 'username_format'
-#    PASSWORD_FORMAT = 'password_format'
-#    EMAIL_FORMAT = 'email_format'
     MAJ_VERS = 'major_version'
     FULL_VERS = 'full_version'
     BOXLISTING = 'boxlisting'
@@ -185,28 +186,7 @@ class IType:
     GOAL_ID = 'goal_id'
     VERSIONED_LIBPATH = 'versioned_libpath'
     VERSIONED_FOREST = 'versioned_forest'
-#    REPOPATH = 'repopath'
-#    MODPATH = 'modpath'
-#    DEDUCPATH = 'deducpath'
-#    NODEPATH = 'nodepath'
-#    MODTEXT = 'modtext'
-#    XPANTARGETLIST = 'xpantargetlist'
-#    EDIT_ACTION_PARAM = 'edit_action_param'
-#    DISCUSSION_NODE_ADDR = 'discussion_node_addr'
-#    XPANREQID = 'xpanreqID'
-#    RDEF_PAIRS = 'rdef_pairs'
-#    FRIENDLY_RESULT_TYPE = 'friendly_result_type'
-#    INPUT_RESULT_NUMBER = 'input_result_number'
-#    INPUT_RESULT_PAGE_AND_LINE = 'input_result_page_and_line'
-#    INPUT_RESULT_PAGE = 'input_result_page'
-#    INPUT_RESULT_LINE = 'input_result_line'
-#    ACCESS_TYPE = 'access_type'
-#    WORK_TYPE = 'work_type'
     URL = 'url'
-#    LIBSEG_FORMAT = 'libseg_format'
-#    MSC_CODE = 'MSC_code'
-#    MSC_TOP_LEVEL_CODE = 'MSC_top_level_code'
-#    LIB_PAGE_TYPE = 'lib_page_type'
     ISE_SIDE = 'ise_side'
     ISE_SPLIT = 'ise_split'
     ISE_ACTIVE = 'ise_active'
@@ -214,22 +194,17 @@ class IType:
     DOC_ID = 'doc_id'
     COMBINER_CODE = 'combiner_code'
 
+
 TYPE_HANDLERS = {
     IType.BOOLEAN: check_boolean,
     IType.INTEGER: check_integer,
     IType.SIMPLE_DICT: check_simple_dict,
     IType.DICT: check_dict,
     IType.LIST: check_list,
-#    IType.FLOAT: check_float,
     IType.CDLIST: check_cdlist,
     IType.DLIST: check_dlist,
-#    IType.CHECKBOX: check_checkbox,
     IType.STR: check_string,
     IType.JSON: check_json,
-#    IType.HASH: check_hash,
-#    IType.USERNAME_FORMAT: check_username_format,
-#    IType.PASSWORD_FORMAT: check_password_format,
-#    IType.EMAIL_FORMAT: check_email_format,
     IType.MAJ_VERS: check_major_version,
     IType.FULL_VERS: check_full_version,
     IType.BOXLISTING: check_boxlisting,
@@ -240,28 +215,7 @@ TYPE_HANDLERS = {
     IType.GOAL_ID: check_goal_id,
     IType.VERSIONED_LIBPATH: check_versioned_libpath,
     IType.VERSIONED_FOREST: check_versioned_forest,
-#    IType.REPOPATH: check_libpath,
-#    IType.MODPATH: check_libpath,
-#    IType.DEDUCPATH: check_libpath,
-#    IType.NODEPATH: check_libpath,
-#    IType.MODTEXT: check_modtext,
-#    IType.XPANTARGETLIST: check_xpantargetlist,
-#    IType.EDIT_ACTION_PARAM: check_edit_action_param,
-#    IType.DISCUSSION_NODE_ADDR: check_discussion_node_addr,
-#    IType.XPANREQID: check_xpanreqID,
-#    IType.RDEF_PAIRS: check_rdef_pairs,
-#    IType.FRIENDLY_RESULT_TYPE: check_friendly_result_type,
-#    IType.INPUT_RESULT_NUMBER: check_input_result_number,
-#    IType.INPUT_RESULT_PAGE_AND_LINE: check_input_result_page_and_line,
-#    IType.INPUT_RESULT_PAGE: check_input_result_page,
-#    IType.INPUT_RESULT_LINE: check_input_result_line,
-#    IType.ACCESS_TYPE: check_access_type,
-#    IType.WORK_TYPE: check_work_type,
     IType.URL: check_url,
-#    IType.LIBSEG_FORMAT: check_libseg_format,
-#    IType.MSC_CODE: check_MSC_code,
-#    IType.MSC_TOP_LEVEL_CODE: check_MSC_top_level_code,
-#    IType.LIB_PAGE_TYPE: check_lib_page_type,
     IType.ISE_SIDE: check_ise_side,
     IType.ISE_SPLIT: check_ise_split,
     IType.ISE_ACTIVE: check_ise_active,
@@ -269,6 +223,7 @@ TYPE_HANDLERS = {
     IType.DOC_ID: check_doc_id,
     IType.COMBINER_CODE: check_combiner_code,
 }
+
 
 def check_type(key, raw, typedef):
     """
@@ -282,6 +237,7 @@ def check_type(key, raw, typedef):
     handler = TYPE_HANDLERS[typename]
     return handler(key, raw, typedef)
 
+
 class UndefinedInput:
     """
     We use instances of this class to represent undefined input values.
@@ -289,11 +245,14 @@ class UndefinedInput:
     """
     pass
 
+
 def is_undefined(thing):
     return isinstance(thing, UndefinedInput)
 
+
 def is_defined(thing):
     return not is_undefined(thing)
+
 
 def check_input(raw_dict, stash, types, reify_undefined=True):
     """
@@ -322,8 +281,8 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
 
     Format of the 'types' argument:
 
-    This is a dictionary, featuring any subset (including all) of
-    the keys: REQ, REQ_ORDER, OPT, ALT_SETS, and CONF.
+    This is a dictionary, featuring any subset of the keys: REQ, REQ_ORDER, OPT,
+    ALT_SETS, and CONF.
 
     REQ: A name:typedef dict. All these are required variables.
 
