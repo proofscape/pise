@@ -1,2 +1,11 @@
 * Uniformize widget field names to always use lower camel case.
+* Introduce type checking for widget fields.
+* Raise exception on presence of unexpected widget fields.
+* Uniformize widget field value types across annos and Sphinx pages.
+    Now the same JSON types that are used in annos are also required
+    in Sphinx.
+* The string format that was introduced for `color` and `hoverColor` in
+    Sphinx is now accepted both in Sphinx and in annos, as an alternative
+    to the older, dictionary format. The older format is also still accepted
+    in both places.
 

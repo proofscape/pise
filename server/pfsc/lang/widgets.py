@@ -14,11 +14,16 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-import re, json
+from collections import defaultdict
+import re
+import json
 
 from markupsafe import escape, Markup
 import jinja2
 
+import pfsc.checkinput as checkinput
+from pfsc.checkinput import check_boxlisting
+from pfsc.checkinput import IType
 from pfsc.checkinput.doc import DocIdType
 from pfsc.constants import (
     IndexType,
@@ -55,6 +60,7 @@ malformed_widget_template = jinja2.Template("""
 
 """)
 
+
 class MalformedWidget:
     """
     This represents any Widget in which the user wrote malformed JSON.
@@ -82,6 +88,7 @@ class MalformedWidget:
         }
         return malformed_widget_template.render(context)
 
+
 dummy_widget_template = jinja2.Template("""
 <div class="widget dummyWidget {{ uid }}">
     <p>Widget</p>
@@ -90,6 +97,7 @@ dummy_widget_template = jinja2.Template("""
 </div>
 
 """)
+
 
 def replace_data(data, datapaths, replacer, accept_absent=False):
     """
@@ -189,8 +197,16 @@ class Widget(PfscObj):
         data["type"] = type_
         data["src_line"] = self.get_lineno_within_module()
         self.data = data
+
         # Grab any default values that may have been set by now.
+        # We record a mapping from field names to names of ctl widgets that set them.
+        self.fields_accepted_from_ctl_widgets = {}
         self.accept_defaults_from_ctl_widgets()
+
+        # `self.check_fields()` will be invoked by `EnrichmentPage.resolve()` at resolution time.
+        # It happens after cascading libpaths, but before resolving libpaths in the data, and
+        # before enriching the data.
+        self.checked_fields = {}
 
         # In order to resolve relative libpaths, widget subclasses need only specify in this
         # field the "datapaths" where libpaths can (optionally) be found in their data.
@@ -200,6 +216,83 @@ class Widget(PfscObj):
         self.repos = []
         # A lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
+
+    def check(self, types, adopt_defaults=True, raw=None, reify_undefined=True, adopt=None):
+        """
+        Convenience method for checking this widget's data fields, and stashing the
+        results in `self.checked_fields`.
+
+        :param types: the definition of the arg types to be checked. See docstring for
+                      the `check_input()` function.
+
+        :param adopt_defaults: boolean, default True. If True, then we will automatically
+            adopt into `self.data` those values written into `self.checked_fields` for
+            keys that (a) were listed under "OPT", and (b) were not defined in `self.data`,
+            but (c) were defined in `self.checked_fields` -- in other words, keys for which
+            a default value was accepted.
+
+            Subclasses should ensure that the types recorded in `self.checked_fields` for such
+            defaults are therefore of a JSON-serializable type, suitable to be recorded in the
+            built representation of this widget (or else turn this option off).
+
+            See also `adopt` option.
+
+        :param raw: optional dictionary to check instead of `self.data`.
+
+        :param reify_undefined: forwarded to the `check_input()` function.
+
+        :param adopt: optionally pass a list of field names that should be adopted into
+            `self.data` from `self.checked_fields`. Any adopted field values should be of
+            JSON-serializable type.
+
+            See also `adopt_defaults` option.
+
+        :return: nothing
+        """
+        if raw is None:
+            raw = self.data
+        try:
+            checkinput.check_input(
+                raw, self.checked_fields, types,
+                reify_undefined=reify_undefined,
+                err_on_unexpected=True
+            )
+        except PfscExcep as pe:
+            field = pe.bad_field()
+            pe.extendMsg(f'Problem is for "{field}" field in {self.type_} widget {self.libpath}.')
+            if field in self.fields_accepted_from_ctl_widgets:
+                blame = self.fields_accepted_from_ctl_widgets[field]
+                pe.extendMsg(f'Field value was set by ctl widget "{blame}"')
+            raise pe
+
+        if adopt_defaults:
+            opt_keys = types.get("OPT", {}).keys()
+            for k in opt_keys:
+                if k in self.checked_fields and k not in self.data:
+                    self.data[k] = self.checked_fields[k]
+
+        if adopt:
+            for k in adopt:
+                if k in self.checked_fields:
+                    self.data[k] = self.checked_fields[k]
+
+    @classmethod
+    def generate_arg_spec(cls):
+        """
+        Subclasses must override.
+
+        Generate the arg spec dictionary that should be passed to `self.check()` in order to
+        check the input data fields.
+        """
+        raise NotImplementedError(f'Widget class `{cls.__class__}` needs to implement `generate_arg_spec()`')
+
+    def check_fields(self):
+        """
+        Subclasses must override.
+
+        They should call `self.check()`, passing the arg spec that defines all of their data fields.
+        """
+        raise NotImplementedError(f'Widget class `{self.__class__}` needs to implement `check_fields()`')
 
     def has_presence_in_page(self):
         """
@@ -294,12 +387,6 @@ class Widget(PfscObj):
         pane_group = ":".join(parts)
         self.data['pane_group'] = pane_group
 
-    def check_required_fields(self, req):
-        for rf in req:
-            if rf not in self.data:
-                msg = 'Widget %s is missing required "%s" field.' % (self.name, rf)
-                raise PfscExcep(msg, PECode.WIDGET_MISSING_REQUIRED_FIELD)
-
     def cascadeLibpaths(self):
         PfscObj.cascadeLibpaths(self)
         self.data['widget_libpath'] = self.libpath
@@ -355,6 +442,8 @@ class Widget(PfscObj):
                     self.data[field_name] = self.parent.read_ctl_widget_setting(
                         default_field_name
                     )
+                    blame = self.parent.check_ctl_widget_setting_blame(field_name)
+                    self.fields_accepted_from_ctl_widgets[field_name] = blame
 
     def enrich_data(self):
         """
@@ -484,6 +573,9 @@ class UnknownTypeWidget(Widget):
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, "<unknown-type>", name, label, data, anno, lineno)
 
+    def check_fields(self):
+        pass
+
 
 """
 Each field name must be of the form
@@ -521,10 +613,57 @@ class CtlWidget(Widget):
             is off.
     """
 
+    supported_default_fields = SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
+
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.CTL, name, label, data, anno, lineno)
-        self.supported_default_fields = SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
-        self.check_data()
+        self.record_default_fields()
+
+    @classmethod
+    def _generate_arg_spec_parts(cls):
+        markdown_control_opts = {
+            'sectionNumbers': {
+                'type': IType.DICT,
+                'spec': {
+                    "OPT": {
+                        'on': {
+                            'type': IType.BOOLEAN,
+                            'default_cooked': True,
+                        },
+                        'topLevel': {
+                            'type': IType.INTEGER,
+                            'min': 1,
+                            'max': 6,
+                            'default_cooked': 1,
+                        },
+                    }
+                },
+            },
+        }
+        spec = {
+            "OPT": markdown_control_opts,
+        }
+
+        # We "check" the 'default-...' fields with `IType.ANY`. By even making it this far, we
+        # know that they were parsable as JSON, and that's all we can check at this level.
+        # When they are adopted by specific widget types, they will be checked there.
+        # But they have to be named in our OPT dict, or else `self.check()` will raise an exception
+        # when they are present.
+        spec["OPT"].update({
+            field_name: {'type': IType.ANY}
+            for field_name in cls.supported_default_fields
+        })
+
+        return spec, markdown_control_opts
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec, markdown_control_opts = cls._generate_arg_spec_parts()
+        return spec
+
+    def check_fields(self):
+        spec, markdown_control_opts = self._generate_arg_spec_parts()
+        self.check(spec, adopt=markdown_control_opts.keys())
 
     def has_presence_in_page(self):
         return False
@@ -535,15 +674,7 @@ class CtlWidget(Widget):
         msg += detail
         raise PfscExcep(msg, PECode.MALFORMED_CONTROL_WIDGET)
 
-    def check_data(self):
-        """
-        Check that the passed control codes/cmds are well-formed.
-        This method can evolve as we add more options.
-        """
-        self.check_supported_default_fields()
-        self.check_section_numbers()
-
-    def check_supported_default_fields(self):
+    def record_default_fields(self):
         """
         Look for definitions of defaults, and record them.
 
@@ -553,25 +684,7 @@ class CtlWidget(Widget):
         for field_name in self.supported_default_fields:
             if field_name in self.data:
                 value = self.data[field_name]
-                self.parent.make_ctl_widget_setting(field_name, value)
-
-    def check_section_numbers(self):
-        sn = self.data.get('section_numbers')
-        if sn is not None:
-            if not isinstance(sn, dict):
-                raise self.malformed('section_numbers must be dict')
-            c_on = sn.get('on')
-            if c_on is not None:
-                if not isinstance(c_on, bool):
-                    raise self.malformed('section_numbers.on must be boolean')
-            else:
-                sn['on'] = True
-            c_top_level = sn.get('top_level')
-            if c_top_level is not None:
-                if not isinstance(c_top_level, int) or c_top_level < 1 or c_top_level > 6:
-                    raise self.malformed('section_numbers.top_level must be int from 1 to 6')
-            else:
-                sn['top_level'] = 1
+                self.parent.make_ctl_widget_setting(field_name, value, self.name)
 
     def configure(self, renderer):
         sn = self.data.get('sectionNumbers')
@@ -659,34 +772,176 @@ class ChartWidget(NavWidget):
             "checkboxes.checked",
         )
 
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "OPT": {
+                'view': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'onBoard': {
+                    'type': IType.RELBOXLISTING,
+                },
+                'offBoard': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'reload': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'coords': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.STR,
+                            'values': ['fixed'],
+                        },
+                        {
+                            'type': IType.LIST,
+                            'spec': [
+                                {'type': IType.INTEGER},
+                                {'type': IType.INTEGER},
+                                {'type': IType.FLOAT, 'gt': 0},
+                            ]
+                        }
+                    ],
+                },
+                'select': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.BOOLEAN,
+                        },
+                        {
+                            'type': IType.RELBOXLISTING,
+                        }
+                    ],
+                },
+                'color': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.DICT,
+                            'keytype': IType.STR,
+                            'valtype': IType.STR,
+                        },
+                        {
+                            'type': IType.STR,
+                        }
+                    ]
+                },
+                'hoverColor': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.DICT,
+                            'keytype': IType.STR,
+                            'valtype': IType.STR,
+                        },
+                        {
+                            'type': IType.STR,
+                        }
+                    ]
+                },
+                'layout': {
+                    'type': IType.STR,
+                    'values': [
+                        'KLayDown', 'KLayUp', 'OrderedList1',
+                    ]
+                },
+                'transition': {
+                    'type': IType.BOOLEAN
+                },
+                'flow': {
+                    'type': IType.BOOLEAN
+                },
+                'viewOpts': {
+                    'type': IType.DICT,
+                    'spec': {
+                        "OPT": {
+                            'core': {
+                                'type': IType.RELBOXLISTING,
+                                'allowed_keywords': ['named'],
+                            },
+                            'center': {
+                                'type': IType.RELBOXLISTING,
+                                'allowed_keywords': ['all', 'core', 'named'],
+                            },
+                            'viewboxPaddingPx': {
+                                'type': IType.INTEGER,
+                                'min': 0,
+                            },
+                            'viewboxPaddingPercent': {
+                                'type': IType.INTEGER,
+                                'min': 0,
+                            },
+                            'maxZoom': {
+                                'type': IType.FLOAT,
+                                'gt': 0,
+                            },
+                            'minZoom': {
+                                'type': IType.FLOAT,
+                                'gt': 0,
+                            },
+                            'panPolicy': {
+                                'type': IType.STR,
+                                'values': [
+                                    'centerAlways', 'centerNever', 'centerDistant',
+                                ],
+                            },
+                            'insetAware': {
+                                'type': IType.BOOLEAN,
+                            },
+                        }
+                    }
+                },
+            },
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
+
     def enrich_data(self):
         super().enrich_data()
         self.set_pane_group()
         self.data['versions'] = self.getRequiredRepoVersions()
         self.data['title_libpath'] = self.parent.libpath
         self.data['icon_type'] = 'nav'
-        self.set_up_hovercolor()
+        self.process_color_options()
 
-    def set_up_hovercolor(self):
-        hc_name = 'hovercolor'
+    def process_color_options(self):
+        c_name = 'color'
+        hc_name = 'hoverColor'
+
+        if c_name in self.data:
+            c = self.data[c_name]
+            if isinstance(c, str):
+                c_dict = regularize_color_option_text(c, c_name)
+                self.data[c_name] = c_dict
+
         if hc_name in self.data:
             hc = self.data[hc_name]
-            self.data[hc_name] = set_up_hovercolor(hc)
+            hc_dict = regularize_color_option_text(hc, hc_name) if isinstance(hc, str) else hc
+            hc_setup = set_up_hover_color(hc_dict)
+            self.data[hc_name] = hc_setup
 
 
-def set_up_hovercolor(hc):
+def set_up_hover_color(hc):
     """
-    NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
+    NOTE: hoverColor may only be used with *node* colors -- not *edge* colors.
 
-    If user has requested hovercolor, we enrich the data for ease of
-    use at the front-end.
+    If user has requested hoverColor, we enrich the data for ease of
+    use by the client-side code.
 
-    Under `hovercolor`, the user provides an ordinary `color` request.
-    The user should _not_ worry about using any of `update`, `save`, `rest`;
+    Under `hoverColor`, the user provides an ordinary `color` request.
+    The user should *not* worry about using any of `update`, `save`, `rest`;
     we take care of all of that. User should just name the colors they want.
 
-    We transform the given color request so that under `hovercolor` our data
-    instead features _two_ ordinary color requests: one called `over` and one
+    We transform the given color request so that under `hoverColor` our data
+    instead features *two* ordinary color requests: one called `over` and one
     called `out`. These can then be applied on `mouseover` and `mouseout` events.
     """
     over = {':update': True}
@@ -729,6 +984,65 @@ class DocWidget(NavWidget):
         NavWidget.__init__(self, WidgetTypes.DOC, 'doc_widget_template', name, label, data, anno, lineno)
         self.docReference = None
 
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'sel': {
+                    # IType.STR will accept both a plain `str` and a `Libpath`
+                    # instance, both of which are allowed forms for the 'sel' field.
+                    'type': IType.STR,
+                },
+            },
+            "OPT": {
+                'doc': {
+                    'type': IType.DICT,
+                    'spec': {
+                        "REQ": {
+                            'docId': {
+                                'type': IType.DOC_ID,
+                            },
+                        },
+                        "OPT": {
+                            'url': {
+                                'type': IType.URL,
+                                'allowed_schemes': ['https', 'http'],
+                            },
+                            'aboutUrl': {
+                                'type': IType.URL,
+                                'allowed_schemes': ['https', 'http'],
+                            },
+                            'title': {
+                                'type': IType.STR,
+                            },
+                            'author': {
+                                'type': IType.STR,
+                            },
+                            'year': {
+                                'type': IType.INTEGER,
+                            },
+                            'publisher': {
+                                'type': IType.STR,
+                            },
+                            'ISBN': {
+                                'type': IType.STR,
+                            },
+                            'eBookISBN': {
+                                'type': IType.STR,
+                            },
+                            'DOI': {
+                                'type': IType.STR,
+                            },
+                        }
+                    },
+                },
+            },
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
+
     def enrich_data(self):
         super().enrich_data()
 
@@ -739,7 +1053,6 @@ class DocWidget(NavWidget):
 
         doc_field_name = 'doc'
         sel_field_name = 'sel'
-        hid_field_name = 'highlightId'
 
         doc_field_value = self.data.get(doc_field_name)
         sel_field_value = self.data.get(sel_field_name)
@@ -802,6 +1115,7 @@ class DocWidget(NavWidget):
         self.data["type"] = content_type
 
         # Do we define a doc highlight?
+        hid_field_name = 'highlightId'
         if (cc := self.docReference.combiner_code) is not None:
             # Final selection code must be pure combiner code (no two-part ref code)
             self.data[sel_field_name] = cc
@@ -831,48 +1145,66 @@ class LinkWidget(NavWidget):
 
     Fields:
 
-        ref: the libpath of the annotation or widget to which you wish to link
+        REQ:
 
-        tab: a string indicating the desired tab policy. This controls whether the
-            content is loaded in the same tab where the link occurred, or another
-            existing tab, or a new tab.
+            ref: the libpath of the annotation or widget to which you wish to link
 
-            The default value is `existing`. (See below.)
+        OPT:
 
-            In order to help define the policies, suppose the link occurs in
-            annotation A and points (in)to annotation B. Suppose the link has
-            been clicked inside tab T0. If B is currently open in one or more
-            tabs, let R be the one among these with which the user has most
-            recently interacted.
+            tab: a string indicating the desired tab policy. This controls whether the
+                content is loaded in the same tab where the link occurred, or another
+                existing tab, or a new tab.
 
-            Policies:
+                The default value is `existing`. (See below.)
 
-            existing: The idea is that if B is already open in any tab, then load
-                the content there. To be precise: If B != A and R exists, load in R.
-                Else load in T0.
+                In order to help define the policies, suppose the link occurs in
+                annotation A and points (in)to annotation B. Suppose the link has
+                been clicked inside tab T0. If B is currently open in one or more
+                tabs, let R be the one among these with which the user has most
+                recently interacted.
 
-            same: Load in T0 under all circumstances.
+                Policies:
 
-            other: The idea is that the content is to be loaded somwhere else.
-                To be precise, if R exists, load there. Else load in a new tab.
+                existing: The idea is that if B is already open in any tab, then load
+                    the content there. To be precise: If B != A and R exists, load in R.
+                    Else load in T0.
 
-            new: Load in a new tab under all circumstances.
+                same: Load in T0 under all circumstances.
+
+                other: The idea is that the content is to be loaded somwhere else.
+                    To be precise, if R exists, load there. Else load in a new tab.
+
+                new: Load in a new tab under all circumstances.
     """
 
     def __init__(self, name, label, data, anno, lineno):
-        # FIXME:
-        #  We really should be using the checkinput module to check given
-        #  parameters, set default values, etc.
-        defaults = {
-            'tab': 'existing'
-        }
-        defaults.update(data)
-        data = defaults
         NavWidget.__init__(self, WidgetTypes.LINK, 'link_widget_template', name, label, data, anno, lineno)
-        self.check_required_fields(["ref"])
         self.libpath_datapaths = (
             "ref",
         )
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'ref': {
+                    'type': IType.RELPATH,
+                },
+            },
+            "OPT": {
+                'tab': {
+                    'type': IType.STR,
+                    'values': [
+                        'existing', 'same', 'other', 'new',
+                    ],
+                    'default_cooked': 'existing'
+                },
+            }
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def enrich_data(self):
         super().enrich_data()
@@ -910,18 +1242,30 @@ class QnAWidget(Widget):
     Question & Answer widgets are for posing a question, and giving the answer.
     """
 
-    # Required fields:
-    QUESTION = 'question'
-    ANSWER = 'answer'
-
-    required_fields = [QUESTION, ANSWER]
-
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.QNA, name, label, data, anno, lineno)
         self.is_inline = False
-        self.check_required_fields(QnAWidget.required_fields)
-        self.question = data[QnAWidget.QUESTION]
-        self.answer   = data[QnAWidget.ANSWER]
+        self.question = None
+        self.answer = None
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'question': {
+                    'type': IType.STR,
+                },
+                'answer': {
+                    'type': IType.STR,
+                },
+            }
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
+        self.question = self.data['question']
+        self.answer = self.data['answer']
 
     def writeHTML(self, label=None, sphinx=False):
         if label is None: label = escape(self.label)
@@ -1003,6 +1347,16 @@ class LabelWidget(WrapperWidget):
         self.template_name = 'label_widget_template'
         self.is_inline = True
 
+    @classmethod
+    def generate_arg_spec(cls):
+        return {}
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        # Even though we accept no fields, it's important to call `self.check()`,
+        # as this will raise an exception if the user *did* define any fields.
+        self.check(spec)
+
 
 class GoalWidget(WrapperWidget):
     """
@@ -1028,6 +1382,20 @@ class GoalWidget(WrapperWidget):
             'altpath'
         ]
         self.is_inline = True
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "OPT": {
+                'altpath': {
+                    'type': IType.RELPATH,
+                },
+            }
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def compute_origin(self, force=False):
         # If the origin was already given, don't bother to do anything (unless forcing).
@@ -1219,7 +1587,53 @@ class ParamWidget(ExampWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         ExampWidget.__init__(self, WidgetTypes.PARAM, name, label, data, anno, lineno)
-        self.check_required_fields(['ptype', 'name'])
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'ptype': {
+                    'type': IType.STR,
+                },
+                'name': {
+                    'type': IType.STR,
+                },
+                'default': {
+                    'type': IType.ANY,
+                },
+            },
+            "OPT": {
+                'tex': {
+                    'type': IType.STR,
+                },
+                'descrip': {
+                    'type': IType.STR,
+                },
+                'import': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.RELPATH,
+                        'is_Libpath_instance': True,
+                    },
+                },
+                'args': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.ANY,
+                    },
+                },
+            },
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def make_generator(self):
         make_param = from_import('pfsc_examp', 'make_param')
@@ -1254,7 +1668,38 @@ class DispWidget(ExampWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         ExampWidget.__init__(self, WidgetTypes.DISP, name, label, data, anno, lineno)
-        self.check_required_fields(['build'])
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'build': {
+                    'type': IType.STR,
+                },
+            },
+            "OPT": {
+                'import': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.RELPATH,
+                        'is_Libpath_instance': True,
+                    },
+                },
+                'export': {
+                    'type': IType.LIST,
+                    'itemtype': {
+                        'type': IType.STR,
+                    },
+                },
+            },
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def make_generator(self):
         make_disp = from_import('pfsc_examp', 'make_disp')
@@ -1334,6 +1779,130 @@ class DispWidget(ExampWidget):
         )
         html += '</div>\n'
         return html
+
+##############################################################################
+
+
+def regularize_color_option_text(raw, field_name):
+    """
+    Transform a "color field" (``color`` or ``hoverColor``) given in the new,
+    string format, into the older, dictionary format.
+
+    In the old format, a color field is given by a dictionary
+    of key-value pairs. Because keys must be unique there, we allowed the keys
+    to be either color codes, or multipaths.
+
+    Here, you should instead give a listing of `colorCodes: boxlisting` pairs,
+    one per line.
+
+    In the boxlistings, there is no need for surrounding brackets to make a list,
+    or for quotation marks to make a string. Thus, for example, you may write
+
+        Thm.A10, Pf.{A10,A20}
+
+    which is equivalent to ["Thm.A10", "Pf.{A10,A20}"]` in the dictionary format.
+
+    Because there is no unique-key constraint, there is no reason to allow
+    multipaths on the left. (For dictionaries, we decided you might want to be
+    able to use the same color spec twice, without having to make a giant RHS,
+    so we allowed the option of putting the libpaths on the LHS.)
+    Therefore color codes should always be on the left, boxlistings on the right.
+
+    Since multipaths are no longer allowed on the left, there is no longer a
+    need to disambiguate between color codes and libpaths, and therefore color
+    codes no longer need to be preceded by colons. Therefore color codes should
+    simply be separated by commas.
+
+    As in the dictionary format, we support the special `update` color code,
+    which applies to the whole directive, and therefore does not need any
+    righthand side.
+
+    Example:
+
+        update
+        push,bgR,olY,fi0,diGB: libpath.to.node1
+
+    which means:
+
+        Do not clear existing colors; simply add the given settings.
+        For node1:
+            - push current colors onto node1's color stack
+            - set background red
+            - set outline yellow
+            - clear any existing colors from incoming flow edges
+            - give incoming deduction edges a gradient from green to blue
+
+    Note that `update` is meaningless in hoverColor, which is always done as
+    an update.
+
+    See the docstring for the ColorManager class in pfsc-moose for more info.
+
+    :param raw: the raw text
+    :param field_name: the name of the field, such as "color" or "hoverColor".
+    """
+    update = False
+    data = defaultdict(set)
+    lines = [L.strip() for L in raw.split('\n')]
+    for line in lines:
+        if line == 'update' and field_name == 'color':
+            update = True
+            continue
+        parts = [p.strip() for p in line.split(":")]
+        if len(parts) != 2:
+            raise PfscExcep(f'Each line in the "{field_name}" string format'
+                            ' should have a single colon (:), with a comma-separated list'
+                            ' of color codes on the left, and a boxlisting on the right.',
+                            PECode.MALFORMED_COLOR_CODE)
+        color_spec, box_listing = parts
+        color_codes = [c.strip() for c in color_spec.split(',')]
+        # Restore the leading colons expected in the old format.
+        k = ":" + ":".join(color_codes)
+        v = parse_freestring_box_listing(box_listing)
+        data[k].update(set(v))
+    # Sort for deterministic output. Good for testing.
+    data = {k: list(sorted(list(v))) for k, v in data.items()}
+
+    if field_name == "hoverColor":
+        result = data
+    else:
+        if update:
+            data[':update'] = True
+        result = data
+
+    return result
+
+
+def parse_freestring_box_listing(box_listing):
+    """
+    Parse a boxlisting as given within a larger, special-format string,
+    rather than as given in JSON.
+
+    For certain inputs (at present just color and hoverColor), you can
+    write a long, multiline string, in which boxlistings may appear.
+    Since these strings employ their own, special format, there is no need
+    for quotation marks or list brackets, and boxlistings can instead be
+    given as plain comma-separated lists of multipaths.
+
+    This function receives a boxlisting given in this freer format, and
+    returns a list of libpath strings.
+
+    Example:
+
+    The string
+
+        foo.bar, foo.{spam.baz, cat}
+
+    is transformed into the list of strings
+
+        ['foo.bar', 'foo.spam.baz', 'foo.cat']
+    """
+    bl = check_boxlisting('', box_listing, {
+        'libpath_type': {
+            'short_okay': True,
+        },
+    })
+    return bl.get_libpaths()
+
 
 ##############################################################################
 

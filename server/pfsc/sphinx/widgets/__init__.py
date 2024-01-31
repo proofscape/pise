@@ -19,14 +19,10 @@ from .base import (
     visit_pfsc_widget_html, depart_pfsc_widget_html,
 )
 
-from .chart_widget import (
+from .widget_types import (
     PfscChartRole, PfscChartDirective,
-)
-from .ctl_widget import PfscCtlWidgetDirective
-from .doc_widget import (
+    PfscCtlWidgetDirective,
     PfscDocWidgetRole, PfscDocWidgetDirective,
-)
-from .examp_widgets import (
     PfscDispWidgetDirective, PfscParamWidgetDirective,
+    PfscQnAWidgetDirective,
 )
-from .qna_widget import PfscQnAWidgetDirective

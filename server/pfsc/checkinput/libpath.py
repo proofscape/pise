@@ -28,6 +28,7 @@ from pfsc.build.repo import RepoFamily, RepoInfo, parse_repo_versioned_libpath
 import pfsc.contenttree as contenttree
 from pfsc.checkinput.version import (
     check_full_version, check_major_version, CheckedVersion)
+from pfsc.lang.freestrings import Libpath
 
 
 class BoxListing:
@@ -160,6 +161,22 @@ class BoxListing:
 
     def get_checked_libpaths(self):
         return self.checked_libpaths
+
+
+def check_relboxlisting(key, raw, typedef):
+    """
+    Check a boxlisting, where libpaths are allowed to be relative.
+
+    This is a convenience function that calls `check_boxlisting()` after first
+    setting the `short_okay` option to `True` in the `libpath_type` in the `typedef`.
+    """
+    enriched_typedef = typedef.copy()
+    libpath_type_field_name = 'libpath_type'
+    libpath_type_dict = enriched_typedef[libpath_type_field_name] or {}
+    libpath_type_dict['short_okay'] = True
+    enriched_typedef[libpath_type_field_name] = libpath_type_dict
+    return check_boxlisting(key, raw, enriched_typedef)
+
 
 def check_boxlisting(key, raw, typedef):
     """
@@ -456,6 +473,19 @@ class CheckedLibpath:
         self.pathInfo = None
         self.repoInfo = None
 
+
+def check_relpath(key, raw, typedef):
+    """
+    Check a relative libpath.
+
+    Actually just a convenience function to call `check_libpath()` after first setting
+    the `short_okay` option to `True` in the `typedef`.
+    """
+    enriched_typedef = typedef.copy()
+    enriched_typedef['short_okay'] = True
+    return check_libpath(key, raw, enriched_typedef)
+
+
 def check_libpath(key, raw, typedef):
     """
     :param typedef:
@@ -486,8 +516,18 @@ def check_libpath(key, raw, typedef):
                 contain at least three segments (being the repopath).
                 Set True to allow libpaths shorter than three segments.
 
+            is_Libpath_instance: boolean, default False. Set True to require
+                that the given raw string actually be an instance of the
+                `pfsc.lang.freestrings.Libpath` class.
+
     :return: a CheckedLibpath object, or just its `value` property (see above).
     """
+    if not isinstance(raw, str):
+        raise PfscExcep('Expecting string', PECode.INPUT_WRONG_TYPE, bad_field=key)
+
+    if typedef.get('is_Libpath_instance') and not isinstance(raw, Libpath):
+        raise PfscExcep('Expecting Libpath', PECode.INPUT_WRONG_TYPE, bad_field=key)
+
     checked = CheckedLibpath()
 
     # Basic length checks.

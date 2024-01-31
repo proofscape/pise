@@ -725,25 +725,45 @@ class EnrichmentPage(Enrichment):
 
         # Pages can have "control widgets" in them, which can make settings
         # that affect other things at build time. This is where their settings
-        # are recorded:
+        # are recorded.
+        # FORMAT:
+        #  key: the name of a field that has been set
+        #  value: pair (v, n) where v is the value for that field, and n is the
+        #    name of the CtlWidget that made the setting.
         self.ctl_widget_settings = {}
 
     def get_proper_widgets(self):
         raise NotImplementedError
 
     def resolve(self):
+        widgets = self.get_proper_widgets()
+
+        for widget in widgets:
+            widget.check_fields()
+
         self.resolveLibpathsRec()
-        for widget in self.get_proper_widgets():
+
+        for widget in widgets:
             widget.enrich_data()
 
-    def make_ctl_widget_setting(self, key, value):
-        self.ctl_widget_settings[key] = value
+    def make_ctl_widget_setting(self, key, value, ctl_widget_name):
+        self.ctl_widget_settings[key] = (value, ctl_widget_name)
 
     def read_ctl_widget_setting(self, key, default=None):
         """
         See also: check_ctl_widget_setting_defined()
         """
-        return self.ctl_widget_settings.get(key, default)
+        if key in self.ctl_widget_settings:
+            return self.ctl_widget_settings[key][0]
+        return default
+
+    def check_ctl_widget_setting_blame(self, key):
+        """
+        Return the name of the CtlWidget that made a given setting (if any).
+        """
+        if key in self.ctl_widget_settings:
+            return self.ctl_widget_settings[key][1]
+        return None
 
     def check_ctl_widget_setting_defined(self, key):
         """

@@ -174,6 +174,7 @@ class PECode:
     BAD_PARAMETER_RAW_VALUE_WITH_BLAME = 193
     EXAMP_WIDGET_DEPENDENCY_MISSING = 194
     MALFORMED_CF = 195
+    UNEXPECTED_INPUT = 196
 
     # pfsc module parsing, VerTeX processing, repo handling
     MODULE_DOES_NOT_EXIST = 200
@@ -260,6 +261,7 @@ class PECode:
     CANNOT_CLONE_NODE = 281
     WIDGET_GROUP_NAME_TOO_LONG = 282
     PARENT_DOES_NOT_EXIST = 283
+    MALFORMED_COLOR_CODE = 284
 
     # meson/arclang parsing
     MESON_ERROR = 300
