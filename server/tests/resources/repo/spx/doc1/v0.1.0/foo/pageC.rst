@@ -65,8 +65,8 @@ that can be passed to them.
 
 .. |w000: substitutions| pfsc-chart::
     :view: Thm.C, Pf.{R,S}
-    :on_board: comment.xpan_S
-    :off_board: comment.xpan_T
+    :onBoard: comment.xpan_S
+    :offBoard: comment.xpan_T
     :color:
         olB: Pf.{R,S}
         bgG: Thm.C

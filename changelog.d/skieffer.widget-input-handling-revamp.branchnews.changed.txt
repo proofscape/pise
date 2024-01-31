@@ -1,0 +1,2 @@
+* Uniformize widget field names to always use lower camel case.
+

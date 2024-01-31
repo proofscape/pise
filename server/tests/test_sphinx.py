@@ -434,8 +434,8 @@ PAGE_C_PAGE_DATA = {
                 "test.moo.bar.results.Pf.R",
                 "test.moo.bar.results.Pf.S"
             ],
-            "on_board": "test.moo.comment.bar.xpan_S",
-            "off_board": "test.moo.comment.bar.xpan_T",
+            "onBoard": "test.moo.comment.bar.xpan_S",
+            "offBoard": "test.moo.comment.bar.xpan_T",
             "color": {
                 ":olB": [
                     "test.moo.bar.results.Pf.R",

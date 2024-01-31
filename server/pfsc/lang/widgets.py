@@ -510,13 +510,13 @@ class CtlWidget(Widget):
 
         * Stuff for controlling Markdown rendering:
 
-            section_numbers: {
+            sectionNumbers: {
                 on: boolean (default True),
-                top_level: int from 1 to 6 (default 1), indicating at what heading
+                topLevel: int from 1 to 6 (default 1), indicating at what heading
                     level numbers should begin to be automatically inserted
             }
 
-            If `section_numbers` is defined at all, then its `on` property defaults to
+            If `sectionNumbers` is defined at all, then its `on` property defaults to
             True; but, until a CtlWidget is found that switches section numbering on, it
             is off.
     """
@@ -574,10 +574,10 @@ class CtlWidget(Widget):
                 sn['top_level'] = 1
 
     def configure(self, renderer):
-        sn = self.data.get('section_numbers')
+        sn = self.data.get('sectionNumbers')
         if sn is not None:
             renderer.sn_do_number = sn.get('on')
-            renderer.sn_top_level = sn.get('top_level')
+            renderer.sn_top_level = sn.get('topLevel')
 
     def writeHTML(self, label=None, sphinx=False):
         """
@@ -647,14 +647,13 @@ class ChartWidget(NavWidget):
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.CHART, 'chart_widget_template', name, label, data, anno, lineno)
         self.libpath_datapaths = (
-            "on_board",
-            "off_board",
+            "onBoard",
+            "offBoard",
             "view",
-            "view.objects",
-            "view.core",
-            "view.center",
+            "viewOpts.core",
+            "viewOpts.center",
             "color",
-            "hovercolor",
+            "hoverColor",
             "select",
             "checkboxes.deducs",
             "checkboxes.checked",

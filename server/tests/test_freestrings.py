@@ -415,16 +415,16 @@ anno_text_ctl_0 = ""
 
 anno_text_ctl_1 = """
 <ctl:>[]{
-    section_numbers: {
-        top_level: 1,
+    sectionNumbers: {
+        topLevel: 1,
     }
 }
 """
 
 anno_text_ctl_2 = """
 <ctl:>[]{
-    section_numbers: {
-        top_level: 2,
+    sectionNumbers: {
+        topLevel: 2,
     }
 }
 """
