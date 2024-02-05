@@ -494,12 +494,14 @@ var ChartManager = declare(AbstractContentManager, {
         // transition, and we want to see an overview of all objects on the board.
         // However, we accept any `transition` and `view` settings from the incoming
         // object, if set.
+        const viewOpts = info.viewOpts || {};
+        if (viewOpts.panPolicy === undefined) {
+            viewOpts.panPolicy = moose.head.autopanPolicy_CenterAlways;
+        }
         const params = {
             transition: info.transition || false,
-            view: info.view || {
-                objects: '<all>',
-                panPolicy: moose.head.autopanPolicy_CenterAlways
-            }
+            view: info.view || '<all>',
+            viewOpts: viewOpts,
         };
         // Info objects coming from the tree may use an alternative request format
         // with the fields `libpath` and `version`. We convert this into the standard
