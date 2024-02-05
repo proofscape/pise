@@ -464,7 +464,7 @@ class Widget(PfscObj):
             elif isinstance(obj, CheckedLibpath):
                 return res_checked_libpath(obj)
             elif isinstance(obj, BoxListing):
-                if obj.keyword:
+                if obj.is_keyword():
                     return obj.bracketed_keyword
                 else:
                     return [res_checked_libpath(clp) for clp in obj.checked_libpaths]
