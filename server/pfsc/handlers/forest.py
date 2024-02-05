@@ -276,9 +276,9 @@ class ForestUpdateHelper(Handler):
 
         reload: boxlisting indicating elements -- presumably already on the board -- which you want reloaded/refreshed;
           if an element is in fact absent, it is no error, it just means the same thing as `on_board`;
-          keyword 'all' is permitted, meaning everything on board is to be reloaded.
+          keyword '<all>' is permitted, meaning everything on board is to be reloaded.
 
-        to_view: boxlisting indicating elements that are to be viewed; keyword 'all' is permitted, meaning you
+        to_view: boxlisting indicating elements that are to be viewed; keyword '<all>' is permitted, meaning you
           want an overview of all elements.
 
         desired_versions: dict, mapping libpaths to full version strings, indicating the versions at which
@@ -294,11 +294,11 @@ class ForestUpdateHelper(Handler):
           are, by definition, prefix mappings. Extensions are allowed (and this is what makes them "reversible") because
           it makes sense: if a node is desired at a certain version, that implies that so is its deduc.
 
-        off_board: boxlisting indicating any elements you do _not_ want on the board (and may not be there already);
-          keyword 'all' is permitted, meaning the board should be cleared of existing deducs. Here the version numbers
+        off_board: boxlisting indicating any elements you do *not* want on the board (and may not be there already);
+          keyword '<all>' is permitted, meaning the board should be cleared of existing deducs. Here the version numbers
           are those implied by `current_forest`.
 
-        incl_nbhd_in_view: boolean; if true, (and if to_view is not 'all') it means that you want to augment `to_view`
+        incl_nbhd_in_view: boolean; if true, (and if to_view is not '<all>') it means that you want to augment `to_view`
           by including the deductive neighborhood of each object in that list -- i.e. all nodes one deduction arc away.
 
         known_dashgraphs: dict, in which the keys are the libpaths of deductions whose dashgraphs need not be
@@ -309,7 +309,7 @@ class ForestUpdateHelper(Handler):
 
         NOTE: It can be tricky to understand what `reload` means w.r.t. versions. The rule is: these are libpaths
         which will be closed if present -- at whatever version they are present -- and will be opened at the version
-        indicated in `desired_versions`, again, _regardless of the version that is currently present_. So, reloading
+        indicated in `desired_versions`, again, *regardless of the version that is currently present*. So, reloading
         can be a way to change the version of a deduc on board.
 
     OUTPUT:
@@ -338,7 +338,7 @@ class ForestUpdateHelper(Handler):
                     these deducs, loaded freshly from disk, except that any libpaths that were named in the
                     `known_dashgraphs` input field will not have an entry here.
 
-        view_closure: equal to `to_view` if `incl_nbhd_in_view` was `False` or if `to_view` was `'all'`; otherwise
+        view_closure: equal to `to_view` if `incl_nbhd_in_view` was `False` or if `to_view` was `'<all>'`; otherwise
             equal to the neighborhood-closure of `to_view`, i.e. `to_view` plus all nodes one arc away from nodes therein.
 
         NOTE: We need not return version numbers for the libpaths in `to_open`, because that information is available
@@ -505,11 +505,11 @@ class ForestUpdateHelper(Handler):
 
     def step_010_view(self, to_view, incl_nbhd_in_view, d0, dvm):
         if to_view.is_keyword('all'):
-            # When the user asks to view 'all' (meaning an overview), then `to_view` does not name any
+            # When the user asks to view '<all>' (meaning an overview), then `to_view` does not name any
             # additional nodes or deducs that are to be viewed, beyond what is already specified by
             # other parameters.
-            # For `view_closure` we can just return the same keyword 'all'.
-            view_closure = 'all'
+            # For `view_closure` we can just return the same keyword '<all>'.
+            view_closure = '<all>'
             # For `d_v`, which we use locally to represent the set of deducs we want to view, we
             # take a copy of the set of all deducs currently on board.
             d_v = set(d0)
