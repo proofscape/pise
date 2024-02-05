@@ -14,7 +14,6 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-from collections import defaultdict
 import re
 import json
 
@@ -22,9 +21,9 @@ from markupsafe import escape, Markup
 import jinja2
 
 import pfsc.checkinput as checkinput
-from pfsc.checkinput import check_boxlisting
-from pfsc.checkinput import IType
+from pfsc.checkinput import IType, UndefinedInput
 from pfsc.checkinput.doc import DocIdType
+from pfsc.checkinput.libpath import CheckedLibpath, BoxListing
 from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
@@ -99,79 +98,6 @@ dummy_widget_template = jinja2.Template("""
 """)
 
 
-def replace_data(data, datapaths, replacer, accept_absent=False):
-    """
-    Use this function to replace data at various places within a JSON object.
-
-    Any location within a JSON object can be specified by a sequence of keys. When these keys (which
-    should all be strings) are joined together with dots ("."), we refer to such a string as a "datapath".
-
-    :param data: the JSON object in which data is to be replaced.
-
-    :param datapaths: list of datapaths where replacement should occur.
-
-                      The datapaths are interpreted as optional. This means the data they refer to need
-                      not be present; but if it is, then we try to replace it.
-
-    :param replacer: a function that accepts three arguments `(path, d, p)`, where `d` is an element
-                     in the data, `p` its parent, and `path` the path that got us there.
-
-                     Should either return the value by which `d` is to be replaced, or else
-                     raise a `ValueError` if no replacement should be made after all.
-
-    :param accept_absent: if True, then `replacer(path, None, p)` will be called in the case of a
-                          datapath `path` every key of which was present _except the very last_.
-                          In other words, this means we accept the case in which the item in question
-                          is not defined, but its parent is.
-
-    :return: nothing. The given data object is modified in-place.
-    """
-    for datapath in datapaths:
-        keys = datapath.split('.')
-        p = None
-        d = data
-        found_data = False
-        n = len(keys)
-        for i, key in enumerate(keys):
-            try:
-                p = d
-                d = p[key]
-            except TypeError:
-                # This case can arise when multiple types are allowed for certain data members.
-                # E.g. when updating the Forest in Moose, you can pass a string or a dict under
-                # the `view` parameter. Therefore ChartWidgets consider both `view` and `view.objects`
-                # as datapaths. If the user has set a string under the `view` parameter, then we
-                # will get a `TypeError` when we examine the datapath `view.objects`.
-                break
-            except KeyError:
-                if accept_absent and i == n - 1:
-                    d = None
-                else:
-                    break
-                # Error message to use if we do want to have "required" data at some point:
-                #msg = "Key '%s' in datapath '%s' could not be located in data %s" % (
-                #    key, datapath, data
-                #)
-                #raise PfscExcep(msg)
-        else:
-            # Only if we did _not_ break out of the above loop do we conclude that we
-            # did manage to find some data.
-            found_data = True
-        # There is (at least for now) no "required" data; if we found nothing under a given
-        # datapath, we just move on.
-        if not found_data: continue
-        # At this point, `d` should be the item pointed to by the datapath,
-        # `p` should be that item's parent, and `key` should satisfy `p[key] = d`.
-        try:
-            r = replacer(datapath, d, p)
-        except ValueError:
-            # The replacer function can raise a ValueError to indicate that it doesn't
-            # actually want to replace the data item after all.
-            pass
-        else:
-            p[key] = r
-
-
 def make_widget_uid(widgetpath, version):
     return f'{widgetpath}_{version}'.replace('.', '-')
 
@@ -193,59 +119,54 @@ class Widget(PfscObj):
         self.lineno_within_anno = lineno
         self.is_inline = None
 
-        # Enrich the data object with the typename and lineno of the widget.
-        data["type"] = type_
-        data["src_line"] = self.get_lineno_within_module()
-        self.data = data
+        # The given object of widget data fields, which by this point should be a
+        # de-serialized JSON object (actually the Python version thereof), is stored
+        # under `self.raw_data`. This then goes through three transformations:
+        #   (1) type checking: raw --> checked
+        #   (2) libpath resolution: checked --> resolved
+        #   (3) final translation: resolved --> translated
+        #
+        # Step (3) is just a final chance to ensure that all data types are
+        # JSON-serializable, and does nothing unless subclasses override `self.data_translator()`.
+        # Subclasses do *not* need to worry about translating instances of `CheckedLibpath` or
+        # `BoxListing`, as those are automatically translated into strings or lists of strings,
+        # in step (2).
+        #
+        # The `self.translated_data` object resulting from the three steps described above
+        # is then the "data" that is acted upon in the old `self.enrich_data()` method. The
+        # name, "enrich data" may seem odd, as it dates from long before the process described
+        # here was implemented. It used to be that the incoming raw data was simply "enriched"
+        # before being written into the built representation of the widget.
+        self.raw_data = data
+        self.checked_data = {}
+        self.resolved_data = {}
+        self.translated_data = {}
 
         # Grab any default values that may have been set by now.
         # We record a mapping from field names to names of ctl widgets that set them.
         self.fields_accepted_from_ctl_widgets = {}
         self.accept_defaults_from_ctl_widgets()
 
-        # `self.check_fields()` will be invoked by `EnrichmentPage.resolve()` at resolution time.
-        # It happens after cascading libpaths, but before resolving libpaths in the data, and
-        # before enriching the data.
-        self.checked_fields = {}
-
-        # In order to resolve relative libpaths, widget subclasses need only specify in this
-        # field the "datapaths" where libpaths can (optionally) be found in their data.
-        # See doctext for the `resolve_libpaths_in_data` method of this class, for more details.
-        self.libpath_datapaths = []
-        # Slot for recording the list of all repopaths implicated by the libpaths:
+        # Slot for recording the list of all repos to which resolved libpaths (in data fields) belong:
         self.repos = []
-        # A lookup for referenced objects, by absolute libpath:
+        # Lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
 
-    def check(self, types, adopt_defaults=True, raw=None, reify_undefined=True, adopt=None):
+    @property
+    def data(self):
+        return self.translated_data
+
+    def check(self, types, raw=None, reify_undefined=True):
         """
-        Convenience method for checking this widget's data fields, and stashing the
-        results in `self.checked_fields`.
+        Method for checking this widget's data fields, and stashing the
+        results in `self.checked_data`.
 
         :param types: the definition of the arg types to be checked. See docstring for
                       the `check_input()` function.
 
-        :param adopt_defaults: boolean, default True. If True, then we will automatically
-            adopt into `self.data` those values written into `self.checked_fields` for
-            keys that (a) were listed under "OPT", and (b) were not defined in `self.data`,
-            but (c) were defined in `self.checked_fields` -- in other words, keys for which
-            a default value was accepted.
-
-            Subclasses should ensure that the types recorded in `self.checked_fields` for such
-            defaults are therefore of a JSON-serializable type, suitable to be recorded in the
-            built representation of this widget (or else turn this option off).
-
-            See also `adopt` option.
-
         :param raw: optional dictionary to check instead of `self.data`.
 
         :param reify_undefined: forwarded to the `check_input()` function.
-
-        :param adopt: optionally pass a list of field names that should be adopted into
-            `self.data` from `self.checked_fields`. Any adopted field values should be of
-            JSON-serializable type.
-
-            See also `adopt_defaults` option.
 
         :return: nothing
         """
@@ -253,7 +174,7 @@ class Widget(PfscObj):
             raw = self.data
         try:
             checkinput.check_input(
-                raw, self.checked_fields, types,
+                raw, self.checked_data, types,
                 reify_undefined=reify_undefined,
                 err_on_unexpected=True
             )
@@ -264,17 +185,6 @@ class Widget(PfscObj):
                 blame = self.fields_accepted_from_ctl_widgets[field]
                 pe.extendMsg(f'Field value was set by ctl widget "{blame}"')
             raise pe
-
-        if adopt_defaults:
-            opt_keys = types.get("OPT", {}).keys()
-            for k in opt_keys:
-                if k in self.checked_fields and k not in self.data:
-                    self.data[k] = self.checked_fields[k]
-
-        if adopt:
-            for k in adopt:
-                if k in self.checked_fields:
-                    self.data[k] = self.checked_fields[k]
 
     @classmethod
     def generate_arg_spec(cls):
@@ -392,8 +302,52 @@ class Widget(PfscObj):
         self.data['widget_libpath'] = self.libpath
 
     def resolveLibpathsRec(self):
-        self.repos = self.resolve_libpaths_in_data(self.libpath_datapaths)
+        self.repos = self.resolve_libpaths_in_checked_data()
         PfscObj.resolveLibpathsRec(self)
+
+    def translate_data(self):
+        """
+        This is a last chance to produce an altered form of the data, after type checking and
+        libpath resolution, and before `enrich_data()` is called.
+
+        For example, if there is some non-JSON-serializable type still present in the data,
+        this should be translated into some JSON-serializable representation.
+
+        Subclasses wishing to achieve something special here should NOT override THIS method,
+        but instead override the `data_translator()` method.
+        """
+        self.translated_data = self._translate_data_rec(self.resolved_data, [])
+
+    def _translate_data_rec(self, obj, datapath):
+        if isinstance(obj, dict):
+            pairs = [
+                (k, self._translate_data_rec(v0, datapath + [k]))
+                for k, v0 in obj.items()
+            ]
+            return {k: v1 for k, v1 in pairs if not isinstance(v1, UndefinedInput)}
+        elif isinstance(obj, list):
+            L = [
+                self._translate_data_rec(a0, datapath + [i])
+                for i, a0 in enumerate(obj)
+            ]
+            return [a1 for a1 in L if not isinstance(a1, UndefinedInput)]
+        else:
+            return self.data_translator(obj, datapath)
+
+    def data_translator(self, obj, datapath):
+        """
+        Subclasses should override this method if they want to achieve anything
+        special during the `translate_data()` call.
+
+        :param obj: the current object to be translated
+        :param datapath: a list of dict keys and list indices, indicating how we
+            reached the current object, while traversing `self.resolved_data`.
+        :return: EITHER return the desired translation of `obj` (should always be
+            some JSON-serializable type), OR return an instance of the
+            `pfsc.checkinput.UndefinedInput` class, to indicate that you want to omit
+            this object entirely, from the dict or list that contains it.
+        """
+        return obj
 
     def getRequiredRepoVersions(self):
         # Get ahold of the desired version for each repo implicated by libpaths
@@ -454,11 +408,13 @@ class Widget(PfscObj):
         in the build process. In particular this means the enclosing Module
         will already know its represented version.
         """
+        self.data["type"] = self.type_
+        self.data["src_line"] = self.get_lineno_within_module()
         self.data['uid'] = self.writeUID()
 
     def resolve_libpath(self, libpath):
         """
-        Given a libpath, which may (or may not) be relative, resolve it to an absolute libpath.
+        Given a relative libpath, resolve it to an absolute libpath.
 
         This method also achieves the critical side effect of checking that the
         object referenced by the libpath is actually present in the module in which
@@ -467,104 +423,56 @@ class Widget(PfscObj):
         the version at which we're taking it (based on the declared dependencies of the
         repo being built).
 
-        :param libpath: The libpath to be resolved. May be relative or absolute.
+        :param libpath: The relative libpath to be resolved.
         :return: The absolute libpath to which the given one resolves.
         :raises: PfscExcep if relative libpath cannot be resolved.
         """
         if libpath in self.objects_by_abspath:
             # This already is an absolute path to which we have resolved sth.
             return libpath
-        obj, ancpath = self.getFromAncestor(libpath, missing_obj_descrip=f'named in widget {self.getLibpath()}')
+        obj, _ = self.getFromAncestor(libpath, missing_obj_descrip=f'named in widget {self.getLibpath()}')
         abspath = obj.getLibpath()
         self.objects_by_abspath[abspath] = obj
         return abspath
 
-    def resolve_multipath(self, multipath):
-        """
-        Given a multipath, which may (or may not) be relative, resolve it to a list of absolute libpaths.
-        @param multipath: The multipath to be resolved. May be relative or absolute; may be a plain libpath.
-        @return: List of absolute libpaths.
-        @raise: PfscExcep if any relative libpath cannot be resolved.
-        """
-        libpaths = expand_multipath(multipath)
-        return [self.resolve_libpath(lp) for lp in libpaths]
-
-    def resolve_libpaths_in_data(self, datapaths):
+    def resolve_libpaths_in_checked_data(self):
         """
         The data defining a widget may contain relative libpaths which must be interpreted relative
         to the module in which the widget lives. It is important that all such libpaths be resolved
-        to absolute ones, for use by the front-end.
+        to absolute ones, for use on the client side.
 
-        Depending on the type of widget, libpaths might be found at various places in the data.
-        But since the data takes the form of a JSON object, any location within it can be specified by
-        a sequence of keys. We refer to such a sequence of keys as a "datapath".
+        This method is to be called after `self.check_fields()` has turned `self.raw_data` into
+        `self.checked_data`. It traverses `self.checked_data`, looking for instances of the
+        `CheckedLibpath` and `BoxListing` classes. When it finds these, it attempts to resolve the libpaths
+        to absolute ones, and record the results in `self.resolved_data`.
 
-        Therefore it is up to the various widget types to use this method, passing it a list of datapaths
-        where libpaths may be found, so that they can be resolved.
-
-        Each datapath should point to a string, a list, or a dict. These should be, respectively, a multipath,
-        a list of multipaths, or a dict in which all values are multipaths or lists of multipaths.
-        See doctext for the `expand_multipath` function for precise defn of a multipath.
-
-        When a multipath is encountered as a string, it will remain a string when resolved, provided it expands
-        to just a single libpath; otherwise it will be replaced by a list of libpaths.
-
-        When a multipath is encountered within a list, that list will be replaced by the list of all libpaths to
-        which its elements resolve. I.e. it will be flattened after expansion of its elements.
-
-        For example, if multipath M expands to libpaths L1, L2, then
-
-            M --> [L1, L2]              (string replaced by list)
-
-        whereas
-
-            [M, L3] --> [L1, L2, L3]    (list remains list).
-
-        :param datapaths: list of datapaths pointing to strings, lists or dicts in the data, as described above.
         :return: self.data is modified in-place; our return value is the set of
           repo parts of all libpaths resolved.
         """
-        # A "multipath or list thereof" is a "boxlisting".
-        # We write a utility function here which resolves all libpaths within a boxlisting,
-        # and which returns a string when possible, and a list otherwise.
         repos = set()
-        def resolve_boxlisting(d):
-            if isinstance(d, str):
-                L = self.resolve_multipath(d)
-                r = L if len(L) > 1 else L[0]
-            elif isinstance(d, list):
-                r = sum([self.resolve_multipath(m) for m in d], [])
-            else:
-                raise ValueError
-            if isinstance(r, str):
-                repos.add(get_repo_part(r))
-            else:
-                assert isinstance(r, list)
-                repos.update(set(get_repo_part(lp) for lp in r))
-            return r
-        def replacer(path, d, p):
-            try:
-                # `d` should be either a boxlisting itself, or a dict in which (some of) the values are boxlistings.
-                if isinstance(d, str) or isinstance(d, list):
-                    r = resolve_boxlisting(d)
-                elif isinstance(d, dict):
-                    r = {}
-                    for k in d:
-                        try:
-                            p = resolve_boxlisting(d[k])
-                        except ValueError:
-                            r[k] = d[k]
-                        else:
-                            r[k] = p
+
+        def res_checked_libpath(clp):
+            abspath = self.resolve_libpath(clp.value)
+            repos.add(get_repo_part(abspath))
+            return abspath
+
+        def res(obj):
+            if isinstance(obj, dict):
+                return {res(k): res(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [res(a) for a in obj]
+            elif isinstance(obj, CheckedLibpath):
+                return res_checked_libpath(obj)
+            elif isinstance(obj, BoxListing):
+                if obj.keyword:
+                    return obj.bracketed_keyword
                 else:
-                    raise ValueError
-            except PfscExcep as pe:
-                raise pe
-            except:
-                raise ValueError
+                    return [res_checked_libpath(clp) for clp in obj.checked_libpaths]
             else:
-                return r
-        replace_data(self.data, datapaths, replacer)
+                return obj
+
+        self.resolved_data = res(self.checked_data)
+
         return repos
 
 
@@ -658,12 +566,16 @@ class CtlWidget(Widget):
 
     @classmethod
     def generate_arg_spec(cls):
-        spec, markdown_control_opts = cls._generate_arg_spec_parts()
+        spec, _ = cls._generate_arg_spec_parts()
         return spec
 
     def check_fields(self):
-        spec, markdown_control_opts = self._generate_arg_spec_parts()
-        self.check(spec, adopt=markdown_control_opts.keys())
+        spec, _ = self._generate_arg_spec_parts()
+        self.check(spec)
+
+    def data_translator(self, obj, datapath):
+        is_default_field = datapath and datapath[-1] in self.supported_default_fields
+        return UndefinedInput() if is_default_field else obj
 
     def has_presence_in_page(self):
         return False
@@ -759,18 +671,6 @@ class ChartWidget(NavWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.CHART, 'chart_widget_template', name, label, data, anno, lineno)
-        self.libpath_datapaths = (
-            "onBoard",
-            "offBoard",
-            "view",
-            "viewOpts.core",
-            "viewOpts.center",
-            "color",
-            "hoverColor",
-            "select",
-            "checkboxes.deducs",
-            "checkboxes.checked",
-        )
 
     @classmethod
     def generate_arg_spec(cls):
@@ -820,30 +720,12 @@ class ChartWidget(NavWidget):
                     ],
                 },
                 'color': {
-                    'type': IType.DISJ,
-                    'alts': [
-                        {
-                            'type': IType.DICT,
-                            'keytype': IType.STR,
-                            'valtype': IType.STR,
-                        },
-                        {
-                            'type': IType.STR,
-                        }
-                    ]
+                    'type': IType.CHART_COLOR,
+                    'update_allowed': True,
                 },
                 'hoverColor': {
-                    'type': IType.DISJ,
-                    'alts': [
-                        {
-                            'type': IType.DICT,
-                            'keytype': IType.STR,
-                            'valtype': IType.STR,
-                        },
-                        {
-                            'type': IType.STR,
-                        }
-                    ]
+                    'type': IType.CHART_COLOR,
+                    'update_allowed': False,
                 },
                 'layout': {
                     'type': IType.STR,
@@ -913,18 +795,9 @@ class ChartWidget(NavWidget):
         self.process_color_options()
 
     def process_color_options(self):
-        c_name = 'color'
         hc_name = 'hoverColor'
-
-        if c_name in self.data:
-            c = self.data[c_name]
-            if isinstance(c, str):
-                c_dict = regularize_color_option_text(c, c_name)
-                self.data[c_name] = c_dict
-
         if hc_name in self.data:
-            hc = self.data[hc_name]
-            hc_dict = regularize_color_option_text(hc, hc_name) if isinstance(hc, str) else hc
+            hc_dict = self.data[hc_name]
             hc_setup = set_up_hover_color(hc_dict)
             self.data[hc_name] = hc_setup
 
@@ -989,9 +862,16 @@ class DocWidget(NavWidget):
         return {
             "REQ": {
                 'sel': {
-                    # IType.STR will accept both a plain `str` and a `Libpath`
-                    # instance, both of which are allowed forms for the 'sel' field.
-                    'type': IType.STR,
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.RELPATH,
+                            'is_Libpath_instance': True,
+                        },
+                        {
+                            'type': IType.STR
+                        }
+                    ]
                 },
             },
             "OPT": {
@@ -1179,9 +1059,6 @@ class LinkWidget(NavWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.LINK, 'link_widget_template', name, label, data, anno, lineno)
-        self.libpath_datapaths = (
-            "ref",
-        )
 
     @classmethod
     def generate_arg_spec(cls):
@@ -1378,9 +1255,6 @@ class GoalWidget(WrapperWidget):
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.GOAL, name, label, data, anno, lineno)
         self.template_name = 'goal_widget_template'
-        self.libpath_datapaths = [
-            'altpath'
-        ]
         self.is_inline = True
 
     @classmethod
@@ -1446,9 +1320,6 @@ class ExampWidget(Widget):
         Widget.__init__(self, type_, name, label, data, anno, lineno)
         self.is_inline = False
         self.context_name = self.data.get('context', 'Basic')
-        self.libpath_datapaths = (
-            'import',
-        )
         self._requested_imports = None
         self._generator = None
         self._trusted = None
@@ -1779,130 +1650,6 @@ class DispWidget(ExampWidget):
         )
         html += '</div>\n'
         return html
-
-##############################################################################
-
-
-def regularize_color_option_text(raw, field_name):
-    """
-    Transform a "color field" (``color`` or ``hoverColor``) given in the new,
-    string format, into the older, dictionary format.
-
-    In the old format, a color field is given by a dictionary
-    of key-value pairs. Because keys must be unique there, we allowed the keys
-    to be either color codes, or multipaths.
-
-    Here, you should instead give a listing of `colorCodes: boxlisting` pairs,
-    one per line.
-
-    In the boxlistings, there is no need for surrounding brackets to make a list,
-    or for quotation marks to make a string. Thus, for example, you may write
-
-        Thm.A10, Pf.{A10,A20}
-
-    which is equivalent to ["Thm.A10", "Pf.{A10,A20}"]` in the dictionary format.
-
-    Because there is no unique-key constraint, there is no reason to allow
-    multipaths on the left. (For dictionaries, we decided you might want to be
-    able to use the same color spec twice, without having to make a giant RHS,
-    so we allowed the option of putting the libpaths on the LHS.)
-    Therefore color codes should always be on the left, boxlistings on the right.
-
-    Since multipaths are no longer allowed on the left, there is no longer a
-    need to disambiguate between color codes and libpaths, and therefore color
-    codes no longer need to be preceded by colons. Therefore color codes should
-    simply be separated by commas.
-
-    As in the dictionary format, we support the special `update` color code,
-    which applies to the whole directive, and therefore does not need any
-    righthand side.
-
-    Example:
-
-        update
-        push,bgR,olY,fi0,diGB: libpath.to.node1
-
-    which means:
-
-        Do not clear existing colors; simply add the given settings.
-        For node1:
-            - push current colors onto node1's color stack
-            - set background red
-            - set outline yellow
-            - clear any existing colors from incoming flow edges
-            - give incoming deduction edges a gradient from green to blue
-
-    Note that `update` is meaningless in hoverColor, which is always done as
-    an update.
-
-    See the docstring for the ColorManager class in pfsc-moose for more info.
-
-    :param raw: the raw text
-    :param field_name: the name of the field, such as "color" or "hoverColor".
-    """
-    update = False
-    data = defaultdict(set)
-    lines = [L.strip() for L in raw.split('\n')]
-    for line in lines:
-        if line == 'update' and field_name == 'color':
-            update = True
-            continue
-        parts = [p.strip() for p in line.split(":")]
-        if len(parts) != 2:
-            raise PfscExcep(f'Each line in the "{field_name}" string format'
-                            ' should have a single colon (:), with a comma-separated list'
-                            ' of color codes on the left, and a boxlisting on the right.',
-                            PECode.MALFORMED_COLOR_CODE)
-        color_spec, box_listing = parts
-        color_codes = [c.strip() for c in color_spec.split(',')]
-        # Restore the leading colons expected in the old format.
-        k = ":" + ":".join(color_codes)
-        v = parse_freestring_box_listing(box_listing)
-        data[k].update(set(v))
-    # Sort for deterministic output. Good for testing.
-    data = {k: list(sorted(list(v))) for k, v in data.items()}
-
-    if field_name == "hoverColor":
-        result = data
-    else:
-        if update:
-            data[':update'] = True
-        result = data
-
-    return result
-
-
-def parse_freestring_box_listing(box_listing):
-    """
-    Parse a boxlisting as given within a larger, special-format string,
-    rather than as given in JSON.
-
-    For certain inputs (at present just color and hoverColor), you can
-    write a long, multiline string, in which boxlistings may appear.
-    Since these strings employ their own, special format, there is no need
-    for quotation marks or list brackets, and boxlistings can instead be
-    given as plain comma-separated lists of multipaths.
-
-    This function receives a boxlisting given in this freer format, and
-    returns a list of libpath strings.
-
-    Example:
-
-    The string
-
-        foo.bar, foo.{spam.baz, cat}
-
-    is transformed into the list of strings
-
-        ['foo.bar', 'foo.spam.baz', 'foo.cat']
-    """
-    bl = check_boxlisting('', box_listing, {
-        'libpath_type': {
-            'short_okay': True,
-        },
-    })
-    return bl.get_libpaths()
-
 
 ##############################################################################
 

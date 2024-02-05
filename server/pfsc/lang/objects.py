@@ -744,6 +744,7 @@ class EnrichmentPage(Enrichment):
         self.resolveLibpathsRec()
 
         for widget in widgets:
+            widget.translate_data()
             widget.enrich_data()
 
     def make_ctl_widget_setting(self, key, value, ctl_widget_name):

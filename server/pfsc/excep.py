@@ -175,6 +175,7 @@ class PECode:
     EXAMP_WIDGET_DEPENDENCY_MISSING = 194
     MALFORMED_CF = 195
     UNEXPECTED_INPUT = 196
+    CANNOT_UNITE_BOXLISTINGS = 197
 
     # pfsc module parsing, VerTeX processing, repo handling
     MODULE_DOES_NOT_EXIST = 200

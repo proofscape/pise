@@ -46,6 +46,7 @@ from pfsc.checkinput.libpath import (
     check_versioned_forest,
     check_libpath,
     check_relpath,
+    check_chart_color,
 )
 from pfsc.checkinput.version import (
     check_major_version,
@@ -282,6 +283,7 @@ class IType:
     ISE_WIDGET_LINK = 'ise_widget_link'
     DOC_ID = 'doc_id'
     COMBINER_CODE = 'combiner_code'
+    CHART_COLOR = 'chart_color'
 
 
 TYPE_HANDLERS = {
@@ -316,6 +318,7 @@ TYPE_HANDLERS = {
     IType.ISE_WIDGET_LINK: check_ise_widget_link,
     IType.DOC_ID: check_doc_id,
     IType.COMBINER_CODE: check_combiner_code,
+    IType.CHART_COLOR: check_chart_color,
 }
 
 
