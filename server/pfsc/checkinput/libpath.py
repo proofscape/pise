@@ -192,7 +192,8 @@ class BoxListing:
     def is_keyword(self, *args):
         """
         Pass zero args to simply check whether this box listing is given by a keyword.
-        Pass one arg (string) to check whether it is a certain keyword.
+        Pass one arg (string) to check whether it is a certain keyword. In this case,
+        pass the keyword *without* angle brackets, e.g. 'all'.
         """
         if len(args) == 1:
             return self.keyword == args[0]
