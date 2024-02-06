@@ -164,14 +164,14 @@ class Widget(PfscObj):
         :param types: the definition of the arg types to be checked. See docstring for
                       the `check_input()` function.
 
-        :param raw: optional dictionary to check instead of `self.data`.
+        :param raw: optional dictionary to check instead of `self.raw_data`.
 
         :param reify_undefined: forwarded to the `check_input()` function.
 
         :return: nothing
         """
         if raw is None:
-            raw = self.data
+            raw = self.raw_data
         try:
             checkinput.check_input(
                 raw, self.checked_data, types,
@@ -394,9 +394,9 @@ class Widget(PfscObj):
         lowercase_type = self.get_type().lower()
         for default_field_name in SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS:
             _, widget_type, field_name = default_field_name.split('_')
-            if widget_type == lowercase_type and field_name not in self.data:
+            if widget_type == lowercase_type and field_name not in self.raw_data:
                 if self.parent.check_ctl_widget_setting_defined(default_field_name):
-                    self.data[field_name] = self.parent.read_ctl_widget_setting(
+                    self.raw_data[field_name] = self.parent.read_ctl_widget_setting(
                         default_field_name
                     )
                     blame = self.parent.check_ctl_widget_setting_blame(field_name)
@@ -450,7 +450,7 @@ class Widget(PfscObj):
         `CheckedLibpath` and `BoxListing` classes. When it finds these, it attempts to resolve the libpaths
         to absolute ones, and record the results in `self.resolved_data`.
 
-        :return: self.data is modified in-place; our return value is the set of
+        :return: self.resolved_data is built as a side effect; our return value is just the set of
           repo parts of all libpaths resolved.
         """
         repos = set()
@@ -598,8 +598,8 @@ class CtlWidget(Widget):
         the values set here can be available when subsequent widgets are constructed.
         """
         for field_name in self.supported_default_fields:
-            if field_name in self.data:
-                value = self.data[field_name]
+            if field_name in self.raw_data:
+                value = self.raw_data[field_name]
                 self.parent.make_ctl_widget_setting(field_name, value, self.name)
 
     def configure(self, renderer):
@@ -1145,8 +1145,8 @@ class QnAWidget(Widget):
     def check_fields(self):
         spec = self.generate_arg_spec()
         self.check(spec)
-        self.question = self.data['question']
-        self.answer = self.data['answer']
+        self.question = self.checked_data['question']
+        self.answer = self.checked_data['answer']
 
     def writeHTML(self, label=None, sphinx=False):
         if label is None: label = escape(self.label)
