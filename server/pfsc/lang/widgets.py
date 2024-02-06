@@ -180,7 +180,8 @@ class Widget(PfscObj):
             )
         except PfscExcep as pe:
             field = pe.bad_field()
-            pe.extendMsg(f'Problem is for "{field}" field in {self.type_} widget {self.libpath}.')
+            field_detail = f'"{field}" field in ' if field else ''
+            pe.extendMsg(f'Problem is for {field_detail}{self.type_} widget {self.libpath}.')
             if field in self.fields_accepted_from_ctl_widgets:
                 blame = self.fields_accepted_from_ctl_widgets[field]
                 pe.extendMsg(f'Field value was set by ctl widget "{blame}"')
