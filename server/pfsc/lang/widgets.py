@@ -132,8 +132,11 @@ class Widget(PfscObj):
         # `BoxListing`, as those are automatically translated into strings or lists of strings,
         # in step (2).
         #
-        # The `self.translated_data` object resulting from the three steps described above
-        # is then the "data" that is acted upon in the old `self.enrich_data()` method. The
+        # Finally, `self.data` is produced as a deep copy of the `self.translated_data` object
+        # resulting from the three steps described above. This preserves `self.translated_data`,
+        # which is useful in debugging.
+        #
+        # It is then `self.data` that is acted upon in the old `self.enrich_data()` method. The
         # name, "enrich data" may seem odd, as it dates from long before the process described
         # here was implemented. It used to be that the incoming raw data was simply "enriched"
         # before being written into the built representation of the widget.
@@ -141,6 +144,7 @@ class Widget(PfscObj):
         self.checked_data = {}
         self.resolved_data = {}
         self.translated_data = {}
+        self.data = {}
 
         # Grab any default values that may have been set by now.
         # We record a mapping from field names to names of ctl widgets that set them.
@@ -151,10 +155,6 @@ class Widget(PfscObj):
         self.repos = []
         # Lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
-
-    @property
-    def data(self):
-        return self.translated_data
 
     def check(self, types, raw=None, reify_undefined=True):
         """
@@ -317,6 +317,9 @@ class Widget(PfscObj):
         but instead override the `data_translator()` method.
         """
         self.translated_data = self._translate_data_rec(self.resolved_data, [])
+        # Since `self.translated_data` is supposed to be JSON-serializable, we can use
+        # the ser/deser trick to make a deep copy.
+        self.data = json.loads(json.dumps(self.translated_data))
 
     def _translate_data_rec(self, obj, datapath):
         if isinstance(obj, dict):
