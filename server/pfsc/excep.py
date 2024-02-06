@@ -353,13 +353,16 @@ class PfscExcep(Exception):
         msg = self.msg
         if has_app_context() and current_app.config.get('PFSC_ADD_ERR_NUM_TO_MSG'):
             msg = f'Error {self.code()}: ' + msg
+
         # In development mode it may be useful to also see the private message.
-        try:
-            mode = os.getenv('FLASK_CONFIG') or ConfigName.PRODUCTION
-            if mode in [ConfigName.DOCKERDEV, ConfigName.LOCALDEV] and current_app.config.get('PFSC_SHOW_PRIVATE_ERR_MSGS_IN_DEVEL') == 1:
-                msg = self.private_msg()
-        except Exception as e:
-            msg += '\nError while adding extra err info.'
+        if has_app_context() and current_app.config.get('PFSC_SHOW_PRIVATE_ERR_MSGS_IN_DEVEL') == 1:
+            try:
+                mode = os.getenv('FLASK_CONFIG') or ConfigName.PRODUCTION
+                if mode in [ConfigName.DOCKERDEV, ConfigName.LOCALDEV]:
+                    msg = self.private_msg()
+            except Exception as e:
+                msg += '\nError while adding extra err info.'
+
         if (not self.no_markdown) and has_app_context() and current_app.config.get('PFSC_MARKDOWN_ERR_MSG'):
             msg = mistletoe.markdown(msg)
         return msg
