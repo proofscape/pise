@@ -300,7 +300,6 @@ class Widget(PfscObj):
 
     def cascadeLibpaths(self):
         PfscObj.cascadeLibpaths(self)
-        self.data['widget_libpath'] = self.libpath
 
     def resolveLibpathsRec(self):
         self.repos = self.resolve_libpaths_in_checked_data()
@@ -412,6 +411,7 @@ class Widget(PfscObj):
         in the build process. In particular this means the enclosing Module
         will already know its represented version.
         """
+        self.data['widget_libpath'] = self.libpath
         self.data["type"] = self.type_
         self.data["src_line"] = self.get_lineno_within_module()
         self.data['uid'] = self.writeUID()
