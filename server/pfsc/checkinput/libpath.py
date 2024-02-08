@@ -222,7 +222,7 @@ def check_relboxlisting(key, raw, typedef):
     """
     enriched_typedef = typedef.copy()
     libpath_type_field_name = 'libpath_type'
-    libpath_type_dict = enriched_typedef[libpath_type_field_name] or {}
+    libpath_type_dict = enriched_typedef.get(libpath_type_field_name, {})
     libpath_type_dict['short_okay'] = True
     enriched_typedef[libpath_type_field_name] = libpath_type_dict
     return check_boxlisting(key, raw, enriched_typedef)
