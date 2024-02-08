@@ -230,7 +230,8 @@ class Widget(PfscObj):
 
     def set_pane_group(self, subtype=None, default_group_name=''):
         """
-        Construct the group ID for this widget.
+        Construct the group ID for this widget. Should be called from the `enrich_data()`
+        methods of those subclasses that use group names.
 
         The group ID consists of ":"-separated parts.
         The first two parts are always:
@@ -1330,6 +1331,8 @@ class ExampWidget(Widget):
 
     @property
     def requested_imports(self):
+        # Note: This method is used (at least at present) only during the `enrich_data()`
+        # phase, so it is correct to use `self.data` here.
         if self._requested_imports is None:
             self._requested_imports = self.data.get('import', {}).copy()
         return self._requested_imports
