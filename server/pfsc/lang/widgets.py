@@ -627,6 +627,29 @@ class NavWidget(Widget):
         self.html_template_name = html_template_name
         self.is_inline = True
 
+    @classmethod
+    def add_common_options_to_arg_spec(cls, spec):
+        """
+        Before returning the arg spec from their `generate_arg_spec()` method, subclasses
+        should pass the spec to this method, to add the optional `group` arg.
+        """
+        spec["OPT"] = spec.get("OPT", {})
+        spec["OPT"]['group'] = {
+            'type': IType.DISJ,
+            'alts': [
+                {
+                    'type': IType.STR,
+                    'max_len': MAX_WIDGET_GROUP_NAME_LEN,
+                },
+                # Integers are allowed. They will be converted to string later.
+                {
+                    'type': IType.INTEGER,
+                    'min': 0,
+                }
+            ],
+            'default_cooked': '',
+        }
+
     def writeHTML(self, label=None, sphinx=False):
         if label is None:
             label = escape(self.label)
@@ -679,7 +702,7 @@ class ChartWidget(NavWidget):
 
     @classmethod
     def generate_arg_spec(cls):
-        return {
+        spec = {
             "OPT": {
                 'view': {
                     'type': IType.RELBOXLISTING,
@@ -786,6 +809,8 @@ class ChartWidget(NavWidget):
                 },
             },
         }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
 
     def check_fields(self):
         spec = self.generate_arg_spec()
@@ -864,7 +889,7 @@ class DocWidget(NavWidget):
 
     @classmethod
     def generate_arg_spec(cls):
-        return {
+        spec = {
             "REQ": {
                 'sel': {
                     'type': IType.DISJ,
@@ -923,6 +948,8 @@ class DocWidget(NavWidget):
                 },
             },
         }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
 
     def check_fields(self):
         spec = self.generate_arg_spec()
@@ -1329,6 +1356,18 @@ class ExampWidget(Widget):
         self._generator = None
         self._trusted = None
 
+    @classmethod
+    def add_common_options_to_arg_spec(cls, spec):
+        """
+        Before returning the arg spec from their `generate_arg_spec()` method, subclasses
+        should pass the spec to this method, to add the optional `context` arg.
+        """
+        spec["OPT"] = spec.get("OPT", {})
+        spec["OPT"]['context'] = {
+            'type': IType.STR,
+            'default_cooked': 'Basic',
+        }
+
     @property
     def requested_imports(self):
         # Note: This method is used (at least at present) only during the `enrich_data()`
@@ -1469,7 +1508,7 @@ class ParamWidget(ExampWidget):
 
     @classmethod
     def generate_arg_spec(cls):
-        return {
+        spec = {
             "REQ": {
                 'ptype': {
                     'type': IType.STR,
@@ -1509,6 +1548,8 @@ class ParamWidget(ExampWidget):
                 },
             },
         }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
 
     def check_fields(self):
         spec = self.generate_arg_spec()
@@ -1550,7 +1591,7 @@ class DispWidget(ExampWidget):
 
     @classmethod
     def generate_arg_spec(cls):
-        return {
+        spec = {
             "REQ": {
                 'build': {
                     'type': IType.STR,
@@ -1575,6 +1616,8 @@ class DispWidget(ExampWidget):
                 },
             },
         }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
 
     def check_fields(self):
         spec = self.generate_arg_spec()
