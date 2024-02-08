@@ -1324,7 +1324,7 @@ class ExampWidget(Widget):
     def __init__(self, type_, name, label, data, anno, lineno):
         Widget.__init__(self, type_, name, label, data, anno, lineno)
         self.is_inline = False
-        self.context_name = self.data.get('context', 'Basic')
+        self.context_name = 'Basic'
         self._requested_imports = None
         self._generator = None
         self._trusted = None
@@ -1386,6 +1386,7 @@ class ExampWidget(Widget):
             # injected at serve time; we record it instead at build time.
             self.data['trusted'] = self.trusted
         self.data['dependencies'] = self.compute_dependency_closure()
+        self.context_name = self.data.get('context', 'Basic')
 
     def get_direct_dependencies(self):
         """
