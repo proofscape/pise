@@ -737,15 +737,8 @@ class EnrichmentPage(Enrichment):
 
     def resolve(self):
         widgets = self.get_proper_widgets()
-
         for widget in widgets:
-            widget.check_fields()
-
-        self.resolveLibpathsRec()
-
-        for widget in widgets:
-            widget.translate_data()
-            widget.enrich_data()
+            widget.resolve()
 
     def make_ctl_widget_setting(self, key, value, ctl_widget_name):
         self.ctl_widget_settings[key] = (value, ctl_widget_name)

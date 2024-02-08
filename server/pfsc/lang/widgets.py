@@ -302,9 +302,11 @@ class Widget(PfscObj):
     def cascadeLibpaths(self):
         PfscObj.cascadeLibpaths(self)
 
-    def resolveLibpathsRec(self):
+    def resolve(self):
+        self.check_fields()
         self.repos = self.resolve_libpaths_in_checked_data()
-        PfscObj.resolveLibpathsRec(self)
+        self.translate_data()
+        self.enrich_data()
 
     def translate_data(self):
         """
