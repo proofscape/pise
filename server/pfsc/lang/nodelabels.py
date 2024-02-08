@@ -26,6 +26,7 @@ from pfsc.util import unindent
 
 KNOWN_PROTOCOLS = re.compile(r'(notes|https?):')
 
+
 class NodeLabelRenderer(PfscRenderer):
     """
     Do markdown processing for node labels.
@@ -109,6 +110,7 @@ def processAsLibpaths(url, label, node):
             raise PfscExcep(msg, PECode.CANNOT_RESOLVE_NODE_LINK_TARGET)
     return writeNodelinkHTML(label, abspaths, versions)
 
+
 def writeNodelinkHTML(label, libpaths, versions):
     """
     Write the HTML for a nodelink.
@@ -125,6 +127,7 @@ def writeNodelinkHTML(label, libpaths, versions):
         label, d
     )
     return h
+
 
 def writeAnnolinkHTML(url, label, node, link_num):
     libpath = url[len('notes:'):]
