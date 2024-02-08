@@ -128,13 +128,9 @@ def writeNodelinkHTML(label, libpaths, versions):
 
 def writeAnnolinkHTML(url, label, node, link_num):
     libpath = url[len('notes:'):]
-    # TODO: use checkinput module to check format of libpath.
-    #    OR...maybe it's time to just build that into our Widget classes.
-    #    I think that has been on our to-do list for a long time.
-    lw = LinkWidget(f'_x{link_num}', '', {'type': "LINK", 'ref': libpath, 'tab': 'other'}, node, 0)
+    lw = LinkWidget(f'_x{link_num}', '', {'ref': libpath, 'tab': 'other'}, node, 0)
     lw.cascadeLibpaths()
-    lw.resolveLibpathsRec()
-    lw.enrich_data()
+    lw.resolve()
     data = lw.writeData()
     d = json.dumps(data)
     h = '<span class="annolink customlink">%s<span class="annolinkInfo" style="display:none;">%s</span></span>' % (
