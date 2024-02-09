@@ -129,12 +129,9 @@ mod_text_fragment_4 = """\
 <chart:w20>[]{
     "view": "X",
     "group": 2,
-    "checkboxes": {
-        "deducs": "Pf",
-        "checked": [
-            "Pf.S",
-            "Pf.R"
-        ]
+    "viewOpts": {
+        "maxZoom": 3,
+        "insetAware": false
     }
 }"""
 
@@ -148,7 +145,7 @@ def test_widget_data_sub_4(app):
         bc = mod.getBlockChunker()
         text = bc.write_module_text({
             "test.foo.bar.expansions.Notes1.w20": {
-                "checkboxes.checked": ["Pf.S", "Pf.R"]
+                "viewOpts.insetAware": False
             }
         })
         print()
@@ -167,7 +164,7 @@ def test_widget_data_sub_5(app):
         bc = mod.getBlockChunker()
         text = bc.write_module_text({
             "test.foo.bar.expansions.Notes1.w20": {
-                "checkboxes.checked": ["Pf.S", "Pf.R"]
+                "viewOpts.insetAware": False
             }
         })
         print()

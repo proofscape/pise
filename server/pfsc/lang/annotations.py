@@ -199,6 +199,7 @@ class Annotation(EnrichmentPage):
         # Now we can assemble the desired text.
         raw = self.raw_parts
         text_parts = [raw[0]]
+        transformer = PfscJsonTransformer(scope=None)
         for k in range(self.Nw):
             rwd, text = raw[2*k+1:2*k+3]
             data_replacements = lookup.get(rwd.name)
@@ -212,7 +213,8 @@ class Annotation(EnrichmentPage):
                     new_data = data_replacements['']
                 else:
                     # We are not replacing the entire widget data.
-                    new_data = json.loads(rwd.data)
+                    tree = json_parser.parse(rwd.data)
+                    new_data = transformer.transform(tree)
                     replace_data(new_data, data_replacements.keys(), (lambda path, d, p: data_replacements[path]), accept_absent=True)
             else:
                 new_data = None

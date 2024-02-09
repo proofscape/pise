@@ -23,12 +23,12 @@ with a <chart:w10>[chart widget with *cool equation* $@e sup i pie; + 1 = 0$ in 
     "view": "Pf"
 }
 This time we give it its own name, and even put it in a different pane group.
-Now let's add checkboxes.
+Now let's use `viewOpts`.
 <chart:w20>[]{
     "view": "X",
     "group": 2,
-    "checkboxes": {
-        "deducs": "Pf"
+    "viewOpts": {
+        maxZoom: 3
     }
 }
 @@@
