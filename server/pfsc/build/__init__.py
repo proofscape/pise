@@ -863,7 +863,7 @@ class Builder:
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
             traceback.print_exc()
-            oe = e.orig_exc
+            oe = getattr(e, 'orig_exc', None)
             if isinstance(oe, PfscExcep):
                 raise oe
             else:
