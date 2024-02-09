@@ -453,7 +453,9 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
             typedef = req[varname]
             stashname = typedef.get('rename', varname)
             raw = raw_dict.get(varname)
-            if raw is None and not skip_reqs:
+            if raw is None:
+                if skip_reqs:
+                    continue
                 # These are required variables, so this is a problem.
                 raise PfscExcep('var "%s" not supplied' % varname, PECode.MISSING_INPUT, bad_field=varname)
             stash[stashname] = check_type(varname, raw, typedef)
@@ -494,7 +496,9 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
             alt_key_set = set(alt_set.keys())
             expected_keys.update(alt_key_set)
             inter = alt_key_set & raw_key_set
-            if len(inter) != 1 and not skip_reqs:
+            if len(inter) != 1:
+                if skip_reqs:
+                    continue
                 msg = 'Bad alternative args. For alternatives\n    %s' % alt_key_set
                 msg += '\ngot\n    %s' % raw_key_set
                 raise PfscExcep(msg, PECode.BAD_ALTERNATIVE_ARGS)

@@ -24,25 +24,11 @@ from pfsc.sphinx.pages import (
 from pfsc.sphinx.widgets import (
     pfsc_block_widget, pfsc_inline_widget,
     visit_pfsc_widget_html, depart_pfsc_widget_html,
-    PfscChartRole, PfscChartDirective,
-    PfscCtlWidgetDirective,
-    PfscDocWidgetRole, PfscDocWidgetDirective,
-    PfscDispWidgetDirective, PfscParamWidgetDirective,
-    PfscQnAWidgetDirective,
+    widget_types_and_classes,
 )
 from pfsc.sphinx.embed import PfscEmbedDirective
 from pfsc.sphinx.links import ExternalLinks
 from pfsc.sphinx.vertex import VerTeX2TeX
-
-
-widgets = (
-    ('chart', PfscChartRole, PfscChartDirective),
-    ('ctl', None, PfscCtlWidgetDirective),
-    ('doc', PfscDocWidgetRole, PfscDocWidgetDirective),
-    ('disp', None, PfscDispWidgetDirective),
-    ('param', None, PfscParamWidgetDirective),
-    ('qna', None, PfscQnAWidgetDirective),
-)
 
 
 def setup(app):
@@ -59,7 +45,7 @@ def setup(app):
 
     app.add_directive('pfsc', PfscEmbedDirective)
 
-    for name, role_class, directive_class in widgets:
+    for name, role_class, directive_class in widget_types_and_classes:
         full_name = f'pfsc-{name}'
         if role_class:
             role_instance = role_class()

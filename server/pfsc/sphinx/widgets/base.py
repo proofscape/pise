@@ -15,12 +15,9 @@
 # --------------------------------------------------------------------------- #
 
 from docutils import nodes
-from docutils.parsers.rst.directives import unchanged
 from sphinx.util.docutils import SphinxDirective
 from sphinx.errors import SphinxError
 
-from pfsc.checkinput import extract_full_key_set
-from pfsc.lang.freestrings import build_pfsc_json
 from pfsc.sphinx.pages import get_sphinx_page
 from pfsc.sphinx.widgets.util import process_widget_subtext
 from pfsc.excep import PfscExcep
@@ -103,19 +100,6 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
     has_content = False
     content_field_name = ''
-
-    def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls, *args, **kwargs)
-
-        spec = cls.widget_class.generate_arg_spec()
-        field_names = extract_full_key_set(spec)
-        option_spec = {fn: build_pfsc_json for fn in field_names}
-        option_spec['alt'] = unchanged
-        if cls.has_content:
-            option_spec[cls.content_field_name] = unchanged
-        instance.option_spec = option_spec
-
-        return instance
 
     def get_name_and_label(self, label_allowed=True, required=False):
         """
