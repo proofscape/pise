@@ -35,14 +35,13 @@ does *not* contain ``_page`` as penultimate segment. Entities defined under
 Doc Widgets
 ===========
 
-Here is :pfsc-doc:`an inline doc widget <doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)>`.
+Here is :pfsc-doc:`an inline doc widget <"doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)">`.
 
 Here is a substitution referring to |wDirDoc1: a directive doc widget|.
 
-Here is :pfsc-doc:`a doc widget that accepts the default doc <v2;s3;(1:1758:2666:400:200:100:50)>`.
+Here is :pfsc-doc:`a doc widget that accepts the default doc <"v2;s3;(1:1758:2666:400:200:100:50)">`.
 
 
 .. |wDirDoc1: a directive doc widget| pfsc-doc::
     :doc: doc1
-    :sel: v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)
-
+    :sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)"

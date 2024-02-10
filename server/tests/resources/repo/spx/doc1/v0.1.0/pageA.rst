@@ -14,9 +14,9 @@ field.
 
 .. pfsc-qna:: penultimateQuestion:
     :question:
-        What is the answer?
+        "What is the answer?"
     :answer:
-        42
+        "42"
 
 
 .. _pageA-subsec:
