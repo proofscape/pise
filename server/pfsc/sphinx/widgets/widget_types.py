@@ -24,7 +24,6 @@ from pfsc.sphinx.widgets.base import PfscOneArgWidgetDirective
 
 class PfscChartRole(PfscNavWidgetRole):
     widget_class = ChartWidget
-    widget_type_name = 'chart'
     target_field_name = 'view'
 
 
@@ -40,7 +39,6 @@ class PfscCtlWidgetDirective(PfscOneArgWidgetDirective):
 
 class PfscDocWidgetRole(PfscNavWidgetRole):
     widget_class = DocWidget
-    widget_type_name = 'doc'
     target_field_name = 'sel'
 
 
