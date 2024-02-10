@@ -849,7 +849,8 @@ class Builder:
         try:
             with patch_docutils(confdir), docutils_namespace():
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
-                             buildername, confoverrides=confoverrides)
+                             buildername, confoverrides=confoverrides,
+                             warningiserror=True)
                 app.connect('env-before-read-docs', set_builder_in_environment)
                 app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)
@@ -867,7 +868,8 @@ class Builder:
             if isinstance(oe, PfscExcep):
                 raise oe
             else:
-                raise e
+                msg = f'Sphinx error: {e}'
+                raise PfscExcep(msg, PECode.SPHINX_ERROR)
 
     def inject_origins(self):
         visitor = OriginInjectionVisitor(self.mii.origins)

@@ -15,6 +15,9 @@
 # --------------------------------------------------------------------------- #
 
 from docutils.parsers.rst.directives import unchanged
+from docutils.utils import ExtensionOptionError
+from lark.exceptions import LarkError
+
 from pfsc.checkinput import extract_full_key_set
 from pfsc.lang.freestrings import build_pfsc_json
 
@@ -42,6 +45,30 @@ widget_types_and_classes = (
 )
 
 
+def generic_data_field_converter(text):
+    """
+    Generic converter function to be applied to the values of options in widget
+    directives.
+
+    This is applied by `docutils`, so we need to raise its `ExtensionOptionError`
+    in case of any parsing problems, in order to get an informative error message.
+
+    Note: This only results in a "warning" as Sphinx sees it, so, for the build
+    to actually be interrupted and the user to see an error message through PISE,
+    we have to set `warningiserror=True` when we form our `Sphinx` app instance
+    in the pfsc `Builder`.
+
+    See also:
+        pfsc.build.Builder.build_sphinx_doc()
+        docutils.parsers.rst.states.Body.parse_extension_options()
+    """
+    try:
+        pf_json = build_pfsc_json(text)
+    except LarkError as e:
+        raise ExtensionOptionError(f'Error parsing PF-JSON: {e}')
+    return pf_json
+
+
 def monkey_patch_option_specs():
     """
     The classes we use to make widgets available as directives in Sphinx pages
@@ -66,10 +93,18 @@ def monkey_patch_option_specs():
     for _, _, cls in widget_types_and_classes:
         spec = cls.widget_class.generate_arg_spec()
         field_names = extract_full_key_set(spec)
-        option_spec = {fn: build_pfsc_json for fn in field_names}
+        option_spec = {fn: generic_data_field_converter for fn in field_names}
+
+        # The 'alt' option is a special one, where docutils hands us the value of
+        # the substitution, when the substitution pattern was used.
         option_spec['alt'] = unchanged
+
+        # For those directives that do have a content field, this is the one exception
+        # to the rule that the value must be valid PF-JSON; in this case, we interpret
+        # the whole thing as a string, and you do NOT put quotation marks around it.
         if cls.has_content:
             option_spec[cls.content_field_name] = unchanged
+
         cls.option_spec = option_spec
 
 

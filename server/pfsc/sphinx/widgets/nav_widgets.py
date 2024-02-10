@@ -16,6 +16,7 @@
 
 import re
 
+from lark.exceptions import LarkError
 from sphinx.util.docutils import SphinxRole
 
 from pfsc.lang.freestrings import build_pfsc_json
@@ -65,8 +66,8 @@ class PfscNavWidgetRole(SphinxRole):
 
         try:
             target = build_pfsc_json(raw_target)
-        except PfscExcep as pe:
-            msg = f'The "{self.target_field_name}" field is malformed.\n{pe}'
+        except (PfscExcep, LarkError) as e:
+            msg = f'The "{self.target_field_name}" field is malformed.\n{e}'
             return self.write_error_return_values(msg)
 
         fields = {
