@@ -908,46 +908,55 @@ class DocWidget(NavWidget):
             },
             "OPT": {
                 'doc': {
-                    'type': IType.DICT,
-                    'spec': {
-                        "REQ": {
-                            'docId': {
-                                'type': IType.DOC_ID,
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.RELPATH,
+                            'is_Libpath_instance': True,
+                        },
+                        {
+                            'type': IType.DICT,
+                            'spec': {
+                                "REQ": {
+                                    'docId': {
+                                        'type': IType.DOC_ID,
+                                    },
+                                },
+                                "OPT": {
+                                    'url': {
+                                        'type': IType.URL,
+                                        'allowed_schemes': ['https', 'http'],
+                                    },
+                                    'aboutUrl': {
+                                        'type': IType.URL,
+                                        'allowed_schemes': ['https', 'http'],
+                                    },
+                                    'title': {
+                                        'type': IType.STR,
+                                    },
+                                    'author': {
+                                        'type': IType.STR,
+                                    },
+                                    'year': {
+                                        'type': IType.INTEGER,
+                                    },
+                                    'publisher': {
+                                        'type': IType.STR,
+                                    },
+                                    'ISBN': {
+                                        'type': IType.STR,
+                                    },
+                                    'eBookISBN': {
+                                        'type': IType.STR,
+                                    },
+                                    'DOI': {
+                                        'type': IType.STR,
+                                    },
+                                }
                             },
                         },
-                        "OPT": {
-                            'url': {
-                                'type': IType.URL,
-                                'allowed_schemes': ['https', 'http'],
-                            },
-                            'aboutUrl': {
-                                'type': IType.URL,
-                                'allowed_schemes': ['https', 'http'],
-                            },
-                            'title': {
-                                'type': IType.STR,
-                            },
-                            'author': {
-                                'type': IType.STR,
-                            },
-                            'year': {
-                                'type': IType.INTEGER,
-                            },
-                            'publisher': {
-                                'type': IType.STR,
-                            },
-                            'ISBN': {
-                                'type': IType.STR,
-                            },
-                            'eBookISBN': {
-                                'type': IType.STR,
-                            },
-                            'DOI': {
-                                'type': IType.STR,
-                            },
-                        }
-                    },
-                },
+                    ]
+                }
             },
         }
         cls.add_common_options_to_arg_spec(spec)
