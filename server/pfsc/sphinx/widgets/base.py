@@ -166,7 +166,10 @@ class PfscOneArgWidgetDirective(SphinxDirective):
             label_allowed=self.label_allowed, required=self.label_required
         )
 
-        opts = self.options.copy()
+        opts = {
+            self.proper_casing.get(k, k): v
+            for k, v in self.options.items()
+        }
         if self.has_content:
             opts[self.content_field_name] = '\n'.join(self.content)
 

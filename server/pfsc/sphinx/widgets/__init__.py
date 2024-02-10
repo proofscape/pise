@@ -93,7 +93,16 @@ def monkey_patch_option_specs():
     for _, _, cls in widget_types_and_classes:
         spec = cls.widget_class.generate_arg_spec()
         field_names = extract_full_key_set(spec)
-        option_spec = {fn: generic_data_field_converter for fn in field_names}
+
+        # Because field names in rST are case-insensitive,
+        #     https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html#field-lists
+        # and because of the particular way in which they are checked (at least in docutils v0.19)
+        #     See the `docutils.utils.extract_extension_options()` function.
+        # we have to use `fn.lower()` for the keys in the `option_spec`.
+        # In order to be able to reconstruct the desired casing later, we also build
+        # and store a `proper_casing` dictionary.
+        option_spec = {fn.lower(): generic_data_field_converter for fn in field_names}
+        proper_casing = {fn.lower(): fn for fn in field_names}
 
         # The 'alt' option is a special one, where docutils hands us the value of
         # the substitution, when the substitution pattern was used.
@@ -106,6 +115,7 @@ def monkey_patch_option_specs():
             option_spec[cls.content_field_name] = unchanged
 
         cls.option_spec = option_spec
+        cls.proper_casing = proper_casing
 
 
 monkey_patch_option_specs()
