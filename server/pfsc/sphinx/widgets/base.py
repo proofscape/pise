@@ -167,8 +167,9 @@ class PfscOneArgWidgetDirective(SphinxDirective):
         )
 
         opts = {
-            self.proper_casing.get(k, k): v
+            self.proper_casing[k]: v
             for k, v in self.options.items()
+            if k != 'alt'  # Skip the one "meta field" where rST passes the SUBTEXT.
         }
         if self.has_content:
             opts[self.content_field_name] = '\n'.join(self.content)
