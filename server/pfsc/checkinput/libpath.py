@@ -751,6 +751,8 @@ def check_chart_color(key, raw, typedef):
     if isinstance(raw, str):
         lines = [L.strip() for L in raw.split('\n')]
         for line in lines:
+            if not line:
+                continue
             if line == 'update':
                 update = True
                 continue
