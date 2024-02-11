@@ -14,6 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+from copy import deepcopy
 import re
 import json
 
@@ -155,6 +156,22 @@ class Widget(PfscObj):
         self.repos = []
         # Lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
+
+        # Subclasses may define datapaths at which libpaths should be kept relative, i.e. not
+        # replaced by an absolute libpath, when `self.resolved_data` is produced.
+        #
+        # A datapath is a list of dict keys and list indices, indicating a location in
+        # `self.checked_data`.
+        #
+        # If you need to address a dict key itself (these could be libpaths?), start with the same
+        # datapath as for the value to which that key points, and then append `None`.
+        #
+        # Internally, we still do resolve the libpath, with all the usual side-effects, namely:
+        #   * The repopath is added to self.repos.
+        #   * The object is stored under its abspath in `self.objects_by_abspath`.
+        #
+        # Also, the value in `self.resolved_data` will still be a `Libpath` or list thereof.
+        self.keep_relative = []
 
     def check(self, types, raw=None, reify_undefined=True):
         """
@@ -304,7 +321,7 @@ class Widget(PfscObj):
 
     def resolve(self):
         self.check_fields()
-        self.repos = self.resolve_libpaths_in_checked_data()
+        self.resolve_libpaths_in_checked_data()
         self.translate_data()
         self.enrich_data()
 
@@ -320,9 +337,10 @@ class Widget(PfscObj):
         but instead override the `data_translator()` method.
         """
         self.translated_data = self._translate_data_rec(self.resolved_data, [])
-        # Since `self.translated_data` is supposed to be JSON-serializable, we can use
-        # the ser/deser trick to make a deep copy.
-        self.data = json.loads(json.dumps(self.translated_data))
+        # Since `self.translated_data` is supposed to be JSON-serializable, we *could* use
+        # the ser/deser trick to make a deep copy, except that that would turn `Libpath`
+        # objects into `str` objects, which we don't want. So we just use `deepcopy()`.
+        self.data = deepcopy(self.translated_data)
 
     def _translate_data_rec(self, obj, datapath):
         if isinstance(obj, dict):
@@ -453,34 +471,42 @@ class Widget(PfscObj):
         `CheckedLibpath` and `BoxListing` classes. When it finds these, it attempts to resolve the libpaths
         to absolute ones, and record the results in `self.resolved_data`.
 
-        :return: self.resolved_data is built as a side effect; our return value is just the set of
-          repo parts of all libpaths resolved.
+        :return: nothing. `self.resolved_data` and `self.repos` are built as side effects.
         """
         repos = set()
 
-        def res_checked_libpath(clp):
-            abspath = self.resolve_libpath(clp.value)
-            repos.add(get_repo_part(abspath))
-            return abspath
+        def res_checked_libpath(clp, datapath):
+            relpath = clp.value
 
-        def res(obj):
+            abspath = self.resolve_libpath(relpath)
+            repos.add(get_repo_part(abspath))
+
+            desired_path = relpath if datapath in self.keep_relative else abspath
+            return Libpath(desired_path)
+
+        def res(obj, datapath):
             if isinstance(obj, dict):
-                return {res(k): res(v) for k, v in obj.items()}
+                return {
+                    res(k, datapath + [k, None]): res(v, datapath + [k])
+                    for k, v in obj.items()
+                }
             elif isinstance(obj, list):
-                return [res(a) for a in obj]
+                return [
+                    res(a, datapath + [i])
+                    for i, a in enumerate(obj)
+                ]
             elif isinstance(obj, CheckedLibpath):
-                return res_checked_libpath(obj)
+                return res_checked_libpath(obj, datapath)
             elif isinstance(obj, BoxListing):
                 if obj.is_keyword():
                     return obj.bracketed_keyword
                 else:
-                    return [res_checked_libpath(clp) for clp in obj.checked_libpaths]
+                    return [res_checked_libpath(clp, datapath) for clp in obj.checked_libpaths]
             else:
                 return obj
 
-        self.resolved_data = res(self.checked_data)
-
-        return repos
+        self.resolved_data = res(self.checked_data, [])
+        self.repos = sorted(repos)
 
 
 class UnknownTypeWidget(Widget):
