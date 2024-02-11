@@ -911,15 +911,19 @@ class DocWidget(NavWidget):
     A Widget class for controlling document panes (PDF etc.).
     """
 
+    doc_field_name = 'doc'
+    sel_field_name = 'sel'
+
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.DOC, 'doc_widget_template', name, label, data, anno, lineno)
         self.docReference = None
+        self.keep_relative = [[self.doc_field_name]]
 
     @classmethod
     def generate_arg_spec(cls):
         spec = {
             "REQ": {
-                'sel': {
+                cls.sel_field_name: {
                     'type': IType.DISJ,
                     'alts': [
                         {
@@ -933,7 +937,7 @@ class DocWidget(NavWidget):
                 },
             },
             "OPT": {
-                'doc': {
+                cls.doc_field_name: {
                     'type': IType.DISJ,
                     'alts': [
                         {
@@ -1000,20 +1004,13 @@ class DocWidget(NavWidget):
         doc_info_obj = None
         doc_info_libpath = None
 
-        doc_field_name = 'doc'
-        sel_field_name = 'sel'
-
-        doc_field_value = self.data.get(doc_field_name)
-        sel_field_value = self.data.get(sel_field_name)
+        doc_field_value = self.data.get(self.doc_field_name)
+        sel_field_value = self.data.get(self.sel_field_name)
 
         # The sel field can be a libpath pointing to a node, when you want to
         # clone the very same selection made by the doc ref of that node.
-        # For now, we require a `Libpath` object. In future, could expand
-        # support to libpaths given as strings. Then will have to perform a
-        # check that it is not a combiner code string.
         if isinstance(sel_field_value, Libpath):
-            abspath = self.resolve_libpath(sel_field_value)
-            origin_node = self.objects_by_abspath[abspath]
+            origin_node = self.objects_by_abspath[sel_field_value]
         else:
             code = sel_field_value
 
@@ -1024,10 +1021,10 @@ class DocWidget(NavWidget):
             if doc_field_value is not None:
                 if isinstance(doc_field_value, dict):
                     doc_info_obj = doc_field_value
-                elif isinstance(doc_field_value, str):
+                elif isinstance(doc_field_value, Libpath):
                     doc_info_libpath = doc_field_value
                 else:
-                    msg = '`doc` field should be dict (full info) or string (libpath)'
+                    msg = '`doc` field should be dict (full info) or libpath'
                     raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
             self.docReference = doc_ref_factory(
                 code=code, origin_node=origin_node, doc_info_obj=doc_info_obj,
@@ -1039,8 +1036,8 @@ class DocWidget(NavWidget):
 
         # Clean up. Doc descriptors go at top level of anno.json; don't need
         # to repeat them in each doc widget.
-        if doc_field_name in self.data:
-            del self.data[doc_field_name]
+        if self.doc_field_name in self.data:
+            del self.data[self.doc_field_name]
 
         doc_info = self.docReference.doc_info
 
@@ -1067,7 +1064,7 @@ class DocWidget(NavWidget):
         hid_field_name = 'highlightId'
         if (cc := self.docReference.combiner_code) is not None:
             # Final selection code must be pure combiner code (no two-part ref code)
-            self.data[sel_field_name] = cc
+            self.data[self.sel_field_name] = cc
             # The combiner code can be used for "ad hoc highlights"; for
             # "named highlights" we need a highlight ID:
             self.data[hid_field_name] = f'{self.parent.getLibpath()}:{self.getDocRefInternalId()}'
