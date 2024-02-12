@@ -116,7 +116,7 @@ untrusted.
 <param:eg1_k>[]{
     ptype: "NumberField",
     name: "k",
-    default: "cyc(7)",
+    init: "cyc(7)",
 }
 
 @@@

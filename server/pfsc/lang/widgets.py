@@ -1550,11 +1550,11 @@ class ParamWidget(ExampWidget):
                 'name': {
                     'type': IType.STR,
                 },
-                'default': {
-                    'type': IType.ANY,
-                },
             },
             "OPT": {
+                'init': {
+                    'type': IType.ANY,
+                },
                 'tex': {
                     'type': IType.STR,
                 },
@@ -1595,10 +1595,18 @@ class ParamWidget(ExampWidget):
 
     def enrich_data(self):
         super().enrich_data()
+
         ri = self.requested_imports
         self.data['params'] = ri
+
         if 'import' in self.data:
             del self.data['import']
+
+        # The pfsc-examp code still expects the initial value spec under
+        # the key 'default', instead of 'init'.
+        if 'init' in self.data:
+            self.data['default'] = self.data['init']
+            del self.data['init']
 
     def writeHTML(self, label=None, sphinx=False):
         html = f'<div class="widget exampWidget paramWidget {self.writeUID()}">\n'
