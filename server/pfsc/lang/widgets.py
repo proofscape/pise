@@ -1466,7 +1466,7 @@ class ExampWidget(Widget):
         Get the set of libpaths of all ExampWidgets that this widget uses
         directly, via imports.
 
-        :return: list of libpaths
+        :return: list of absolute libpaths
         """
         return list(self.requested_imports.values())
 
