@@ -50,4 +50,4 @@ def test_git_style_merge(app, repo, modpath, branch1, branch2):
         #print(len(lines))
         assert len(lines) == 114
         #print(mergetext.find(expected_diff))
-        assert mergetext.find(expected_diff) == 1921
+        assert mergetext.find(expected_diff) == 1915

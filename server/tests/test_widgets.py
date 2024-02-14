@@ -24,10 +24,12 @@ from pfsc.build.repo import RepoInfo
 
 widget_data_1 = """{
     "test-foo-bar-expansions-Notes1-w10_WIP": {
-        "view": "test.foo.bar.results.Pf",
+        "view": [
+            "test.foo.bar.results.Pf"
+        ],
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "type": "CHART",
         "src_line": 22,
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "uid": "test-foo-bar-expansions-Notes1-w10_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:",
         "versions": {
@@ -38,11 +40,13 @@ widget_data_1 = """{
         "version": "WIP"
     },
     "test-foo-bar-expansions-Notes1-w20_WIP": {
-        "view": "test.foo.bar.expansions.X",
+        "view": [
+            "test.foo.bar.expansions.X"
+        ],
         "group": 2,
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
         "type": "CHART",
         "src_line": 26,
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
         "uid": "test-foo-bar-expansions-Notes1-w20_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:2",
         "versions": {
@@ -311,7 +315,7 @@ Here is <chart:>[a widget]{
 @pytest.mark.psm
 @pytest.mark.parametrize("group_spec, expected_err_code", [
     ['"this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long"',
-     PECode.WIDGET_GROUP_NAME_TOO_LONG],
+     PECode.INPUT_WRONG_TYPE],
     ['"...this_has_too_many_dots"',
      PECode.PARENT_DOES_NOT_EXIST],
 ])

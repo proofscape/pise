@@ -262,6 +262,7 @@ def test_widget_braces(app):
         ri = get_repo_info('test.foo.bar')
         ri.checkout('v8')
         exp = load_module('test.foo.bar.expansions', caching=0)
+        exp.resolve()
         for i in range(1, 5):
             print(exp['Notes2.q%s' % i].writeData())
         i1 = exp['Notes2.q1'].writeData()['answer'].find('({)')

@@ -136,7 +136,7 @@ expected_widget_data_spx_doc0 = json.loads("""
     "version": "v0.1.0",
     "widgets": {
         "test-spx-doc0-index-_page-w0_v0-1-0": {
-            "view": "test.moo.bar.results.Pf",
+            "view": ["test.moo.bar.results.Pf"],
             "type": "CHART",
             "src_line": 14,
             "widget_libpath": "test.spx.doc0.index._page.w0",
@@ -303,7 +303,7 @@ PAGE_A_PAGE_DATA = {
     "version": "v0.1.0",
     "widgets": {
         "test-spx-doc1-pageA-_page-proof1_v0-1-0": {
-            "view": "test.moo.bar.results.Pf",
+            "view": ["test.moo.bar.results.Pf"],
             "type": "CHART",
             "src_line": 11,
             "widget_libpath": "test.spx.doc1.pageA._page.proof1",
@@ -352,7 +352,7 @@ PAGE_C_PAGE_DATA = {
     "version": "v0.1.0",
     "widgets": {
         "test-spx-doc1-foo-pageC-_page-_w0_v0-1-0": {
-            "view": "test.moo.bar.results.Pf",
+            "view": ["test.moo.bar.results.Pf"],
             "type": "CHART",
             "src_line": 13,
             "widget_libpath": "test.spx.doc1.foo.pageC._page._w0",
@@ -366,7 +366,7 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-_w1_v0-1-0": {
-            "view": "test.moo.bar.results.Thm",
+            "view": ["test.moo.bar.results.Thm"],
             "type": "CHART",
             "src_line": 15,
             "widget_libpath": "test.spx.doc1.foo.pageC._page._w1",
@@ -380,7 +380,7 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-name1_v0-1-0": {
-            "view": "test.moo.bar.results.Thm.C",
+            "view": ["test.moo.bar.results.Thm.C"],
             "type": "CHART",
             "src_line": 18,
             "widget_libpath": "test.spx.doc1.foo.pageC._page.name1",
@@ -410,7 +410,6 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-_w3_v0-1-0": {
-            "alt": ": like: this one",
             "view": [
                 "test.moo.bar.results.Pf"
             ],
@@ -428,14 +427,13 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-w000_v0-1-0": {
-            "alt": "w000: substitutions",
             "view": [
                 "test.moo.bar.results.Thm.C",
                 "test.moo.bar.results.Pf.R",
                 "test.moo.bar.results.Pf.S"
             ],
-            "onBoard": "test.moo.comment.bar.xpan_S",
-            "offBoard": "test.moo.comment.bar.xpan_T",
+            "onBoard": ["test.moo.comment.bar.xpan_S"],
+            "offBoard": ["test.moo.comment.bar.xpan_T"],
             "color": {
                 ":olB": [
                     "test.moo.bar.results.Pf.R",
@@ -460,7 +458,6 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-w001_v0-1-0": {
-            "alt": "w001: one-line color definition",
             "view": [
                 "test.moo.bar.results.Pf"
             ],
@@ -471,7 +468,7 @@ PAGE_C_PAGE_DATA = {
                 ]
             },
             "type": "CHART",
-            "src_line": 74,
+            "src_line": 75,
             "group": "bar",
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w001",
             "uid": "test-spx-doc1-foo-pageC-_page-w001_v0-1-0",
@@ -484,7 +481,6 @@ PAGE_C_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageC-_page-w002_v0-1-0": {
-            "alt": "w002: color defn with: repeated LHS, plus use of update",
             "color": {
                 ":bgG": [
                     "test.moo.bar.results.Pf.R",
@@ -494,7 +490,7 @@ PAGE_C_PAGE_DATA = {
                 ":update": True
             },
             "type": "CHART",
-            "src_line": 78,
+            "src_line": 79,
             "group": "bar",
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w002",
             "uid": "test-spx-doc1-foo-pageC-_page-w002_v0-1-0",
@@ -551,7 +547,6 @@ PAGE_D_PAGE_DATA = {
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0": {
-            "alt": "wDirDoc1: a directive doc widget",
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
             "type": "PDF",
             "src_line": 45,
@@ -630,6 +625,7 @@ PAGE_E_PAGE_DATA = {
             "widget_libpath": "test.spx.doc1.foo.pageE._page.eg1_k",
             "uid": "test-spx-doc1-foo-pageE-_page-eg1_k_v0-1-0",
             "dependencies": [],
+            "context": "Basic",
             "params": {},
             "version": "v0.1.0"
         },
@@ -643,7 +639,7 @@ PAGE_E_PAGE_DATA = {
                 "B = k.integral_basis(fmt=fmt)\nhtml = \"An integral basis for $k$:\\n\\n\"\nhtml += r\"$\\{\" + ','.join([latex(b, order='old') for b in B]) + r\"\\}$\"\nreturn html"
             ],
             "type": "DISP",
-            "src_line": 26,
+            "src_line": 27,
             "trusted": False,
             "widget_libpath": "test.spx.doc1.foo.pageE._page.eg1_disp1",
             "uid": "test-spx-doc1-foo-pageE-_page-eg1_disp1_v0-1-0",
@@ -655,6 +651,7 @@ PAGE_E_PAGE_DATA = {
                     "direct": True
                 }
             ],
+            "context": "Basic",
             "params": {
                 "k": "test.spx.doc1.foo.pageE._page.eg1_k"
             },
