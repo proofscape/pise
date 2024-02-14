@@ -675,7 +675,6 @@ class NavWidget(Widget):
                     'min': 0,
                 }
             ],
-            'default_cooked': '',
         }
 
     def writeHTML(self, label=None, sphinx=False):
