@@ -737,8 +737,14 @@ class EnrichmentPage(Enrichment):
 
     def resolve(self):
         widgets = self.get_proper_widgets()
+        # Resolve all widgets...
         for widget in widgets:
             widget.resolve()
+        # ...before any of them tries to enrich data.
+        # Doing it this way is important e.g. for `ExampWidget.compute_dependency_closure()`
+        # to work correctly.
+        for widget in widgets:
+            widget.enrich_data()
 
     def make_ctl_widget_setting(self, key, value, ctl_widget_name):
         self.ctl_widget_settings[key] = (value, ctl_widget_name)

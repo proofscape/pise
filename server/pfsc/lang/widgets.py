@@ -323,7 +323,6 @@ class Widget(PfscObj):
         self.check_fields()
         self.resolve_libpaths_in_checked_data()
         self.translate_data()
-        self.enrich_data()
 
     def translate_data(self):
         """
