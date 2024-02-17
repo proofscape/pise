@@ -919,8 +919,12 @@ class DocWidget(NavWidget):
 
     @classmethod
     def generate_arg_spec(cls):
+        # Neither 'doc' nor 'sel' field is required alone, but at least one of the two must
+        # be defined. In all cases, a document must be specified. This can happen in either
+        # 'doc' or 'sel'. Defining 'doc' but not 'sel' is a way to refer to a document itself,
+        # without specifying any particular selection within it.
         spec = {
-            "REQ": {
+            "OPT": {
                 cls.sel_field_name: {
                     'type': IType.DISJ,
                     'alts': [
@@ -933,8 +937,6 @@ class DocWidget(NavWidget):
                         }
                     ]
                 },
-            },
-            "OPT": {
                 cls.doc_field_name: {
                     'type': IType.DISJ,
                     'alts': [
