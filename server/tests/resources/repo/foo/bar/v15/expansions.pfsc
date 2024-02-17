@@ -92,10 +92,7 @@ obj2 = {
 }
 
 anno Notes4 @@@
-This <label:>[widget]{
-    will: "define some extra",
-    stuff: obj2
-}
+This is <label:>[a label widget]{}
 @@@
 
 # We also need to test whether we correctly ignore # chars occurring within

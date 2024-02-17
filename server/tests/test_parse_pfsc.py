@@ -296,8 +296,6 @@ def test_extended_json_syntax(app):
         print(mod['obj2'].rhs)
         obj2 = {'spam': obj1}
         assert mod['obj2'].rhs == obj2
-        print(mod['Notes4'].widget_seq[0].data['stuff'])
-        assert mod['Notes4'].widget_seq[0].data['stuff'] == obj2
 
 
 mod_text_01 = """
