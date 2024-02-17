@@ -1325,13 +1325,22 @@ class GoalWidget(WrapperWidget):
 
     @classmethod
     def generate_arg_spec(cls):
-        return {
+        spec = {
             "OPT": {
                 'altpath': {
                     'type': IType.RELPATH,
                 },
             }
         }
+        # Note: The 'origin' field is not to be named in the docs. Authors are not
+        # intended to use it. It is for internal use, when doing things like generating
+        # study pages. At this time, we're not taking any steps to ensure that it be
+        # accepted only in such contexts; however, by keeping it out of the docs, we are
+        # free to implement such measures at any time.
+        spec["OPT"]['origin'] = {
+            'type': IType.STR,
+        }
+        return spec
 
     def check_fields(self):
         spec = self.generate_arg_spec()
