@@ -64,6 +64,9 @@ def check_integer(key, raw, typedef):
             divisors: list of integers that must divide the given one
     :return: int
     """
+    if not isinstance(raw, (str, int)):
+        msg = 'Expecting int or string rep thereof.'
+        raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
     lb = typedef.get('min')
     ub = typedef.get('max')
     if 'default_on_empty' in typedef and raw == '':

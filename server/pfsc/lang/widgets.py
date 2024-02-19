@@ -148,7 +148,7 @@ class Widget(PfscObj):
         self.data = {}
 
         # Grab any default values that may have been set by now.
-        # We record a mapping from field names to names of ctl widgets that set them.
+        # We record a mapping from field names to `CtlWidgetSetting` instances.
         self.fields_accepted_from_ctl_widgets = {}
         self.accept_defaults_from_ctl_widgets()
 
@@ -172,6 +172,10 @@ class Widget(PfscObj):
         #
         # Also, the value in `self.resolved_data` will still be a `Libpath` or list thereof.
         self.keep_relative = []
+
+    @property
+    def lineno(self):
+        return self.lineno_within_anno
 
     def check(self, types, raw=None, reify_undefined=True):
         """
@@ -200,8 +204,10 @@ class Widget(PfscObj):
             field_detail = f'"{field}" field in ' if field else ''
             pe.extendMsg(f'Problem is for {field_detail}{self.type_} widget {self.libpath}.')
             if field in self.fields_accepted_from_ctl_widgets:
-                blame = self.fields_accepted_from_ctl_widgets[field]
-                pe.extendMsg(f'Field value was set by ctl widget "{blame}"')
+                setting = self.fields_accepted_from_ctl_widgets[field]
+                pe.extendMsg(
+                    f'Field value was set by ctl widget "{setting.ctl_widget_name}" at line {setting.ctl_widget_lineno}'
+                )
             raise pe
 
     @classmethod
@@ -416,11 +422,9 @@ class Widget(PfscObj):
             _, widget_type, field_name = default_field_name.split('_')
             if widget_type == lowercase_type and field_name not in self.raw_data:
                 if self.parent.check_ctl_widget_setting_defined(default_field_name):
-                    self.raw_data[field_name] = self.parent.read_ctl_widget_setting(
-                        default_field_name
-                    )
-                    blame = self.parent.check_ctl_widget_setting_blame(field_name)
-                    self.fields_accepted_from_ctl_widgets[field_name] = blame
+                    setting = self.parent.read_ctl_widget_setting(default_field_name)
+                    self.raw_data[field_name] = setting.field_value
+                    self.fields_accepted_from_ctl_widgets[field_name] = setting
 
     def enrich_data(self):
         """
@@ -628,7 +632,7 @@ class CtlWidget(Widget):
         for field_name in self.supported_default_fields:
             if field_name in self.raw_data:
                 value = self.raw_data[field_name]
-                self.parent.make_ctl_widget_setting(field_name, value, self.name)
+                self.parent.make_ctl_widget_setting(field_name, value, self)
 
     def configure(self, renderer):
         sn = self.data.get('sectionNumbers')

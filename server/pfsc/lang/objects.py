@@ -713,6 +713,18 @@ class Enrichment(PfscObj):
         )
 
 
+class CtlWidgetSetting:
+    """
+    Represents a setting made by a ctl widget.
+    """
+
+    def __init__(self, field_name, field_value, ctl_widget_name, ctl_widget_lineno):
+        self.field_name = field_name
+        self.field_value = field_value
+        self.ctl_widget_name = ctl_widget_name
+        self.ctl_widget_lineno = ctl_widget_lineno
+
+
 class EnrichmentPage(Enrichment):
     """
     Essentially, an EnrichmentPage is something that contains Widgets.
@@ -746,24 +758,18 @@ class EnrichmentPage(Enrichment):
         for widget in widgets:
             widget.enrich_data()
 
-    def make_ctl_widget_setting(self, key, value, ctl_widget_name):
-        self.ctl_widget_settings[key] = (value, ctl_widget_name)
+    def make_ctl_widget_setting(self, key, value, ctl_widget):
+        self.ctl_widget_settings[key] = CtlWidgetSetting(
+            key, value, ctl_widget.name, ctl_widget.lineno
+        )
 
     def read_ctl_widget_setting(self, key, default=None):
         """
         See also: check_ctl_widget_setting_defined()
         """
         if key in self.ctl_widget_settings:
-            return self.ctl_widget_settings[key][0]
+            return self.ctl_widget_settings[key]
         return default
-
-    def check_ctl_widget_setting_blame(self, key):
-        """
-        Return the name of the CtlWidget that made a given setting (if any).
-        """
-        if key in self.ctl_widget_settings:
-            return self.ctl_widget_settings[key][1]
-        return None
 
     def check_ctl_widget_setting_defined(self, key):
         """

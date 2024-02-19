@@ -369,3 +369,32 @@ def test_unexpected_field_error(app):
             mod = build_module_from_text(text, 'test._foo._bar')
             mod.resolve()
         assert ei.value.code() == PECode.UNEXPECTED_INPUT
+
+
+@pytest.mark.psm
+def test_err_in_ctl_default_value(app):
+    """
+    Examine what happens when a default field value is defined in
+    a ctl widget, but the value is malformed.
+    """
+    with app.app_context():
+        text = """
+        anno Notes @@@
+        <ctl:>[]{
+            default_chart_group: 3.14159
+        }
+        
+        <chart:>[Foo]{
+            coords: [0, 0, 1],
+        }
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        pe = ei.value
+        assert pe.code() == PECode.INPUT_WRONG_TYPE
+        s = str(pe)
+        # The error message should contain information about the ctl widget that
+        # set the value.
+        assert s.find("Field value was set by ctl widget &#34;w1&#34; at line 2") > 0
