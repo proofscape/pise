@@ -368,11 +368,12 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
     :param raw_dict: dict {varname:value} giving the raw input
     :param stash: dict; a place to stash the results
     :param types: describes what you expect to find
-    :param reify_undefined: see below
+    :param reify_undefined: set False to record nothing, instead of an instance of `UndefinedInput`,
+        for undefined input fields
     :param err_on_unexpected: set True if you want to raise an exception if
-      any unexpected keys are received
+        any unexpected keys are received
     :param skip_reqs: set True if you don't want to actually require required args.
-      Mainly intended for internal use.
+        Mainly intended for internal use.
     :return: the full set of arg names that could possibly be accepted, according to the given `types`
 
     Exceptions will be raised if anything is wrong with the input.
@@ -410,21 +411,45 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
     In a name:typedef dict, the names are strings, naming variables.
     The typedefs are themselves dicts, describing types.
 
-    A typedef dict MUST have the key 'type', pointing to the name of the basic type.
+    typedef dicts
+    -------------
 
-    A typedef dict MAY have the key 'rename', giving an alternative name for this variable.
-    If defined, the checked value will be stored in the stash under this name.
+    Required keys:
+
+        type
+
+    Optional keys:
+
+        rename
+        keep_raw
+        default_raw
+        default_cooked
+
+    Other keys:
+
+        Further keys may be accepted, depending on the value of the `type`.
+        See the specific type checker function for that type.
+
+    'type': This is the only required key. It defines the basic type of the input.
+        The value must be one of the values of the `IType` enum class.
+
+    'rename': You can use this to give an alternative name for this variable.
+        If defined, the checked value will be stored in the stash under this name.
+
+    'keep_raw': If True, then the type checker function will still be called, but
+        instead of stashing its return value, the raw value will be stashed.
+
+    'default_raw': For use only in typedefs under the OPT group. If defined, and
+        if no input was provided for this field, then this value is passed through
+        the type checker as though it had been given as input.
+
+    'default_cooked': For use only in typedefs under the OPT group. If defined, and
+        if no input was provided for this field, then this value is recorded directly
+        in the stash.
 
     Further keys in a typedef dict may specify subtypes or various options.
-
     In particular, recursive types like 'cdlist' will have a key 'itemtype'
     pointing to another typedef, defining the type of the elements of the list.
-
-    Typedefs under the OPT group MAY have one of two special keys, 'default_raw'
-    and 'default_cooked'. If the former is present and the user offered no value,
-    then the given value is passed through as though it had been offered by the
-    user. If the latter is present and the user offered no value, then the given
-    value is simply recorded in the stash.
 
     The contemplated use case for the CONF group is the checking of "confirm" boxes
     in input forms, e.g. when users are asked to type their email address a second
@@ -452,13 +477,15 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
         for varname in varnames:
             typedef = req[varname]
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict.get(varname)
             if raw is None:
                 if skip_reqs:
                     continue
                 # These are required variables, so this is a problem.
                 raise PfscExcep('var "%s" not supplied' % varname, PECode.MISSING_INPUT, bad_field=varname)
-            stash[stashname] = check_type(varname, raw, typedef)
+            checked_value = check_type(varname, raw, typedef)
+            stash[stashname] = raw if keep_raw else checked_value
 
     # Optional arguments
     opt = types.get("OPT")
@@ -466,6 +493,7 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
         for varname, typedef in opt.items():
             expected_keys.add(varname)
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict.get(varname)
             if raw is None:
                 # These are optional variables, so no worries.
@@ -480,11 +508,13 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
                     # This is a default value that should be run through the same
                     # process as an actual given input would be.
                     default_raw = typedef['default_raw']
-                    stash[stashname] = check_type(varname, default_raw, typedef)
+                    checked_value = check_type(varname, default_raw, typedef)
+                    stash[stashname] = default_raw if keep_raw else checked_value
                 elif reify_undefined:
                     stash[stashname] = UndefinedInput()
             else:
-                stash[stashname] = check_type(varname, raw, typedef)
+                checked_value = check_type(varname, raw, typedef)
+                stash[stashname] = raw if keep_raw else checked_value
 
     # Sets of alternative arguments
     alt_sets = types.get("ALT_SETS")
@@ -506,8 +536,10 @@ def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=
             varname = inter.pop()
             typedef = alt_set[varname]
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict[varname]
-            stash[stashname] = check_type(varname, raw, typedef)
+            checked_value = check_type(varname, raw, typedef)
+            stash[stashname] = raw if keep_raw else checked_value
             # Store an instance of UndefinedInput for all the other alternatives.
             unchosen = alt_key_set - {varname}
             for u in unchosen:

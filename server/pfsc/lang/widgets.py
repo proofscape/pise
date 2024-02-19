@@ -920,7 +920,9 @@ class DocWidget(NavWidget):
     @classmethod
     def generate_arg_spec(cls):
         # Neither 'doc' nor 'sel' field is required alone, but at least one of the two must
-        # be defined. In all cases, a document must be specified. This can happen in either
+        # be defined. A check is performed in our `enrich_data()` method.
+        #
+        # In all cases, a document must be specified. This can happen in either
         # 'doc' or 'sel'. Defining 'doc' but not 'sel' is a way to refer to a document itself,
         # without specifying any particular selection within it.
         spec = {
@@ -950,16 +952,19 @@ class DocWidget(NavWidget):
                                 "REQ": {
                                     'docId': {
                                         'type': IType.DOC_ID,
+                                        'keep_raw': True,
                                     },
                                 },
                                 "OPT": {
                                     'url': {
                                         'type': IType.URL,
                                         'allowed_schemes': ['https', 'http'],
+                                        'keep_raw': True,
                                     },
                                     'aboutUrl': {
                                         'type': IType.URL,
                                         'allowed_schemes': ['https', 'http'],
+                                        'keep_raw': True,
                                     },
                                     'title': {
                                         'type': IType.STR,

@@ -202,7 +202,7 @@ class PfscModule(PfscObj):
             elif isinstance(obj, PfscAssignment):
                 obj.rhs = replace_or_replace_within(obj.rhs, obj)
             elif isinstance(obj, Widget):
-                replace_or_replace_within(obj.data, obj)
+                replace_or_replace_within(obj.raw_data, obj)
 
         self.recursiveItemVisit(visit)
 
