@@ -350,3 +350,22 @@ def test_widget_group_spec(app, group_spec, expected_group_id):
         widget = anno.widget_seq[0]
         group_id = widget.data['pane_group']
         assert group_id == expected_group_id
+
+
+@pytest.mark.psm
+def test_unexpected_field_error(app):
+    """
+    Show that widgets raise an exception if there is an unexpected field.
+    """
+    with app.app_context():
+        text = """
+        anno Notes @@@
+        Here is <chart:>[a widget]{
+            foobar: "that defines an unexpected field",
+        }
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        assert ei.value.code() == PECode.UNEXPECTED_INPUT
