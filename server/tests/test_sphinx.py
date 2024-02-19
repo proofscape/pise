@@ -51,6 +51,13 @@ def get_qna_widget_divs(soup):
     return list(soup.find_all('div', class_='qna_widget'))
 
 
+def get_malformed_widget_divs(soup):
+    """
+    Get the list of any and all <div> tags having class `malformedWidget`.
+    """
+    return list(soup.find_all('div', class_='malformedWidget'))
+
+
 def get_external_anchors(soup):
     """
     Get the list of any and all <a> tags having class `external`.
@@ -261,6 +268,10 @@ def test_spx_doc1(app):
         page_data = get_page_data_from_script_tag(soup)
         #print('\n', json.dumps(page_data, indent=4))
         assert page_data == PAGE_C_PAGE_DATA
+
+        # No malformed widgets
+        M = get_malformed_widget_divs(soup)
+        assert len(M) == 0
 
         # Page D
         # ======
