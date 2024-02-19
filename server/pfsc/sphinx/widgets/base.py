@@ -172,6 +172,10 @@ class PfscOneArgWidgetDirective(SphinxDirective):
             if k != 'alt'  # Skip the one "meta field" where rST passes the SUBTEXT.
         }
         if self.has_content:
+            # `self.content` is an instance of the `docutils.statemachine.StringList` class.
+            # It behaves like a list, and contains the list of *un-indented* lines of the directive
+            # content. So we can simply pass it to `'\n'.join()` to reconstitute the given content,
+            # without indentation.
             opts[self.content_field_name] = '\n'.join(self.content)
 
         node = finish_run(
