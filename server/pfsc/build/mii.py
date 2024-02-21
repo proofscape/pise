@@ -15,6 +15,7 @@
 # --------------------------------------------------------------------------- #
 
 from collections import defaultdict
+import re
 from time import time as unixtime
 
 import pfsc.constants
@@ -377,22 +378,42 @@ class ModuleIndexInfo:
         # The set class has a nice method for that (`issubset`), but we can't
         # use it because in the event of failure we want to be able to report
         # the witnesses. So we compute set differences instead.
-        # Rbar.issubset(M):
+
+        # Authors are allowed to omit names on most widget types, and these
+        # widgets get system-generated names. Authors are also allowed to ignore such
+        # widgets when they prepare move-mappings. As a consequence, we have to be careful
+        # to ignore such "unnamed" widgets here in these checks.
+        unnamed_widget_pattern = re.compile(r'_w\d+$')
+
+        def discard_unnamed_widgets(X):
+            """
+            Return that subset of a given set X of libpaths, which is obtained by discarding
+            all those libpaths whose final segment looks like a system-generated widget name.
+            """
+            return set(
+                x for x in X if not unnamed_widget_pattern.match(x.split('.')[-1])
+            )
+
+        # (Rbar - {unnamed widgets}) \subseteq M
         X = Rbar - M
+        X = discard_unnamed_widgets(X)
         if X:
             msg = f'Change log for repo `{self.repopath}` implies the following libpaths should'
             msg += ' occur in the new version, but they cannot be found: '
             msg += str(list(X))
             raise PfscExcep(msg, PECode.INVALID_MOVE_MAPPING)
-        # D.issubset(L):
+
+        # D \subseteq L
         X = D - L
         if X:
             msg = f'Change log for repo `{self.repopath}` says the entities at the following'
             msg += ' libpaths move, but these libpaths cannot be found in the existing version: '
             msg += str(list(X))
             raise PfscExcep(msg, PECode.INVALID_MOVE_MAPPING)
-        # V_minus.issubset(Dbar):
+
+        # (V_minus - {unnamed widgets}) \subseteq Dbar
         X = V_minus - Dbar
+        X = discard_unnamed_widgets(X)
         if X:
             msg = f'The following libpaths go away in the new build of repo `{self.repopath}`,'
             msg += ' but the change log is silent on them.'
@@ -406,7 +427,9 @@ class ModuleIndexInfo:
         # from what they pointed to before.
         I = set()
         I.update(Dbar & M)
-        I.update(Rbar & L)
+        # Note: intersecting with M in the next step to ensure we only get that part of
+        # Rbar that is free of system-named widgets that went away.
+        I.update(Rbar & M & L)
         # Examine the set V0 for any detectible changes, which will also indicate reused libpaths.
         for uid in V0:
             e = self.existing_k_nodes[uid]
@@ -541,8 +564,13 @@ class ModuleIndexInfo:
         Conversely, suppose b \in Rbar. Then there must be some a \in Dbar such that a |--> b is implied by the
         change log. This means there is an entity e that lived at a before, and will be living at b now.
         Then b \in E by definition of E. [ ]
+        
+        UPDATE (240221): Now that we are allowing authors to ignore system-named widgets when they prepare
+        move-mappings, it is possible that Rbar - M may contain the libpaths of some such widgets, so we
+        are careful to set E = Rbar ^ M. We do not need a similar intersection with the sets N or H below;
+        H is obviously a subset of M, while N is because V_add is.
         """
-        self.elsewhere = self.Rbar
+        self.elsewhere = self.Rbar.intersection(self.M)
 
         r"""
         Thm: N = V_add - Rbar

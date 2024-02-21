@@ -1,3 +1,9 @@
 dependencies = {
     "test.moo.bar": "v1.0.0"
 }
+
+change_log = {
+    "moved": {
+        "bar.NotesU": "bar.NotesU2"
+    }
+}

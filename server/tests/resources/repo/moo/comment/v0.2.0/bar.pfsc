@@ -7,6 +7,10 @@ anno NotesS on Pf.S @@@
 These are some notes on node `S` in the proof.
 
 And <goal:w1>[this]{} is a goal widget.
+
+In the previous version, there was a system-named widget here. Its libpath will
+go away in this version, and we are silent about this in the repo's move-mapping,
+but the system should not complain, since the widget was system-named.
 @@@
 
 deduc xpan_S of Pf.S {
@@ -41,3 +45,14 @@ deduc xpan_T of Pf.T {
     "
 
 }
+
+anno NotesU2 @@@
+In the previous version, there was a system-named widget here. Its libpath will
+go away in this version.
+
+This is similar to what we did in `NotesS`, but this time we've also renamed the
+annotation from `NotesU` to `NotesU2`, and declared this renaming in the repo's
+move-mapping. By doing this, we test a different case ("Rbar subseteq M") in the
+`ModuleIndexInfo.cut_add_validate()` method than was tested in `NotesS` (which
+was the "V_minus subseteq Dbar" case).
+@@@
