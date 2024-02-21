@@ -324,6 +324,21 @@ class Widget(PfscObj):
 
     def cascadeLibpaths(self):
         PfscObj.cascadeLibpaths(self)
+        self.check_name()
+
+    def check_name(self):
+        if (
+            self.type_ in WIDGET_TYPES_REQUIRING_AUTHOR_SUPPLIED_NAME and
+            self.name.startswith("_") and
+            # Goal widgets in study pages need not have pre-determined names,
+            # so exclude libpaths starting with `special.`.
+            not self.libpath.startswith('special.')
+        ):
+            msg = (
+                f'Widgets of type "{self.type_}" require a name.'
+                f' See widget at line {self.lineno}.'
+            )
+            raise PfscExcep(msg, PECode.WIDGET_MISSING_NAME)
 
     def resolve(self):
         self.check_fields()
@@ -1789,4 +1804,11 @@ WIDGET_TYPE_TO_CLASS = {
     WidgetTypes.GOAL:  GoalWidget,
     WidgetTypes.PARAM: ParamWidget,
     WidgetTypes.DOC:   DocWidget,
+}
+
+# At this time authors are required to supply a name only for `goal` widgets.
+# This is to promote stability of users' checkmarks and study notes, and the ability
+# to carry these forward across major version changes, using the move mapping.
+WIDGET_TYPES_REQUIRING_AUTHOR_SUPPLIED_NAME = {
+    WidgetTypes.GOAL
 }

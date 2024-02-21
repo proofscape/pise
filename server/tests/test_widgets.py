@@ -398,3 +398,20 @@ def test_err_in_ctl_default_value(app):
         # The error message should contain information about the ctl widget that
         # set the value.
         assert s.find("Field value was set by ctl widget &#34;_w0&#34; at line 2") > 0
+
+
+@pytest.mark.psm
+def test_goal_widget_missing_name(app):
+    """
+    Show that goal widgets must have an author-supplied name.
+    """
+    with app.app_context():
+        text = """
+        anno Notes @@@
+        Here is <goal:>[a goal widget]{} that we forgot to name.
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        assert ei.value.code() == PECode.WIDGET_MISSING_NAME
