@@ -686,7 +686,7 @@ def test_import_rst_into_pfsc(app):
         d = json.loads(j)
         #print(json.dumps(d, indent=4))
         W = d['widgets']
-        link_w1 = W["test-spx-doc1-anno-Notes-w1_v0-1-0"]
+        link_w1 = W["test-spx-doc1-anno-Notes-_w0_v0-1-0"]
         assert link_w1["type"] == "LINK"
         assert link_w1["ref"] == "test.spx.doc1.foo.pageC._page.w000"
 

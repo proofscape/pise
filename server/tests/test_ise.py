@@ -242,9 +242,9 @@ def test_lookup_goals(app, client, repos_ready):
         ]
 
 @pytest.mark.parametrize('studypath, vers, expected', [
-    ['test.moo.study.expansions', 'v1.0.0', ("special-studypage-test-moo-study-expansions-studyPage-w15_v1-0-0", "target_type", "WIDG")],
-    ['test.moo.bar.results.Pf', 'v2.0.0', ("special-studypage-test-moo-bar-results-Pf-studyPage-w5_v2-0-0", "origin", "test.moo.bar.results.Pf.T@1")],
-    ['test.moo.bar.results.Pf', 'v2.1.0', ("special-studypage-test-moo-bar-results-Pf-studyPage-w13_v2-1-0", "origin", "test.moo.bar.results.Pf.E.A1@2")],
+    ['test.moo.study.expansions', 'v1.0.0', ("special-studypage-test-moo-study-expansions-studyPage-_w14_v1-0-0", "target_type", "WIDG")],
+    ['test.moo.bar.results.Pf', 'v2.0.0', ("special-studypage-test-moo-bar-results-Pf-studyPage-_w4_v2-0-0", "origin", "test.moo.bar.results.Pf.T@1")],
+    ['test.moo.bar.results.Pf', 'v2.1.0', ("special-studypage-test-moo-bar-results-Pf-studyPage-_w12_v2-1-0", "origin", "test.moo.bar.results.Pf.E.A1@2")],
 ])
 def test_load_study_page(app, client, repos_ready, studypath, vers, expected):
     with app.app_context():

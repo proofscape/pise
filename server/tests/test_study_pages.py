@@ -32,13 +32,13 @@ exp0 = """\
 <h1>Study Notes</h1>
 <hr />
 <h2>Page</h2>
-<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w1_v1-0-0" href="#"><code>Notes3</code></a></p>
+<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w0_v1-0-0" href="#"><code>Notes3</code></a></p>
 <h2>Goals</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w2_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w3_v1-0-0" href="#"><code>w1</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w1_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w2_v1-0-0" href="#"><code>w1</code></a></p>
 <p>Some notes on goal w2...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w4_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w5_v1-0-0" href="#"><code>w2</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w3_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w4_v1-0-0" href="#"><code>w2</code></a></p>
 <p>Some notes on goal w2...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w6_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-w7_v1-0-0" href="#"><code>w3</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w5_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-Notes3-studyPage-_w6_v1-0-0" href="#"><code>w3</code></a></p>
 <hr />
 """
 
@@ -46,39 +46,39 @@ exp1 = """\
 <h1>Study Notes</h1>
 <hr />
 <h2>Deduction</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-w1_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-w2_v1-0-0" href="#"><code>X</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-_w0_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-_w1_v1-0-0" href="#"><code>X</code></a></p>
 <h2>Goals</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-w3_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-w4_v1-0-0" href="#"><code>A1</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-_w2_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-_w3_v1-0-0" href="#"><code>A1</code></a></p>
 <p>Some notes on node A1...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-w5_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-w6_v1-0-0" href="#"><code>A2</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-X-studyPage-_w4_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-X-studyPage-_w5_v1-0-0" href="#"><code>A2</code></a></p>
 <hr />
 """
 exp2 = """\
 <h1>Study Notes</h1>
 <hr />
 <h2>Deduction</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w1_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-w2_v1-0-0" href="#"><code>X</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w0_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-_w1_v1-0-0" href="#"><code>X</code></a></p>
 <h2>Goals</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w3_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-w4_v1-0-0" href="#"><code>A1</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w2_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-_w3_v1-0-0" href="#"><code>A1</code></a></p>
 <p>Some notes on node A1...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w5_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-w6_v1-0-0" href="#"><code>A2</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w4_v1-0-0"><span class="graphics"></span></span> <a class="widget chartWidget special-studypage-test-moo-study-expansions-studyPage-_w5_v1-0-0" href="#"><code>A2</code></a></p>
 <hr />
 <h2>Page</h2>
-<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w7_v1-0-0" href="#"><code>Notes1</code></a></p>
+<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w6_v1-0-0" href="#"><code>Notes1</code></a></p>
 <h2>Goals</h2>
 <hr />
 <h2>Page</h2>
-<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w8_v1-0-0" href="#"><code>Notes2</code></a></p>
+<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w7_v1-0-0" href="#"><code>Notes2</code></a></p>
 <h2>Goals</h2>
 <hr />
 <h2>Page</h2>
-<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w9_v1-0-0" href="#"><code>Notes3</code></a></p>
+<p><a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w8_v1-0-0" href="#"><code>Notes3</code></a></p>
 <h2>Goals</h2>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w10_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w11_v1-0-0" href="#"><code>w1</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w9_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w10_v1-0-0" href="#"><code>w1</code></a></p>
 <p>Some notes on goal w2...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w12_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w13_v1-0-0" href="#"><code>w2</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w11_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w12_v1-0-0" href="#"><code>w2</code></a></p>
 <p>Some notes on goal w2...</p>
-<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-w14_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-w15_v1-0-0" href="#"><code>w3</code></a></p>
+<p><span class="widget goalWidget special-studypage-test-moo-study-expansions-studyPage-_w13_v1-0-0"><span class="graphics"></span></span> <a class="widget linkWidget special-studypage-test-moo-study-expansions-studyPage-_w14_v1-0-0" href="#"><code>w3</code></a></p>
 <hr />
 """
 
@@ -207,7 +207,7 @@ def test_study_page_builder_2(app, repos_ready):
         j = resp["data_json"]
         data = json.loads(j)
         print(json.dumps(data, indent=4))
-        assert data["widgets"]["special-studypage-test-moo-bar-results-Pf-studyPage-w5_v2-0-0"]["origin"] == "test.moo.bar.results.Pf.T@1"
+        assert data["widgets"]["special-studypage-test-moo-bar-results-Pf-studyPage-_w4_v2-0-0"]["origin"] == "test.moo.bar.results.Pf.T@1"
 
 import cProfile, pstats, io
 """

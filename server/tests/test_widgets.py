@@ -397,4 +397,4 @@ def test_err_in_ctl_default_value(app):
         s = str(pe)
         # The error message should contain information about the ctl widget that
         # set the value.
-        assert s.find("Field value was set by ctl widget &#34;w1&#34; at line 2") > 0
+        assert s.find("Field value was set by ctl widget &#34;_w0&#34; at line 2") > 0
