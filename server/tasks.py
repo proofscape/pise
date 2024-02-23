@@ -2,11 +2,25 @@ from invoke import task
 
 
 @task
-def mtr(c):
+def mtr(c, repo=''):
     """
     mtr = "make test repos"
 
     This generates the git repos under `lib/test`, that are used in the unit tests.
+
+    Optionally, pass a repopath with or without the host segment, to generate just that
+    one repo.
+
+    Thus,
+
+        $ inv mtr
+
+    generates all test repos, while either of
+
+        $ inv mtr --repo test.foo.bar
+        $ inv mtr --repo foo.bar
+
+    will generate just the test.foo.bar repo.
 
     I'm setting `pty=True` in this and other commands, because I want to recover
     the familiar behavior where we see the generated output *as the process works*,
@@ -15,7 +29,9 @@ def mtr(c):
     See:
         https://docs.pyinvoke.org/en/stable/api/runners.html#invoke.runners.Runner.run
     """
-    c.run("python -m tests.util.make_repos", pty=True)
+    if repo.startswith('test.'):
+        repo = repo[5:]
+    c.run(f"python -m tests.util.make_repos {repo}", pty=True)
 
 
 @task
