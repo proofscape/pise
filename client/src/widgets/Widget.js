@@ -189,6 +189,7 @@ var Widget = declare(null, {
                 version: this.version,
                 useExisting: true,
                 sourceRow: widget.origInfo.src_line,
+                is_rst: isSphinx,
             };
             cm.addChild(new MenuItem({
                 label: `${this.version === "WIP" ? "Edit" : "View"} Source`,
