@@ -30,27 +30,52 @@ def check_any(key, raw, typedef):
 
 def check_boolean(key, raw, typedef):
     """
-    :param raw: either an actual boolean value, or else a string s
-                such that (ideally) s.lower() in ['true', 'false'];
-                but this is not really checked -- see return value
+    :param raw: either an actual boolean, or potentially also int and/or str,
+        depending on the typedef (see below).
     :param typedef:
-        accept_int: boolean
+        accept_int: boolean, default False
             If True, accept int or string that parses to int, and take 0 to
             mean False, and any other integer to mean True.
-    :return: an actual boolean which is True if s is True or s.lower() == 'true', and False otherwise
+        accept_str: boolean, default True (for backwards compatibility reasons)
+            If True, accept a string s, and map it to True if s.lower() == 'true',
+            and to False otherwise.
+    :return: an actual boolean
     """
     if raw is True or raw is False:
         return raw
-    if typedef.get('accept_int'):
+
+    accept_int = typedef.get('accept_int', False)
+    accept_str = typedef.get('accept_str', True)
+
+    if accept_int:
         try:
             n = int(raw)
         except ValueError:
             pass
         else:
             return n != 0
-    if isinstance(raw, str):
+
+    if accept_str and isinstance(raw, str):
         return raw.lower() == 'true'
-    return False
+
+    msg = 'Expecting boolean.'
+    if accept_int or accept_str:
+        alts = {'int' if accept_int else None, 'str' if accept_str else None} - {None}
+        msg = msg[:-1] + f', optionally expressed as {" or ".join(sorted(alts))}.'
+    raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
+
+
+def check_strict_boolean(key, raw, typedef):
+    """
+    Convenience function to call `check_boolean()` with settings to strictly
+    accept only actual boolean input values.
+    """
+    td = typedef.copy()
+    td.update({
+        'accept_int': False,
+        'accept_str': False,
+    })
+    return check_boolean(key, raw, td)
 
 
 def check_integer(key, raw, typedef):

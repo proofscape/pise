@@ -586,7 +586,7 @@ class CtlWidget(Widget):
                 'spec': {
                     "OPT": {
                         'on': {
-                            'type': IType.BOOLEAN,
+                            'type': IType.STRICT_BOOLEAN,
                             'default_cooked': True,
                         },
                         'topLevel': {
@@ -785,7 +785,7 @@ class ChartWidget(NavWidget):
                     'type': IType.DISJ,
                     'alts': [
                         {
-                            'type': IType.BOOLEAN,
+                            'type': IType.STRICT_BOOLEAN,
                         },
                         {
                             'type': IType.RELBOXLISTING,
@@ -807,10 +807,10 @@ class ChartWidget(NavWidget):
                     ]
                 },
                 'transition': {
-                    'type': IType.BOOLEAN
+                    'type': IType.STRICT_BOOLEAN
                 },
                 'flow': {
-                    'type': IType.BOOLEAN
+                    'type': IType.STRICT_BOOLEAN
                 },
                 'viewOpts': {
                     'type': IType.DICT,
@@ -847,7 +847,7 @@ class ChartWidget(NavWidget):
                                 ],
                             },
                             'insetAware': {
-                                'type': IType.BOOLEAN,
+                                'type': IType.STRICT_BOOLEAN,
                             },
                         }
                     }

@@ -21,6 +21,7 @@ from pfsc.excep import PfscExcep, PECode
 from pfsc.checkinput.basic import (
     check_any,
     check_boolean,
+    check_strict_boolean,
     check_integer,
     check_float,
     check_string,
@@ -255,6 +256,7 @@ class IType:
     ANY = 'any'
     DISJ = 'disj'
     BOOLEAN = 'boolean'
+    STRICT_BOOLEAN = 'strict_boolean'
     INTEGER = 'integer'
     FLOAT = 'float'
     SIMPLE_DICT = 'simple_dict'
@@ -290,6 +292,7 @@ TYPE_HANDLERS = {
     IType.ANY: check_any,
     IType.DISJ: check_disjunctive_type,
     IType.BOOLEAN: check_boolean,
+    IType.STRICT_BOOLEAN: check_strict_boolean,
     IType.INTEGER: check_integer,
     IType.FLOAT: check_float,
     IType.SIMPLE_DICT: check_simple_dict,
