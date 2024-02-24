@@ -256,7 +256,10 @@ def check_boxlisting(key, raw, typedef):
     bl.set_checked_libpaths(clps)
     return bl
 
+
 LIBSEG_PATTERN = re.compile(r'^[a-zA-Z_!?]\w*$')
+PROHIBITED_LIBSEGS = {'true', 'false', 'null'}
+
 
 class CheckedLibseg:
 
@@ -281,23 +284,32 @@ def check_libseg(key, raw, typedef):
     :return: a CheckedLibseg object
     """
     checked = CheckedLibseg()
+
+    # Prohibited values check:
+    if raw in PROHIBITED_LIBSEGS:
+        raise PfscExcep(f'Illegal libpath segment: "{raw}"', PECode.BAD_LIBPATH, bad_field=key)
+
     # Legnth check:
     if len(raw) == 0:
         raise PfscExcep('Empty libseg', PECode.INPUT_EMPTY, bad_field=key)
     if len(raw) > pfsc.constants.MAX_LIBSEG_LEN:
         trunc = raw[:32]
         raise PfscExcep('libseg too long: "%s..."' % trunc, PECode.INPUT_TOO_LONG, bad_field=key)
+
     checked.value = raw
     checked.length_in_bounds = True
+
     # Format check:
     M = LIBSEG_PATTERN.match(raw)
     if M is None or M.group() != raw:
         msg = 'Segment %s is of bad format.' % raw
         raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
+
     if typedef.get('user_supplied'):
         if raw[0] in '_!?':
             msg = f'User supplied libpath segment `{raw}` cannot begin with `{raw[0]}`.'
             raise PfscExcep(msg, PECode.BAD_LIBPATH, bad_field=key)
+
     checked.valid_format = True
     return checked
 

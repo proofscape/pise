@@ -84,6 +84,10 @@ class Annotation(EnrichmentPage):
         EnrichmentPage.resolve(self)
 
     @property
+    def user_supplied_name(self):
+        return not self.libpath.startswith('special.')
+
+    @property
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
@@ -92,6 +96,9 @@ class Annotation(EnrichmentPage):
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
+
+    def get_lineno_within_module(self):
+        return self.getFirstRowNum()
 
     def get_index_type(self):
         return IndexType.ANNO

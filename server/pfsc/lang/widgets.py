@@ -174,6 +174,13 @@ class Widget(PfscObj):
         self.keep_relative = []
 
     @property
+    def user_supplied_name(self):
+        # For widgets, there is checking at defn time that user-supplied names not begin
+        # with underscore. And system-generated ones always *do* begin with underscore.
+        # So we can simply use that as the test here.
+        return not self.name.startswith("_")
+
+    @property
     def lineno(self):
         return self.lineno_within_anno
 
