@@ -30,6 +30,9 @@ from pfsc.sphinx.embed import PfscEmbedDirective
 from pfsc.sphinx.links import ExternalLinks
 from pfsc.sphinx.vertex import VerTeX2TeX
 
+# This import achieves a monkey patch:
+import pfsc.sphinx.errors
+
 
 def setup(app):
     app.add_config_value('pfsc_repopath', None, 'html')

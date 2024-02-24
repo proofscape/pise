@@ -20,6 +20,7 @@ import pytest
 
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.modules import load_module, build_module_from_text
+from pfsc.build import build_repo
 from pfsc.build.repo import RepoInfo
 
 widget_data_1 = """{
@@ -447,3 +448,47 @@ def test_chart_widget_select_field(app, raw_select_val, final_select_val):
         w = mod.get('Notes').widget_lookup['w0']
         sel = w.data['select']
         assert sel == final_select_val
+
+
+spx_err_txt_1 = """
+/lib/test/spx/err/index.rst:27:Error in &#34;pfsc-chart&#34; directive:
+invalid option data: PROOFSCAPE-SPHINX-ERROR: Error parsing PF-JSON: Unexpected token Token(COMMA, &#39;,&#39;) at line 1, column 6.
+Expected one of: 
+	* $END
+.
+
+.. pfsc-chart::
+    :view: Thm.C, Pf.{R,S}
+""".strip()
+
+@pytest.mark.psm
+def test_sphinx_directive_widget_field_pf_json_parse_err(app):
+    """
+    Check that we get the expected error message when we try to build a Sphinx
+    page in which a widget (in directive form) field has a PF-JSON parse error.
+    """
+    with app.app_context():
+        with pytest.raises(PfscExcep) as ei:
+            build_repo('test.spx.err', version='v0.1.0', quiet=True)
+        pe = ei.value
+        s = str(pe)
+        n = s.find(spx_err_txt_1)
+        assert n > 0
+
+spx_err_txt_2 = """
+/lib/test/spx/err/index.rst:23:PROOFSCAPE-SPHINX-ERROR: Inline Proofscape chart widgets must have the form `SUBTEXT &lt;VIEW&gt;`.
+""".strip()
+
+@pytest.mark.psm
+def test_sphinx_role_widget_malformed(app):
+    """
+    Check that we get the expected error message when we try to build a Sphinx
+    page in which a widget in role form has malformed interpreted text.
+    """
+    with app.app_context():
+        with pytest.raises(PfscExcep) as ei:
+            build_repo('test.spx.err', version='v0.2.0', quiet=True)
+        pe = ei.value
+        s = str(pe)
+        n = s.find(spx_err_txt_2)
+        assert n > 0

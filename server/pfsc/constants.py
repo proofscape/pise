@@ -138,6 +138,10 @@ PROHIBITED_RST_DOCNAMES = [
     'genindex', 'search',
 ]
 
+# Presence of this string in error messages is used to mark Sphinx warnings
+# as meriting immediate halt of the build process.
+PFSC_SPHINX_CRIT_ERR_MARKER = 'PROOFSCAPE-SPHINX-ERROR'
+
 
 class ContentDescriptorType:
     """

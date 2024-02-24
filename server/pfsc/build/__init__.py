@@ -852,9 +852,14 @@ class Builder:
         buildername = 'dummy' if just_read_no_write else 'html'
         try:
             with patch_docutils(confdir), docutils_namespace():
+                # We keep `warningiserror=False` in our Sphinx app, since many warnings
+                # (e.g. "document not in toctree") really should not halt the build process.
+                # However, our Sphinx extension monkey patches Sphinx's `WarningIsErrorFilter`,
+                # so that it's possible for us to make special warnings that *do* get raised
+                # as exceptions.
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              buildername, confoverrides=confoverrides,
-                             warningiserror=True)
+                             warningiserror=False)
                 app.connect('env-before-read-docs', set_builder_in_environment)
                 app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)

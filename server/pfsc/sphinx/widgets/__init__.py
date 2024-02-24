@@ -20,6 +20,7 @@ from lark.exceptions import LarkError
 
 from pfsc.checkinput import extract_full_key_set
 from pfsc.lang.freestrings import build_pfsc_json
+from pfsc.constants import PFSC_SPHINX_CRIT_ERR_MARKER
 
 from .base import (
     pfsc_block_widget, pfsc_inline_widget,
@@ -51,21 +52,23 @@ def generic_data_field_converter(text):
     directives.
 
     This is applied by `docutils`, so we need to raise its `ExtensionOptionError`
-    in case of any parsing problems, in order to get an informative error message.
+    in case of any parsing problems, in order to get an informative error message,
+    including the location (filename and lineno) where the error occurred.
 
     Note: This only results in a "warning" as Sphinx sees it, so, for the build
     to actually be interrupted and the user to see an error message through PISE,
-    we have to set `warningiserror=True` when we form our `Sphinx` app instance
-    in the pfsc `Builder`.
+    we have to add the `PFSC_SPHINX_CRIT_ERR_MARKER` to the error message.
 
     See also:
+        pfsc.sphinx.errors.ProofscapeWarningIsErrorFilter
         pfsc.build.Builder.build_sphinx_doc()
         docutils.parsers.rst.states.Body.parse_extension_options()
     """
     try:
         pf_json = build_pfsc_json(text)
     except LarkError as e:
-        raise ExtensionOptionError(f'Error parsing PF-JSON: {e}')
+        msg = f'{PFSC_SPHINX_CRIT_ERR_MARKER}: Error parsing PF-JSON: {e}'
+        raise ExtensionOptionError(msg)
     return pf_json
 
 

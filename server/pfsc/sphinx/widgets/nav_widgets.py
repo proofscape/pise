@@ -19,6 +19,7 @@ import re
 from lark.exceptions import LarkError
 from sphinx.util.docutils import SphinxRole
 
+from pfsc.constants import PFSC_SPHINX_CRIT_ERR_MARKER
 from pfsc.lang.freestrings import build_pfsc_json
 from pfsc.lang.widgets import WIDGET_TYPE_TO_CLASS
 from pfsc.sphinx.widgets.base import finish_run
@@ -51,6 +52,9 @@ class PfscNavWidgetRole(SphinxRole):
         return name
 
     def write_error_return_values(self, msg_text):
+        # Adding `PFSC_SPHINX_CRIT_ERR_MARKER` makes it so we halt the build,
+        # instead of simply logging a warning:
+        msg_text = f'{PFSC_SPHINX_CRIT_ERR_MARKER}: {msg_text}'
         msg = self.inliner.reporter.error(msg_text, line=self.lineno)
         prb = self.inliner.problematic(self.rawtext, self.rawtext, msg)
         return [prb], [msg]
