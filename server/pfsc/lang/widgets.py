@@ -823,6 +823,9 @@ class ChartWidget(NavWidget):
                     'type': IType.DICT,
                     'spec': {
                         "OPT": {
+                            'inclNbhd': {
+                                'type': IType.STRICT_BOOLEAN
+                            },
                             'core': {
                                 'type': IType.RELBOXLISTING,
                                 'allowed_keywords': ['named'],
