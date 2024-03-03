@@ -29,6 +29,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import pfsc.constants
 from pfsc.constants import REDIS_CHANNEL, ISE_PREFIX
 from pfsc.excep import PfscExcep, PECode
 from config import (
@@ -173,6 +174,12 @@ def check_build_dir_and_graph_db_sync(app):
     it as far as indexing. Rather than get into programmatically cleaning up these dirs,
     I'm just skipping the `test` family. In practice, issues don't arise with these repos
     anyway.
+
+    I'm also not requiring sync on WIP builds. Build failures @WIP are to be expected,
+    and, at least at this time, our build process does *not* offer ACID-type guarantees;
+    i.e. after a failed build, we do not have clean-up steps. So desync after a failed
+    build @WIP is (currently, at least) to be expected, and again, I don't think that
+    these are the problematic cases in practice. (Desync at numbered builds are.)
     """
     from pfsc.gdb import get_graph_reader
     from pfsc.build.repo import RepoFamily
@@ -198,13 +205,16 @@ def check_build_dir_and_graph_db_sync(app):
                         relative_repo_path_str = str(relative_repo_path)
                         repo_libpath = relative_repo_path_str.replace('/', '.')
 
-                        indexed_version_prop_dicts = gr.get_versions_indexed(repo_libpath, include_wip=True)
+                        indexed_version_prop_dicts = gr.get_versions_indexed(repo_libpath, include_wip=False)
                         versions_indexed = {d['version'] for d in indexed_version_prop_dicts}
 
                         for version_dir in repo_dir.iterdir():
                             if not version_dir.is_dir():
                                 continue
                             version_name = version_dir.name
+                            # Skipping WIP builds
+                            if version_name == pfsc.constants.WIP_TAG:
+                                continue
                             if version_name not in versions_indexed:
                                 problems[repo_libpath].append(version_name)
 
