@@ -118,7 +118,7 @@ def auto_deps_build(repopath, tag, clean, verbose=False):
     This means that when dependencies have not been built yet, we try to build
     them, and when repos aren't present at all, we try to clone them.
     We keep trying until either the initial build request succeeds, we
-    exceep the maximum allowed recursion depth set by the
+    exceed the maximum allowed recursion depth set by the
     `MAX_AUTO_DEPS_RECUSION_DEPTH` variable, or some other error occurs.
     """
     jobs = [(repopath, tag, clean, verbose)]
