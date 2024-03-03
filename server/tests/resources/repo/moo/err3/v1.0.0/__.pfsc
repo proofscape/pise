@@ -1,5 +1,5 @@
-change_log={}
+changeLog={}
 
-dependencies={
+deps={
     "test.moo.bar": "WIP",
 }

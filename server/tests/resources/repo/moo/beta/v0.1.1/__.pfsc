@@ -1,4 +1,4 @@
-change_log={
+changeLog={
   moved: {
     "results.Thm": "results.Thm1",
   }

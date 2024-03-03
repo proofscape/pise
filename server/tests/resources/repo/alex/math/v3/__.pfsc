@@ -1,4 +1,4 @@
-change_log = {
+changeLog = {
     moved: {
         "thm2.Pf": "thm2.Pf13",
     }

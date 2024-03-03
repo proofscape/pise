@@ -1,6 +1,6 @@
-change_log = {
+changeLog = {
 }
 
-dependencies = {
+deps = {
     "test.brook.math": "v2.0.0",
 }

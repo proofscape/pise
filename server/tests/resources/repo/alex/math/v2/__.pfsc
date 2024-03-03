@@ -1,4 +1,4 @@
-change_log = {
+changeLog = {
     moved: {
         "thm2.Pf.Thm2.C2": null,
     }

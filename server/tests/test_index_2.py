@@ -206,7 +206,7 @@ def test_find_move_conjugate(app, repos_ready):
     As we move from v2 to v3 of the test.moo.spam repo, our change log
     looks like this:
 
-        change_log={
+        changeLog={
             moved: {
                 "Ch1.Sec8": null,
                 "Ch1.Sec8.Thm15": "Ch1.Sec7.Thm15",
