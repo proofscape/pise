@@ -290,7 +290,7 @@ export class RepoManager {
                 }
             }
             msg += question;
-            if (doBuild && version !== "WIP") {
+            if (doBuild && version !== "WIP" && this.hub.OCA_version === null) {
                 msg += `<p>WARNING: once a numbered release has been built, this CANNOT BE UNDONE.</p>`
             }
             const mgr = this;
