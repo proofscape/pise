@@ -253,6 +253,7 @@ class PfscModule(PfscObj):
             return self.version
         if repopath not in self.dependencies:
             msg = f'Repo `{self.repopath}` failed to define required version of `{repopath}`.'
+            msg += f' Check "{pfsc.constants.DEPENDENCIES_LHS}" declaration in root module.'
             msg += extra_err_msg
             raise PfscExcep(msg, PECode.MISSING_REPO_DEPENDENCY_INFO)
         return self.dependencies[repopath]
