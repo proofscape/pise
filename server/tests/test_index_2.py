@@ -50,7 +50,7 @@ def test_get_modpath(app, repos_ready):
 @pytest.mark.parametrize('version, err_code', [
 ['v1.0.0', PECode.MISSING_REPO_CHANGE_LOG],
 ['v2.0.0', PECode.MISSING_REPO_CHANGE_LOG],
-['v3.0.0', PECode.MODULE_DOES_NOT_EXIST],
+['v3.0.0', PECode.REPO_DEPENDENCIES_NOT_BUILT],
 ['v4.0.0', PECode.BAD_LIBPATH],
 # The next one does raise an exception, but the point is to test that
 # a warning is printed about the libpath that looks absolute when

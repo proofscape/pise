@@ -141,14 +141,13 @@ def auto_deps_build(repopath, tag, clean, verbose=False):
                 clone(repopath, verbose=verbose)
                 # Retry
                 jobs.append(job)
-            elif code in [
-                PECode.VERSION_NOT_BUILT_YET,
-                PECode.MODULE_DOES_NOT_EXIST,
-                PECode.MODULE_HAS_NO_CONTENTS,
-            ]:
-                # We have a dependency that hasn't been built yet. Try to build it.
-                repopath = data["repopath"]
-                version = data["version"]
+            elif code == PECode.REPO_DEPENDENCIES_NOT_BUILT:
+                # We have one or more dependencies that haven't been built yet.
+                # To keep things simple here, just pick the first, and try to build it.
+                # (We'll eventually hit the others, if any, as well.)
+                first_dep = data[0]
+                repopath = first_dep["repopath"]
+                version = first_dep["version"]
                 print(f'Dependency {repopath}@{version} has not been built yet.')
                 print('Attempting to build...')
                 # First requeue the job that failed.

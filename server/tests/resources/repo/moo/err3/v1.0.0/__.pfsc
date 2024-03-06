@@ -1,5 +1,5 @@
 changeLog={}
 
 deps={
-    "test.moo.bar": "WIP",
+    "test.moo.comment": "WIP",
 }

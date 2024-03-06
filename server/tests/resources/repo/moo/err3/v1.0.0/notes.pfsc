@@ -1,5 +1,5 @@
-from test.moo.bar.results import Pf
+from test.moo.comment.bar import xpan_S
 
 anno Notes @@@
-Let's look at <chart:w1>[the proof]{view: Pf}.
+Let's look at <chart:w1>[this expansion]{view: xpan_S}.
 @@@
