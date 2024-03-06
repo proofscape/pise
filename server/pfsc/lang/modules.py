@@ -1364,11 +1364,12 @@ def remove_all_pickles_from_dir(dir_path, recursive=False):
     :param dir_path: pathlib.Path
     :param recursive: set True if you want to recurse on all nested directories
     """
-    for path in dir_path.iterdir():
-        if recursive and path.is_dir():
-            remove_all_pickles_from_dir(path, recursive=True)
-        if path.is_file() and path.suffix == pfsc.constants.PICKLE_EXT:
-            path.unlink()
+    util.conditionally_unlink_files(
+        dir_path,
+        lambda path: path.suffix == pfsc.constants.PICKLE_EXT,
+        recursive=recursive,
+        rmdirs=False
+    )
 
 
 def remove_all_pickles_for_repo(repopath, version=pfsc.constants.WIP_TAG):

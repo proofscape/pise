@@ -153,7 +153,7 @@ def get_js_url(package_name, version=None):
         )
 
 
-def check_build_dir_and_graph_db_sync(app):
+def check_build_dir_and_graph_db_sync(app, clean_up=False, skip_cache=False, skip_test_fam=False, skip_wip_builds=False):
     """
     Check that the build dir and the graph DB for the app are in sync.
     Ideally this should mean that they show all the same repos and versions as having
@@ -167,70 +167,77 @@ def check_build_dir_and_graph_db_sync(app):
     we will run into weird, hard-to-diagnose issues. For example, requests to the
     `ForestUpdateHelper` will silently fail to resolve nodes to their parent deductions.
 
-    For now I'm skipping the `test` family of repos, i.e. not checking anything there.
-    There are unit tests, e.g. `tests.test_index_2.test_various_errors()`
-    that try to build a repo with the expectation that the build
-    will fail. They go as far as generating some files in the build dir, but do not make
-    it as far as indexing. Rather than get into programmatically cleaning up these dirs,
-    I'm just skipping the `test` family. In practice, issues don't arise with these repos
-    anyway.
-
-    I'm also not requiring sync on WIP builds. Build failures @WIP are to be expected,
-    and, at least at this time, our build process does *not* offer ACID-type guarantees;
-    i.e. after a failed build, we do not have clean-up steps. So desync after a failed
-    build @WIP is (currently, at least) to be expected, and again, I don't think that
-    these are the problematic cases in practice. (Desync at numbered builds are.)
+    :param clean_up: set True to clean up any issues, instead of raising an exception.
+    :param skip_cache: set True to ignore the cache part of the build dir. I.e. this means
+        it's okay for there to be files in the cache dirs, even while that version is not indexed.
+    :param skip_test_fam: set True to ignore repos under the `test.` family
+    :param skip_wip_builds: set True to ignore repos built @WIP
     """
     from pfsc.gdb import get_graph_reader
-    from pfsc.build.repo import RepoFamily
+    from pfsc.build.repo import RepoFamily, RepoInfo
 
-    problems = defaultdict(list)
+    problems = defaultdict(set)
     with app.app_context():
-        build_dir = get_build_dir()
-        gr = get_graph_reader()
-        for host_segment in RepoFamily.all_families:
-            # Skipping `test` family, for now.
-            if host_segment == RepoFamily.TEST:
-                continue
-            host_dir = build_dir / host_segment
-            if host_dir.exists():
-                for owner_dir in host_dir.iterdir():
-                    if not owner_dir.is_dir():
+        cache_options = [False] if skip_cache else [False, True]
+        for cache_dir in cache_options:
+            for sphinx_dir in [False, True]:
+                build_dir = get_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+                gr = get_graph_reader()
+                for host_segment in RepoFamily.all_families:
+                    # Skip `test` family?
+                    if skip_test_fam and host_segment == RepoFamily.TEST:
                         continue
-                    for repo_dir in owner_dir.iterdir():
-                        if not repo_dir.is_dir():
-                            continue
-
-                        relative_repo_path = repo_dir.relative_to(build_dir)
-                        relative_repo_path_str = str(relative_repo_path)
-                        repo_libpath = relative_repo_path_str.replace('/', '.')
-
-                        indexed_version_prop_dicts = gr.get_versions_indexed(repo_libpath, include_wip=False)
-                        versions_indexed = {d['version'] for d in indexed_version_prop_dicts}
-
-                        for version_dir in repo_dir.iterdir():
-                            if not version_dir.is_dir():
+                    host_dir = build_dir / host_segment
+                    if host_dir.exists():
+                        for owner_dir in host_dir.iterdir():
+                            if not owner_dir.is_dir():
                                 continue
-                            version_name = version_dir.name
-                            # Skipping WIP builds
-                            if version_name == pfsc.constants.WIP_TAG:
-                                continue
-                            if version_name not in versions_indexed:
-                                problems[repo_libpath].append(version_name)
+                            for repo_dir in owner_dir.iterdir():
+                                if not repo_dir.is_dir():
+                                    continue
 
-    if problems:
-        msg = (
-            'Build dir and graph db are out of sync.\n'
-            'The following builds are present in the build dir but not in the graph db.'
-        )
-        for repopath, versions in problems.items():
-            for version in versions:
-                msg += f'\n    {repopath}@{version}'
-        msg += (
-            '\nSuggested fix is to manually delete built directories for numbered versions,'
-            ' and then rebuild.'
-        )
-        raise PfscExcep(msg, PECode.BUILD_DIR_AND_GRAPH_DB_OUT_OF_SYNC)
+                                relative_repo_path = repo_dir.relative_to(build_dir)
+                                relative_repo_path_str = str(relative_repo_path)
+                                repo_libpath = relative_repo_path_str.replace('/', '.')
+
+                                indexed_version_prop_dicts = gr.get_versions_indexed(repo_libpath, include_wip=True)
+                                versions_indexed = {d['version'] for d in indexed_version_prop_dicts}
+
+                                for version_dir in repo_dir.iterdir():
+                                    if not version_dir.is_dir():
+                                        continue
+                                    version_name = version_dir.name
+                                    # Skip WIP builds?
+                                    if skip_wip_builds and version_name == pfsc.constants.WIP_TAG:
+                                        continue
+                                    if version_name not in versions_indexed:
+                                        problems[repo_libpath].add(version_name)
+
+        if problems:
+            msg = 'Build dir and graph db are out of sync.'
+
+            if clean_up:
+                print(msg)
+                print('Cleaning up...')
+            else:
+                msg += '\nThe following builds are present in the build dir but not in the graph db.'
+
+            for repopath, versions in problems.items():
+                for version in sorted(versions):
+                    task = f'\n    {repopath}@{version}'
+                    if clean_up:
+                        print(task + '...')
+                        ri = RepoInfo(repopath)
+                        ri.delete_all_build_output(version=version, clear_cache=not skip_cache)
+                    else:
+                        msg += task
+
+            if not clean_up:
+                msg += (
+                    '\nSuggested fix is to manually delete built directories for numbered versions,'
+                    ' and then rebuild.'
+                )
+                raise PfscExcep(msg, PECode.BUILD_DIR_AND_GRAPH_DB_OUT_OF_SYNC)
 
 
 def get_app():
@@ -325,7 +332,7 @@ def make_app(config_name=None):
     from pfsc.build.lib.prefix import LibpathPrefixMapping
     app.config['trusted_prefix_mapping'] = LibpathPrefixMapping(trusted_prefixes)
 
-    check_build_dir_and_graph_db_sync(app)
+    check_build_dir_and_graph_db_sync(app, clean_up=True, skip_cache=True)
 
     socketio.init_app(
         app,
