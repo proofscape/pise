@@ -152,16 +152,18 @@ export class SocketManager extends Peer {
                         console.log(msg);
                         break;
                     case 'job_enqueued':
-                        //console.log(Date.now(), 'job_enqueued:', msg);
+                        //console.debug(Date.now(), 'job_enqueued:', msg);
                         break;
                     case 'progress':
-                        //console.log(msg.job, msg.message, msg.fraction_complete);
+                        //console.debug(msg.job, msg.message, msg.fraction_complete);
                         manager.hub.feedbackManager.noteProgress(msg);
                         break;
                     case 'listenable':
+                        //console.debug('SocketManager recd listenable:', msg);
                         manager.dispatch(msg);
                         break;
                     case 'delayed':
+                        //console.debug('SocketManager recd delayed:', msg);
                         // A delayed response is always considered a "successful" response;
                         // it is up to any listeners to handle error messages that may reside
                         // therein. So this case just drops through to the `success` case.

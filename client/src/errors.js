@@ -93,6 +93,7 @@ define([], function(){
         MISSING_DASHGRAPH: 229,
         MISSING_ANNOTATION: 230,
         CONTROLLED_EVALUATION_EXCEPTION: 279,
+        REPO_DEPENDENCIES_NOT_BUILT: 285,
     };
 
     // Error codes 10,000 through 10,999 are reserved for use by mathworker,
