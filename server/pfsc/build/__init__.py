@@ -1337,30 +1337,3 @@ class Builder:
         """
         self.mii.setup_monitor()
         self.graph_writer.index_module(self.mii)
-
-
-def index(obj):
-    """
-    Convenience function to accept a variety of arguments, and perform just the indexing operation
-    on the appropriate module.
-
-    :param obj: Can be a variety of argument types:
-
-                libpath (str): we construct a Builder on this libpath, and ask it to index.
-                RepoInfo: we construct a Builder on this RepoInfo's libpath, and ask it to index.
-                Builder: we ask it to index.
-
-    :return: The report from the indexing operation.
-    """
-    if isinstance(obj, str):
-        b = Builder(obj)
-    elif isinstance(obj, RepoInfo):
-        b = Builder(obj.libpath)
-    elif isinstance(obj, Builder):
-        b = obj
-    else:
-        raise PfscExcep("Unrecognized type.")
-    # Build.
-    b.build()
-    # And index.
-    return b.update_index()
