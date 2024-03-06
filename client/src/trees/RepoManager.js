@@ -16,7 +16,7 @@
 
 import { BuildTreeManager } from "./BuildTreeManager";
 import { FsTreeManager } from "./FsTreeManager";
-import { manageBuildJob } from "../mgr/BuildManager";
+import { BUILD_JOB_TYPES, manageBuildJob } from "../mgr/BuildManager";
 import { NodeExpandTask } from "../delayed";
 import { util as iseUtil } from "../util";
 
@@ -246,11 +246,18 @@ export class RepoManager {
             if (parts.delayed) {
                 parts.delayed.then(delayedResp => {
                     if (buildMgrCallback) {
-                        // Enrich with a bit of extra info before calling:
-                        delayedResp.repopath = repopath;
-                        delayedResp.version = resp.version;
-                        delayedResp.ignoreBuildTree = ignoreBuildTree;
-                        buildMgrCallback(delayedResp);
+                        // Here, be sure to use the version returned by the server:
+                        const repopathv = `${repopath}@${resp.version}`;
+                        const info = {
+                            response: delayedResp,
+                            jobDefn: {
+                                jobType: BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO,
+                                jobArgs: {
+                                    repopathv, ignoreBuildTree,
+                                },
+                            },
+                        };
+                        buildMgrCallback(info);
                     } else {
                         this.hub.errAlert3(delayedResp);
                     }

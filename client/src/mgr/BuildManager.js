@@ -24,6 +24,13 @@ define([
     ise.errors = errors;
 });
 
+
+export const BUILD_JOB_TYPES = {
+    EDIT_MGR_BUILD: "EDIT_MGR_BUILD",
+    REPO_MGR_OPEN_REPO: "REPO_MGR_OPEN_REPO",
+};
+
+
 /* A class to manage a repo build, along with possible builds of missing dependencies.
  */
 class BuildManager {
@@ -32,10 +39,15 @@ class BuildManager {
         this.repoManager = repoManager;
         this.hub = this.repoManager.hub;
         this.manageJob(initialJob);
-        this.jobs = [];
+
+        // Set of repopathvs the user has already ok'ed:
+        this.okedRepopathvs = new Set();
+
+        // Stack of job defns still to be done:
+        this.jobDefnStack = [];
     }
 
-    /* Modify an `openRepo()` job so that this `BuildManager` will manage missing deps for it.
+    /* Modify a job description, so that this `BuildManager` will manage missing deps for it.
      */
     manageJob(job) {
         job.buildMgrCallback = this.handleManagedBuildResponse.bind(this);
@@ -43,64 +55,118 @@ class BuildManager {
 
     /* This is the callback in which we handle the response from a managed build.
      */
-    handleManagedBuildResponse(response) {
+    handleManagedBuildResponse({response, jobDefn}) {
         const isMissingDepsErr = (
             response.err_lvl === ise.errors.serverSideErrorCodes.REPO_DEPENDENCIES_NOT_BUILT
         );
         if (isMissingDepsErr) {
-            this.handleMissingDeps(response);
+            this.handleMissingDeps(response, jobDefn);
         } else if (!this.hub.errAlert3(response)) {
             this.doNextJob();
         }
     }
 
-    makeNewJob(repopathv, ignoreBuildTree) {
-        const job = {
-            repopathv: repopathv,
-            // Happy to build and clone as necessary:
-            doBuild: true, doClone: true,
-            // After the build completes, say whether we want to actually load the tree view:
-            ignoreBuildTree: ignoreBuildTree,
-        };
-        this.manageJob(job);
-        return job;
-    }
+    async handleMissingDeps(response, jobDefn) {
+        const {err_msg, err_info} = response;
 
-    async handleMissingDeps({err_msg, err_info, repopath, version, ignoreBuildTree}) {
-        let choiceHtml = err_msg;
-        choiceHtml += `<p>Do you want to clone and/or build these dependencies as necessary?</p>`;
-        const choiceResult = await this.hub.choice({
-            title: "Missing Dependencies",
-            content: choiceHtml,
-        });
-        if (choiceResult.accepted) {
-            const newRepopathvs = new Set();
-            const newJobs = [];
+        // First determine the set of new repopathvs, so we can see if we need to ask the user,
+        // or if they have already all been ok'ed.
+        // While doing this, it's convenient to also build the array of new jobs, even though
+        // we might wind up not doing them.
+        let anythingNew = false;
+        const newRepopathvs = new Set();
+        // The job that failed has to be repeated:
+        const newJobDefns = [jobDefn];
+        const newMissingDeps = [];
+        for (const md of err_info) {
+            const mdJobDefn = this.makeJobDefnForMissingDep(md);
+            newJobDefns.push(mdJobDefn);
 
-            const repopathv = `${repopath}@${version}`;
-            // In the job that replaces the one that failed, we want to replicate `ignoreBuildTree`:
-            const job = this.makeNewJob(repopathv, ignoreBuildTree);
+            const repopathv = mdJobDefn.jobArgs.repopathv;
             newRepopathvs.add(repopathv);
-            newJobs.push(job);
 
-            for (const md of err_info) {
-                const repopathv = `${md.repopath}@${md.version}`;
-                // In all jobs to build dependencies, we set `ignoreBuildTree` to true:
-                const job = this.makeNewJob(repopathv, true);
-                newRepopathvs.add(repopathv);
-                newJobs.push(job);
+            if (!this.okedRepopathvs.has(repopathv)) {
+                anythingNew = true;
+                newMissingDeps.push(md);
             }
+        }
+
+        let goAhead = true;
+
+        if (anythingNew) {
+            let choiceHtml = err_msg;
+            // FIXME:
+            //  Should remove from err_msg those lines listing repopathv's in this.okedRepopathvs
+            let action = 'build these dependencies';
+            for (const md of newMissingDeps) {
+                if (!md.present) {
+                    action = 'clone and/or build these dependencies as necessary';
+                    break;
+                }
+            }
+            choiceHtml += `<p>Do you want to ${action}?</p>`;
+            const choiceResult = await this.hub.choice({
+                title: "Missing Dependencies",
+                content: choiceHtml,
+            });
+            if (choiceResult.accepted) {
+                for (const rpv of newRepopathvs) {
+                    this.okedRepopathvs.add(rpv);
+                }
+            } else {
+                goAhead = false;
+            }
+        }
+
+        if (goAhead) {
             // Want to add all the new jobs to the top of the jobs stack, but do not want any repeats,
             // so first remove any of these if they already exist.
-            this.jobs = this.jobs.filter(j => !newRepopathvs.has(j.repopathv)).concat(newJobs);
+            this.jobDefnStack = this.jobDefnStack.filter(
+                j => (
+                    // There can be at most one EDIT_MGR_BUILD job (it's always at the base of the stack),
+                    // and it always stays.
+                    j.jobType === BUILD_JOB_TYPES.EDIT_MGR_BUILD ||
+                    // For existing REPO_MGR_OPEN_REPO jobs, we want to keep them only if we're not about to
+                    // repeat them on the top of the stack.
+                    (
+                        j.jobType === BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO &&
+                        !newRepopathvs.has(j.jobArgs.repopathv)
+                    )
+                )
+            ).concat(newJobDefns);
+
             this.doNextJob();
         }
     }
 
+    makeJobDefnForMissingDep(md) {
+        const repopathv = `${md.repopath}@${md.version}`;
+        return {
+            jobType: BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO,
+            jobArgs: {
+                repopathv,
+                ignoreBuildTree: true,
+            },
+        };
+    }
+
     doNextJob() {
-        const job = this.jobs.pop();
-        if (job) {
-            this.repoManager.openRepo(job);
+        const jobDefn = this.jobDefnStack.pop();
+        if (jobDefn) {
+            const args = jobDefn.jobArgs;
+            this.manageJob(args);
+            switch (jobDefn.jobType) {
+                case BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO:
+                    // Job is free to build and clone as necessary:
+                    Object.assign(args, {
+                        doBuild: true, doClone: true,
+                    });
+                    this.repoManager.openRepo(args);
+                    break;
+                case BUILD_JOB_TYPES.EDIT_MGR_BUILD:
+                    this.hub.editManager.build(args);
+                    break;
+            }
         }
     }
 

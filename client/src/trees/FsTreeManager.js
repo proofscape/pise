@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 import { TreeManager } from "./TreeManager";
+import { manageBuildJob} from "../mgr/BuildManager";
 import { util as iseUtil } from "../util";
 
 const dojo = {};
@@ -185,21 +186,25 @@ export class FsTreeManager extends TreeManager {
         cm.addChild(new dojo.MenuItem({
             label: "Build",
             onClick: function(evt){
-                mgr.hub.editManager.build({
+                const job = {
                     // Q: Should a build request on a module other than root add this module
                     // as a "forced re-read"?
                     buildpaths: [repopath],
                     makecleans: [false]
-                });
+                };
+                manageBuildJob(mgr.hub.repoManager, job);
+                mgr.hub.editManager.build(job);
             }
         }));
         cm.addChild(new dojo.MenuItem({
             label: "Build Clean",
             onClick: function(evt){
-                mgr.hub.editManager.build({
+                const job = {
                     buildpaths: [repopath],
                     makecleans: [true]
-                });
+                };
+                manageBuildJob(mgr.hub.repoManager, job);
+                mgr.hub.editManager.build(job);
             }
         }));
 

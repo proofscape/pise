@@ -24,6 +24,7 @@ require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
 
 import { SrcViewManager } from "./SrcViewManager";
+import { BUILD_JOB_TYPES, manageBuildJob } from "../../mgr/BuildManager";
 import { util as iseUtil } from "../../util";
 
 define([
@@ -768,6 +769,7 @@ var EditManager = declare(AbstractContentManager, {
      *      first, i.e. whether all pickle files should be erased first.
      *   autowrites: list of autowrite dictionaries. See doctext for `WriteHandler`
      *               class at the back-end in `handlers/write.py`.
+     *   buildMgrCallback: optional callback to be passed the result of the `writeAndBuild()` call.
      *
      * The following steps are taken:
      * 1. Freeze all editors (set into read-only mode)
@@ -779,15 +781,33 @@ var EditManager = declare(AbstractContentManager, {
      * @return: promise that resolves when the operation is complete.
      */
     build: function(args) {
-        // Freeze all editors.
         this.freezeAllEditors(true);
-        // Augment given args with write info.
-        var writeinfo = this.prepareAllForWrite();
-        args.writepaths = writeinfo.paths;
-        args.writetexts = writeinfo.texts;
-        // Emit request.
-        var theEditManager = this;
-        return this.writeAndBuild(args)
+
+        const buildMgrCallback = args.buildMgrCallback;
+
+        const basicArgs = Object.assign({}, args);
+        delete basicArgs.buildMgrCallback;
+
+        const writeinfo = this.prepareAllForWrite();
+        const extendedArgs = Object.assign({}, basicArgs);
+        extendedArgs.writepaths = writeinfo.paths;
+        extendedArgs.writetexts = writeinfo.texts;
+
+        const theEditManager = this;
+        const suppressImmediateErrors = true;
+        return this.writeAndBuild(extendedArgs, suppressImmediateErrors)
+            .then(response => {
+                if (buildMgrCallback) {
+                    const info = {
+                        response: response,
+                        jobDefn: {
+                            jobType: BUILD_JOB_TYPES.EDIT_MGR_BUILD,
+                            jobArgs: basicArgs,
+                        },
+                    };
+                    buildMgrCallback(info);
+                }
+            })
             .catch(console.log)
             .finally(() => {
                 theEditManager.freezeAllEditors(false);
@@ -810,10 +830,12 @@ var EditManager = declare(AbstractContentManager, {
      *   NOTE: The writepaths and buildpaths (and corresponding args, writetexts and makecleans,
      *   resp.) will be filtered first. We will reject any paths that do not appear to belong
      *   to the current user.
+     * @param suppressImmediateErrors: if true (default false), then, in case of positive error
+     *   level in the immediate response, do *not* show an error alert.
      * @return: promise that resolves with the initial http response. This does not contain
      *   the results of writing and building, but only a job_id for that async task.
      */
-    writeAndBuild: function(args) {
+    writeAndBuild: function(args, suppressImmediateErrors) {
         /* FIXME: We could refine the startup checks a bit.
          *  We must not write a module if any window is waiting for it to write OR build.
          *  And if we want to write AND build it, of course we must not build until after we write.
@@ -847,7 +869,7 @@ var EditManager = declare(AbstractContentManager, {
                 },
                 handleAs: "json",
             }).then(resp => {
-                if (this.hub.errAlert3(resp.immediate)) {
+                if (resp.immediate.err_lvl > 0) {
                     // FIXME: What is the right behavior here?
                     // Should we...
                     //   this.resolvePendingWrites(writepaths, resp);
@@ -859,9 +881,19 @@ var EditManager = declare(AbstractContentManager, {
                     // Maybe if server returns more informative err report we can either try
                     // again, or accept permanent failure, on particular write/build paths.
                 }
+                if (!suppressImmediateErrors) {
+                    this.hub.errAlert3(resp.immediate);
+                }
                 if (resp.delayed) {
                     resp.delayed.then(this.hub.errAlert3.bind(this.hub));
                 }
+                // It so happens that, if the build failed due to missing dependencies, that error
+                // will be reported in the *immediate* response for our call to 'writeAndBuild'.
+                // (Cf. its appearance in the *delayed* response over in the `RepoManager`, where we
+                // make a call to 'loadRepoTree'.) This is due to the server's `WriteHandler` performing
+                // a certain basic permissions check that requires investigating the build dependencies.
+                // Therefore, in returning the immediate response here, we enable our caller to try and
+                // handle missing deps, if it chooses to do so.
                 return resp.immediate;
             });
         });
@@ -923,11 +955,13 @@ var EditManager = declare(AbstractContentManager, {
      * @return: promise that resolves when the operation is complete.
      */
     buildByPaneId: function(paneId) {
-        var buildpath = this.modpaths[paneId];
-        return this.build({
+        const buildpath = this.modpaths[paneId];
+        const job = {
             buildpaths: [buildpath],
             makecleans: [false]
-        });
+        };
+        manageBuildJob(this.hub.repoManager, job);
+        return this.build(job);
     },
 
     /* Save the module in an editor pane.

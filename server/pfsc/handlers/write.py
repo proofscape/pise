@@ -386,6 +386,8 @@ class WriteHandler(RepoTaskHandler):
                 'type': 'repoIsBuilt',
                 'repopath': repopath,
                 'version': pfsc.constants.WIP_TAG,
+                # Include original request info, so client can determine how to behave.
+                'orig_req': self.request_info,
             })
             # Here would be another simple approach, but one that involves the client updating an
             # existing tree, instead of reloading completely. For now that seems buggy,
