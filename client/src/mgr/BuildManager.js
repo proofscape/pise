@@ -45,6 +45,9 @@ class BuildManager {
 
         // Stack of job defns still to be done:
         this.jobDefnStack = [];
+
+        // Flag for user to dismiss further confirmation dialogs:
+        this.stopAsking = false;
     }
 
     /* Modify a job description, so that this `BuildManager` will manage missing deps for it.
@@ -93,10 +96,20 @@ class BuildManager {
 
         let goAhead = true;
 
-        if (anythingNew) {
-            let choiceHtml = err_msg;
-            // FIXME:
-            //  Should remove from err_msg those lines listing repopathv's in this.okedRepopathvs
+        if (anythingNew && !this.stopAsking) {
+            const lines = err_msg.split('\n');
+            let choiceHtml = '';
+            for (const line of lines) {
+                if (line.startsWith('<li>')) {
+                    // Skip repopathv's that have already been ok'ed.
+                    const rpv = line.slice(4).split(":")[0];
+                    if (this.okedRepopathvs.has(rpv)) {
+                        continue;
+                    }
+                }
+                choiceHtml += '\n' + line;
+            }
+
             let action = 'build these dependencies';
             for (const md of newMissingDeps) {
                 if (!md.present) {
@@ -105,20 +118,34 @@ class BuildManager {
                 }
             }
             choiceHtml += `<p>Do you want to ${action}?</p>`;
+
+            const dismissalName = 'auto-deps-stop-asking';
+            choiceHtml += `
+                <div>
+                    <label>
+                        <input type="checkbox" name="${dismissalName}">
+                        If further missing dependencies are discovered, build them all without asking again.
+                    </label>
+                </div>`;
+
             const choiceResult = await this.hub.choice({
                 title: "Missing Dependencies",
                 content: choiceHtml,
             });
-            if (choiceResult.accepted) {
-                for (const rpv of newRepopathvs) {
-                    this.okedRepopathvs.add(rpv);
-                }
-            } else {
-                goAhead = false;
+
+            const cb = choiceResult.dialog.domNode.querySelector(`input[name="${dismissalName}"]`);
+            if (cb?.checked) {
+                this.stopAsking = true;
             }
+
+            goAhead = choiceResult.accepted;
         }
 
         if (goAhead) {
+            for (const rpv of newRepopathvs) {
+                this.okedRepopathvs.add(rpv);
+            }
+
             // Want to add all the new jobs to the top of the jobs stack, but do not want any repeats,
             // so first remove any of these if they already exist.
             this.jobDefnStack = this.jobDefnStack.filter(
@@ -134,6 +161,8 @@ class BuildManager {
                     )
                 )
             ).concat(newJobDefns);
+
+            //console.debug('BuildManager updated job stack:', this.jobDefnStack.slice());
 
             this.doNextJob();
         }
