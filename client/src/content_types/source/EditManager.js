@@ -794,7 +794,7 @@ var EditManager = declare(AbstractContentManager, {
         extendedArgs.writetexts = writeinfo.texts;
 
         const theEditManager = this;
-        const suppressImmediateErrors = true;
+        const suppressImmediateErrors = !!buildMgrCallback;
         return this.writeAndBuild(extendedArgs, suppressImmediateErrors)
             .then(response => {
                 if (buildMgrCallback) {
