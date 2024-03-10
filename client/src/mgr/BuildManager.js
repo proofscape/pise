@@ -202,15 +202,19 @@ class BuildManager {
 }
 
 
-/* Set a repo build job to be "managed," which means that attempts will be
+/* Set a "job" to be "managed," which means that attempts will be
  * made to (with the user's go-ahead) recursively build any missing dependencies.
  *
+ * At this time there are only two different "job types" that can be managed; namely,
+ * calls to `EditManager.build()` and `RepoManager.openRepo()`. Each of these methods
+ * takes a single `args` object, in which there is one optional arg called `buildMgrCallback`.
+ * This function will automatically set that arg.
+ *
  * :param repoManager: the `RepoManager` singleton.
- * :param job: object that will be passed to `RepoManager.openRepo()`, representing the
- *    initial build job, which is to be managed.
+ * :param jobArgs: args object in which the `buildMgrCallback` arg is to be set.
  */
-export function manageBuildJob(repoManager, job) {
+export function manageBuildJob(repoManager, jobArgs) {
     // Just forming a BuildManager sets it up to manage the job.
     // Callers will often have no need of the return value.
-    return new BuildManager(repoManager, job);
+    return new BuildManager(repoManager, jobArgs);
 }
