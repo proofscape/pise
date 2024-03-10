@@ -24,7 +24,7 @@ require("ace-builds/src-noconflict/theme-tomorrow_night_eighties.js");
 require("ace-builds/src-noconflict/ext-searchbox.js");
 
 import { SrcViewManager } from "./SrcViewManager";
-import { BUILD_JOB_TYPES, manageBuildJob } from "../../mgr/BuildManager";
+import { BUILD_JOB_TYPES, BuildManagerJobDefinition, manageBuildJob } from "../../mgr/BuildManager";
 import { util as iseUtil } from "../../util";
 
 define([
@@ -769,7 +769,7 @@ var EditManager = declare(AbstractContentManager, {
      *      first, i.e. whether all pickle files should be erased first.
      *   autowrites: list of autowrite dictionaries. See doctext for `WriteHandler`
      *               class at the back-end in `handlers/write.py`.
-     *   buildMgrCallback: optional callback to be passed the result of the `writeAndBuild()` call.
+     *   buildMgrCallback: optional callback to manage building of missing dependencies.
      *
      * The following steps are taken:
      * 1. Freeze all editors (set into read-only mode)
@@ -798,14 +798,8 @@ var EditManager = declare(AbstractContentManager, {
         return this.writeAndBuild(extendedArgs, suppressImmediateErrors)
             .then(response => {
                 if (buildMgrCallback) {
-                    const info = {
-                        response: response,
-                        jobDefn: {
-                            jobType: BUILD_JOB_TYPES.EDIT_MGR_BUILD,
-                            jobArgs: basicArgs,
-                        },
-                    };
-                    buildMgrCallback(info);
+                    const jobDefn = new BuildManagerJobDefinition(BUILD_JOB_TYPES.EDIT_MGR_BUILD, basicArgs);
+                    buildMgrCallback(response, jobDefn);
                 }
             })
             .catch(console.log)

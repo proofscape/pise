@@ -25,20 +25,41 @@ define([
 });
 
 
+/* Enum for identifying build job types.
+ *
+ * Each type corresponds to some function or class method that is involved
+ * in building Proofscape repos.
+ */
 export const BUILD_JOB_TYPES = {
+    // EditManager.build():
     EDIT_MGR_BUILD: "EDIT_MGR_BUILD",
+    // RepoManager.openRepo():
     REPO_MGR_OPEN_REPO: "REPO_MGR_OPEN_REPO",
 };
+
+
+export class BuildManagerJobDefinition {
+
+    /* :param jobType: a value of the `BUILD_JOB_TYPES` enum.
+     * :param jobArgs: the args object that should be passed to the func/method indicated
+     *   by the `jobType`, when it is time to attempt the build job.
+     */
+    constructor(jobType, jobArgs) {
+        this.jobType = jobType;
+        this.jobArgs = jobArgs;
+    }
+
+}
 
 
 /* A class to manage a repo build, along with possible builds of missing dependencies.
  */
 class BuildManager {
 
-    constructor(repoManager, initialJob) {
+    constructor(repoManager, initialJobArgs) {
         this.repoManager = repoManager;
         this.hub = this.repoManager.hub;
-        this.manageJob(initialJob);
+        this.manageJob(initialJobArgs);
 
         // Set of repopathvs the user has already ok'ed:
         this.okedRepopathvs = new Set();
@@ -50,15 +71,20 @@ class BuildManager {
         this.stopAsking = false;
     }
 
-    /* Modify a job description, so that this `BuildManager` will manage missing deps for it.
+    /* Modify a jobArgs object, so that this `BuildManager` will manage missing deps for it.
      */
-    manageJob(job) {
-        job.buildMgrCallback = this.handleManagedBuildResponse.bind(this);
+    manageJob(jobArgs) {
+        jobArgs.buildMgrCallback = this.handleManagedBuildResponse.bind(this);
     }
 
     /* This is the callback in which we handle the response from a managed build.
+     *
+     * :param response: the response object from the failed build attempt, in which `err_lvl`
+     *   indicated that the failure was due to missing dependencies.
+     * :param jobDefn: a `BuildManagerJobDefinition` defining the failed job, so that we
+     *   can attempt it again later, after building missing dependencies.
      */
-    handleManagedBuildResponse({response, jobDefn}) {
+    handleManagedBuildResponse(response, jobDefn) {
         const isMissingDepsErr = (
             response.err_lvl === ise.errors.serverSideErrorCodes.REPO_DEPENDENCIES_NOT_BUILT
         );
@@ -170,13 +196,10 @@ class BuildManager {
 
     makeJobDefnForMissingDep(md) {
         const repopathv = `${md.repopath}@${md.version}`;
-        return {
-            jobType: BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO,
-            jobArgs: {
-                repopathv,
-                ignoreBuildTree: true,
-            },
-        };
+        return new BuildManagerJobDefinition(BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO, {
+            repopathv,
+            ignoreBuildTree: true,
+        });
     }
 
     doNextJob() {

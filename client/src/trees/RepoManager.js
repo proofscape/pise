@@ -16,7 +16,7 @@
 
 import { BuildTreeManager } from "./BuildTreeManager";
 import { FsTreeManager } from "./FsTreeManager";
-import { BUILD_JOB_TYPES, manageBuildJob } from "../mgr/BuildManager";
+import { BUILD_JOB_TYPES, BuildManagerJobDefinition, manageBuildJob } from "../mgr/BuildManager";
 import { NodeExpandTask } from "../delayed";
 import { util as iseUtil } from "../util";
 
@@ -214,8 +214,7 @@ export class RepoManager {
      *   even if the server provides it.
      * @param ignoreFsTree: boolean; if true, we do not (re)load the filesystem
      *   tree, even if the server provides it.
-     * @param buildMgrCallback: optional callback to be passed the delayed response
-     *   from the build request.
+     * @param buildMgrCallback: optional callback to manage building of missing dependencies.
      * @param defaultVersion: version to request if repopathv is a pure libpath with no
      *   version. Defaults to "WIP". Set to null to let server decide which version you
      *   want (WIP or latest numbered, depending on server config).
@@ -248,16 +247,10 @@ export class RepoManager {
                     if (buildMgrCallback) {
                         // Here, be sure to use the version returned by the server:
                         const repopathv = `${repopath}@${resp.version}`;
-                        const info = {
-                            response: delayedResp,
-                            jobDefn: {
-                                jobType: BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO,
-                                jobArgs: {
-                                    repopathv, ignoreBuildTree,
-                                },
-                            },
-                        };
-                        buildMgrCallback(info);
+                        const jobDefn = new BuildManagerJobDefinition(BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO, {
+                            repopathv, ignoreBuildTree,
+                        });
+                        buildMgrCallback(delayedResp, jobDefn);
                     } else {
                         this.hub.errAlert3(delayedResp);
                     }
