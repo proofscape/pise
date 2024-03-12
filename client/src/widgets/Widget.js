@@ -46,8 +46,6 @@ var Widget = declare(null, {
     uid: null,
     // the libpath of the page to which this widget belongs:
     pagepath: null,
-    // the ID of the "widget group" (or "pane group") to which this widget belongs, if any:
-    groupId: null,
     // the info object as originally passed:
     origInfo: null,
     // a "live" info object: starts as a copy of the one originally passed;
@@ -68,11 +66,15 @@ var Widget = declare(null, {
         this.uid = info.uid;
         this.pagepath = libpath.slice(0, libpath.lastIndexOf('.'));
         this.modpath = libpath.slice(0, this.pagepath.lastIndexOf('.'));
-        this.groupId = info.pane_group;
         this.origInfo = info;
         this.liveInfo = this.getInfoCopy();
         this.contextMenuByPaneId = new Map();
         this.listeners = {};
+    },
+
+    // the ID of the "widget group" (or "pane group") to which this widget belongs, if any:
+    groupId: function() {
+        return this.origInfo?.pane_group;
     },
 
     getPagepathv: function() {
