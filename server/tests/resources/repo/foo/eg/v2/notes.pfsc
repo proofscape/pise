@@ -62,7 +62,7 @@ anno Notes @@@
     tex: "p_4",
     init: 13,
     args: {
-        chooser_upper_bound: 71,
+        chooserUpperBound: 71,
     }
 }
 
@@ -71,7 +71,7 @@ anno Notes @@@
     tex: "p_5",
     init: 17,
     args: {
-        chooser_upper_bound: 163,
+        chooserUpperBound: 163,
     }
 }
 
@@ -80,7 +80,7 @@ anno Notes @@@
     tex: "p_6",
     init: 101,
     args: {
-        chooser_upper_bound: 163,
+        chooserUpperBound: 163,
     }
 }
 
@@ -92,7 +92,7 @@ anno Notes @@@
         n: eg1_n,
     },
     args: {
-        chooser_upper_bound: "n + 100",
+        chooserUpperBound: "n + 100",
     }
 }
 
