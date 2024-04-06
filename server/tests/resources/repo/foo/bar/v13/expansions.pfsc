@@ -112,7 +112,7 @@ untrusted.
 
 <param:eg1_k>[]{
     ptype: "NumberField",
-    name: "k",
+    tex: "k",
     init: "cyc(7)",
 }
 

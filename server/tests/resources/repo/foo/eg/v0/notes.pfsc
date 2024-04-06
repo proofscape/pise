@@ -4,7 +4,7 @@ Cyclic dependency between param widgets?
 
 <param:eg1_f>[]{
     ptype: "Foo",
-    name: "f",
+    tex: "f",
     import: {
         b: eg1_b,
     },
@@ -12,7 +12,7 @@ Cyclic dependency between param widgets?
 
 <param:eg1_b>[]{
     ptype: "Bar",
-    name: "b",
+    tex: "b",
     import: {
         f: eg1_f,
     },
@@ -29,12 +29,12 @@ This time both widgets should build.
 
 <param:eg1_f>[]{
     ptype: "Prime",
-    name: "f",
+    tex: "f",
 }
 
 <param:eg1_b>[]{
     ptype: "Prime",
-    name: "b",
+    tex: "b",
     import: {
         f: eg1_f,
     },

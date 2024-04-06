@@ -1590,16 +1590,13 @@ class ParamWidget(ExampWidget):
                 'ptype': {
                     'type': IType.STR,
                 },
-                'name': {
+                'tex': {
                     'type': IType.STR,
                 },
             },
             "OPT": {
                 'init': {
                     'type': IType.ANY,
-                },
-                'tex': {
-                    'type': IType.STR,
                 },
                 'descrip': {
                     'type': IType.STR,

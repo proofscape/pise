@@ -14,7 +14,7 @@ Examp Widgets
 
 .. pfsc-param:: eg1_k:
     :ptype: "NumberField"
-    :name: "k"
+    :tex: "k"
     :init: "cyc(7)"
     :args: {
         gen: "zeta",

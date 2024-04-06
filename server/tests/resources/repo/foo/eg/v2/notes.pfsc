@@ -2,7 +2,7 @@ anno Notes @@@
 
 <param:eg1_n>[]{
     ptype: "Integer",
-    name: "n",
+    tex: "n",
     init: 12,
     args: {
         gt: 5,
@@ -11,7 +11,6 @@ anno Notes @@@
 
 <param:eg1_d1>[]{
     ptype: "Divisor",
-    name: "d1",
     tex: "d_1",
     init: 3,
     import: {
@@ -21,7 +20,6 @@ anno Notes @@@
 
 <param:eg1_d2>[]{
     ptype: "Divisor",
-    name: "d2",
     tex: "d_2",
     args: {
         dividing: 18,
@@ -31,7 +29,6 @@ anno Notes @@@
 
 <param:eg1_d3>[]{
     ptype: "Divisor",
-    name: "d3",
     tex: "d_3",
     import: {
         n: eg1_n,
@@ -43,19 +40,18 @@ anno Notes @@@
 
 <param:eg1_p1>[]{
     ptype: "Prime",
-    name: "p1",
     tex: "p_1",
     init: 11,
 }
 
 <param:eg1_p2>[]{
     ptype: "Prime",
-    name: "p2",
+    tex: "p_2",
 }
 
 <param:eg1_p3>[]{
     ptype: "Prime",
-    name: "p3",
+    tex: "p_3",
     args: {
         odd: true,
     }
@@ -63,7 +59,7 @@ anno Notes @@@
 
 <param:eg1_p4>[]{
     ptype: "Prime",
-    name: "p4",
+    tex: "p_4",
     init: 13,
     args: {
         chooser_upper_bound: 71,
@@ -72,7 +68,7 @@ anno Notes @@@
 
 <param:eg1_p5>[]{
     ptype: "Prime",
-    name: "p5",
+    tex: "p_5",
     init: 17,
     args: {
         chooser_upper_bound: 163,
@@ -81,7 +77,7 @@ anno Notes @@@
 
 <param:eg1_p6>[]{
     ptype: "Prime",
-    name: "p6",
+    tex: "p_6",
     init: 101,
     args: {
         chooser_upper_bound: 163,
@@ -90,7 +86,7 @@ anno Notes @@@
 
 <param:eg1_p7>[]{
     ptype: "Prime",
-    name: "p7",
+    tex: "p_7",
     init: 23,
     import: {
         n: eg1_n,
@@ -102,7 +98,7 @@ anno Notes @@@
 
 <param:eg1_r1>[]{
     ptype: "PrimRes",
-    name: "r1",
+    tex: "r_1",
     args: {
         m: 49,
     }
@@ -110,7 +106,7 @@ anno Notes @@@
 
 <param:eg1_r2>[]{
     ptype: "PrimRes",
-    name: "r2",
+    tex: "r_2",
     args: {
         m: 343,
     }
@@ -118,7 +114,7 @@ anno Notes @@@
 
 <param:eg1_r3>[]{
     ptype: "PrimRes",
-    name: "r3",
+    tex: "r_3",
     args: {
         m: 2401,
     }
@@ -126,7 +122,7 @@ anno Notes @@@
 
 <param:eg1_r4>[]{
     ptype: "PrimRes",
-    name: "r4",
+    tex: "r_4",
     import: {
         p1: eg1_p1,
     },
@@ -137,7 +133,7 @@ anno Notes @@@
 
 <param:eg1_K1>[]{
     ptype: "NumberField",
-    name: "K1",
+    tex: "K_1",
     init: "cyc(7)",
     args: {
         gen: "zeta",
@@ -146,7 +142,7 @@ anno Notes @@@
 
 <param:eg1_K2>[]{
     ptype: "NumberField",
-    name: "K2",
+    tex: "K_2",
     init: "cyclotomic_poly(7)",
     args: {
         gen: "zeta",
@@ -155,7 +151,7 @@ anno Notes @@@
 
 <param:eg1_K3>[]{
     ptype: "NumberField",
-    name: "K3",
+    tex: "K_3",
     init: "x^2 + 5",
     args: {
         gen: "alpha",
@@ -165,7 +161,7 @@ anno Notes @@@
 
 <param:eg1_K4>[]{
     ptype: "NumberField",
-    name: "K4",
+    tex: "K_4",
     init: "y^3 + 4*y - 7",
     args: {
         var: "u",
@@ -174,7 +170,6 @@ anno Notes @@@
 
 <param:eg1_P1>[]{
     ptype: "PrimeIdeal",
-    name: "P1",
     tex: "\mathfrak{p}_1",
     import: {
         k: eg1_K1,
@@ -186,7 +181,6 @@ anno Notes @@@
 
 <param:eg1_P2>[]{
     ptype: "PrimeIdeal",
-    name: "P2",
     tex: "\mathfrak{p}_2",
     init: 2,
     import: {
