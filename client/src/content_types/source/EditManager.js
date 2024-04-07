@@ -273,6 +273,7 @@ var EditManager = declare(AbstractContentManager, {
             firstVisibleRow : editor.getFirstVisibleRow(),
             cursorPos       : editor.getCursorPosition(),
             sidebar         : this.getSidebarProperties(editor),
+            is_rst          : editor.getSession().getMode().$id.endsWith('/rst'),
         };
     },
 
