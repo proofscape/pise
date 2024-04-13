@@ -62,7 +62,9 @@ class UserHandler(Handler):
 
     def check_permissions(self):
         if not current_user.is_authenticated:
-            super().check_permissions()
+            # The method of the `Handler` base class raises the exception we want
+            # in this case, so we just call that.
+            Handler.check_permissions(self)
 
 
 class UserNotesHandler(UserHandler):
