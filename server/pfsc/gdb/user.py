@@ -185,6 +185,34 @@ class User(UserMixin):
             return False
         return p[1] in self.owned_orgs
 
+    def makeTrustSetting(self, libpath, version, trusted):
+        """
+        Make a trust setting, for a repo at a version.
+
+        @param libpath: any libpath at or under the repopath.
+        @param version: full version string.
+        @param trusted: `True` if repo@version should be marked as trusted;
+            `False` if not.
+        """
+        ...  # TODO
+        self.commit_properties()
+
+    def trusts(self, libpath, version):
+        """
+        Check whether the user has marked a repo@version as trusted.
+
+        @param libpath: any libpath at or under the repopath.
+        @param version: full version string.
+
+        @return: `True` if user has trusted this repo at this version;
+            `None` if user has not made such a setting.
+            Note: We return `None` instead of `False`, since the user
+            does not explicitly say "do not trust;" the user simply
+            has not said "trust."
+        """
+        ...  # TODO
+        return False
+
     def split_owned_repopath(self, repopath):
         """
         Determine whether this user owns (personally, or through an owned org)

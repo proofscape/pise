@@ -91,7 +91,8 @@ class Annotation(EnrichmentPage):
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
-            self._trusted = libpath_is_trusted(libpath)
+            version = self.getVersion()
+            self._trusted = libpath_is_trusted(libpath, version)
         return self._trusted
 
     def getFirstRowNum(self):

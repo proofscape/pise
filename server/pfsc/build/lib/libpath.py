@@ -24,7 +24,8 @@ import re
 import tempfile
 from functools import lru_cache
 
-from flask import current_app
+from flask import current_app, has_request_context
+from flask_login import current_user
 from pygit2 import init_repository
 
 from pfsc import check_config, get_build_dir
@@ -34,15 +35,33 @@ from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_com
 from pfsc.gdb import get_graph_reader, building_in_gdb
 
 
-def libpath_is_trusted(libpath):
+def libpath_is_trusted(libpath, version):
     """
-    Check whether a libpath is considered to be trusted, according to
-    the current configuration.
+    Check whether a libpath (optionally specified to a single version) is considered to be trusted,
+    according to (a) per-user settings, primarily, and (b) the server configuration, secondarily.
+
     @param libpath: the libpath to be tested
+    @param version: the full version string in question
+        Note: Currently, trust set by the `PFSC_TRUSTED_LIBPATHS` config var is irrespective
+        of version. I.e. this considers only libpaths. In future work, we may want to
+        allow (optional) setting of version numbers here. At present, version number only
+        affects per-user trust settings.
     @return: boolean: True if libpath is trusted, False if not.
     """
-    tpm = current_app.config['trusted_prefix_mapping']
-    return libpath in tpm([libpath])
+    is_trusted = None
+
+    # Is there an authenticated user?
+    if has_request_context() and current_user.is_authenticated:
+        # Check per-user settings.
+        # Make sure we get `True` or `None`; not `False`.
+        is_trusted = current_user.trusts(libpath, version) or None
+
+    # Only if haven't made a decision yet, consult server-wide config:
+    if is_trusted is None:
+        tpm = current_app.config['trusted_prefix_mapping']
+        is_trusted = libpath in tpm([libpath])
+
+    return is_trusted
 
 
 @lru_cache(maxsize=32)

@@ -232,7 +232,7 @@ class AnnotationLoader(Handler):
         h1 = products.load_annotation_with_cache.cache_info().hits
 
         # Load and inject extra info
-        anno_trusted = libpath_is_trusted(annopath)
+        anno_trusted = libpath_is_trusted(annopath, vers.full)
 
         approvals = set()
         if not anno_trusted:
