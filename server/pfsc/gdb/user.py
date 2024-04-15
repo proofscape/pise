@@ -122,6 +122,11 @@ class User(UserMixin):
     """A user of the site. """
 
     def __init__(self, username, props):
+        """
+        User instances are formed by `pfsc.gdb.reader.GraphReader.load_user()`,
+        which reads the properties dictionary off of the existing User node
+        in the GDB, and passes that under `props`.
+        """
         self.username = username
         self.props = props
 
@@ -148,6 +153,17 @@ class User(UserMixin):
         return f'<User {self.username}>'
 
     def prop(self, *args):
+        """
+        Getter/setter for properties in the user's props dict.
+
+        Pass one key, to read the current value under that key,
+        or pass key and value, to set a new value.
+
+        NOTE: Reads are NOT from the GDB, but from the dict currently
+        held in this User object; writes are NOT to the GDB but only
+        to the dict currently held in this User object; must call
+        `self.commit_properties()` to write current props dict to GDB.
+        """
         if len(args) == 1:
             return self.props[args[0]]
         elif len(args) == 2:
@@ -155,6 +171,9 @@ class User(UserMixin):
             self.props[k] = v
 
     def commit_properties(self):
+        """
+        Update GDB with current props in this User object.
+        """
         from pfsc.gdb import get_graph_writer
         gw = get_graph_writer()
         gw.update_user(self)

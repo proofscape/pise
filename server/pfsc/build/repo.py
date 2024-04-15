@@ -597,6 +597,10 @@ def get_repo_info(libpath):
 
 
 def get_repo_part(libpath):
+    """
+    Purely syntactic operation to extract the first three parts of an absolute
+    libpath. Does NOT require that such a repo actually be present in the library.
+    """
     parts = libpath.split('.')
     if len(parts) < 3:
         raise PfscExcep("libpath %s does not lie within a repo" % libpath, PECode.LIBPATH_TOO_SHORT)
