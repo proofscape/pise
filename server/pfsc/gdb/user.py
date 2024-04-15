@@ -20,6 +20,7 @@ from flask_login import UserMixin, current_user
 
 from config import HostingStance
 from pfsc import check_config
+from pfsc.build.repo import get_repo_part
 from pfsc.constants import UserProps
 import pfsc.constants
 from pfsc.permissions import check_is_psm
@@ -80,6 +81,7 @@ def make_new_user_properties_dict(usertype, email, orgs_owned_by_user):
         UserProps.K_EMAIL: email,
         UserProps.K_OWNED_ORGS: orgs_owned_by_user,
         UserProps.K_NOTES_STORAGE: initial_notes_storage,
+        UserProps.K_TRUST: {},
         UserProps.K_HOSTING: {},
     }
 
@@ -208,19 +210,34 @@ class User(UserMixin):
         """
         Make a trust setting, for a repo at a version.
 
-        @param libpath: any libpath at or under the repopath.
+        @param libpath: any absolute libpath at or under the repopath.
         @param version: full version string.
         @param trusted: `True` if repo@version should be marked as trusted;
             `False` if not.
         """
-        ...  # TODO
-        self.commit_properties()
+        repopath = get_repo_part(libpath)
+        trust_settings_for_all_repos = self.prop(UserProps.K_TRUST)
+        trusted_versions_for_this_repo = trust_settings_for_all_repos.get(
+            repopath, []
+        )
+
+        made_change = False
+        if trusted and version not in trusted_versions_for_this_repo:
+            trusted_versions_for_this_repo.append(version)
+            made_change = True
+        elif version in trusted_versions_for_this_repo and not trusted:
+            trusted_versions_for_this_repo.remove(version)
+            made_change = True
+
+        if made_change:
+            trust_settings_for_all_repos[repopath] = trusted_versions_for_this_repo
+            self.commit_properties()
 
     def trusts(self, libpath, version):
         """
         Check whether the user has marked a repo@version as trusted.
 
-        @param libpath: any libpath at or under the repopath.
+        @param libpath: any absolute libpath at or under the repopath.
         @param version: full version string.
 
         @return: `True` if user has trusted this repo at this version;
@@ -229,8 +246,12 @@ class User(UserMixin):
             does not explicitly say "do not trust;" the user simply
             has not said "trust."
         """
-        ...  # TODO
-        return False
+        repopath = get_repo_part(libpath)
+        trust_settings_for_all_repos = self.prop(UserProps.K_TRUST)
+        trusted_versions_for_this_repo = trust_settings_for_all_repos.get(
+            repopath, []
+        )
+        return version in trusted_versions_for_this_repo or None
 
     def split_owned_repopath(self, repopath):
         """
