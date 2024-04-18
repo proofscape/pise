@@ -248,6 +248,23 @@ class Config:
     # See pfsc/templates/ssnr_off_conf.html
     SSNR_DEACTIVATION_DIALOG_PROXY_URL = os.getenv("SSNR_DEACTIVATION_DIALOG_PROXY_URL")
 
+    # Per-user trust settings:
+    # In contrast to the site-wide trust settings effected through the `PFSC_TRUSTED_LIBPATHS`
+    # config var, users may also be interested in recording their own trust settings. Currently
+    # these can only positively override the site-wide settings (if user says "trust," then trust,
+    # but user cannot "untrust" sth already trusted site-wide).
+    #
+    # Also in contrast to the site-wide settings, which currently do *not* take version numbers,
+    # and may be on *any* absolute libpath at least two segments long, the per-user settings
+    # are always on a repopath, and *do* take a version number.
+    #
+    # If `RECORD_PER_USER_TRUST_SETTINGS` is enabled, then the client will be notified that
+    # per-user settings can be recorded on the server, and will make use of this; if disabled
+    # (the default), then the client will instead record the user's settings locally, in the
+    # browser's `localStorage` (and any attempt to use the server's endpoint will simply result
+    # in an error).
+    RECORD_PER_USER_TRUST_SETTINGS = bool(int(os.getenv("RECORD_PER_USER_TRUST_SETTINGS", 0)))
+
     # Accept OAuth logins via GitHub?
     ALLOW_GITHUB_LOGINS = bool(int(os.getenv("ALLOW_GITHUB_LOGINS", 0)))
     OAUTH_GH_ID = os.getenv("OAUTH_GH_ID", "")
@@ -619,6 +636,7 @@ class OcaConfig(DockerDevConfig):
     FORCE_RQ_SYNCHRONOUS = True
     ISE_DEV_MODE = True
     OFFER_SERVER_SIDE_NOTE_RECORDING = True
+    RECORD_PER_USER_TRUST_SETTINGS = True
     REDIS_URI = "redis://localhost:6379"
     SOCKETIO_MESSAGE_QUEUE = "redis://localhost:6379"
     GRAPHDB_URI = "redis://localhost:6379"

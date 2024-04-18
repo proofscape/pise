@@ -749,6 +749,7 @@ class AppLoader(Handler):
             'devMode': bool(current_app.config["ISE_DEV_MODE"]),
             'personalServerMode': check_is_psm(),
             'ssnrAvailable': current_app.config["OFFER_SERVER_SIDE_NOTE_RECORDING"],
+            'userTrustRecordingAvailable': current_app.config["RECORD_PER_USER_TRUST_SETTINGS"],
             'hostingByRequest': current_app.config["DEFAULT_HOSTING_STANCE"] == HostingStance.BY_REQUEST,
             'tosURL': current_app.config.get("TOS_URL"),
             'tosVersion': current_app.config.get("TOS_VERSION"),

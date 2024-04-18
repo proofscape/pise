@@ -214,6 +214,7 @@ class User(UserMixin):
         @param version: full version string.
         @param trusted: `True` if repo@version should be marked as trusted;
             `False` if not.
+        @return: boolean True if made a change, False if did not
         """
         repopath = get_repo_part(libpath)
         trust_settings_for_all_repos = self.prop(UserProps.K_TRUST)
@@ -232,6 +233,8 @@ class User(UserMixin):
         if made_change:
             trust_settings_for_all_repos[repopath] = trusted_versions_for_this_repo
             self.commit_properties()
+
+        return made_change
 
     def trusts(self, libpath, version):
         """

@@ -133,6 +133,38 @@ class UserSettingsUpdater(UserHandler):
             get_graph_writer().update_user(current_user)
 
 
+class UserTrustSettingsHandler(UserHandler):
+    """
+    Handle requests to make per-user settings of repos at versions.
+    """
+
+    def check_enabled(self):
+        if not check_config("RECORD_PER_USER_TRUST_SETTINGS"):
+            raise PfscExcep('Per-user trust setting recording not enabled.',
+                            PECode.SERVICE_DISABLED)
+        super().check_enabled()
+
+    def check_input(self):
+        self.check({
+            "REQ": {
+                'repopath': {
+                    'type': IType.LIBPATH,
+                    'repo_format': True,
+                },
+                'vers': {
+                    'type': IType.FULL_VERS,
+                },
+                'trust': {
+                    'type': IType.BOOLEAN,
+                },
+            },
+        })
+
+    def go_ahead(self, repopath, vers, trust):
+        made_change = current_user.makeTrustSetting(repopath.value, vers.full, trust)
+        self.set_response_field('made_change', made_change)
+
+
 class UserInfoExporter(UserHandler):
     """
     Handle requests from the user to export all their data, in machine-readable
