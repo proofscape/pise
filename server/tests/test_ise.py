@@ -136,6 +136,11 @@ def test_load_annotation(app, client, repos_ready):
                 print(json.dumps(data, indent=4))
             return data
 
+        def check_trust():
+            res = client.get(f'/ise/checkUserTrust?repopath={repopath}&vers={vers}')
+            d = handleAsJson(res)
+            return d['user_trust_setting']
+
         with login_context(client, 'moo'):
             client.post(f'/ise/requestSsnr', data={'activate': 1, 'confirm': 1})
             client.post(f'{ISE_PREFIX}/recordNotes', data={
@@ -158,19 +163,25 @@ def test_load_annotation(app, client, repos_ready):
             # Initially, repo is not trusted:
             w1_uid = 'test-wid-get-notes-Notes-w1_v0-2-0'
             assert data['widgets'][w1_uid]['trusted'] is False
+
             # User sets trust:
             client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=true')
             data = get_anno_data()
             assert data['widgets'][w1_uid]['trusted'] is True
+            assert check_trust() is True
+
             # User revokes trust:
             client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=false')
             data = get_anno_data()
             assert data['widgets'][w1_uid]['trusted'] is False
+            assert check_trust() is None
+
             # User sets trust, but at a different version:
             other_vers = 'v0.3.0'
             client.get(f'/ise/setUserTrust?repopath={repopath}&vers={other_vers}&trust=true')
             data = get_anno_data()
             assert data['widgets'][w1_uid]['trusted'] is False
+            assert check_trust() is None
 
 
 def test_load_annotation_02(app, client, repos_ready):
@@ -232,7 +243,7 @@ def test_load_annotation_02(app, client, repos_ready):
 
 def test_user_trust_setting_rejected(app, client, repos_ready):
     """
-    Check that requests to user trust endpoint are rejected
+    Check that requests to user trust setting endpoint are rejected
     when not configured to be accepted.
     """
     with app.app_context():
@@ -245,6 +256,26 @@ def test_user_trust_setting_rejected(app, client, repos_ready):
 
         with login_context(client, 'moo'):
             response = client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=true')
+            d = handleAsJson(response)
+            print(json.dumps(d, indent=4))
+            assert d['err_lvl'] == PECode.SERVICE_DISABLED
+
+
+def test_user_trust_check_rejected(app, client, repos_ready):
+    """
+    Check that requests to user trust checker endpoint are rejected
+    when not configured to be accepted.
+    """
+    with app.app_context():
+        app.config["ALLOW_TEST_REPO_LOGINS"] = True
+        # NOTE: We are deliberately *not* making any setting on the
+        # 'RECORD_PER_USER_TRUST_SETTINGS' config var. We want to test that
+        # the default mode is to reject.
+        repopath = 'test.wid.get'
+        vers = 'v0.2.0'
+
+        with login_context(client, 'moo'):
+            response = client.get(f'/ise/checkUserTrust?repopath={repopath}&vers={vers}')
             d = handleAsJson(response)
             print(json.dumps(d, indent=4))
             assert d['err_lvl'] == PECode.SERVICE_DISABLED

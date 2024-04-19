@@ -63,6 +63,7 @@ from pfsc.handlers.user      import (
     HostingRequestHandler,
     UserAcctPurgeHandler,
     UserTrustSettingsHandler,
+    UserTrustChecker,
 )
 
 bp = Blueprint('ise', __name__)
@@ -150,6 +151,11 @@ def user_update():
 @bp.route('/setUserTrust', methods=["GET"])
 def set_user_trust():
     return handle_and_jsonify(UserTrustSettingsHandler, request.args)
+
+
+@bp.route('/checkUserTrust', methods=["GET"])
+def check_user_trust():
+    return handle_and_jsonify(UserTrustChecker, request.args)
 
 
 @bp.route('/requestSsnr', methods=["POST"])
