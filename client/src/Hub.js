@@ -1284,6 +1284,8 @@ var Hub = declare(null, {
         dlg.show();
     },
 
+    /* Show an error alert, displaying a given message.
+     */
     errAlert: function(message) {
         if (message) {
             this.alert({
@@ -1295,6 +1297,9 @@ var Hub = declare(null, {
         }
     },
 
+    /* Given an XHR response object that does represent an error, show an
+     * alert describing the error.
+     */
     errAlert2: function(resp) {
         this.alert({
             title: `Error ${resp.err_lvl}`,
@@ -1302,6 +1307,10 @@ var Hub = declare(null, {
         });
     },
 
+    /* Given any XHR response object, check whether it represents an error
+     * or not. If so, show an appropriate alert. In all cases, return a boolean
+     * saying whether the response represented an error.
+     */
     errAlert3: function(resp) {
         const is_error = resp.err_lvl > 0;
         if (is_error) {
