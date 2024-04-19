@@ -374,6 +374,12 @@ export class BuildTreeManager extends TreeManager {
                 cm.addChild(new dojo.MenuSeparator());
                 // Repo options
                 cm.addChild(new dojo.MenuItem({
+                    label: "Trust...",
+                    onClick: function(evt){
+                        mgr.hub.trustManager.showTrustDialog(repopath, version);
+                    }
+                }));
+                cm.addChild(new dojo.MenuItem({
                     label: "Refresh",
                     onClick: function(evt){
                         mgr.hub.repoManager.reloadBuildTree(repopathv);

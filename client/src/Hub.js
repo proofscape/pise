@@ -45,6 +45,7 @@ var Hub = declare(null, {
     keyListener: null,
     socketManager: null,
     windowManager: null,
+    trustManager: null,
     menuManager: null,
     navManager: null,
     repoManager: null,
@@ -120,6 +121,8 @@ var Hub = declare(null, {
         requestSsnr: '/ise/requestSsnr',
         recordNotes: '/ise/recordNotes',
         loadNotes: '/ise/loadNotes',
+        setUserTrust: '/ise/setUserTrust',
+        checkUserTrust: '/ise/checkUserTrust',
         requestHosting: '/ise/requestHosting',
         exportUserInfo: '/ise/exportUserInfo',
         purgeNotes: '/ise/purgeNotes',
@@ -138,6 +141,7 @@ var Hub = declare(null, {
         keyListener,
         socketManager,
         windowManager,
+        trustManager,
         menuManager,
         navManager,
         repoManager,
@@ -176,6 +180,9 @@ var Hub = declare(null, {
 
         this.windowManager = windowManager;
         windowManager.hub = this;
+
+        this.trustManager = trustManager;
+        trustManager.hub = this;
 
         this.menuManager = menuManager;
         menuManager.hub = this;

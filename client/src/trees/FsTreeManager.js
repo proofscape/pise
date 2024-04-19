@@ -223,6 +223,12 @@ export class FsTreeManager extends TreeManager {
             // It is the repo.
             cm.addChild(new dojo.MenuSeparator());
             cm.addChild(new dojo.MenuItem({
+                label: "Trust...",
+                onClick: function(evt){
+                    mgr.hub.trustManager.showTrustDialog(repopath, "WIP");
+                }
+            }));
+            cm.addChild(new dojo.MenuItem({
                 label: "Refresh",
                 onClick: function(evt){
                     mgr.hub.repoManager.reloadFsTree(repopath);
