@@ -225,7 +225,7 @@ export class FsTreeManager extends TreeManager {
             cm.addChild(new dojo.MenuItem({
                 label: "Trust...",
                 onClick: function(evt){
-                    mgr.hub.trustManager.showTrustDialog(repopath, "WIP");
+                    mgr.hub.trustManager.showTrustDialog(repopath, "WIP", item.repoTrustedSiteWide);
                 }
             }));
             cm.addChild(new dojo.MenuItem({

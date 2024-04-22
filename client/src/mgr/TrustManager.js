@@ -24,18 +24,53 @@ export class TrustManager {
 
         this.canRecordTrustSettingsOnServer = !!ISE_state.userTrustRecordingAvailable;
         this.trustKeyPrefix = "pfsc:user:trust:";
+
+
+        // FIXME -----!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        this.docsUrlPrefix = 'https://docs.proofscape.org/en/stable';
+        this.docsUrlPrefix = 'http://localhost:8008';
+        // -------!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+        this.displayWidgetsDocsUrl = `${this.docsUrlPrefix}/ref/widgets/examp/disp.html#`;
+        this.piseConfigDocsUrl = `${this.docsUrlPrefix}/pise/advanced.html`;
     }
 
-    async showTrustDialog(repopath, version) {
-        const currentlyTrusted = await this.checkTrustSetting(repopath, version);
-        let content = '';  // TODO
+    async showTrustDialog(repopath, version, repoTrustedSiteWide) {
+        const title = 'Trust settings';
+        const dispWidgetsLink = `<a target="_blank" href="${this.displayWidgetsDocsUrl}">display widgets</a>`;
+        const piseConfigLink = `<a target="_blank" href="${this.piseConfigDocsUrl}">PISE config</a>`;
 
-        const choiceResult = await this.hub.choice({
-            title: 'Trust settings',
-            content: content,
-        });
+        // The value of the passed `repoTrustedSiteWide` boolean was loaded along with the structure
+        // or file system model, when the repo was loaded, and reports only on the site-wide
+        // setting for the repo.
+        if (repoTrustedSiteWide) {
+            // In this case, the user can't override the site-wide setting, so instead of a choice
+            // dialog, we display a merely informational dialog.
+            const location = this.hub.OCA_version ? `in your ${piseConfigLink}` : 'at this website';
+            const content = `<p>The repo ${repopath} is marked as trusted ${location},
+                             so all of its ${dispWidgetsLink} run by default.</p>`;
+            this.hub.alert({title, content});
+        } else {
+            // Here we define `currentlyTrusted`, which incorporates the per-user trust setting for
+            // this repo@version, if any.
+            const currentlyTrusted = await this.checkTrustSetting(repopath, version);
 
-        // TODO...
+            const content = currentlyTrusted ?
+                `<p>Do you want to revoke trust from ${repopath}@${version} and prevent its ${dispWidgetsLink} from running?</p>` :
+                `<p>Do you want to trust ${repopath}@${version} and allow its ${dispWidgetsLink} to run?</p>`;
+
+            const choiceResult = await this.hub.choice({
+                title: title,
+                content: content,
+            });
+            if (choiceResult.accepted) {
+                await this.recordTrustSetting(repopath, version, !currentlyTrusted);
+
+                // TODO: Reload open panels that could be affected by this change.
+
+            }
+        }
     }
 
     /* Record a trust setting for repopath@version.
