@@ -35,7 +35,7 @@ from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_com
 from pfsc.gdb import get_graph_reader, building_in_gdb
 
 
-def libpath_is_trusted(libpath, version):
+def libpath_is_trusted(libpath, version, ignore_user=False):
     """
     Check whether a libpath (optionally specified to a single version) is considered to be trusted,
     according to (a) per-user settings, primarily, and (b) the server configuration, secondarily.
@@ -46,12 +46,13 @@ def libpath_is_trusted(libpath, version):
         of version. I.e. this considers only libpaths. In future work, we may want to
         allow (optional) setting of version numbers here. At present, version number only
         affects per-user trust settings.
+    @param ignore_user: if True, then ignore the user, and consult only server configuration.
     @return: boolean: True if libpath is trusted, False if not.
     """
     is_trusted = None
 
     # Is there an authenticated user?
-    if has_request_context() and current_user.is_authenticated:
+    if has_request_context() and current_user.is_authenticated and not ignore_user:
         # Check per-user settings.
         # Make sure we get `True` or `None`; not `False`.
         is_trusted = current_user.trusts(libpath, version) or None

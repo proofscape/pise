@@ -27,6 +27,7 @@ from pfsc.handlers import RepoTaskHandler
 from pfsc.checkinput import IType
 from pfsc.checkinput.version import check_full_version
 from pfsc.build import build_repo
+from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.build.manifest import has_manifest, load_manifest
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (
@@ -213,9 +214,10 @@ class RepoLoader(RepoTaskHandler):
         manifest = load_manifest(repopath, cache_control_code=ccc, version=self.version)
         root = manifest.get_root_node()
 
-        # Since only the tree model is sent to the client, we load certain
-        # extra information from the manifest into the root node.
-        root.update_data({'docInfo': manifest.doc_infos})
+        root.update_data({
+            'docInfo': manifest.doc_infos,
+            'repoTrustedSiteWide': libpath_is_trusted(repopath, self.version, ignore_user=True),
+        })
 
         model = []
         root.build_relational_model(model, lift_sphinx_pages=True)
