@@ -54,13 +54,22 @@ export class TrustManager {
         } else {
             const currentlyTrustedByUser = await this.checkPerUserTrustSetting(repopath, version);
 
-            const content = currentlyTrustedByUser ?
-                `<p>Do you want to revoke trust from ${repopath}@${version} and prevent its ${dispWidgetsLink} from running?</p>` :
-                `<p>Do you want to trust ${repopath}@${version} and allow its ${dispWidgetsLink} to run?</p>`;
+            const innerContent = currentlyTrustedByUser ?
+                `<h2>Repo is currently trusted.</h2>
+                 <p>Do you want to revoke trust from <code>${repopath}@${version}</code>
+                    and prevent its ${dispWidgetsLink} from running?</p>` :
+                `<h2>Repo is currently untrusted.</h2>
+                 <p>Do you want to trust <code>${repopath}@${version}</code>
+                    and allow its ${dispWidgetsLink} to run?</p>`;
+
+            const content = `<div class="iseDialogContentsStyle01">${innerContent}</div>`;
+
+            const okButtonText = currentlyTrustedByUser ? 'Revoke trust' : 'Grant trust';
 
             const choiceResult = await this.hub.choice({
                 title: title,
                 content: content,
+                okButtonText: okButtonText,
             });
             if (choiceResult.accepted) {
                 const newTrustSetting = !currentlyTrustedByUser;
