@@ -162,7 +162,7 @@ const ExampWidget = declare(Widget, {
     },
 
     makePyProxyAndBuild: async function(paneId, writeHtml) {
-        if (this.okayToBuild()) {
+        if (await this.okayToBuild()) {
             // At present, the `okayToBuild()` test is not really necessary here, as nothing
             // risky happens in the `__init__()` method of the `ExampDisplay` class. But we
             // don't want to count on this never changing during future development.
@@ -263,7 +263,7 @@ const ExampWidget = declare(Widget, {
         }
     },
 
-    okayToBuild: function() {
+    okayToBuild: async function() {
         return false;
     },
 
@@ -285,7 +285,7 @@ const ExampWidget = declare(Widget, {
             value = null,
             writeHtml = false,
         } = options || {};
-        if (this.okayToBuild()) {
+        if (await this.okayToBuild()) {
             await this.hub.mathWorkerReady;
             return this.hub.mathWorkerPeer.postRequest('rebuild', {
                 uid: this.uid,
