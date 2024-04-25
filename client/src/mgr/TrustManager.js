@@ -63,11 +63,44 @@ export class TrustManager {
                 content: content,
             });
             if (choiceResult.accepted) {
-                await this.recordTrustSetting(repopath, version, !currentlyTrusted);
-
-                // TODO: Reload open panels that could be affected by this change.
-
+                const newTrustSetting = !currentlyTrustedByUser;
+                await this.recordTrustSetting(repopath, version, newTrustSetting);
+                await this.reloadPages(repopath, version);
             }
+        }
+    }
+
+    /* Reload all open pages (Sphinx and anno) that belong to the given repopath@version,
+     * and that contain one or more display widgets, thus allowing new trust settings to
+     * take effect.
+     */
+    async reloadPages(repopath, version) {
+        // Grab all existing display widgets belonging to the given repo@version.
+        const libpathPrefix = repopath + '.';
+        const disps = Array.from(this.hub.notesManager.widgets.values()).filter(
+            w => w.origInfo.type === "DISP" && w.version === version && w.libpath.startsWith(libpathPrefix)
+        );
+
+        // Can a display widget import from one belonging to a different page?
+        // Just in case that's possible, start by sorting.
+        disps.sort((a, b) => a.compareByDependency(b));
+
+        // Get all paneIds where these widgets appear.
+        const paneIdsInOrder = [];
+        const paneIdsSeenSoFar = new Set();
+        for (const disp of disps) {
+            for (const paneId of disp.panesById.keys()) {
+                if (!paneIdsSeenSoFar.has(paneId)) {
+                    paneIdsInOrder.push(paneId);
+                    paneIdsSeenSoFar.add(paneId);
+                }
+            }
+        }
+
+        // Reload panels
+        for (const paneId of paneIdsInOrder) {
+            const viewer = this.hub.notesManager.getViewerForPaneId(paneId);
+            await viewer.refresh();
         }
     }
 
