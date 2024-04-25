@@ -468,12 +468,14 @@ export class BuildTreeManager extends TreeManager {
 
     /* Given the libpath and version of any item in a repo,
      * retrieve the root item for that tree.
+     *
+     * See also: FsTreeManager.getRootItemForMemberLibpath()
      */
     getRootItemForMemberLibpathAndVersion(libpath, version) {
         const repopath = iseUtil.getRepoPart(libpath);
         const treeUid = iseUtil.lv(repopath, version);
         const store = this.stores.get(treeUid);
-        return store.query({id: repopath})[0];
+        return store?.query({id: repopath})[0];
     }
 
     /* Retrieve a tree item by its libpath and version.

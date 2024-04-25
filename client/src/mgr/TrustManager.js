@@ -52,11 +52,9 @@ export class TrustManager {
                              so all of its ${dispWidgetsLink} run by default.</p>`;
             this.hub.alert({title, content});
         } else {
-            // Here we define `currentlyTrusted`, which incorporates the per-user trust setting for
-            // this repo@version, if any.
-            const currentlyTrusted = await this.checkTrustSetting(repopath, version);
+            const currentlyTrustedByUser = await this.checkPerUserTrustSetting(repopath, version);
 
-            const content = currentlyTrusted ?
+            const content = currentlyTrustedByUser ?
                 `<p>Do you want to revoke trust from ${repopath}@${version} and prevent its ${dispWidgetsLink} from running?</p>` :
                 `<p>Do you want to trust ${repopath}@${version} and allow its ${dispWidgetsLink} to run?</p>`;
 
@@ -103,7 +101,11 @@ export class TrustManager {
         }
     }
 
-    /* Check a trust setting for repopath@version.
+    /* Check the user's trust setting for repopath@version.
+     *
+     * See also:
+     *   checkCombinedTrustSetting()
+     *   RepoManager.repoIsTrustedSiteWide()
      *
      * This is the high-level API method. It decides whether to check the server,
      * or check locally, and returns the appropriate result.
@@ -112,7 +114,7 @@ export class TrustManager {
      * @param version: the full version string
      * @return: boolean saying whether repopath@version is currently trusted
      */
-    async checkTrustSetting(repopath, version) {
+    async checkPerUserTrustSetting(repopath, version) {
         if (this.canRecordTrustSettingsOnServer) {
             const resp = await this.hub.xhrFor('checkUserTrust', {
                 query: {
@@ -131,6 +133,20 @@ export class TrustManager {
         } else {
             return this.checkTrustSettingLocally(repopath, version);
         }
+    }
+
+    /* Check the "combined" trust setting for repopath@version, which disjoins
+     * the site-wide setting with the per-user setting.
+     *
+     * * See also:
+     *   checkPerUserTrustSetting()
+     *   RepoManager.repoIsTrustedSiteWide()
+     */
+    async checkCombinedTrustSetting(repopath, version) {
+        if (this.hub.repoManager.repoIsTrustedSiteWide(repopath, version)) {
+            return true;
+        }
+        return await this.checkPerUserTrustSetting(repopath, version);
     }
 
     // -----------------------------------------------------------------------

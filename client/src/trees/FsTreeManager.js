@@ -131,6 +131,16 @@ export class FsTreeManager extends TreeManager {
         return items[0];
     }
 
+    /* Given the libpath of any item in a repo,
+     * retrieve the root item for that tree.
+     *
+     * See also: BuildTreeManager.getRootItemForMemberLibpathAndVersion()
+     */
+    getRootItemForMemberLibpath(libpath) {
+        const repopath = iseUtil.getRepoPart(libpath);
+        return this.lookupItemByLibpathAndType(repopath, "DIR");
+    }
+
     /* Locate a TreeNode by the libpath and type it represents.
      *
      * Note: type is required since some items have the same libpath.

@@ -524,6 +524,20 @@ export class RepoManager {
         };
     }
 
+    /* Check whether a repo is marked as being trusted site-wide.
+     */
+    repoIsTrustedSiteWide(repopath, version) {
+        const repopathv = iseUtil.lv(repopath, "WIP");
+        const loaded = this.repoIsLoaded({repopathv});
+        let item = {};
+        if (loaded.fs) {
+            item = this.fsMgr.getRootItemForMemberLibpath(repopath);
+        } else if (loaded.build) {
+            item = this.buildMgr.getRootItemForMemberLibpathAndVersion(repopath, version);
+        }
+        return item.repoTrustedSiteWide;
+    }
+
     expandNodesPlusAncestors(repopathv, toExpand) {
         if (toExpand.fsNodeIds) {
             const repopath = iseUtil.parseTailVersionedLibpath(repopathv).libpath;
