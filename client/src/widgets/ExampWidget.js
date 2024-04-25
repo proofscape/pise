@@ -116,6 +116,23 @@ const ExampWidget = declare(Widget, {
         }
     },
 
+    /* Comparison function for topological sorting of examp widgets by dependency.
+     *
+     * To use, form an array E of examp widgets and use
+     *
+     *   E.sort((a, b) => a.compareByDependency(b));
+     *
+     */
+    compareByDependency: function(other) {
+        if (other.allDeps.has(this.uid)) {
+            return -1;
+        } else if (this.allDeps.has(other.uid)) {
+            return 1;
+        } else {
+            return 0;
+        }
+    },
+
     val: function(paneId) {
         return null;
     },
