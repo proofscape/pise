@@ -183,7 +183,7 @@ var NotesManager = declare(AbstractContentManager, {
             reloader: (libpath, paneIds, url) => {
                 for (const paneId of paneIds) {
                     const viewer = viewers[paneId];
-                    viewer.refresh(url);
+                    viewer.refresh();
                 }
             },
         });

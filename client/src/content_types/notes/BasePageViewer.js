@@ -253,6 +253,12 @@ export class BasePageViewer extends Listenable {
         this.dispatch(event);
     }
 
+    async refresh() {
+        const loc = this.describeCurrentLocation();
+        loc.forceReload = true;
+        await this.reloadPage(loc);
+    }
+
     /* Update the page, according to a location descriptor.
      * Here we do not touch the history. We only work with the actual contents of the page.
      *
