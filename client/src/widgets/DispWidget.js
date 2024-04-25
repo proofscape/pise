@@ -86,7 +86,7 @@ const DispWidget = declare(ExampWidget, {
         this.inherited(activate, arguments);
         const activation = this.activationByPaneId.get(pane.id);
         activation.then(() => {
-            // Procede only if the pane still exists. It could have been closed while waiting
+            // Proceed only if the pane still exists. It could have been closed while waiting
             // for Pyodide to load, and the math worker to be ready.
             if (this.existsInPane(pane.id)) {
                 const widgetElement = this.widgetElementByPaneId.get(pane.id);
