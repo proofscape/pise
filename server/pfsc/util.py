@@ -286,53 +286,90 @@ def run_cmd_in_dir(cmd, dir_path, silence=False):
     os.system(full_cmd)
 
 
-def unindent(text, space=' ', newline='\n', tabwidth=4, nocr=True, strip_empty_lines=True):
+def unindent(text, space=' ', newline='\n', tabwidth=4, cut_inner_blank_lines=True):
     """
-    Normalize whitespace and unindent so leftmost nonempty line has zero indent.
+    Normalize whitespace and unindent so first non-blank line has zero indent.
+
+    Definitions:
+        * A blank line is one consisting only of whitespace, i.e. \n, \r, \t or ' ' chars.
+        * "Normalize" means:
+          - Strip any and all outer blank lines. Outer means initial or final.
+          - Remove any and all \r chars.
+          - Optionally, expand tabs to spaces.
+
+    @param text: The text (string) to be processed.
+    @param space: String to use for creating each "space" at the beginning of those lines
+        that are indented beyond the "basic" indentation (i.e. the indentation that is removed
+        from all lines). Default: ' '. Useful e.g. if set to '&nbsp;' when generating HTML.
+    @param newline: String to use for creating line breaks in the final text.
+        Default: '\n'. Useful e.g. if set to '<br>\n' when generating HTML.
+    @param tabwidth: If a positive integer (default 4), all tab chars will be expanded
+        to this many spaces.
+    @param cut_inner_blank_lines: If True (the default), then eliminate any *inner* blank
+        lines too, i.e. blank lines that would still remain after all outer ones had been stripped.
+
+    @return: The processed string.
     """
+    # Expand tabs
     if isinstance(tabwidth, int) and tabwidth > 0:
         text = text.replace('\t', ' ' * tabwidth)
-    if nocr:
-        text = text.replace('\r', '')
-    if strip_empty_lines:
-        text = text.strip('\n')
+    # Remove carriage returns
+    text = text.replace('\r', '')
+    # Strip outer empty lines.
+    text = text.strip('\n')
+
+    if not text:
+        return ''
 
     lines = text.split('\n')
 
-    numBlankLines = 0
+    # Strip outer blank lines
+    num_trailing_blank_lines = 0
+    for line in lines[::-1]:
+        if not line.strip():
+            num_trailing_blank_lines += 1
+        else:
+            break
+    if num_trailing_blank_lines > 0:
+        lines = lines[0:-num_trailing_blank_lines]
+
+    num_leading_blank_lines = 0
     for line in lines:
         if not line.strip():
-            numBlankLines += 1
+            num_leading_blank_lines += 1
         else:
             break
     else:
-        # text is all whitespace!
         return ''
 
-    core = lines[numBlankLines:]
+    core = lines[num_leading_blank_lines:]
 
     # Determine basic indentation.
     top = core[0]
     basic = 0
-    while top[basic] == ' ': basic += 1
+    while top[basic] == ' ':
+        basic += 1
+
+    # Initialize the unindented text:
     u = ''
-    if not strip_empty_lines:
-        u += '\n'.join(lines[:numBlankLines])
 
     first = True
     for line in core:
         st = line.strip()
-        if strip_empty_lines and (not st):
+        if cut_inner_blank_lines and (not st):
             continue
         if first:
             first = False
         else:
             u += newline
         sp = 0
-        while line[sp] == ' ': sp += 1
+        if line:
+            while line[sp] == ' ':
+                sp += 1
         if sp > basic:
             u += space * (sp - basic)
         u += st
+
     return u
 
 
