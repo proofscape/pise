@@ -363,9 +363,11 @@ def unindent(text, space=' ', newline='\n', tabwidth=4, cut_inner_blank_lines=Tr
         else:
             u += newline
         sp = 0
-        if line:
+        if st:
             while line[sp] == ' ':
                 sp += 1
+        else:
+            sp = len(line)
         if sp > basic:
             u += space * (sp - basic)
         u += st
