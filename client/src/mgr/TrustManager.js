@@ -32,8 +32,8 @@ export class TrustManager {
         // -------!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-        this.displayWidgetsDocsUrl = `${this.docsUrlPrefix}/ref/widgets/examp/disp.html#`;
-        this.piseConfigDocsUrl = `${this.docsUrlPrefix}/pise/advanced.html`;
+        this.displayWidgetsDocsUrl = `${this.docsUrlPrefix}/ref/widgets/examp/disp.html`;
+        this.piseConfigDocsUrl = `${this.docsUrlPrefix}/pise/advanced.html#configuration`;
     }
 
     async showTrustDialog(repopath, version, repoTrustedSiteWide) {
