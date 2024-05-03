@@ -143,11 +143,11 @@ anno {{pagename}} @@@
 study_page_anno_section_template = jinja2.Template('''
 ## Page
 
-<link:>[`{{ai.anno_name}}`]{tab:"other", ref:"{{ai.anno_name}}"}
+<link:>[`{{ai.anno_name}}`]{tab:"other", ref:{{ai.anno_name}}}
 
 ## Goals
 {% for goal_name, origin in ai.goal_widgets %}
-<goal:>[]{altpath:"{{ai.anno_name}}.{{goal_name}}", origin:"{{origin}}"} <link:>[`{{goal_name}}`]{tab:"other", ref:"{{ai.anno_name}}.{{goal_name}}"}
+<goal:>[]{altpath:"{{ai.anno_name}}.{{goal_name}}", origin:"{{origin}}"} <link:>[`{{goal_name}}`]{tab:"other", ref:{{ai.anno_name}}.{{goal_name}}}
 {% if notes[origin] %}
 {{notes[origin]}}
 {% endif %}
