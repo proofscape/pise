@@ -135,6 +135,7 @@ def writeAnnolinkHTML(url, label, node, link_num):
     lw = LinkWidget(f'_x{link_num}', '', {'ref': libpath, 'tab': 'other'}, node, 0)
     lw.cascadeLibpaths()
     lw.resolve()
+    lw.enrich_data()
     data = lw.writeData()
     d = json.dumps(data)
     h = '<span class="annolink customlink">%s<span class="annolinkInfo" style="display:none;">%s</span></span>' % (
