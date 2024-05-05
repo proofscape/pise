@@ -25,12 +25,9 @@ export class TrustManager {
         this.canRecordTrustSettingsOnServer = !!ISE_state.userTrustRecordingAvailable;
         this.trustKeyPrefix = "pfsc:user:trust:";
 
-
-        // FIXME -----!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         this.docsUrlPrefix = 'https://docs.proofscape.org/en/stable';
-        this.docsUrlPrefix = 'http://localhost:8008';
-        // -------!!!!!!!!!!!!!!!!!!!!!!!!
-
+        // Useful in development:
+        //this.docsUrlPrefix = 'http://localhost:8008';
 
         this.displayWidgetsDocsUrl = `${this.docsUrlPrefix}/ref/widgets/examp/disp.html`;
         this.piseConfigDocsUrl = `${this.docsUrlPrefix}/pise/advanced.html#configuration`;
