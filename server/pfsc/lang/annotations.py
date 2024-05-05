@@ -17,7 +17,7 @@
 import json
 
 from pfsc.lang.objects import EnrichmentPage, EnrichmentType
-from pfsc.build.lib.libpath import libpath_is_trusted
+from pfsc import libpath_is_trusted
 from pfsc.excep import PfscExcep, PECode
 from pfsc.constants import IndexType
 from pfsc.lang.freestrings import (

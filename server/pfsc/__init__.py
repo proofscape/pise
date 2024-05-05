@@ -25,7 +25,7 @@ from flask import (
 )
 from flask.cli import AppGroup
 from flask_socketio import SocketIO
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_mail import Mail
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -71,6 +71,36 @@ def check_config(var_name):
     else:
         config_class = get_config_class()
         return getattr(config_class, var_name, None)
+
+
+def libpath_is_trusted(libpath, version, ignore_user=False):
+    """
+    Check whether a libpath (optionally specified to a single version) is considered to be trusted,
+    according to (a) per-user settings, primarily, and (b) the server configuration, secondarily.
+
+    @param libpath: the libpath to be tested
+    @param version: the full version string in question
+        Note: Currently, trust set by the `PFSC_TRUSTED_LIBPATHS` config var is irrespective
+        of version. I.e. this considers only libpaths. In future work, we may want to
+        allow (optional) setting of version numbers here. At present, version number only
+        affects per-user trust settings.
+    @param ignore_user: if True, then ignore the user, and consult only server configuration.
+    @return: boolean: True if libpath is trusted, False if not.
+    """
+    is_trusted = None
+
+    # Is there an authenticated user?
+    if has_request_context() and current_user.is_authenticated and not ignore_user:
+        # Check per-user settings.
+        # Make sure we get `True` or `None`; not `False`.
+        is_trusted = current_user.trusts(libpath, version) or None
+
+    # Only if haven't made a decision yet, consult server-wide config:
+    if is_trusted is None:
+        tpm = current_app.config['trusted_prefix_mapping']
+        is_trusted = libpath in tpm([libpath])
+
+    return is_trusted
 
 
 def get_build_dir(cache_dir=False, sphinx_dir=False):

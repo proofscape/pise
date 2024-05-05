@@ -19,7 +19,7 @@ import os
 from flask_login import current_user
 from pygit2 import clone_repository, GitError, RemoteCallbacks
 
-from pfsc import check_config
+from pfsc import check_config, libpath_is_trusted
 import pfsc.constants
 from pfsc.permissions import have_repo_permission, ActionType
 from pfsc.excep import PfscExcep, PECode
@@ -27,7 +27,6 @@ from pfsc.handlers import RepoTaskHandler
 from pfsc.checkinput import IType
 from pfsc.checkinput.version import check_full_version
 from pfsc.build import build_repo
-from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.build.manifest import has_manifest, load_manifest
 from pfsc.build.repo import RepoInfo
 from pfsc.build.demo import (

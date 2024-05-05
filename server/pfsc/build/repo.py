@@ -25,7 +25,7 @@ from pygit2 import (
 
 import pfsc.constants
 from pfsc.constants import PFSC_EXT, RST_EXT, WIP_TAG
-from pfsc import check_config, get_build_dir
+from pfsc import check_config, get_build_dir, libpath_is_trusted
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
 from pfsc.util import run_cmd_in_dir, conditionally_unlink_files
@@ -386,12 +386,6 @@ class RepoInfo:
     def load_fs_model(self):
         if not self.is_dir:
             return []
-
-        # FIXME:
-        #  This is here to break cyclic import.
-        #  Would be better to move the function, maybe to the `pfsc/__init__.py` module.
-        from pfsc.build.lib.libpath import libpath_is_trusted
-
         root_node = FilesystemNode(self.libpath, '.', self.libpath, FilesystemNode.DIR, extra_data={
             'repoTrustedSiteWide': libpath_is_trusted(self.libpath, WIP_TAG, ignore_user=True),
         })

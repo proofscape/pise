@@ -34,8 +34,8 @@ from pfsc.lang.freestrings import render_anno_markdown, Libpath
 from pfsc.build.lib.libpath import (
     expand_multipath,
     get_formal_moditempath,
-    libpath_is_trusted,
 )
+from pfsc import libpath_is_trusted
 from pfsc.build.repo import get_repo_part, make_repo_versioned_libpath
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj
