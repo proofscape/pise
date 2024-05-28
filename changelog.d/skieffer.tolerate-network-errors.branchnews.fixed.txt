@@ -1,0 +1,2 @@
+The OCA now fails gracefully when checking for updates, if you have
+no internet connection. (Previously, reported a 500 error.)

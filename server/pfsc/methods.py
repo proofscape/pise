@@ -18,12 +18,16 @@
 Methods of handling requests.
 """
 
+import sys
 import logging
 from io import BytesIO
+import traceback
 from urllib.robotparser import RobotFileParser
+from urllib.error import URLError
 
 from flask import jsonify, render_template, send_file, url_for
 import requests
+from requests.exceptions import ConnectionError
 
 from pfsc import get_app, check_config
 from pfsc.rq import get_rqueue
@@ -234,21 +238,30 @@ def try_to_proxy(url, robots_url=None):
     robots_url: If given, we'll first check the robots.txt file served from
       this URL, and fetch the desired URL only if we're allowed.
 
-    returns: None if the respose code is other than 200, or if robots_url is
-      given and we are told not to access the desired URL. Otherwise, return
-      the content obtained.
+    returns: `None` if:
+        * There was a network problem, as reflected by:
+            - urllib.error.URLError, or
+            - requests.exceptions.ConnectionError, or
+        * The response code was other than 200, or
+        * If robots_url was given and we were told not to access the desired URL.
+      Otherwise, return the content obtained.
     """
     content = None
     can_fetch = True
-    if robots_url:
-        rfp = RobotFileParser()
-        rfp.set_url(robots_url)
-        rfp.read()
-        can_fetch = rfp.can_fetch("*", url)
-    if can_fetch:
-        response = requests.get(url)
-        if response.status_code == 200:
-            content = response.content
+    try:
+        if robots_url:
+            rfp = RobotFileParser()
+            rfp.set_url(robots_url)
+            rfp.read()
+            can_fetch = rfp.can_fetch("*", url)
+        if can_fetch:
+            response = requests.get(url)
+            if response.status_code == 200:
+                content = response.content
+    except (URLError, ConnectionError):
+        sys.stderr.write(f'try_to_proxy() failed on url={url}, robots_url={robots_url}\n')
+        sys.stderr.write('with stack trace:\n')
+        traceback.print_exc()
     return content
 
 
