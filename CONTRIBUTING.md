@@ -16,11 +16,27 @@ time it was discussed.
 ## Pull Requests
 
 This project [keeps a changelog](https://keepachangelog.com/), which is meant
-to record changes of interest to users of the software. Therefore every PR
-should include a *news fragment file* (see below), unless its changes are
-of interest only to developers, not users.
+to record changes of interest to users of the software. Therefore, before opening
+a PR, please follow the steps below.
 
-To generate a news fragment file, follow the steps below.
+1. Does your PR make any changes of interest to *users*? If the changes are of
+   interest only to developers, then STOP. You don't need to record a news
+   fragment.
+
+2. Are you changing *again* something that has already been changed one or more
+   times (by you or anyone else) in this release cycle? If so, then you probably
+   need to edit an *existing* news fragment file in the `changelog.d` directory,
+   and maybe even delete it, if none of its changes survives. But don't describe
+   any *new* changes from your PR in this file.
+   
+   You *also* need to generate a *new* news fragment file, to describe new changes
+   from your PR. Continue to Step 3.
+
+3. If you've made it to this step, then you need to generate one or more
+   news fragment files. You should generate one for each *category* to which
+   your changes belong (i.e. improvements, bug fixes, etc.).
+
+### Generating a news fragment file
 
 1. Be at the root level of the repo, and make sure the Python virtual environment
    is installed and active. (The installation steps only need to be performed once.)
@@ -46,12 +62,14 @@ To generate a news fragment file, follow the steps below.
    When you are asked to choose the *type* of news, you may find the following guidelines
    helpful:
 
-   * **added:** improvements, new features
-   * **changed:** breaking changes
-   * **fixed:** bug fixes
-   * **deprecated:** an old feature has been deprecated
-   * **removed:** a deprecated feature has been removed
-   * **security:** security fixes
+   * **Breaking Changes:** Usually this means you're making it so that old
+     Proofscape projects won't compile anymore.
+   * **Improvements:** You improved things, or added new features, in a
+     backwards-compatible way.
+   * **Bug Fixes:** You fixed one or more bugs.
+   * **deprecated:** An old feature has been deprecated.
+   * **removed:** A deprecated feature has been removed.
+   * **security:** Special category to highlight security-relevant fixes.
 
 3. Edit the generated file, replacing the auto-generated contents with an entry 
    describing your changes. Tips:
@@ -62,7 +80,7 @@ To generate a news fragment file, follow the steps below.
    * Remember that this is for human consumption, and intended more for *users* of the
      software, than for developers.
 
-4. Commit the file to version control. A simple commit message like `Add news file` will do.
+4. Commit the file to version control. A simple commit message like `Add news fragment` will do.
 
 
 ## Code of Conduct

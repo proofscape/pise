@@ -7,18 +7,18 @@ title_format = "## [{version}](https://github.com/proofscape/pise/tree/{version}
 issue_format = "[#{issue}](https://github.com/proofscape/pise/issues/{issue})"
 
 [[tool.towncrier.type]]
-directory = "added"
-name = "Added"
+directory = "changed"
+name = "Breaking Changes"
 showcontent = true
 
 [[tool.towncrier.type]]
-directory = "changed"
-name = "Changed"
+directory = "improved"
+name = "Improvements"
 showcontent = true
 
 [[tool.towncrier.type]]
 directory = "fixed"
-name = "Fixed"
+name = "Bug Fixes"
 showcontent = true
 
 [[tool.towncrier.type]]

@@ -1,4 +1,4 @@
 # The venv at the root level of this project is just for
 # building the changelog.
 towncrier>=23.11.0
-branchnews>=0.1.0
+branchnews>=0.2.0
