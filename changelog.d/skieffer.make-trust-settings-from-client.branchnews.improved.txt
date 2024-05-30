@@ -1,0 +1,3 @@
+* Support making trust settings through PISE.
+* More flexible whitespace on `build` field in `disp` widgets: leading
+  and trailing blank lines, and basic indentation, are ignored.
