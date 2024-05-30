@@ -19,7 +19,7 @@ import json
 import pytest
 
 from pfsc.excep import PfscExcep, PECode
-from pfsc.lang.modules import load_module
+from pfsc.lang.modules import load_module, build_module_from_text
 from pfsc.build.repo import RepoInfo
 
 widget_data_1 = """{
