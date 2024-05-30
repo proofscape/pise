@@ -1,0 +1,2 @@
+In `param` widgets, `tex` field is now required, and `name` field is
+no longer accepted.
