@@ -1,0 +1,7 @@
+* Introduce type checking for widget fields.
+* Raise exception on presence of unexpected widget fields.
+* The string format that was introduced for `color` and `hoverColor` in
+    Sphinx is now accepted both in Sphinx and in annos, as an alternative
+    to the older, dictionary format. The older format is also still accepted
+    in both places.
+* Improve error reporting on malformed JSON in widgets in Sphinx pages.
