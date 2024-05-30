@@ -3,7 +3,7 @@
   "pyodide": "0.21.0",
   "pfsc-examp": "0.24.0",
   "pfsc-util": "0.22.8",
-  "displaylang": "0.23.0",
+  "displaylang": "0.24.0",
   "displaylang-sympy": "0.10.4",
   "lark": "0.6.7",
   "typeguard": "2.13.3",
