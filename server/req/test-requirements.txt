@@ -165,9 +165,9 @@ packaging==23.1 \
     # via
     #   -c requirements.txt
     #   pytest
-pfsc-examp==0.23.0 \
-    --hash=sha256:1ab6bbfb06e24f27204ed90b3128a592dc203857161f5c3863d562c95b2342f8 \
-    --hash=sha256:a5cbd531f0690111c16739063aaf1b04b2c6b30c9a95cb56f4b4d7b6a6254786
+pfsc-examp==0.24.0 \
+    --hash=sha256:3020a680a7565e66f21721c9f9024ac0c7a1dc3bb339348126c0194d3ada8be7 \
+    --hash=sha256:90aa09d8c1fb63f8c9fb8c83ae96488d5365081dd97732df469158bad2500830
     # via -r test-requirements.in
 pfsc-util==0.22.8 \
     --hash=sha256:2967e36233fc05b303257d1639317e9d8db3e50f8054cc5f48b8da6dd36042a0 \
