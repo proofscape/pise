@@ -1,3 +1,2 @@
 * Auto-generated widget names in annotations now begin with underscore.
-* Authors must supply names for `goal` widgets.
 
