@@ -16,17 +16,17 @@
 
 PISE_notice = """\
 Proofscape Integrated Study Environment (PISE)
-Copyright (c) 2011-2023 Proofscape Contributors
+Copyright (c) 2011-2024 Proofscape Contributors
 """
 
 moose_notice = """\
 Proofscape Moose
-Copyright (c) 2011-2023 Proofscape Contributors
+Copyright (c) 2011-2024 Proofscape Contributors
 """
 
 displaylang_notice = """\
 DisplayLang
-Copyright (c) 2020-2022 DisplayLang contributors
+Copyright (c) 2020-2024 DisplayLang contributors
 """
 
 tinkerpop_notice = """\
