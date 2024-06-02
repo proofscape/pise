@@ -104,6 +104,13 @@ COPYRIGHT_INFO_PER_REPO = {
             'tests': ['**/*.py'],
         },
     },
+    "docs-site": {
+        "src_dir": "pise-docs",
+        "dirs": {
+            'source': ['**/*.rst'],
+            'other': ['**/*.tex'],
+        },
+    },
     "examp": {
         "src_dir": "pfsc-examp",
         "statement": {
@@ -428,6 +435,49 @@ def cyear(dry_run, repo):
         print()
 
 
+def header_and_remainder(text):
+    """
+    Split the text of a file into header and remainder.
+    """
+    # Auto-recognize comment style, and seek end of header
+    header = None
+    rem = None
+    if text.startswith("#"):
+        # Python
+        M = re.search(r'\n[^#]', text)
+        if M:
+            i = M.start()
+            header, rem = text[:i + 1], text[i + 1:]
+    elif text.startswith("/*"):
+        # JS & CSS
+        i = text.find("*/\n")
+        if i > 0:
+            header, rem = text[:i + 3], text[i + 3:]
+    elif text.startswith("<!--"):
+        # HTML
+        i = text.find("-->\n")
+        if i > 0:
+            header, rem = text[:i + 4], text[i + 4:]
+    elif text.startswith("{#"):
+        # Jinja template file
+        i = text.find("#}\n")
+        if i > 0:
+            header, rem = text[:i + 3], text[i + 3:]
+    elif text.startswith("%"):
+        # TeX
+        M = re.search(r'\n[^%]', text)
+        if M:
+            i = M.start()
+            header, rem = text[:i + 1], text[i + 1:]
+    elif text.startswith(".. "):
+        # rST
+        i = text.find("..:\n")
+        if i > 0:
+            header, rem = text[:i + 4], text[i + 4:]
+
+    return header, rem
+
+
 @update.command()
 @click.option('-c', '--div-char', default="~", help="The divider character. Default: '~'")
 @click.option('-n', '--div-len', default="80", help="The length of the divider. Default: 80")
@@ -464,26 +514,7 @@ def cat(div_char, div_len, dry_run, verbose, repo):
         with open(path) as f:
             text = f.read()
 
-        # Auto-recognize comment style, and seek end of header
-        header = None
-        rem = None
-        if text.startswith("#"):
-            M = re.search(r'\n[^#]', text)
-            if M:
-                i = M.start()
-                header, rem = text[:i+1], text[i+1:]
-        elif text.startswith("/*"):
-            i = text.find("*/\n")
-            if i > 0:
-                header, rem = text[:i+3], text[i+3:]
-        elif text.startswith("<!--"):
-            i = text.find("-->\n")
-            if i > 0:
-                header, rem = text[:i + 4], text[i + 4:]
-        elif text.startswith("{#"):
-            i = text.find("#}\n")
-            if i > 0:
-                header, rem = text[:i + 3], text[i + 3:]
+        header, rem = header_and_remainder(text)
 
         if header is None:
             has_no_header.append(FileInfo(rel_path, len(text)))
@@ -527,3 +558,81 @@ def cat(div_char, div_len, dry_run, verbose, repo):
                     print('    ', path)
 
         print()
+
+@update.command()
+@click.option('--dry-run', is_flag=True, help="Print a report, but do not insert headers.")
+@click.option('-v', '--verbose', is_flag=True, help="Show headers found.")
+@click.argument('repo')
+def license(dry_run, verbose, repo):
+    """
+    Add license headers to licensable files currently missing them, in REPO.
+
+    For each file that is lacking a header, one can be supplied automatically only if:
+
+    * At least one file with the same extension does have a header, and
+
+    * Among all files with this extension and having headers, there is only one,
+      unique header.
+
+    REPO can be any key in the COPYRIGHT_INFO_PER_REPO lookup, in update.py.
+
+    NOTE: For this command to work, you must make a symlink under PFSC_ROOT/src,
+    pointing to each REPO. The name of the symlink must equal the value of the
+    REPO's "src_dir" field, in the COPYRIGHT_INFO_PER_REPO lookup.
+    """
+    headers_by_ext = defaultdict(list)
+    paths_lacking_header_by_ext = defaultdict(list)
+
+    lf = get_licensable_files(repo)
+    for path, rel_path in lf.full_and_internal_paths():
+        with open(path) as f:
+            text = f.read()
+
+        header, rem = header_and_remainder(text)
+        ext = path.suffix
+
+        if header is None:
+            paths_lacking_header_by_ext[ext].append(path)
+        else:
+            headers_by_ext[ext].append(header)
+
+    if not paths_lacking_header_by_ext:
+        print()
+        print('No files lacking header.')
+    else:
+        for ext, paths in paths_lacking_header_by_ext.items():
+            n = len(paths)
+            print()
+            print('-' * 80)
+            print(f'Extension: {ext}')
+            print(f'{n} files lacking header')
+
+            headers = headers_by_ext.get(ext, [])
+            m = len(headers)
+            if m != 1:
+                print('Cannot automatically supply header.')
+                if m:
+                    print(f'Found {m} different existing headers for this file extension.')
+                    if verbose:
+                        for header in headers:
+                            print()
+                            print(header)
+                else:
+                    print('Found no existing headers for this file extension.')
+
+            else:
+                header = headers[0]
+                print('Found a unique existing header for this extension.')
+                if verbose:
+                    print()
+                    print(header)
+                print()
+
+                if not dry_run:
+                    for path in paths:
+                        with open(path) as f:
+                            text = f.read()
+                        with open(path, 'w') as f:
+                            text = header + '\n' + text
+                            f.write(text)
+                    print(f'Updated {n} files.')
