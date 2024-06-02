@@ -96,8 +96,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "displaylang": {
         "src_dir": "displaylang",
         "statement": {
-            "existing": "Copyright (c) 2020-2022",
-            "desired":  "Copyright (c) 2020-2023"
+            "existing": "Copyright (c) 2020-2023",
+            "desired":  "Copyright (c) 2020-2024"
         },
         "dirs": {
             'displaylang': ['**/*.py'],
@@ -107,8 +107,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "examp": {
         "src_dir": "pfsc-examp",
         "statement": {
-            "existing": "Copyright (c) 2018-2022",
-            "desired":  "Copyright (c) 2018-2023"
+            "existing": "Copyright (c) 2018-2023",
+            "desired":  "Copyright (c) 2018-2024"
         },
         "dirs": {
             '': ['*.py'],
@@ -119,8 +119,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "ise": {
         "src_dir": "pfsc-ise",
         "statement": {
-            "existing": "Copyright (c) 2018-2022",
-            "desired":  "Copyright (c) 2018-2023"
+            "existing": "Copyright (c) 2011-2023",
+            "desired":  "Copyright (c) 2011-2024"
         },
         "dirs": {
             '': ['*.js'],
@@ -131,8 +131,8 @@ COPYRIGHT_INFO_PER_REPO = {
         # Yes, this project can update its own headers:
         "src_dir": "pfsc-manage",
         "statement": {
-            "existing": "Copyright (c) 2021-2022",
-            "desired":  "Copyright (c) 2021-2023"
+            "existing": "Copyright (c) 2011-2023",
+            "desired":  "Copyright (c) 2011-2024"
         },
         "dirs": {
             '': ['setup.py', 'manage.py'],
@@ -143,8 +143,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "moose": {
         "src_dir": "pfsc-moose",
         "statement": {
-            "existing": "Copyright (c) 2011-2022",
-            "desired":  "Copyright (c) 2011-2023"
+            "existing": "Copyright (c) 2011-2023",
+            "desired":  "Copyright (c) 2011-2024"
         },
         "dirs": {
             '': ['*.js'],
@@ -175,8 +175,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "server": {
         "src_dir": "pfsc-server",
         "statement": {
-            "existing": "Copyright (c) 2011-2022",
-            "desired":  "Copyright (c) 2011-2023"
+            "existing": "Copyright (c) 2011-2023",
+            "desired":  "Copyright (c) 2011-2024"
         },
         "dirs": {
             '': ['*.py'],
@@ -189,8 +189,8 @@ COPYRIGHT_INFO_PER_REPO = {
     "testmodules": {
         "src_dir": "pfsc-test-modules",
         "statement": {
-            "existing": "Copyright (c) 2011-2022",
-            "desired":  "Copyright (c) 2011-2023"
+            "existing": "Copyright (c) 2011-2023",
+            "desired":  "Copyright (c) 2011-2024"
         },
         "dirs": {
             'pfsc_test_modules': ['**/*.py'],
@@ -233,8 +233,22 @@ SUPERPROJECTS = {
         'server': 'server',
         'ise': 'ise',
         'manage': 'manage',
-    }
+    },
 }
+
+
+# Make sure we're not duplicating any repo names:
+repo_names = set(COPYRIGHT_INFO_PER_REPO.keys())
+superproject_names = set(SUPERPROJECTS.keys())
+duplicated_names = superproject_names.intersection(repo_names)
+if duplicated_names:
+    import sys
+    print(
+        '*** Error: `SUPERPROJECTS` dict duplicates keys from `COPYRIGHT_INFO_PER_REPO` dict,'
+        ' in manage/tools/update.py:'
+    )
+    print(duplicated_names)
+    sys.exit(1)
 
 
 class LicensableFiles:
@@ -325,75 +339,93 @@ def cyear(dry_run, repo):
     """
     Update Copyright Year in REPO.
 
+    REPO can be any key in either the COPYRIGHT_INFO_PER_REPO lookup, or the
+    SUPERPROJECTS lookup, in update.py.
+
     The settings for each repo are hard-coded in `tools/update.py`,
     and should be updated from time to time, as appropriate.
-
     This includes which headers to search for, and how to replace them, and in
     which directories and files to search.
+
+    NOTE: For this command to work, you must make a symlink under PFSC_ROOT/src,
+    pointing to each REPO. The name of the symlink must equal the value of the
+    REPO's "src_dir" field, in the COPYRIGHT_INFO_PER_REPO lookup.
     """
-    info = COPYRIGHT_INFO_PER_REPO.get(repo)
-    if info is None:
-        raise click.UsageError(f'Unknown repo {repo}')
-
-    has_no_header = []
-    num_old = 0
-    num_new = 0
-    old_index_histo = defaultdict(list)
-    new_index_histo = defaultdict(list)
-
-    old_header = info["statement"]["existing"]
-    new_header = info["statement"]["desired"]
-
-    old_header_len = len(old_header)
-
-    lf = LicensableFiles(repo)
-    for path in lf.paths():
-        with open(path) as f:
-            text = f.read()
-        i0 = text.find(old_header)
-        i2 = text.find(new_header)
-        rel_path = lf.internal_path(path)
-        if i0 < 0 and i2 < 0:
-            has_no_header.append(FileInfo(rel_path, len(text)))
-        elif i0 >= 0:
-            num_old += 1
-            old_index_histo[i0].append(rel_path)
-            if not dry_run:
-                i1 = i0 + old_header_len
-                newtext = text[:i0] + new_header + text[i1:]
-                with open(path, 'w') as f:
-                    f.write(newtext)
-        else:
-            num_new += 1
-            new_index_histo[i2].append(rel_path)
-
-    def report_histo(total, histo, descrip):
-        print(f'Found {total} files {descrip}' + (":" if histo else '.'))
-        items = sorted(histo.items(), key=lambda p: -len(p[1]))
-        first = True
-        for k, v in items:
-            print(f'    {len(v):6d} occurred at char {k:10d}')
-            if not first or len(v) < 6:
-                for path in v:
-                    print(f'        {path}')
-            first = False
-
-    print()
-    report_histo(num_old, old_index_histo, 'with old header')
-
-    print()
-    report_histo(num_new, new_index_histo, 'with new header')
-
-    print()
-    if has_no_header:
-        print('The following %s files had no header:' % len(has_no_header))
-        print('    ', '          BYTES  PATH')
-        for fn in has_no_header:
-            print('    ', fn)
+    if repo in SUPERPROJECTS:
+        repos = SUPERPROJECTS[repo].values()
+        print('=' * 80)
+        print(f'SUPERPROJECT: {repo}\n')
     else:
-        print('All files had one header or the other.')
+        repos = [repo]
 
-    print()
+    for repo in repos:
+        info = COPYRIGHT_INFO_PER_REPO.get(repo)
+        if info is None:
+            raise click.UsageError(f'Unknown repo {repo}')
+
+        has_no_header = []
+        num_old = 0
+        num_new = 0
+        old_index_histo = defaultdict(list)
+        new_index_histo = defaultdict(list)
+
+        old_header = info["statement"]["existing"]
+        new_header = info["statement"]["desired"]
+
+        old_header_len = len(old_header)
+
+        lf = LicensableFiles(repo)
+        for path in lf.paths():
+            with open(path) as f:
+                text = f.read()
+            i0 = text.find(old_header)
+            i2 = text.find(new_header)
+            rel_path = lf.internal_path(path)
+            if i0 < 0 and i2 < 0:
+                has_no_header.append(FileInfo(rel_path, len(text)))
+            elif i0 >= 0:
+                num_old += 1
+                old_index_histo[i0].append(rel_path)
+                if not dry_run:
+                    i1 = i0 + old_header_len
+                    newtext = text[:i0] + new_header + text[i1:]
+                    with open(path, 'w') as f:
+                        f.write(newtext)
+            else:
+                num_new += 1
+                new_index_histo[i2].append(rel_path)
+
+        def report_histo(total, histo, descrip):
+            print(f'Found {total} files {descrip}' + (":" if histo else '.'))
+            items = sorted(histo.items(), key=lambda p: -len(p[1]))
+            first = True
+            for k, v in items:
+                print(f'    {len(v):6d} occurred at char {k:10d}')
+                if not first or len(v) < 6:
+                    for path in v:
+                        print(f'        {path}')
+                first = False
+
+        if len(repos) > 1:
+            print('-' * 80)
+            print(f'REPO: {repo}')
+
+        print()
+        report_histo(num_old, old_index_histo, 'with old header')
+
+        print()
+        report_histo(num_new, new_index_histo, 'with new header')
+
+        print()
+        if has_no_header:
+            print('The following %s files had no header:' % len(has_no_header))
+            print('    ', '          BYTES  PATH')
+            for fn in has_no_header:
+                print('    ', fn)
+        else:
+            print('All files had one header or the other.')
+
+        print()
 
 
 @update.command()
@@ -411,6 +443,10 @@ def cat(div_char, div_len, dry_run, verbose, repo):
 
     REPO can be any key in either the COPYRIGHT_INFO_PER_REPO lookup, or the
     SUPERPROJECTS lookup, in update.py.
+
+    NOTE: For this command to work, you must make a symlink under PFSC_ROOT/src,
+    pointing to each REPO. The name of the symlink must equal the value of the
+    REPO's "src_dir" field, in the COPYRIGHT_INFO_PER_REPO lookup.
     """
     try:
         div_len = int(div_len)
