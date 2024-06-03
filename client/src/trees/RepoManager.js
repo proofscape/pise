@@ -285,17 +285,18 @@ export class RepoManager {
 
     handleOpenRepoFailures(repopath, version, resp, buildMgrCallback, fail_silently=false) {
         if (fail_silently) return;
+        const location = this.hub.OCA_version ? 'in your library' : 'on this server';
         if (resp.privileged) {
             let doClone = false;
             let doBuild = false;
             let msg;
             let question = '';
             if (resp.present) {
-                msg = `<p>Repo <span class="monospace">${repopath}</span> has not been built at <span class="monospace">${version}</span> on this server.</p>`;
+                msg = `<p>Repo <span class="monospace">${repopath}</span> has not been built at <span class="monospace">${version}</span> ${location}.</p>`;
                 question = `<p>Do you want to build?</p>`;
                 doBuild = true;
             } else {
-                msg = `<p>Repo <span class="monospace">${repopath}</span> is not present on this server.</p>`;
+                msg = `<p>Repo <span class="monospace">${repopath}</span> is not present ${location}.</p>`;
                 if (resp.clonable) {
                     if (version === "WIP") {
                         question = `<p>Do you want to clone the repo?</p>`;
@@ -348,12 +349,12 @@ export class RepoManager {
                 switch (hosting) {
                     case nli:
                     case "DOES_NOT_OWN":
-                        msg += `<p>Repo <span class="monospace">${repopath}</span> has not been built at <span class="monospace">${version}</span> on this server.</p>`;
+                        msg += `<p>Repo <span class="monospace">${repopath}</span> has not been built at <span class="monospace">${version}</span> ${location}.</p>`;
                         msg += ownership_msg;
                         break;
                     case "MAY_NOT_REQUEST":
                     case "DENIED":
-                        msg += `<p>Repo <span class="monospace">${repopath}</span> at <span class="monospace">${version}</span> cannot be built on this server.</p>`;
+                        msg += `<p>Repo <span class="monospace">${repopath}</span> at <span class="monospace">${version}</span> cannot be built ${location}.</p>`;
                         break;
                     case "MAY_REQUEST":
                         msg += `<p>If you wish to build <span class="monospace">${repopath}</span> at <span class="monospace">${version}</span>, you can request hosting,`;
