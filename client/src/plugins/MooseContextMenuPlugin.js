@@ -469,9 +469,7 @@ var MooseContextMenuPlugin = declare(null, {
                         heading: 'Expansion',
                         subtitle: `${xpanpath}@${version}`,
                         onClickChartOpen: {
-                            view: {
-                                objects: [theUID, xpanpath]
-                            },
+                            view: [theUID, xpanpath],
                             versions: {
                                 [xpanpath]: version,
                                 [theUID]: theVersion,
@@ -506,9 +504,7 @@ var MooseContextMenuPlugin = declare(null, {
                         heading: 'Compare',
                         subtitle: `${nodepath}@${version}`,
                         onClickChartOpen: {
-                            view: {
-                                objects: [nodepath]
-                            },
+                            view: [nodepath],
                             versions: {
                                 [nodepath]: version,
                             },
