@@ -174,7 +174,7 @@ def test_doc_ref_formats_1(app):
         assert refs[0]["siid"] == "test-foo-doc-results-Discussion-wFoo_WIP"
 
         # Clone widget has its own siid and slp, but also has expected osiid and oslp:
-        assert refs[2]['siid'] == 'test-foo-doc-results-Discussion-w3_WIP'
+        assert refs[2]['siid'] == 'test-foo-doc-results-Discussion-_w2_WIP'
         assert refs[2]['slp'] == 'test.foo.doc.results.Discussion'
         assert refs[2]['stype'] == 'NOTES'
         assert refs[2]['osiid'] == 'test.foo.doc.results.Pf.R'
@@ -182,7 +182,7 @@ def test_doc_ref_formats_1(app):
 
         # Successfully made a "forward clone," i.e. an anno cloned from a node defined
         # later than it, in the same module:
-        assert refs[3]['siid'] == 'test-foo-doc-results-Discussion-w4_WIP'
+        assert refs[3]['siid'] == 'test-foo-doc-results-Discussion-_w3_WIP'
         assert refs[3]['osiid'] == 'test.foo.doc.results.X1.A1'
 
 
@@ -213,7 +213,7 @@ def test_doc_ref_formats_2(app):
 
         assert ref1 == {
             "ccode": "v2;s3;(146:1758:2666:210:450:90:46);",
-            "siid": "test-foo-doc-more-Notes-w1_WIP",
+            "siid": "test-foo-doc-more-Notes-_w0_WIP",
             "slp": "test.foo.doc.more.Notes",
             "stype": "NOTES",
             "osiid": "test.foo.doc.results.Pf.S",
@@ -222,7 +222,7 @@ def test_doc_ref_formats_2(app):
 
         assert ref2 == {
             "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-            "siid": "test-foo-doc-more-Notes-w2_WIP",
+            "siid": "test-foo-doc-more-Notes-_w1_WIP",
             "slp": "test.foo.doc.more.Notes",
             "stype": "NOTES",
             "osiid": "test-foo-doc-results-Discussion-wFoo_WIP",

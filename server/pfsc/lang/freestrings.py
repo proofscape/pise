@@ -389,29 +389,13 @@ def split_on_widgets(text, supply_missing_names=True):
 
     # Do we need to supply missing names?
     if indices_of_missing_names:
-        # Yes, there are names to be supplied.
-        # All generated names will be of the form `w<n>` where n is a positive integer.
-        # First we must determine which such names are already taken. And here we are
-        # case-insensitive on the leading `w`.
-        used_nums = set()
-        for name in names:
-            if len(name) >= 2 and name[0] in 'wW' and name[1] != '0':
-                try:
-                    n = int(name[1:])
-                except ValueError:
-                    pass
-                else:
-                    used_nums.add(n)
-        def next_num(used):
-            n = 1
-            while True:
-                while n in used: n += 1
-                yield n
-                n += 1
-        for k, n in zip(indices_of_missing_names, next_num(used_nums)):
+        # All generated names will be of the form `_w<n>` where n is a non-negative integer.
+        # The `WIDGET_RE` guarantees that no user-supplied name begins with an underscore,
+        # so there is no risk of collision.
+        for n, k in enumerate(indices_of_missing_names):
             rwd = parts[2*k+1]
-            parts[2*k+1] = rwd._replace(name='w%s' % n)
-    # Return the parts.
+            parts[2*k+1] = rwd._replace(name=f'_w{n}')
+
     return parts
 
 ###############################################################################

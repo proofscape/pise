@@ -289,7 +289,7 @@ def test_widget_split_2():
     print(B.data)
     print(C)
     data = build_json(B.data)
-    assert B.name == 'w1'
+    assert B.name == '_w0'
     assert len(data.keys()) == 2
 
 # ----------------------------------------------------------------------
@@ -310,9 +310,12 @@ def test_supply_names():
         rwd = parts[2*k+1]
         print(rwd.name)
         names.append(rwd.name)
-    expected = [2, 1, 3, 4, 6, 5, 7, 8]
+    expected = [0, 1, 3, 4, 6, -1, -2, -3]
     for name, n in zip(names, expected):
-        assert name == 'w%s' % n
+        if n > 0:
+            assert name == 'w%s' % n
+        else:
+            assert name == '_w%s' % -n
 
 def test_no_supply_names():
     """
