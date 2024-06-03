@@ -618,7 +618,7 @@ PAGE_E_PAGE_DATA = {
     "widgets": {
         "test-spx-doc1-foo-pageE-_page-eg1_k_v0-1-0": {
             "ptype": "NumberField",
-            "name": "k",
+            "tex": "k",
             "default": "cyc(7)",
             "args": {
                 "gen": "zeta",

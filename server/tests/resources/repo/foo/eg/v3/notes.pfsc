@@ -2,7 +2,6 @@ anno Notes @@@
 
 <param:eg1_theta>[]{
     ptype: "Integer",
-    name: "theta",
     tex: "n",
     init: 12,
     args: {
@@ -15,7 +14,7 @@ this divisor shall divide the integer `theta`.
 
 <param:eg1_d>[]{
     ptype: "Divisor",
-    name: "d",
+    tex: "d",
     init: 3,
     import: {
         theta: eg1_theta,
@@ -31,7 +30,7 @@ the parameter widget `theta`, and does not import it.
 
 <param:eg1_K>[]{
     ptype: "NumberField",
-    name: "K",
+    tex: "K",
     init: "x^2 + 5",
     args: {
         gen: "theta",

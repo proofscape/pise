@@ -1,7 +1,7 @@
 {
   "pfsc-pdf": "3.2.0",
   "pyodide": "0.21.0",
-  "pfsc-examp": "0.23.0",
+  "pfsc-examp": "0.24.0",
   "pfsc-util": "0.22.8",
   "displaylang": "0.23.0",
   "displaylang-sympy": "0.10.4",
