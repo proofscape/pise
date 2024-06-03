@@ -23,6 +23,7 @@ from pfsc.checkinput.doc import DocIdType
 from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
+    MAX_WIDGET_GROUP_NAME_LEN,
 )
 from pfsc.lang.freestrings import render_anno_markdown, Libpath
 from pfsc.build.lib.libpath import (
@@ -224,12 +225,62 @@ class Widget(PfscObj):
         return self.type_
 
     def set_pane_group(self, subtype=None, default_group_name=''):
-        # Pane group ID consists of ":"-separated parts.
-        # First two parts are always:
-        #  * repo-versioned libpath of the anno to which we belong
+        """
+        Construct the group ID for this widget.
+
+        The group ID consists of ":"-separated parts.
+        The first two parts are always:
+         * The group namespace
+         * The widget type
+
+        The namespace is always the repo-versioned libpath of a certain Proofscape
+        entity. By default this will be the page (anno or Sphinx) to which the
+        widget belongs. However, if the author specifies a group name by defining
+        a 'group' field in the widget data, then leading dots ('.') are chopped off
+        and interpreted to point to modules above this page. One dot means the module
+        in which the page is defined, two dots the module above that, and so on.
+
+        Note: Just dots (e.g. '..') is indeed a valid value for the 'group' field.
+        This just means the author wants the default group (empty name) in an ancestor
+        namespace.
+
+        After the first two parts may come a "subtype", if a string was passed to
+        the `subtype` kwarg. E.g. `DocWidget` uses this to make the docId a part of
+        the group ID (thus making it impossible for doc widgets pointing to different
+        docs to belong to the same group).
+
+        The final part is always the group's name, which is either the default specified
+        by the `default_group_name` kwarg, or a name the author chose to supply in the
+        'group' field of the widget data (after chopping off leading dots, as described
+        above).
+        """
+        # Do a string conversion so that authors may provide, say, integers for 'group'
+        # spec. For example, this is for the convenience of typing `2` instead of `"2"`.
+        group_spec = str(self.data.get('group', default_group_name))
+
+        if len(group_spec) > MAX_WIDGET_GROUP_NAME_LEN:
+            msg = f'Widget group name too long: {group_spec[:MAX_WIDGET_GROUP_NAME_LEN]}...'
+            raise PfscExcep(msg, PECode.WIDGET_GROUP_NAME_TOO_LONG)
+
+        leading_dots = 0
+        while group_spec and group_spec[0] == '.':
+            leading_dots += 1
+            group_spec = group_spec[1:]
+        group_name = group_spec
+
+        namespace_parts = self.parent.libpath.split('.')
+        if len(namespace_parts) < 3 + leading_dots:
+            msg = f'Widget group name has too many leading dots: {group_spec}'
+            raise PfscExcep(msg, PECode.PARENT_DOES_NOT_EXIST)
+        if leading_dots > 0:
+            namespace_parts = namespace_parts[:-leading_dots]
+        namespace_libpath = '.'.join(namespace_parts)
+
+        # First two parts of group ID are:
+        #  * repo-versioned libpath of the namespace object
         #  * our widget type
         parts = [
-            make_repo_versioned_libpath(self.parent.libpath, self.getVersion()),
+            make_repo_versioned_libpath(namespace_libpath, self.getVersion()),
             self.get_type(),
         ]
 
@@ -237,10 +288,8 @@ class Widget(PfscObj):
         if subtype is not None:
             parts.append(subtype)
 
-        # Final part is always the group's name, which is either the default,
-        # or a name the author chose to supply.
-        group_name = self.data.get('group', default_group_name)
-        parts.append(str(group_name))
+        # Final part is always the group's name (which may be the empty string).
+        parts.append(group_name)
 
         pane_group = ":".join(parts)
         self.data['pane_group'] = pane_group
