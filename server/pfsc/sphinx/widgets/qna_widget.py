@@ -24,8 +24,7 @@ class PfscQnAWidgetDirective(PfscOneArgWidgetDirective):
     """
     Directive for Proofscape "Q&A" widgets
 
-    Accepts one argument, which is the name of the widget.
-    (It has no label, so you do not need a colon after the name.)
+    Accepts one argument, of the form `NAME:` (SUBTEXT with no label).
     """
     widget_class = QnAWidget
 

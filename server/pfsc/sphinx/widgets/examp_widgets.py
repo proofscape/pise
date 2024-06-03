@@ -26,8 +26,7 @@ class PfscParamWidgetDirective(PfscOneArgWidgetDirective):
     """
     Directive for Proofscape parameter or "param" widgets.
 
-    Accepts one argument, which is the name of the widget.
-    (It has no label, so you do not need a colon after the name.)
+    Accepts one argument, of the form `NAME:` (SUBTEXT with no label).
     """
     widget_class = ParamWidget
 
@@ -55,8 +54,7 @@ class PfscDispWidgetDirective(PfscOneArgWidgetDirective):
     """
     Directive for Proofscape display or "disp" widgets.
 
-    Accepts one argument, which is the name of the widget.
-    (It has no label, so you do not need a colon after the name.)
+    Accepts one argument, of the form `NAME:` (SUBTEXT with no label).
     """
     widget_class = DispWidget
 
