@@ -66,7 +66,7 @@ Step 1. Use `branchnews` to rename news fragment files, and then commit the chan
 Step 2. Use `towncrier` to build the changelog, commit the changes with
 a message stating the version number, and push.
 
-    (venv) $ towncrier build --version=0.26.0
+    (venv) $ towncrier build --version=v0.26.0
     (venv) $ git commit -m "Version 0.26.0"
     (venv) $ git push origin releases/0.26.0
 
