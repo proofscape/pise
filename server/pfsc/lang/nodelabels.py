@@ -19,7 +19,7 @@ import re, json
 from markupsafe import Markup
 
 from pfsc.lang.widgets import LinkWidget
-from pfsc.lang.freestrings import MathRenderer, PfscRenderer, lookup_link_and_img_policy
+from pfsc.lang.freestrings import MathRenderer, PfscRenderer, lookup_link_and_img_policy, Libpath
 from pfsc.build.lib.libpath import expand_multipath
 from pfsc.excep import PfscExcep, PECode
 from pfsc.util import unindent
@@ -130,7 +130,8 @@ def writeNodelinkHTML(label, libpaths, versions):
 
 
 def writeAnnolinkHTML(url, label, node, link_num):
-    libpath = url[len('notes:'):]
+    libpath_str = url[len('notes:'):]
+    libpath = Libpath(libpath_str)
     lw = LinkWidget(f'_x{link_num}', '', {'ref': libpath, 'tab': 'other'}, node, 0)
     lw.cascadeLibpaths()
     lw.resolve()

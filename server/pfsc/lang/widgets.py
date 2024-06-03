@@ -1166,6 +1166,7 @@ class LinkWidget(NavWidget):
             "REQ": {
                 'ref': {
                     'type': IType.RELPATH,
+                    'is_Libpath_instance': True,
                 },
             },
             "OPT": {
