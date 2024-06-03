@@ -67,7 +67,10 @@ export class MooseNodeLabelPlugin {
             const infoText = infoNode.innerText;
             const info = JSON.parse(infoText);
             const widget = this.hub.notesManager.constructWidget(info);
-            annolink.addEventListener('click', widget.onClick.bind(widget));
+            const pane = this.hub.contentManager.getSurroundingPane(annolink);
+            annolink.addEventListener('click', event => {
+                widget.onClick(event, pane);
+            });
         }
     }
 
