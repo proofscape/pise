@@ -19,7 +19,7 @@ import json
 import pytest
 
 from pfsc.excep import PfscExcep, PECode
-from pfsc.lang.modules import load_module
+from pfsc.lang.modules import load_module, build_module_from_text
 from pfsc.build.repo import RepoInfo
 
 widget_data_1 = """{
@@ -279,3 +279,24 @@ def test_disp_widget_1(app):
         for name, expected_num_sections in info:
             d = widget_data[f'test-comment-notes-H-ilbert-ZB-Thm17-Notes-eg1_{name}_WIP']
             assert len(d['build']) == expected_num_sections
+
+
+@pytest.mark.psm
+def test_doc_ref_malformed(app):
+    """
+    Catch error where docref begins with "#" char.
+    """
+    with app.app_context():
+        text = """
+        docInfo = {docId: "pdffp:0123456789abcdef"}
+        anno Notes @@@
+        Here is <doc:>[a widget]{
+            doc: docInfo,
+            sel: "#v2;s3;(1:1758:2666:400:200:100:50)"
+        }
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        assert ei.value.code() == PECode.MALFORMED_DOC_REF_CODE
