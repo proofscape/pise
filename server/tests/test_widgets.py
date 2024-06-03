@@ -415,3 +415,35 @@ def test_goal_widget_missing_name(app):
             mod = build_module_from_text(text, 'test._foo._bar')
             mod.resolve()
         assert ei.value.code() == PECode.WIDGET_MISSING_NAME
+
+
+@pytest.mark.psm
+@pytest.mark.parametrize("raw_select_val, final_select_val", [
+    ['true', True],
+    ['false', False],
+    ['Thm.C', ['test._foo._bar.Thm.C']],
+    ['"Thm.C"', ['test._foo._bar.Thm.C']],
+])
+def test_chart_widget_select_field(app, raw_select_val, final_select_val):
+    """
+    Check that different values passed to the 'select' field in a chart widget
+    are processed correctly.
+    """
+    with app.app_context():
+        text = """
+        deduc Thm {
+            asrt C { sy = "C" }
+            meson = "C"
+        }
+        
+        anno Notes @@@
+        Here is <chart:w0>[a chart widget]{
+            select: %s
+        } that we forgot to name.
+        @@@
+        """ % raw_select_val
+        mod = build_module_from_text(text, 'test._foo._bar')
+        mod.resolve()
+        w = mod.get('Notes').widget_lookup['w0']
+        sel = w.data['select']
+        assert sel == final_select_val
