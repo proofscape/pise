@@ -94,7 +94,7 @@ import pfsc.constants
 def build_repo(
         target, version=pfsc.constants.WIP_TAG,
         verbose=False, progress=None,
-        make_clean=False
+        make_clean=False, quiet=False
 ):
     """
     Build a Proofscape repo.
@@ -106,6 +106,7 @@ def build_repo(
         integer 2 in order to add performance output.
     :param progress: as for the Builder class.
     :param make_clean: as for the Builder class.
+    :param quiet: set True to silence certain diagnostic output.
 
     :return: the Builder instance that performed the build.
     """
@@ -113,7 +114,7 @@ def build_repo(
         b = Builder(
             target, version=version,
             verbose=verbose, progress=progress,
-            make_clean=make_clean
+            make_clean=make_clean, quiet=quiet
         )
     else:
         b = target
@@ -377,6 +378,7 @@ class Builder:
             self, libpath, version=pfsc.constants.WIP_TAG,
             verbose=False, progress=None,
             make_clean=False, current_builds=None,
+            quiet=False,
     ):
         """
         :param libpath: libpath pointing at or into the repo to be built.
@@ -389,6 +391,7 @@ class Builder:
             with Sphinx (if a part of the build), all before beginning this build
         :param current_builds: serves to catch cyclic build errors.
             See `load_module()` function.
+        :param quiet: set True to silence certain diagnostic output
         """
         self.repo_info = get_repo_info(libpath)
         self.repopath = self.repo_info.libpath
@@ -398,6 +401,7 @@ class Builder:
         self.monitor = BuildMonitor(progress)
         self.graph_writer = get_graph_writer()
         self.build_in_gdb = building_in_gdb()
+        self.quiet = quiet
 
         if current_builds is None:
             current_builds = set()
@@ -848,9 +852,14 @@ class Builder:
         buildername = 'dummy' if just_read_no_write else 'html'
         try:
             with patch_docutils(confdir), docutils_namespace():
+                # We keep `warningiserror=False` in our Sphinx app, since many warnings
+                # (e.g. "document not in toctree") really should not halt the build process.
+                # However, our Sphinx extension monkey patches Sphinx's `WarningIsErrorFilter`,
+                # so that it's possible for us to make special warnings that *do* get raised
+                # as exceptions.
                 app = Sphinx(sourcedir, confdir, outputdir, doctreedir,
                              buildername, confoverrides=confoverrides,
-                             warningiserror=True)
+                             warningiserror=False)
                 app.connect('env-before-read-docs', set_builder_in_environment)
                 app.connect('env-before-read-docs', add_and_record_rereads)
                 app.connect('env-updated', env_updated_handler)
@@ -863,7 +872,8 @@ class Builder:
                 app.set_html_assets_policy('always')
                 app.build(force_all=force_all, filenames=filenames)
         except (SphinxError, Exception) as e:
-            traceback.print_exc()
+            if not self.quiet:
+                traceback.print_exc()
             oe = getattr(e, 'orig_exc', None)
             if isinstance(oe, PfscExcep):
                 raise oe

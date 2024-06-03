@@ -181,6 +181,7 @@ def get_basic_repos():
         lambda repo: not (
             repo.libpath.startswith('test.foo.') or
             repo.libpath.startswith('test.moo.err') or
+            repo.libpath.startswith('test.spx.err') or
             repo.libpath in [
                 #'test.hist.lit',
             ]
