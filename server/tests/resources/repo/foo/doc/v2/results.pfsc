@@ -46,15 +46,10 @@ Let's talk about this stuff, and refer to <doc:>[doc1 as a whole]{
     sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.
 
-Let's then imagine we refer twice more to points within doc1. The first time,
-<doc:>[we'll pass the doc reference as a string]{
-    doc: "doc1",
-    sel: "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-}, and the second time we'll omit the `doc` field altogether, and instead use
+This time we'll omit the `doc` field altogether, and instead use
 <doc:>[a two-part code in the `sel` field]{
     sel: "doc1#v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
 }.
-All these different forms should work.
 
 Next let's make
 <doc:>[a "cloned" doc reference]{

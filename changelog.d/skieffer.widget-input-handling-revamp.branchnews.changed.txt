@@ -1,0 +1,5 @@
+* Uniformize widget field names to always use lower camel case.
+* Uniformize widget field value types across annos and Sphinx pages.
+    Now the same JSON types that are used in annos are also required
+    in Sphinx.
+* `param` widget `default` arg is renamed to `init`.

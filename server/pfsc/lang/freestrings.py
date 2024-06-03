@@ -277,7 +277,7 @@ def build_pfsc_json(text, scope=None):
 #   type :  the type given in the <type:name> part
 #   name:  the name given in the <type:name> part
 #   label: the text strictly between the square brackets
-#   data:  the full JSON data, including the outside braces
+#   data:  the full, raw string of JSON data, including the outside braces
 #   lineno: the line number (within the given text) on which the widget defn starts
 #
 RawWidgetData = namedtuple("RawWidgetData", "type name label data lineno")

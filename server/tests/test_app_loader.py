@@ -95,7 +95,7 @@ state_0 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm168.Pf",
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
@@ -174,7 +174,7 @@ state_1 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm8.Thm"
                         ],
                         "versions": {
@@ -235,7 +235,7 @@ state_2 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
                         "versions": {
@@ -296,7 +296,7 @@ state_3 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
                         "versions": {
@@ -311,7 +311,7 @@ state_3 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
                         "versions": {
@@ -321,7 +321,7 @@ state_3 = """\
                     },
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
                         "versions": {
@@ -393,7 +393,7 @@ state_4 = """\
                 "tabs": [
                     {
                         "type": "CHART",
-                        "on_board": [
+                        "onBoard": [
                             "test.hist.lit.H.ilbert.ZB.Thm9.Pf"
                         ],
                         "versions": {

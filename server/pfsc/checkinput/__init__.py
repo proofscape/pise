@@ -19,8 +19,10 @@ import json
 from pfsc.excep import PfscExcep, PECode
 
 from pfsc.checkinput.basic import (
+    check_any,
     check_boolean,
     check_integer,
+    check_float,
     check_string,
     check_simple_dict,
     check_json,
@@ -35,6 +37,7 @@ from pfsc.checkinput.libpath import (
     EntityType,
     CheckedLibpath,
     check_boxlisting,
+    check_relboxlisting,
     check_libseg,
     check_module_filename,
     check_content_forest,
@@ -42,6 +45,8 @@ from pfsc.checkinput.libpath import (
     check_versioned_libpath,
     check_versioned_forest,
     check_libpath,
+    check_relpath,
+    check_chart_color,
 )
 from pfsc.checkinput.version import (
     check_major_version,
@@ -65,6 +70,7 @@ from pfsc.checkinput.repo import (
     check_repo_dependencies_format,
 )
 
+
 def check_cdlist(key, raw, typedef):
     """
     'cdlist' stands for 'comma-delimited list'
@@ -76,6 +82,7 @@ def check_cdlist(key, raw, typedef):
     inputs = raw.split(',')
     if len(inputs) == 1 and inputs[0] == '': inputs = []
     return check_list(key, inputs, typedef)
+
 
 def check_dlist(key, raw, typedef):
     """
@@ -93,18 +100,25 @@ def check_dlist(key, raw, typedef):
     if len(inputs) == 1 and inputs[0] == '': inputs = []
     return check_list(key, inputs, typedef)
 
+
 def check_list(key, raw, typedef):
     """
     :param raw: an actual list or a string rep thereof
 
-    typedef:
-        req:
-            itemtype: typedef for the items of the list
-        opt:
-            max_num_items: maximum allowed number of items
-            nonempty: bool
-            flatten: bool; set true if the itemtype itself returns a list, and if
-                you want to get a simple list, rather than a list of lists.
+    :param typedef:
+        alt sets:
+            EITHER:
+                req:
+                    itemtype: typedef for the items of the list
+                opt:
+                    max_num_items: maximum allowed number of items
+                    nonempty: bool
+                    flatten: bool; set true if the itemtype itself returns a list, and if
+                        you want to get a simple list, rather than a list of lists.
+            OR:
+                req:
+                    spec: For a list of a fixed, expected length, provide a list
+                        of typedef dictionaries, one for each expected entry.
     :return: list of values
     """
     if isinstance(raw, str):
@@ -114,161 +128,199 @@ def check_list(key, raw, typedef):
             raise PfscExcep('Bad list', PECode.INPUT_WRONG_TYPE, bad_field=key)
     else:
         L = raw
+
     if not isinstance(L, list):
         raise PfscExcep('Bad list', PECode.INPUT_WRONG_TYPE, bad_field=key)
-    M = typedef.get('max_num_items')
-    if M is not None and len(L) > M:
-        raise PfscExcep("List too long.", PECode.INPUT_TOO_LONG, bad_field=key)
-    if typedef.get('nonempty', False) and len(L) == 0:
-        raise PfscExcep("Empty list.", PECode.INPUT_EMPTY, bad_field=key)
-    itemtypedef = typedef['itemtype']
-    values = [check_type(key, raw_i, itemtypedef) for raw_i in L]
-    # If the itemtype itself returns a list, then we have a list of lists, and
-    # we need to flatten it if the user requested this.
-    if typedef.get('flatten', False) and len(values) > 0 and isinstance(values[0], list):
-        values = sum(values, [])
+
+    values = []
+    if 'spec' in typedef:
+        item_typedefs = typedef['spec']
+        if len(L) != len(item_typedefs):
+            msg = f'Wrong number of items passed. Expected {len(item_typedefs)}.'
+            raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE, bad_field=key)
+
+        i = -1
+        for item, item_typedef in zip(L, item_typedefs):
+            i += 1
+            try:
+                value = check_type(f'{key}[{i}]', item, item_typedef)
+            except PfscExcep as pe:
+                pe.extendMsg(f'Error was on list item of index {i}: "{item}"')
+                raise pe
+            values.append(value)
+    else:
+        M = typedef.get('max_num_items')
+
+        if M is not None and len(L) > M:
+            raise PfscExcep("List too long.", PECode.INPUT_TOO_LONG, bad_field=key)
+
+        if typedef.get('nonempty', False) and len(L) == 0:
+            raise PfscExcep("Empty list.", PECode.INPUT_EMPTY, bad_field=key)
+
+        itemtypedef = typedef['itemtype']
+        values = [check_type(key, raw_i, itemtypedef) for raw_i in L]
+        # If the itemtype itself returns a list, then we have a list of lists, and
+        # we need to flatten it if the user requested this.
+        if typedef.get('flatten', False) and len(values) > 0 and isinstance(values[0], list):
+            values = sum(values, [])
+
     return values
+
 
 def check_dict(key, raw, typedef):
     """
     :param raw: an actual dictionary or a string rep thereof
     :param typedef:
-        req:
-            keytype: typedef for the keys in the dict. The return value
-              of the corresonding check_... function must be hashable, so
-              that we can build a dict of checked values.
-            valtype: typedef for the values in the dict
+        alt sets:
+            EITHER:
+                req:
+                    keytype: typedef for the keys in the dict. The return value
+                      of the corresponding `check_...()` function must be hashable, so
+                      that we can build a dict of checked values.
+                    valtype: typedef for the values in the dict
+            OR:
+                req:
+                    spec: Provide precisely the same kind of dictionary you
+                      would pass for the `types` arg to the `check_input()` function.
+                      `check_input()` will be called with `raw` as its `raw_dict` arg,
+                      (or the parsed version of `raw` if `raw` was a string)
+                      and a fresh dictionary as its `stash` arg. That stash dictionary
+                      will be the return value of this `check_dict()` call.
+                opt:
+                    reify_undefined: boolean, to be passed to `check_input()`. Default True.
     :return: dict
     """
     if isinstance(raw, str):
         try:
-            d = json.loads(raw)
+            raw_dict = json.loads(raw)
         except Exception:
             raise PfscExcep('Bad dictionary', PECode.INPUT_WRONG_TYPE, bad_field=key)
     else:
-        d = raw
-    if not isinstance(d, dict):
+        raw_dict = raw
+    if not isinstance(raw_dict, dict):
         raise PfscExcep('Bad dictionary', PECode.INPUT_WRONG_TYPE, bad_field=key)
-    kt = typedef['keytype']
-    vt = typedef['valtype']
+
     checked_dict = {}
-    for raw_k, raw_v in d.items():
-        k = check_type(key, raw_k, kt)
-        v = check_type(key, raw_v, vt)
-        checked_dict[k] = v
+    if 'spec' in typedef:
+        types = typedef['spec']
+        reify_undefined = typedef.get('reify_undefined', True)
+        try:
+            check_input(raw_dict, checked_dict, types, reify_undefined=reify_undefined)
+        except PfscExcep as pe:
+            pe.extendMsg(f'Error occurred in dictionary passed under key: "{key}"')
+            raise pe
+    else:
+        kt = typedef['keytype']
+        vt = typedef['valtype']
+        for raw_k, raw_v in raw_dict.items():
+            k = check_type(f'{key} key {raw_k}', raw_k, kt)
+            v = check_type(f'{key}[{raw_k}]', raw_v, vt)
+            checked_dict[k] = v
+
     return checked_dict
 
+
+def check_disjunctive_type(key, raw, typedef):
+    """
+    Check the input against a set of alternative possible types.
+
+    :param typedef:
+        REQ:
+            alts: list of alternative typedef dictionaries
+
+                The alternatives are tried in the order given.
+                Any `PfscExcep` raised is caught, and the next type is tried.
+                If all alternatives fail, we raise a `PfscExcep` listing all
+                the error messages.
+    """
+    alts = typedef['alts']
+    err_msgs = []
+    for alt_def in alts:
+        try:
+            value = check_type(key, raw, alt_def)
+        except PfscExcep as pe:
+            msg = f'Failed as {alt_def["type"]} due to:\n  ' + pe.public_msg()
+            err_msgs.append(msg)
+        else:
+            return value
+    msg = 'Input did not match any of the allowed types.\n'
+    msg += '\n'.join(err_msgs)
+    raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE, bad_field=key)
+
+
 class IType:
-    "Input Types"
+    """
+    Input Types
+    """
+    ANY = 'any'
+    DISJ = 'disj'
     BOOLEAN = 'boolean'
     INTEGER = 'integer'
+    FLOAT = 'float'
     SIMPLE_DICT = 'simple_dict'
     DICT = 'dict'
     LIST = 'list'
-#    FLOAT = 'float'
     CDLIST = 'cdlist'
     DLIST = 'dlist'
-#    CHECKBOX = 'checkbox'
     STR = 'str'
     JSON = 'json'
-#    HASH = 'hash'
-#    USERNAME_FORMAT = 'username_format'
-#    PASSWORD_FORMAT = 'password_format'
-#    EMAIL_FORMAT = 'email_format'
     MAJ_VERS = 'major_version'
     FULL_VERS = 'full_version'
     BOXLISTING = 'boxlisting'
+    RELBOXLISTING = 'relboxlisting'
     LIBSEG = 'libseg'
     LIBPATH = 'libpath'
+    RELPATH = 'relpath'
     MOD_FN = 'module_filename'
     CONTENT_FOREST = 'content_forest'
     GOAL_ID = 'goal_id'
     VERSIONED_LIBPATH = 'versioned_libpath'
     VERSIONED_FOREST = 'versioned_forest'
-#    REPOPATH = 'repopath'
-#    MODPATH = 'modpath'
-#    DEDUCPATH = 'deducpath'
-#    NODEPATH = 'nodepath'
-#    MODTEXT = 'modtext'
-#    XPANTARGETLIST = 'xpantargetlist'
-#    EDIT_ACTION_PARAM = 'edit_action_param'
-#    DISCUSSION_NODE_ADDR = 'discussion_node_addr'
-#    XPANREQID = 'xpanreqID'
-#    RDEF_PAIRS = 'rdef_pairs'
-#    FRIENDLY_RESULT_TYPE = 'friendly_result_type'
-#    INPUT_RESULT_NUMBER = 'input_result_number'
-#    INPUT_RESULT_PAGE_AND_LINE = 'input_result_page_and_line'
-#    INPUT_RESULT_PAGE = 'input_result_page'
-#    INPUT_RESULT_LINE = 'input_result_line'
-#    ACCESS_TYPE = 'access_type'
-#    WORK_TYPE = 'work_type'
     URL = 'url'
-#    LIBSEG_FORMAT = 'libseg_format'
-#    MSC_CODE = 'MSC_code'
-#    MSC_TOP_LEVEL_CODE = 'MSC_top_level_code'
-#    LIB_PAGE_TYPE = 'lib_page_type'
     ISE_SIDE = 'ise_side'
     ISE_SPLIT = 'ise_split'
     ISE_ACTIVE = 'ise_active'
     ISE_WIDGET_LINK = 'ise_widget_link'
     DOC_ID = 'doc_id'
     COMBINER_CODE = 'combiner_code'
+    CHART_COLOR = 'chart_color'
+
 
 TYPE_HANDLERS = {
+    IType.ANY: check_any,
+    IType.DISJ: check_disjunctive_type,
     IType.BOOLEAN: check_boolean,
     IType.INTEGER: check_integer,
+    IType.FLOAT: check_float,
     IType.SIMPLE_DICT: check_simple_dict,
     IType.DICT: check_dict,
     IType.LIST: check_list,
-#    IType.FLOAT: check_float,
     IType.CDLIST: check_cdlist,
     IType.DLIST: check_dlist,
-#    IType.CHECKBOX: check_checkbox,
     IType.STR: check_string,
     IType.JSON: check_json,
-#    IType.HASH: check_hash,
-#    IType.USERNAME_FORMAT: check_username_format,
-#    IType.PASSWORD_FORMAT: check_password_format,
-#    IType.EMAIL_FORMAT: check_email_format,
     IType.MAJ_VERS: check_major_version,
     IType.FULL_VERS: check_full_version,
     IType.BOXLISTING: check_boxlisting,
+    IType.RELBOXLISTING: check_relboxlisting,
     IType.LIBSEG: check_libseg,
     IType.LIBPATH: check_libpath,
+    IType.RELPATH: check_relpath,
     IType.MOD_FN: check_module_filename,
     IType.CONTENT_FOREST: check_content_forest,
     IType.GOAL_ID: check_goal_id,
     IType.VERSIONED_LIBPATH: check_versioned_libpath,
     IType.VERSIONED_FOREST: check_versioned_forest,
-#    IType.REPOPATH: check_libpath,
-#    IType.MODPATH: check_libpath,
-#    IType.DEDUCPATH: check_libpath,
-#    IType.NODEPATH: check_libpath,
-#    IType.MODTEXT: check_modtext,
-#    IType.XPANTARGETLIST: check_xpantargetlist,
-#    IType.EDIT_ACTION_PARAM: check_edit_action_param,
-#    IType.DISCUSSION_NODE_ADDR: check_discussion_node_addr,
-#    IType.XPANREQID: check_xpanreqID,
-#    IType.RDEF_PAIRS: check_rdef_pairs,
-#    IType.FRIENDLY_RESULT_TYPE: check_friendly_result_type,
-#    IType.INPUT_RESULT_NUMBER: check_input_result_number,
-#    IType.INPUT_RESULT_PAGE_AND_LINE: check_input_result_page_and_line,
-#    IType.INPUT_RESULT_PAGE: check_input_result_page,
-#    IType.INPUT_RESULT_LINE: check_input_result_line,
-#    IType.ACCESS_TYPE: check_access_type,
-#    IType.WORK_TYPE: check_work_type,
     IType.URL: check_url,
-#    IType.LIBSEG_FORMAT: check_libseg_format,
-#    IType.MSC_CODE: check_MSC_code,
-#    IType.MSC_TOP_LEVEL_CODE: check_MSC_top_level_code,
-#    IType.LIB_PAGE_TYPE: check_lib_page_type,
     IType.ISE_SIDE: check_ise_side,
     IType.ISE_SPLIT: check_ise_split,
     IType.ISE_ACTIVE: check_ise_active,
     IType.ISE_WIDGET_LINK: check_ise_widget_link,
     IType.DOC_ID: check_doc_id,
     IType.COMBINER_CODE: check_combiner_code,
+    IType.CHART_COLOR: check_chart_color,
 }
+
 
 def check_type(key, raw, typedef):
     """
@@ -282,6 +334,7 @@ def check_type(key, raw, typedef):
     handler = TYPE_HANDLERS[typename]
     return handler(key, raw, typedef)
 
+
 class UndefinedInput:
     """
     We use instances of this class to represent undefined input values.
@@ -289,13 +342,24 @@ class UndefinedInput:
     """
     pass
 
+
 def is_undefined(thing):
     return isinstance(thing, UndefinedInput)
+
 
 def is_defined(thing):
     return not is_undefined(thing)
 
-def check_input(raw_dict, stash, types, reify_undefined=True):
+
+def extract_full_key_set(types):
+    """
+    Pass the same `types` dict you would pass to the `check_input()` function; we extract
+    and return the full set of key names that can possibly be passed, given this spec.
+    """
+    return check_input({}, {}, types, skip_reqs=True)
+
+
+def check_input(raw_dict, stash, types, reify_undefined=True, err_on_unexpected=False, skip_reqs=False):
     """
     We search for expected variables in a raw input dictionary,
     and perform type checking and other checks, stashing the
@@ -304,8 +368,13 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
     :param raw_dict: dict {varname:value} giving the raw input
     :param stash: dict; a place to stash the results
     :param types: describes what you expect to find
-    :param reify_undefined: see below
-    :return: nothing
+    :param reify_undefined: set False to record nothing, instead of an instance of `UndefinedInput`,
+        for undefined input fields
+    :param err_on_unexpected: set True if you want to raise an exception if
+        any unexpected keys are received
+    :param skip_reqs: set True if you don't want to actually require required args.
+        Mainly intended for internal use.
+    :return: the full set of arg names that could possibly be accepted, according to the given `types`
 
     Exceptions will be raised if anything is wrong with the input.
     This is the primary purpose of this function!
@@ -322,8 +391,8 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
 
     Format of the 'types' argument:
 
-    This is a dictionary, featuring any subset (including all) of
-    the keys: REQ, REQ_ORDER, OPT, ALT_SETS, and CONF.
+    This is a dictionary, featuring any subset of the keys: REQ, REQ_ORDER, OPT,
+    ALT_SETS, and CONF.
 
     REQ: A name:typedef dict. All these are required variables.
 
@@ -342,21 +411,45 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
     In a name:typedef dict, the names are strings, naming variables.
     The typedefs are themselves dicts, describing types.
 
-    A typedef dict MUST have the key 'type', pointing to the name of the basic type.
+    typedef dicts
+    -------------
 
-    A typedef dict MAY have the key 'rename', giving an alternative name for this variable.
-    If defined, the checked value will be stored in the stash under this name.
+    Required keys:
+
+        type
+
+    Optional keys:
+
+        rename
+        keep_raw
+        default_raw
+        default_cooked
+
+    Other keys:
+
+        Further keys may be accepted, depending on the value of the `type`.
+        See the specific type checker function for that type.
+
+    'type': This is the only required key. It defines the basic type of the input.
+        The value must be one of the values of the `IType` enum class.
+
+    'rename': You can use this to give an alternative name for this variable.
+        If defined, the checked value will be stored in the stash under this name.
+
+    'keep_raw': If True, then the type checker function will still be called, but
+        instead of stashing its return value, the raw value will be stashed.
+
+    'default_raw': For use only in typedefs under the OPT group. If defined, and
+        if no input was provided for this field, then this value is passed through
+        the type checker as though it had been given as input.
+
+    'default_cooked': For use only in typedefs under the OPT group. If defined, and
+        if no input was provided for this field, then this value is recorded directly
+        in the stash.
 
     Further keys in a typedef dict may specify subtypes or various options.
-
     In particular, recursive types like 'cdlist' will have a key 'itemtype'
     pointing to another typedef, defining the type of the elements of the list.
-
-    Typedefs under the OPT group MAY have one of two special keys, 'default_raw'
-    and 'default_cooked'. If the former is present and the user offered no value,
-    then the given value is passed through as though it had been offered by the
-    user. If the latter is present and the user offered no value, then the given
-    value is simply recorded in the stash.
 
     The contemplated use case for the CONF group is the checking of "confirm" boxes
     in input forms, e.g. when users are asked to type their email address a second
@@ -369,6 +462,9 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
     are present and that their raw value equals that of their nominated primary,
     otherwise raising an exception.
     """
+    raw_key_set = set(raw_dict.keys())
+    expected_keys = set()
+
     # Required arguments
     req = types.get("REQ")
     req_order = types.get("REQ_ORDER")
@@ -377,24 +473,32 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
             varnames = req_order
         else:
             varnames = req.keys()
+        expected_keys.update(set(varnames))
         for varname in varnames:
             typedef = req[varname]
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict.get(varname)
             if raw is None:
+                if skip_reqs:
+                    continue
                 # These are required variables, so this is a problem.
                 raise PfscExcep('var "%s" not supplied' % varname, PECode.MISSING_INPUT, bad_field=varname)
-            stash[stashname] = check_type(varname, raw, typedef)
+            checked_value = check_type(varname, raw, typedef)
+            stash[stashname] = raw if keep_raw else checked_value
+
     # Optional arguments
     opt = types.get("OPT")
     if opt is not None:
         for varname, typedef in opt.items():
+            expected_keys.add(varname)
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict.get(varname)
             if raw is None:
                 # These are optional variables, so no worries.
                 # Store a default value if one is given.
-                # Otherwise store an instance of UndefinedInput.
+                # Otherwise store an instance of `UndefinedInput` if reifying undefined.
                 if 'default_cooked' in typedef:
                     # This is a default value that doesn't need to be built into
                     # any special kind of object; it already is the exact return
@@ -404,22 +508,27 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
                     # This is a default value that should be run through the same
                     # process as an actual given input would be.
                     default_raw = typedef['default_raw']
-                    stash[stashname] = check_type(varname, default_raw, typedef)
+                    checked_value = check_type(varname, default_raw, typedef)
+                    stash[stashname] = default_raw if keep_raw else checked_value
                 elif reify_undefined:
                     stash[stashname] = UndefinedInput()
             else:
-                stash[stashname] = check_type(varname, raw, typedef)
+                checked_value = check_type(varname, raw, typedef)
+                stash[stashname] = raw if keep_raw else checked_value
+
     # Sets of alternative arguments
     alt_sets = types.get("ALT_SETS")
     if alt_sets is not None:
-        raw_key_set = set(raw_dict.keys())
         for alt_set in alt_sets:
             # Intersect the set of alternatives with the set of all
             # varnames provided in the raw_dict.
             # The size of the intersection should be exactly 1.
             alt_key_set = set(alt_set.keys())
+            expected_keys.update(alt_key_set)
             inter = alt_key_set & raw_key_set
             if len(inter) != 1:
+                if skip_reqs:
+                    continue
                 msg = 'Bad alternative args. For alternatives\n    %s' % alt_key_set
                 msg += '\ngot\n    %s' % raw_key_set
                 raise PfscExcep(msg, PECode.BAD_ALTERNATIVE_ARGS)
@@ -427,29 +536,43 @@ def check_input(raw_dict, stash, types, reify_undefined=True):
             varname = inter.pop()
             typedef = alt_set[varname]
             stashname = typedef.get('rename', varname)
+            keep_raw = typedef.get('keep_raw', False)
             raw = raw_dict[varname]
-            stash[stashname] = check_type(varname, raw, typedef)
+            checked_value = check_type(varname, raw, typedef)
+            stash[stashname] = raw if keep_raw else checked_value
             # Store an instance of UndefinedInput for all the other alternatives.
             unchosen = alt_key_set - {varname}
             for u in unchosen:
                 typedef = alt_set[u]
                 stashname = typedef.get('rename', u)
                 stash[stashname] = UndefinedInput()
+
     # Confirmation arguments
     conf = types.get("CONF")
     if conf is not None:
         for varname, typedef in conf.items():
+            expected_keys.add(varname)
             conf_raw = raw_dict.get(varname)
-            if conf_raw is None:
+            if conf_raw is None and not skip_reqs:
                 # These are required variables, so this is a problem.
                 raise PfscExcep('var "%s" not supplied' % varname, PECode.MISSING_INPUT, bad_field=varname)
             primary_key = typedef['primary']
             primary_raw = raw_dict.get(primary_key)
-            if primary_raw is None:
+            if primary_raw is None and not skip_reqs:
                 raise PfscExcep('var "%s" not supplied' % primary_key, PECode.MISSING_INPUT, bad_field=primary_key)
-            if conf_raw != primary_raw:
+            if conf_raw != primary_raw and not skip_reqs:
                 raise PfscExcep(
                     'var "%s" does not match var "%s"' % (varname, primary_key),
                     PECode.CONF_ARG_DOES_NOT_MATCH,
                     bad_field=varname
                 )
+
+    # Check for unexpected args
+    if err_on_unexpected:
+        unexpected = raw_key_set - expected_keys
+        if unexpected:
+            noun = 'key' if len(unexpected) == 1 else 'keys'
+            msg = f'Received unexpected {noun}: ' + ', '.join(sorted(list(unexpected)))
+            raise PfscExcep(msg, PECode.UNEXPECTED_INPUT)
+
+    return expected_keys

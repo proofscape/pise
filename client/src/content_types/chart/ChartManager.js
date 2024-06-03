@@ -103,7 +103,7 @@ var ChartManager = declare(AbstractContentManager, {
             missingObjHandler: (libpath, paneIds, resp) => {
                 for (const paneId of paneIds) {
                     const forest = forestsByPaneId[paneId];
-                    forest.requestState({off_board: libpath});
+                    forest.requestState({offBoard: libpath});
                 }
             },
             reloader: (libpath, paneIds, resp) => {
@@ -494,20 +494,22 @@ var ChartManager = declare(AbstractContentManager, {
         // transition, and we want to see an overview of all objects on the board.
         // However, we accept any `transition` and `view` settings from the incoming
         // object, if set.
+        const viewOpts = info.viewOpts || {};
+        if (viewOpts.panPolicy === undefined) {
+            viewOpts.panPolicy = moose.head.autopanPolicy_CenterAlways;
+        }
         const params = {
             transition: info.transition || false,
-            view: info.view || {
-                objects: '<all>',
-                pan_policy: moose.head.autopanPolicy_CenterAlways
-            }
+            view: info.view || '<all>',
+            viewOpts: viewOpts,
         };
         // Info objects coming from the tree may use an alternative request format
         // with the fields `libpath` and `version`. We convert this into the standard
-        // `on_board` and `versions` properties.
+        // `onBoard` and `versions` properties.
         const libpath = info.libpath;
         const version = info.version;
         if (libpath) {
-            params.on_board = [libpath];
+            params.onBoard = [libpath];
             params.versions = {
                 [libpath]: version,
             };

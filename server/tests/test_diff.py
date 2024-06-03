@@ -48,6 +48,6 @@ def test_git_style_merge(app, repo, modpath, branch1, branch2):
         #print(mergetext)
         lines = mergetext.split('\n')
         #print(len(lines))
-        assert len(lines) == 114
+        assert len(lines) == 111
         #print(mergetext.find(expected_diff))
-        assert mergetext.find(expected_diff) == 1921
+        assert mergetext.find(expected_diff) == 1878

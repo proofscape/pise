@@ -14,6 +14,7 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+from collections import defaultdict
 import json
 import re
 
@@ -28,6 +29,7 @@ from pfsc.build.repo import RepoFamily, RepoInfo, parse_repo_versioned_libpath
 import pfsc.contenttree as contenttree
 from pfsc.checkinput.version import (
     check_full_version, check_major_version, CheckedVersion)
+from pfsc.lang.freestrings import Libpath
 
 
 class BoxListing:
@@ -94,6 +96,54 @@ class BoxListing:
         for mp in self.multipaths:
             self.libpaths.extend(expand_multipath(mp))
 
+    @classmethod
+    def make_union(cls, bls):
+        """
+        Pass a list of `BoxListing` instances. We return a new one, in which the `self.libpaths`
+        and `self.checked_libpaths` lists have been combined, with no repeats. A "repeat" in
+        the latter list means that the two have the same raw string value, and in that case
+        the earlier one is retained.
+
+        If any given `BoxListing` has a keyword value, an exception is raised.
+
+        Sets are used for the calculation, so, for deterministic output, the lists are sorted
+        lexicographically by libpath, before returning.
+        """
+        if any(bl.keyword for bl in bls):
+            raise PfscExcep(
+                'Cannot unite boxlistings in which any has a keyword value.',
+                PECode.CANNOT_UNITE_BOXLISTINGS
+            )
+
+        bl0 = cls(None)
+
+        # Reverse list of inputs so that earlier ones control.
+        inputs = list(reversed(bls))
+
+        libpaths = set()
+        for bl in inputs:
+            libpaths.update(set(bl.libpaths))
+        bl0.libpaths = sorted(libpaths)
+
+        checked = {}
+        for bl in inputs:
+            checked.update({cl.value: cl for cl in bl.checked_libpaths})
+        bl0.checked_libpaths = [
+            checked[lp] for lp in sorted(checked.keys())
+        ]
+
+        return bl0
+
+    def union(self, *others):
+        bls = [self] + others
+        return self.make_union(bls)
+
+    @property
+    def bracketed_keyword(self):
+        if self.keyword:
+            return f'<{self.keyword}>'
+        return None
+
     def extract_keyword(self, raw_string):
         """
         Given a raw input string, determine whether it is an angle-bracketed
@@ -142,7 +192,8 @@ class BoxListing:
     def is_keyword(self, *args):
         """
         Pass zero args to simply check whether this box listing is given by a keyword.
-        Pass one arg (string) to check whether it is a certain keyword.
+        Pass one arg (string) to check whether it is a certain keyword. In this case,
+        pass the keyword *without* angle brackets, e.g. 'all'.
         """
         if len(args) == 1:
             return self.keyword == args[0]
@@ -160,6 +211,22 @@ class BoxListing:
 
     def get_checked_libpaths(self):
         return self.checked_libpaths
+
+
+def check_relboxlisting(key, raw, typedef):
+    """
+    Check a boxlisting, where libpaths are allowed to be relative.
+
+    This is a convenience function that calls `check_boxlisting()` after first
+    setting the `short_okay` option to `True` in the `libpath_type` in the `typedef`.
+    """
+    enriched_typedef = typedef.copy()
+    libpath_type_field_name = 'libpath_type'
+    libpath_type_dict = enriched_typedef.get(libpath_type_field_name, {})
+    libpath_type_dict['short_okay'] = True
+    enriched_typedef[libpath_type_field_name] = libpath_type_dict
+    return check_boxlisting(key, raw, enriched_typedef)
+
 
 def check_boxlisting(key, raw, typedef):
     """
@@ -456,6 +523,19 @@ class CheckedLibpath:
         self.pathInfo = None
         self.repoInfo = None
 
+
+def check_relpath(key, raw, typedef):
+    """
+    Check a relative libpath.
+
+    Actually just a convenience function to call `check_libpath()` after first setting
+    the `short_okay` option to `True` in the `typedef`.
+    """
+    enriched_typedef = typedef.copy()
+    enriched_typedef['short_okay'] = True
+    return check_libpath(key, raw, enriched_typedef)
+
+
 def check_libpath(key, raw, typedef):
     """
     :param typedef:
@@ -486,8 +566,18 @@ def check_libpath(key, raw, typedef):
                 contain at least three segments (being the repopath).
                 Set True to allow libpaths shorter than three segments.
 
+            is_Libpath_instance: boolean, default False. Set True to require
+                that the given raw string actually be an instance of the
+                `pfsc.lang.freestrings.Libpath` class.
+
     :return: a CheckedLibpath object, or just its `value` property (see above).
     """
+    if not isinstance(raw, str):
+        raise PfscExcep('Expecting string', PECode.INPUT_WRONG_TYPE, bad_field=key)
+
+    if typedef.get('is_Libpath_instance') and not isinstance(raw, Libpath):
+        raise PfscExcep('Expecting Libpath', PECode.INPUT_WRONG_TYPE, bad_field=key)
+
     checked = CheckedLibpath()
 
     # Basic length checks.
@@ -580,3 +670,134 @@ def check_libpath(key, raw, typedef):
     if typedef.get('value_only'):
         return checked.value
     return checked
+
+
+def check_chart_color(key, raw, typedef):
+    """
+    Check the value of a specification for one of the color options ('color' or 'hoverColor')
+    for chart widgets.
+
+    Accepts both the newer string format and the older dictionary format.
+    Normalizes the output so that:
+        - it is in the old, dictionary format
+        - keys are color codes, values are `BoxListing` instances
+
+    :param typedef:
+        optional:
+            update_allowed: boolean, default False. If True, allow the 'update' color command
+                to be accepted. Otherwise, raise an exception if it is encountered.
+
+    Note: At this time, we are not checking that the color codes are well-formed.
+    Might want to add that check in the future.
+
+    Explanation of new, string format:
+
+        In the old format, a color field is given by a dictionary
+        of key-value pairs. Because keys must be unique there, we allowed the keys
+        to be either color codes, or multipaths.
+
+        Here, you should instead give a listing of `colorCodes: boxlisting` pairs,
+        one per line, where the color codes are comma separated.
+
+        In the boxlistings, there is no need for surrounding brackets to make a list,
+        or for quotation marks to make a string. Thus, for example, you may write
+
+            Thm.A10, Pf.{A10,A20}
+
+        which is equivalent to ["Thm.A10", "Pf.{A10,A20}"]` in the dictionary format.
+
+        Because there is no unique-key constraint, there is no reason to allow
+        multipaths on the left. (For dictionaries, we decided you might want to be
+        able to use the same color spec twice, without having to make a giant RHS,
+        so we allowed the option of putting the libpaths on the LHS.)
+        Therefore color codes should always be on the left, boxlistings on the right.
+
+        Since multipaths are no longer allowed on the left, there is no longer a
+        need to disambiguate between color codes and libpaths, and therefore color
+        codes no longer need to be preceded by colons. Therefore color codes should
+        simply be separated by commas.
+
+        As in the dictionary format, we support the special `update` color code,
+        which applies to the whole directive, and therefore does not need any
+        righthand side. Just write the word 'update', by itself, on a line (no quotation
+        marks).
+
+        Example:
+
+            update
+            push,bgR,olY,fi0,diGB: libpath.to.node1
+
+        which means:
+
+            Do not clear existing colors; simply add the given settings.
+            For node1:
+                - push current colors onto node1's color stack
+                - set background red
+                - set outline yellow
+                - clear any existing colors from incoming flow edges
+                - give incoming deduction edges a gradient from green to blue
+
+        Note that `update` is meaningless in hoverColor, which is always done as
+        an update.
+
+        See the docstring for the ColorManager class in pfsc-moose for more info.
+
+
+    :return: dict with string keys and `BoxListing` values
+    """
+    update = False
+    color_to_raw = defaultdict(list)
+
+    if isinstance(raw, str):
+        lines = [L.strip() for L in raw.split('\n')]
+        for line in lines:
+            if not line:
+                continue
+            if line == 'update':
+                update = True
+                continue
+            parts = [p.strip() for p in line.split(":")]
+            if len(parts) != 2:
+                raise PfscExcep(f'Each line in the "{key}" string format'
+                                ' should have a single colon (:), with a comma-separated list'
+                                ' of color codes on the left, and a boxlisting on the right.',
+                                PECode.MALFORMED_COLOR_CODE)
+            comma_sep_color_codes, raw_box_listing = parts
+            color_codes = [c.strip() for c in comma_sep_color_codes.split(',')]
+            # Restore the leading colons expected in the old format.
+            color_spec = ":" + ":".join(color_codes)
+            color_to_raw[color_spec].append(raw_box_listing)
+
+    elif isinstance(raw, dict):
+        for k, v in raw.items():
+            if not isinstance(k, str):
+                raise PfscExcep('Keys in color option dictionaries must be strings.',
+                                PECode.INPUT_WRONG_TYPE)
+            if not k:
+                raise PfscExcep('Keys in color option dictionaries must be nonempty strings.',
+                                PECode.INPUT_WRONG_TYPE)
+            if v and k == ':update':
+                update = True
+                continue
+            color_spec, raw_box_listing = (k, v) if k[0] == ":" else (v, k)
+            color_to_raw[color_spec].append(raw_box_listing)
+
+    else:
+        raise PfscExcep('Color spec should be dict or string', PECode.INPUT_WRONG_TYPE)
+
+    # Note: At this time, we are not checking that the color codes are well-formed.
+    # Might want to add that check in the future.
+
+    normalized = {}
+
+    if update:
+        update_allowed = typedef.get('update_allowed', False)
+        if not update_allowed:
+            raise PfscExcep(f'Color spec for "{key}" cannot use "update" command.', PECode.MALFORMED_COLOR_CODE)
+        normalized[':update'] = True
+
+    for color_spec, raw_box_listings in color_to_raw.items():
+        bls = [check_relboxlisting(key, rbl, {}) for rbl in raw_box_listings]
+        normalized[color_spec] = BoxListing.make_union(bls)
+
+    return normalized

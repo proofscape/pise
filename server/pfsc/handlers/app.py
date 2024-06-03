@@ -219,7 +219,7 @@ def make_source_vmp(tab):
 
 def make_chart_vlps(tab):
     versions = tab['versions']
-    deducs = tab['on_board']
+    deducs = tab['onBoard']
     return [make_repo_versioned_libpath(lp, versions[lp]) for lp in deducs]
 
 class StateArgMaker(Handler):

@@ -13,20 +13,22 @@ Examp Widgets
 -------------
 
 .. pfsc-param:: eg1_k:
-    :ptype: NumberField
-    :name: k
-    :default: "cyc(7)"
-    :args:
-        gen: "zeta"
+    :ptype: "NumberField"
+    :name: "k"
+    :init: "cyc(7)"
+    :args: {
+        gen: "zeta",
         foo: [
                 1, 2, 3, 4
-            ]
-        bar: false
+            ],
+        bar: false,
+        }
 
 .. pfsc-disp:: eg1_disp1:
-    :import:
+    :import: {
         k: eg1_k
-    :export: B
+        }
+    :export: ["B"]
 
     # BEGIN EDIT
     # You can choose the printing format for the elements of the basis.

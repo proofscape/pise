@@ -14,12 +14,17 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-import re, json
+from copy import deepcopy
+import re
+import json
 
 from markupsafe import escape, Markup
 import jinja2
 
+import pfsc.checkinput as checkinput
+from pfsc.checkinput import IType, UndefinedInput
 from pfsc.checkinput.doc import DocIdType
+from pfsc.checkinput.libpath import CheckedLibpath, BoxListing
 from pfsc.constants import (
     IndexType,
     DISP_WIDGET_BEGIN_EDIT, DISP_WIDGET_END_EDIT,
@@ -55,6 +60,7 @@ malformed_widget_template = jinja2.Template("""
 
 """)
 
+
 class MalformedWidget:
     """
     This represents any Widget in which the user wrote malformed JSON.
@@ -82,6 +88,7 @@ class MalformedWidget:
         }
         return malformed_widget_template.render(context)
 
+
 dummy_widget_template = jinja2.Template("""
 <div class="widget dummyWidget {{ uid }}">
     <p>Widget</p>
@@ -90,78 +97,6 @@ dummy_widget_template = jinja2.Template("""
 </div>
 
 """)
-
-def replace_data(data, datapaths, replacer, accept_absent=False):
-    """
-    Use this function to replace data at various places within a JSON object.
-
-    Any location within a JSON object can be specified by a sequence of keys. When these keys (which
-    should all be strings) are joined together with dots ("."), we refer to such a string as a "datapath".
-
-    :param data: the JSON object in which data is to be replaced.
-
-    :param datapaths: list of datapaths where replacement should occur.
-
-                      The datapaths are interpreted as optional. This means the data they refer to need
-                      not be present; but if it is, then we try to replace it.
-
-    :param replacer: a function that accepts three arguments `(path, d, p)`, where `d` is an element
-                     in the data, `p` its parent, and `path` the path that got us there.
-
-                     Should either return the value by which `d` is to be replaced, or else
-                     raise a `ValueError` if no replacement should be made after all.
-
-    :param accept_absent: if True, then `replacer(path, None, p)` will be called in the case of a
-                          datapath `path` every key of which was present _except the very last_.
-                          In other words, this means we accept the case in which the item in question
-                          is not defined, but its parent is.
-
-    :return: nothing. The given data object is modified in-place.
-    """
-    for datapath in datapaths:
-        keys = datapath.split('.')
-        p = None
-        d = data
-        found_data = False
-        n = len(keys)
-        for i, key in enumerate(keys):
-            try:
-                p = d
-                d = p[key]
-            except TypeError:
-                # This case can arise when multiple types are allowed for certain data members.
-                # E.g. when updating the Forest in Moose, you can pass a string or a dict under
-                # the `view` parameter. Therefore ChartWidgets consider both `view` and `view.objects`
-                # as datapaths. If the user has set a string under the `view` parameter, then we
-                # will get a `TypeError` when we examine the datapath `view.objects`.
-                break
-            except KeyError:
-                if accept_absent and i == n - 1:
-                    d = None
-                else:
-                    break
-                # Error message to use if we do want to have "required" data at some point:
-                #msg = "Key '%s' in datapath '%s' could not be located in data %s" % (
-                #    key, datapath, data
-                #)
-                #raise PfscExcep(msg)
-        else:
-            # Only if we did _not_ break out of the above loop do we conclude that we
-            # did manage to find some data.
-            found_data = True
-        # There is (at least for now) no "required" data; if we found nothing under a given
-        # datapath, we just move on.
-        if not found_data: continue
-        # At this point, `d` should be the item pointed to by the datapath,
-        # `p` should be that item's parent, and `key` should satisfy `p[key] = d`.
-        try:
-            r = replacer(datapath, d, p)
-        except ValueError:
-            # The replacer function can raise a ValueError to indicate that it doesn't
-            # actually want to replace the data item after all.
-            pass
-        else:
-            p[key] = r
 
 
 def make_widget_uid(widgetpath, version):
@@ -185,21 +120,113 @@ class Widget(PfscObj):
         self.lineno_within_anno = lineno
         self.is_inline = None
 
-        # Enrich the data object with the typename and lineno of the widget.
-        data["type"] = type_
-        data["src_line"] = self.get_lineno_within_module()
-        self.data = data
+        # The given object of widget data fields, which by this point should be a
+        # de-serialized JSON object (actually the Python version thereof), is stored
+        # under `self.raw_data`. This then goes through three transformations:
+        #   (1) type checking: raw --> checked
+        #   (2) libpath resolution: checked --> resolved
+        #   (3) final translation: resolved --> translated
+        #
+        # Step (3) is just a final chance to ensure that all data types are
+        # JSON-serializable, and does nothing unless subclasses override `self.data_translator()`.
+        # Subclasses do *not* need to worry about translating instances of `CheckedLibpath` or
+        # `BoxListing`, as those are automatically translated into strings or lists of strings,
+        # in step (2).
+        #
+        # Finally, `self.data` is produced as a deep copy of the `self.translated_data` object
+        # resulting from the three steps described above. This preserves `self.translated_data`,
+        # which is useful in debugging.
+        #
+        # It is then `self.data` that is acted upon in the old `self.enrich_data()` method. The
+        # name, "enrich data" may seem odd, as it dates from long before the process described
+        # here was implemented. It used to be that the incoming raw data was simply "enriched"
+        # before being written into the built representation of the widget.
+        self.raw_data = data
+        self.checked_data = {}
+        self.resolved_data = {}
+        self.translated_data = {}
+        self.data = {}
+
         # Grab any default values that may have been set by now.
+        # We record a mapping from field names to `CtlWidgetSetting` instances.
+        self.fields_accepted_from_ctl_widgets = {}
         self.accept_defaults_from_ctl_widgets()
 
-        # In order to resolve relative libpaths, widget subclasses need only specify in this
-        # field the "datapaths" where libpaths can (optionally) be found in their data.
-        # See doctext for the `resolve_libpaths_in_data` method of this class, for more details.
-        self.libpath_datapaths = []
-        # Slot for recording the list of all repopaths implicated by the libpaths:
+        # Slot for recording the list of all repos to which resolved libpaths (in data fields) belong:
         self.repos = []
-        # A lookup for referenced objects, by absolute libpath:
+        # Lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
+
+        # Subclasses may define datapaths at which libpaths should be kept relative, i.e. not
+        # replaced by an absolute libpath, when `self.resolved_data` is produced.
+        #
+        # A datapath is a list of dict keys and list indices, indicating a location in
+        # `self.checked_data`.
+        #
+        # If you need to address a dict key itself (these could be libpaths?), start with the same
+        # datapath as for the value to which that key points, and then append `None`.
+        #
+        # Internally, we still do resolve the libpath, with all the usual side-effects, namely:
+        #   * The repopath is added to self.repos.
+        #   * The object is stored under its abspath in `self.objects_by_abspath`.
+        #
+        # Also, the value in `self.resolved_data` will still be a `Libpath` or list thereof.
+        self.keep_relative = []
+
+    @property
+    def lineno(self):
+        return self.lineno_within_anno
+
+    def check(self, types, raw=None, reify_undefined=True):
+        """
+        Method for checking this widget's data fields, and stashing the
+        results in `self.checked_data`.
+
+        :param types: the definition of the arg types to be checked. See docstring for
+                      the `check_input()` function.
+
+        :param raw: optional dictionary to check instead of `self.raw_data`.
+
+        :param reify_undefined: forwarded to the `check_input()` function.
+
+        :return: nothing
+        """
+        if raw is None:
+            raw = self.raw_data
+        try:
+            checkinput.check_input(
+                raw, self.checked_data, types,
+                reify_undefined=reify_undefined,
+                err_on_unexpected=True
+            )
+        except PfscExcep as pe:
+            field = pe.bad_field()
+            field_detail = f'"{field}" field in ' if field else ''
+            pe.extendMsg(f'Problem is for {field_detail}{self.type_} widget {self.libpath}.')
+            if field in self.fields_accepted_from_ctl_widgets:
+                setting = self.fields_accepted_from_ctl_widgets[field]
+                pe.extendMsg(
+                    f'Field value was set by ctl widget "{setting.ctl_widget_name}" at line {setting.ctl_widget_lineno}'
+                )
+            raise pe
+
+    @classmethod
+    def generate_arg_spec(cls):
+        """
+        Subclasses must override.
+
+        Generate the arg spec dictionary that should be passed to `self.check()` in order to
+        check the input data fields.
+        """
+        raise NotImplementedError(f'Widget class `{cls.__class__}` needs to implement `generate_arg_spec()`')
+
+    def check_fields(self):
+        """
+        Subclasses must override.
+
+        They should call `self.check()`, passing the arg spec that defines all of their data fields.
+        """
+        raise NotImplementedError(f'Widget class `{self.__class__}` needs to implement `check_fields()`')
 
     def has_presence_in_page(self):
         """
@@ -226,7 +253,8 @@ class Widget(PfscObj):
 
     def set_pane_group(self, subtype=None, default_group_name=''):
         """
-        Construct the group ID for this widget.
+        Construct the group ID for this widget. Should be called from the `enrich_data()`
+        methods of those subclasses that use group names.
 
         The group ID consists of ":"-separated parts.
         The first two parts are always:
@@ -294,19 +322,61 @@ class Widget(PfscObj):
         pane_group = ":".join(parts)
         self.data['pane_group'] = pane_group
 
-    def check_required_fields(self, req):
-        for rf in req:
-            if rf not in self.data:
-                msg = 'Widget %s is missing required "%s" field.' % (self.name, rf)
-                raise PfscExcep(msg, PECode.WIDGET_MISSING_REQUIRED_FIELD)
-
     def cascadeLibpaths(self):
         PfscObj.cascadeLibpaths(self)
-        self.data['widget_libpath'] = self.libpath
 
-    def resolveLibpathsRec(self):
-        self.repos = self.resolve_libpaths_in_data(self.libpath_datapaths)
-        PfscObj.resolveLibpathsRec(self)
+    def resolve(self):
+        self.check_fields()
+        self.resolve_libpaths_in_checked_data()
+        self.translate_data()
+
+    def translate_data(self):
+        """
+        This is a last chance to produce an altered form of the data, after type checking and
+        libpath resolution, and before `enrich_data()` is called.
+
+        For example, if there is some non-JSON-serializable type still present in the data,
+        this should be translated into some JSON-serializable representation.
+
+        Subclasses wishing to achieve something special here should NOT override THIS method,
+        but instead override the `data_translator()` method.
+        """
+        self.translated_data = self._translate_data_rec(self.resolved_data, [])
+        # Since `self.translated_data` is supposed to be JSON-serializable, we *could* use
+        # the ser/deser trick to make a deep copy, except that that would turn `Libpath`
+        # objects into `str` objects, which we don't want. So we just use `deepcopy()`.
+        self.data = deepcopy(self.translated_data)
+
+    def _translate_data_rec(self, obj, datapath):
+        if isinstance(obj, dict):
+            pairs = [
+                (k, self._translate_data_rec(v0, datapath + [k]))
+                for k, v0 in obj.items()
+            ]
+            return {k: v1 for k, v1 in pairs if not isinstance(v1, UndefinedInput)}
+        elif isinstance(obj, list):
+            L = [
+                self._translate_data_rec(a0, datapath + [i])
+                for i, a0 in enumerate(obj)
+            ]
+            return [a1 for a1 in L if not isinstance(a1, UndefinedInput)]
+        else:
+            return self.data_translator(obj, datapath)
+
+    def data_translator(self, obj, datapath):
+        """
+        Subclasses should override this method if they want to achieve anything
+        special during the `translate_data()` call.
+
+        :param obj: the current object to be translated
+        :param datapath: a list of dict keys and list indices, indicating how we
+            reached the current object, while traversing `self.resolved_data`.
+        :return: EITHER return the desired translation of `obj` (should always be
+            some JSON-serializable type), OR return an instance of the
+            `pfsc.checkinput.UndefinedInput` class, to indicate that you want to omit
+            this object entirely, from the dict or list that contains it.
+        """
+        return obj
 
     def getRequiredRepoVersions(self):
         # Get ahold of the desired version for each repo implicated by libpaths
@@ -350,11 +420,11 @@ class Widget(PfscObj):
         lowercase_type = self.get_type().lower()
         for default_field_name in SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS:
             _, widget_type, field_name = default_field_name.split('_')
-            if widget_type == lowercase_type and field_name not in self.data:
+            if widget_type == lowercase_type and field_name not in self.raw_data:
                 if self.parent.check_ctl_widget_setting_defined(default_field_name):
-                    self.data[field_name] = self.parent.read_ctl_widget_setting(
-                        default_field_name
-                    )
+                    setting = self.parent.read_ctl_widget_setting(default_field_name)
+                    self.raw_data[field_name] = setting.field_value
+                    self.fields_accepted_from_ctl_widgets[field_name] = setting
 
     def enrich_data(self):
         """
@@ -365,11 +435,14 @@ class Widget(PfscObj):
         in the build process. In particular this means the enclosing Module
         will already know its represented version.
         """
+        self.data['widget_libpath'] = self.libpath
+        self.data["type"] = self.type_
+        self.data["src_line"] = self.get_lineno_within_module()
         self.data['uid'] = self.writeUID()
 
     def resolve_libpath(self, libpath):
         """
-        Given a libpath, which may (or may not) be relative, resolve it to an absolute libpath.
+        Given a relative libpath, resolve it to an absolute libpath.
 
         This method also achieves the critical side effect of checking that the
         object referenced by the libpath is actually present in the module in which
@@ -378,111 +451,74 @@ class Widget(PfscObj):
         the version at which we're taking it (based on the declared dependencies of the
         repo being built).
 
-        :param libpath: The libpath to be resolved. May be relative or absolute.
+        :param libpath: The relative libpath to be resolved.
         :return: The absolute libpath to which the given one resolves.
         :raises: PfscExcep if relative libpath cannot be resolved.
         """
         if libpath in self.objects_by_abspath:
             # This already is an absolute path to which we have resolved sth.
             return libpath
-        obj, ancpath = self.getFromAncestor(libpath, missing_obj_descrip=f'named in widget {self.getLibpath()}')
+        obj, _ = self.getFromAncestor(libpath, missing_obj_descrip=f'named in widget {self.getLibpath()}')
         abspath = obj.getLibpath()
         self.objects_by_abspath[abspath] = obj
         return abspath
 
-    def resolve_multipath(self, multipath):
-        """
-        Given a multipath, which may (or may not) be relative, resolve it to a list of absolute libpaths.
-        @param multipath: The multipath to be resolved. May be relative or absolute; may be a plain libpath.
-        @return: List of absolute libpaths.
-        @raise: PfscExcep if any relative libpath cannot be resolved.
-        """
-        libpaths = expand_multipath(multipath)
-        return [self.resolve_libpath(lp) for lp in libpaths]
-
-    def resolve_libpaths_in_data(self, datapaths):
+    def resolve_libpaths_in_checked_data(self):
         """
         The data defining a widget may contain relative libpaths which must be interpreted relative
         to the module in which the widget lives. It is important that all such libpaths be resolved
-        to absolute ones, for use by the front-end.
+        to absolute ones, for use on the client side.
 
-        Depending on the type of widget, libpaths might be found at various places in the data.
-        But since the data takes the form of a JSON object, any location within it can be specified by
-        a sequence of keys. We refer to such a sequence of keys as a "datapath".
+        This method is to be called after `self.check_fields()` has turned `self.raw_data` into
+        `self.checked_data`. It traverses `self.checked_data`, looking for instances of the
+        `CheckedLibpath` and `BoxListing` classes. When it finds these, it attempts to resolve the libpaths
+        to absolute ones, and record the results in `self.resolved_data`.
 
-        Therefore it is up to the various widget types to use this method, passing it a list of datapaths
-        where libpaths may be found, so that they can be resolved.
-
-        Each datapath should point to a string, a list, or a dict. These should be, respectively, a multipath,
-        a list of multipaths, or a dict in which all values are multipaths or lists of multipaths.
-        See doctext for the `expand_multipath` function for precise defn of a multipath.
-
-        When a multipath is encountered as a string, it will remain a string when resolved, provided it expands
-        to just a single libpath; otherwise it will be replaced by a list of libpaths.
-
-        When a multipath is encountered within a list, that list will be replaced by the list of all libpaths to
-        which its elements resolve. I.e. it will be flattened after expansion of its elements.
-
-        For example, if multipath M expands to libpaths L1, L2, then
-
-            M --> [L1, L2]              (string replaced by list)
-
-        whereas
-
-            [M, L3] --> [L1, L2, L3]    (list remains list).
-
-        :param datapaths: list of datapaths pointing to strings, lists or dicts in the data, as described above.
-        :return: self.data is modified in-place; our return value is the set of
-          repo parts of all libpaths resolved.
+        :return: nothing. `self.resolved_data` and `self.repos` are built as side effects.
         """
-        # A "multipath or list thereof" is a "boxlisting".
-        # We write a utility function here which resolves all libpaths within a boxlisting,
-        # and which returns a string when possible, and a list otherwise.
         repos = set()
-        def resolve_boxlisting(d):
-            if isinstance(d, str):
-                L = self.resolve_multipath(d)
-                r = L if len(L) > 1 else L[0]
-            elif isinstance(d, list):
-                r = sum([self.resolve_multipath(m) for m in d], [])
-            else:
-                raise ValueError
-            if isinstance(r, str):
-                repos.add(get_repo_part(r))
-            else:
-                assert isinstance(r, list)
-                repos.update(set(get_repo_part(lp) for lp in r))
-            return r
-        def replacer(path, d, p):
-            try:
-                # `d` should be either a boxlisting itself, or a dict in which (some of) the values are boxlistings.
-                if isinstance(d, str) or isinstance(d, list):
-                    r = resolve_boxlisting(d)
-                elif isinstance(d, dict):
-                    r = {}
-                    for k in d:
-                        try:
-                            p = resolve_boxlisting(d[k])
-                        except ValueError:
-                            r[k] = d[k]
-                        else:
-                            r[k] = p
+
+        def res_checked_libpath(clp, datapath):
+            relpath = clp.value
+
+            abspath = self.resolve_libpath(relpath)
+            repos.add(get_repo_part(abspath))
+
+            desired_path = relpath if datapath in self.keep_relative else abspath
+            return Libpath(desired_path)
+
+        def res(obj, datapath):
+            if isinstance(obj, dict):
+                return {
+                    res(k, datapath + [k, None]): res(v, datapath + [k])
+                    for k, v in obj.items()
+                }
+            elif isinstance(obj, list):
+                return [
+                    res(a, datapath + [i])
+                    for i, a in enumerate(obj)
+                ]
+            elif isinstance(obj, CheckedLibpath):
+                return res_checked_libpath(obj, datapath)
+            elif isinstance(obj, BoxListing):
+                if obj.is_keyword():
+                    return obj.bracketed_keyword
                 else:
-                    raise ValueError
-            except PfscExcep as pe:
-                raise pe
-            except:
-                raise ValueError
+                    return [res_checked_libpath(clp, datapath) for clp in obj.checked_libpaths]
             else:
-                return r
-        replace_data(self.data, datapaths, replacer)
-        return repos
+                return obj
+
+        self.resolved_data = res(self.checked_data, [])
+        self.repos = sorted(repos)
 
 
 class UnknownTypeWidget(Widget):
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, "<unknown-type>", name, label, data, anno, lineno)
+
+    def check_fields(self):
+        pass
 
 
 """
@@ -510,21 +546,72 @@ class CtlWidget(Widget):
 
         * Stuff for controlling Markdown rendering:
 
-            section_numbers: {
+            sectionNumbers: {
                 on: boolean (default True),
-                top_level: int from 1 to 6 (default 1), indicating at what heading
+                topLevel: int from 1 to 6 (default 1), indicating at what heading
                     level numbers should begin to be automatically inserted
             }
 
-            If `section_numbers` is defined at all, then its `on` property defaults to
+            If `sectionNumbers` is defined at all, then its `on` property defaults to
             True; but, until a CtlWidget is found that switches section numbering on, it
             is off.
     """
 
+    supported_default_fields = SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
+
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.CTL, name, label, data, anno, lineno)
-        self.supported_default_fields = SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
-        self.check_data()
+        self.record_default_fields()
+
+    @classmethod
+    def _generate_arg_spec_parts(cls):
+        markdown_control_opts = {
+            'sectionNumbers': {
+                'type': IType.DICT,
+                'spec': {
+                    "OPT": {
+                        'on': {
+                            'type': IType.BOOLEAN,
+                            'default_cooked': True,
+                        },
+                        'topLevel': {
+                            'type': IType.INTEGER,
+                            'min': 1,
+                            'max': 6,
+                            'default_cooked': 1,
+                        },
+                    }
+                },
+            },
+        }
+        spec = {
+            "OPT": markdown_control_opts,
+        }
+
+        # We "check" the 'default-...' fields with `IType.ANY`. By even making it this far, we
+        # know that they were parsable as JSON, and that's all we can check at this level.
+        # When they are adopted by specific widget types, they will be checked there.
+        # But they have to be named in our OPT dict, or else `self.check()` will raise an exception
+        # when they are present.
+        spec["OPT"].update({
+            field_name: {'type': IType.ANY}
+            for field_name in cls.supported_default_fields
+        })
+
+        return spec, markdown_control_opts
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec, _ = cls._generate_arg_spec_parts()
+        return spec
+
+    def check_fields(self):
+        spec, _ = self._generate_arg_spec_parts()
+        self.check(spec)
+
+    def data_translator(self, obj, datapath):
+        is_default_field = datapath and datapath[-1] in self.supported_default_fields
+        return UndefinedInput() if is_default_field else obj
 
     def has_presence_in_page(self):
         return False
@@ -535,15 +622,7 @@ class CtlWidget(Widget):
         msg += detail
         raise PfscExcep(msg, PECode.MALFORMED_CONTROL_WIDGET)
 
-    def check_data(self):
-        """
-        Check that the passed control codes/cmds are well-formed.
-        This method can evolve as we add more options.
-        """
-        self.check_supported_default_fields()
-        self.check_section_numbers()
-
-    def check_supported_default_fields(self):
+    def record_default_fields(self):
         """
         Look for definitions of defaults, and record them.
 
@@ -551,33 +630,15 @@ class CtlWidget(Widget):
         the values set here can be available when subsequent widgets are constructed.
         """
         for field_name in self.supported_default_fields:
-            if field_name in self.data:
-                value = self.data[field_name]
-                self.parent.make_ctl_widget_setting(field_name, value)
-
-    def check_section_numbers(self):
-        sn = self.data.get('section_numbers')
-        if sn is not None:
-            if not isinstance(sn, dict):
-                raise self.malformed('section_numbers must be dict')
-            c_on = sn.get('on')
-            if c_on is not None:
-                if not isinstance(c_on, bool):
-                    raise self.malformed('section_numbers.on must be boolean')
-            else:
-                sn['on'] = True
-            c_top_level = sn.get('top_level')
-            if c_top_level is not None:
-                if not isinstance(c_top_level, int) or c_top_level < 1 or c_top_level > 6:
-                    raise self.malformed('section_numbers.top_level must be int from 1 to 6')
-            else:
-                sn['top_level'] = 1
+            if field_name in self.raw_data:
+                value = self.raw_data[field_name]
+                self.parent.make_ctl_widget_setting(field_name, value, self)
 
     def configure(self, renderer):
-        sn = self.data.get('section_numbers')
+        sn = self.data.get('sectionNumbers')
         if sn is not None:
             renderer.sn_do_number = sn.get('on')
-            renderer.sn_top_level = sn.get('top_level')
+            renderer.sn_top_level = sn.get('topLevel')
 
     def writeHTML(self, label=None, sphinx=False):
         """
@@ -596,6 +657,28 @@ class NavWidget(Widget):
         Widget.__init__(self, type_, name, label, data, parent, lineno)
         self.html_template_name = html_template_name
         self.is_inline = True
+
+    @classmethod
+    def add_common_options_to_arg_spec(cls, spec):
+        """
+        Before returning the arg spec from their `generate_arg_spec()` method, subclasses
+        should pass the spec to this method, to add the optional `group` arg.
+        """
+        spec["OPT"] = spec.get("OPT", {})
+        spec["OPT"]['group'] = {
+            'type': IType.DISJ,
+            'alts': [
+                {
+                    'type': IType.STR,
+                    'max_len': MAX_WIDGET_GROUP_NAME_LEN,
+                },
+                # Integers are allowed. They will be converted to string later.
+                {
+                    'type': IType.INTEGER,
+                    'min': 0,
+                }
+            ],
+        }
 
     def writeHTML(self, label=None, sphinx=False):
         if label is None:
@@ -646,19 +729,122 @@ class ChartWidget(NavWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.CHART, 'chart_widget_template', name, label, data, anno, lineno)
-        self.libpath_datapaths = (
-            "on_board",
-            "off_board",
-            "view",
-            "view.objects",
-            "view.core",
-            "view.center",
-            "color",
-            "hovercolor",
-            "select",
-            "checkboxes.deducs",
-            "checkboxes.checked",
-        )
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec = {
+            "OPT": {
+                'view': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'onBoard': {
+                    'type': IType.RELBOXLISTING,
+                },
+                'offBoard': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'reload': {
+                    'type': IType.RELBOXLISTING,
+                    'allowed_keywords': ['all'],
+                },
+                'coords': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.STR,
+                            'values': ['fixed'],
+                        },
+                        {
+                            'type': IType.LIST,
+                            'spec': [
+                                {'type': IType.INTEGER},
+                                {'type': IType.INTEGER},
+                                {'type': IType.FLOAT, 'gt': 0},
+                            ]
+                        }
+                    ],
+                },
+                'select': {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.BOOLEAN,
+                        },
+                        {
+                            'type': IType.RELBOXLISTING,
+                        }
+                    ],
+                },
+                'color': {
+                    'type': IType.CHART_COLOR,
+                    'update_allowed': True,
+                },
+                'hoverColor': {
+                    'type': IType.CHART_COLOR,
+                    'update_allowed': False,
+                },
+                'layout': {
+                    'type': IType.STR,
+                    'values': [
+                        'KLayDown', 'KLayUp', 'OrderedList1',
+                    ]
+                },
+                'transition': {
+                    'type': IType.BOOLEAN
+                },
+                'flow': {
+                    'type': IType.BOOLEAN
+                },
+                'viewOpts': {
+                    'type': IType.DICT,
+                    'spec': {
+                        "OPT": {
+                            'core': {
+                                'type': IType.RELBOXLISTING,
+                                'allowed_keywords': ['named'],
+                            },
+                            'center': {
+                                'type': IType.RELBOXLISTING,
+                                'allowed_keywords': ['all', 'core', 'named'],
+                            },
+                            'viewboxPaddingPx': {
+                                'type': IType.INTEGER,
+                                'min': 0,
+                            },
+                            'viewboxPaddingPercent': {
+                                'type': IType.INTEGER,
+                                'min': 0,
+                            },
+                            'maxZoom': {
+                                'type': IType.FLOAT,
+                                'gt': 0,
+                            },
+                            'minZoom': {
+                                'type': IType.FLOAT,
+                                'gt': 0,
+                            },
+                            'panPolicy': {
+                                'type': IType.STR,
+                                'values': [
+                                    'centerAlways', 'centerNever', 'centerDistant',
+                                ],
+                            },
+                            'insetAware': {
+                                'type': IType.BOOLEAN,
+                            },
+                        }
+                    }
+                },
+            },
+        }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def enrich_data(self):
         super().enrich_data()
@@ -666,28 +852,29 @@ class ChartWidget(NavWidget):
         self.data['versions'] = self.getRequiredRepoVersions()
         self.data['title_libpath'] = self.parent.libpath
         self.data['icon_type'] = 'nav'
-        self.set_up_hovercolor()
+        self.process_color_options()
 
-    def set_up_hovercolor(self):
-        hc_name = 'hovercolor'
+    def process_color_options(self):
+        hc_name = 'hoverColor'
         if hc_name in self.data:
-            hc = self.data[hc_name]
-            self.data[hc_name] = set_up_hovercolor(hc)
+            hc_dict = self.data[hc_name]
+            hc_setup = set_up_hover_color(hc_dict)
+            self.data[hc_name] = hc_setup
 
 
-def set_up_hovercolor(hc):
+def set_up_hover_color(hc):
     """
-    NOTE: hovercolor may only be used with _node_ colors -- not _edge_ colors.
+    NOTE: hoverColor may only be used with *node* colors -- not *edge* colors.
 
-    If user has requested hovercolor, we enrich the data for ease of
-    use at the front-end.
+    If user has requested hoverColor, we enrich the data for ease of
+    use by the client-side code.
 
-    Under `hovercolor`, the user provides an ordinary `color` request.
-    The user should _not_ worry about using any of `update`, `save`, `rest`;
+    Under `hoverColor`, the user provides an ordinary `color` request.
+    The user should *not* worry about using any of `update`, `save`, `rest`;
     we take care of all of that. User should just name the colors they want.
 
-    We transform the given color request so that under `hovercolor` our data
-    instead features _two_ ordinary color requests: one called `over` and one
+    We transform the given color request so that under `hoverColor` our data
+    instead features *two* ordinary color requests: one called `over` and one
     called `out`. These can then be applied on `mouseover` and `mouseout` events.
     """
     over = {':update': True}
@@ -726,9 +913,97 @@ class DocWidget(NavWidget):
     A Widget class for controlling document panes (PDF etc.).
     """
 
+    doc_field_name = 'doc'
+    sel_field_name = 'sel'
+
     def __init__(self, name, label, data, anno, lineno):
         NavWidget.__init__(self, WidgetTypes.DOC, 'doc_widget_template', name, label, data, anno, lineno)
         self.docReference = None
+        self.keep_relative = [[self.doc_field_name]]
+
+    @classmethod
+    def generate_arg_spec(cls):
+        # Neither 'doc' nor 'sel' field is required alone, but at least one of the two must
+        # be defined. A check is performed in our `enrich_data()` method.
+        #
+        # In all cases, a document must be specified. This can happen in either
+        # 'doc' or 'sel'. Defining 'doc' but not 'sel' is a way to refer to a document itself,
+        # without specifying any particular selection within it.
+        spec = {
+            "OPT": {
+                cls.sel_field_name: {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.RELPATH,
+                            'is_Libpath_instance': True,
+                        },
+                        {
+                            'type': IType.STR
+                        }
+                    ]
+                },
+                cls.doc_field_name: {
+                    'type': IType.DISJ,
+                    'alts': [
+                        {
+                            'type': IType.RELPATH,
+                            'is_Libpath_instance': True,
+                        },
+                        {
+                            'type': IType.DICT,
+                            'spec': {
+                                "REQ": {
+                                    'docId': {
+                                        'type': IType.DOC_ID,
+                                        'keep_raw': True,
+                                    },
+                                },
+                                "OPT": {
+                                    'url': {
+                                        'type': IType.URL,
+                                        'allowed_schemes': ['https', 'http'],
+                                        'keep_raw': True,
+                                    },
+                                    'aboutUrl': {
+                                        'type': IType.URL,
+                                        'allowed_schemes': ['https', 'http'],
+                                        'keep_raw': True,
+                                    },
+                                    'title': {
+                                        'type': IType.STR,
+                                    },
+                                    'author': {
+                                        'type': IType.STR,
+                                    },
+                                    'year': {
+                                        'type': IType.INTEGER,
+                                    },
+                                    'publisher': {
+                                        'type': IType.STR,
+                                    },
+                                    'ISBN': {
+                                        'type': IType.STR,
+                                    },
+                                    'eBookISBN': {
+                                        'type': IType.STR,
+                                    },
+                                    'DOI': {
+                                        'type': IType.STR,
+                                    },
+                                }
+                            },
+                        },
+                    ]
+                }
+            },
+        }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def enrich_data(self):
         super().enrich_data()
@@ -738,21 +1013,13 @@ class DocWidget(NavWidget):
         doc_info_obj = None
         doc_info_libpath = None
 
-        doc_field_name = 'doc'
-        sel_field_name = 'sel'
-        hid_field_name = 'highlightId'
-
-        doc_field_value = self.data.get(doc_field_name)
-        sel_field_value = self.data.get(sel_field_name)
+        doc_field_value = self.data.get(self.doc_field_name)
+        sel_field_value = self.data.get(self.sel_field_name)
 
         # The sel field can be a libpath pointing to a node, when you want to
         # clone the very same selection made by the doc ref of that node.
-        # For now, we require a `Libpath` object. In future, could expand
-        # support to libpaths given as strings. Then will have to perform a
-        # check that it is not a combiner code string.
         if isinstance(sel_field_value, Libpath):
-            abspath = self.resolve_libpath(sel_field_value)
-            origin_node = self.objects_by_abspath[abspath]
+            origin_node = self.objects_by_abspath[sel_field_value]
         else:
             code = sel_field_value
 
@@ -763,10 +1030,10 @@ class DocWidget(NavWidget):
             if doc_field_value is not None:
                 if isinstance(doc_field_value, dict):
                     doc_info_obj = doc_field_value
-                elif isinstance(doc_field_value, str):
+                elif isinstance(doc_field_value, Libpath):
                     doc_info_libpath = doc_field_value
                 else:
-                    msg = '`doc` field should be dict (full info) or string (libpath)'
+                    msg = '`doc` field should be dict (full info) or libpath'
                     raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
             self.docReference = doc_ref_factory(
                 code=code, origin_node=origin_node, doc_info_obj=doc_info_obj,
@@ -778,8 +1045,8 @@ class DocWidget(NavWidget):
 
         # Clean up. Doc descriptors go at top level of anno.json; don't need
         # to repeat them in each doc widget.
-        if doc_field_name in self.data:
-            del self.data[doc_field_name]
+        if self.doc_field_name in self.data:
+            del self.data[self.doc_field_name]
 
         doc_info = self.docReference.doc_info
 
@@ -803,9 +1070,10 @@ class DocWidget(NavWidget):
         self.data["type"] = content_type
 
         # Do we define a doc highlight?
+        hid_field_name = 'highlightId'
         if (cc := self.docReference.combiner_code) is not None:
             # Final selection code must be pure combiner code (no two-part ref code)
-            self.data[sel_field_name] = cc
+            self.data[self.sel_field_name] = cc
             # The combiner code can be used for "ad hoc highlights"; for
             # "named highlights" we need a highlight ID:
             self.data[hid_field_name] = f'{self.parent.getLibpath()}:{self.getDocRefInternalId()}'
@@ -832,48 +1100,63 @@ class LinkWidget(NavWidget):
 
     Fields:
 
-        ref: the libpath of the annotation or widget to which you wish to link
+        REQ:
 
-        tab: a string indicating the desired tab policy. This controls whether the
-            content is loaded in the same tab where the link occurred, or another
-            existing tab, or a new tab.
+            ref: the libpath of the annotation or widget to which you wish to link
 
-            The default value is `existing`. (See below.)
+        OPT:
 
-            In order to help define the policies, suppose the link occurs in
-            annotation A and points (in)to annotation B. Suppose the link has
-            been clicked inside tab T0. If B is currently open in one or more
-            tabs, let R be the one among these with which the user has most
-            recently interacted.
+            tab: a string indicating the desired tab policy. This controls whether the
+                content is loaded in the same tab where the link occurred, or another
+                existing tab, or a new tab.
 
-            Policies:
+                The default value is `existing`. (See below.)
 
-            existing: The idea is that if B is already open in any tab, then load
-                the content there. To be precise: If B != A and R exists, load in R.
-                Else load in T0.
+                In order to help define the policies, suppose the link occurs in
+                annotation A and points (in)to annotation B. Suppose the link has
+                been clicked inside tab T0. If B is currently open in one or more
+                tabs, let R be the one among these with which the user has most
+                recently interacted.
 
-            same: Load in T0 under all circumstances.
+                Policies:
 
-            other: The idea is that the content is to be loaded somwhere else.
-                To be precise, if R exists, load there. Else load in a new tab.
+                existing: The idea is that if B is already open in any tab, then load
+                    the content there. To be precise: If B != A and R exists, load in R.
+                    Else load in T0.
 
-            new: Load in a new tab under all circumstances.
+                same: Load in T0 under all circumstances.
+
+                other: The idea is that the content is to be loaded somwhere else.
+                    To be precise, if R exists, load there. Else load in a new tab.
+
+                new: Load in a new tab under all circumstances.
     """
 
     def __init__(self, name, label, data, anno, lineno):
-        # FIXME:
-        #  We really should be using the checkinput module to check given
-        #  parameters, set default values, etc.
-        defaults = {
-            'tab': 'existing'
-        }
-        defaults.update(data)
-        data = defaults
         NavWidget.__init__(self, WidgetTypes.LINK, 'link_widget_template', name, label, data, anno, lineno)
-        self.check_required_fields(["ref"])
-        self.libpath_datapaths = (
-            "ref",
-        )
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'ref': {
+                    'type': IType.RELPATH,
+                },
+            },
+            "OPT": {
+                'tab': {
+                    'type': IType.STR,
+                    'values': [
+                        'existing', 'same', 'other', 'new',
+                    ],
+                    'default_cooked': 'existing'
+                },
+            }
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def enrich_data(self):
         super().enrich_data()
@@ -911,18 +1194,30 @@ class QnAWidget(Widget):
     Question & Answer widgets are for posing a question, and giving the answer.
     """
 
-    # Required fields:
-    QUESTION = 'question'
-    ANSWER = 'answer'
-
-    required_fields = [QUESTION, ANSWER]
-
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.QNA, name, label, data, anno, lineno)
         self.is_inline = False
-        self.check_required_fields(QnAWidget.required_fields)
-        self.question = data[QnAWidget.QUESTION]
-        self.answer   = data[QnAWidget.ANSWER]
+        self.question = None
+        self.answer = None
+
+    @classmethod
+    def generate_arg_spec(cls):
+        return {
+            "REQ": {
+                'question': {
+                    'type': IType.STR,
+                },
+                'answer': {
+                    'type': IType.STR,
+                },
+            }
+        }
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
+        self.question = self.checked_data['question']
+        self.answer = self.checked_data['answer']
 
     def writeHTML(self, label=None, sphinx=False):
         if label is None: label = escape(self.label)
@@ -1004,6 +1299,16 @@ class LabelWidget(WrapperWidget):
         self.template_name = 'label_widget_template'
         self.is_inline = True
 
+    @classmethod
+    def generate_arg_spec(cls):
+        return {}
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        # Even though we accept no fields, it's important to call `self.check()`,
+        # as this will raise an exception if the user *did* define any fields.
+        self.check(spec)
+
 
 class GoalWidget(WrapperWidget):
     """
@@ -1025,10 +1330,30 @@ class GoalWidget(WrapperWidget):
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.GOAL, name, label, data, anno, lineno)
         self.template_name = 'goal_widget_template'
-        self.libpath_datapaths = [
-            'altpath'
-        ]
         self.is_inline = True
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec = {
+            "OPT": {
+                'altpath': {
+                    'type': IType.RELPATH,
+                },
+            }
+        }
+        # Note: The 'origin' field is not to be named in the docs. Authors are not
+        # intended to use it. It is for internal use, when doing things like generating
+        # study pages. At this time, we're not taking any steps to ensure that it be
+        # accepted only in such contexts; however, by keeping it out of the docs, we are
+        # free to implement such measures at any time.
+        spec["OPT"]['origin'] = {
+            'type': IType.STR,
+        }
+        return spec
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def compute_origin(self, force=False):
         # If the origin was already given, don't bother to do anything (unless forcing).
@@ -1078,16 +1403,27 @@ class ExampWidget(Widget):
     def __init__(self, type_, name, label, data, anno, lineno):
         Widget.__init__(self, type_, name, label, data, anno, lineno)
         self.is_inline = False
-        self.context_name = self.data.get('context', 'Basic')
-        self.libpath_datapaths = (
-            'import',
-        )
+        self.context_name = 'Basic'
         self._requested_imports = None
         self._generator = None
         self._trusted = None
 
+    @classmethod
+    def add_common_options_to_arg_spec(cls, spec):
+        """
+        Before returning the arg spec from their `generate_arg_spec()` method, subclasses
+        should pass the spec to this method, to add the optional `context` arg.
+        """
+        spec["OPT"] = spec.get("OPT", {})
+        spec["OPT"]['context'] = {
+            'type': IType.STR,
+            'default_cooked': 'Basic',
+        }
+
     @property
     def requested_imports(self):
+        # Note: This method is used (at least at present) only during the `enrich_data()`
+        # phase, so it is correct to use `self.data` here.
         if self._requested_imports is None:
             self._requested_imports = self.data.get('import', {}).copy()
         return self._requested_imports
@@ -1141,13 +1477,14 @@ class ExampWidget(Widget):
             # injected at serve time; we record it instead at build time.
             self.data['trusted'] = self.trusted
         self.data['dependencies'] = self.compute_dependency_closure()
+        self.context_name = self.data.get('context', 'Basic')
 
     def get_direct_dependencies(self):
         """
         Get the set of libpaths of all ExampWidgets that this widget uses
         directly, via imports.
 
-        :return: list of libpaths
+        :return: list of absolute libpaths
         """
         return list(self.requested_imports.values())
 
@@ -1220,7 +1557,55 @@ class ParamWidget(ExampWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         ExampWidget.__init__(self, WidgetTypes.PARAM, name, label, data, anno, lineno)
-        self.check_required_fields(['ptype', 'name'])
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec = {
+            "REQ": {
+                'ptype': {
+                    'type': IType.STR,
+                },
+                'name': {
+                    'type': IType.STR,
+                },
+            },
+            "OPT": {
+                'init': {
+                    'type': IType.ANY,
+                },
+                'tex': {
+                    'type': IType.STR,
+                },
+                'descrip': {
+                    'type': IType.STR,
+                },
+                'import': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.RELPATH,
+                        'is_Libpath_instance': True,
+                    },
+                },
+                'args': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.ANY,
+                    },
+                },
+            },
+        }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def make_generator(self):
         make_param = from_import('pfsc_examp', 'make_param')
@@ -1228,10 +1613,18 @@ class ParamWidget(ExampWidget):
 
     def enrich_data(self):
         super().enrich_data()
+
         ri = self.requested_imports
         self.data['params'] = ri
+
         if 'import' in self.data:
             del self.data['import']
+
+        # The pfsc-examp code still expects the initial value spec under
+        # the key 'default', instead of 'init'.
+        if 'init' in self.data:
+            self.data['default'] = self.data['init']
+            del self.data['init']
 
     def writeHTML(self, label=None, sphinx=False):
         html = f'<div class="widget exampWidget paramWidget {self.writeUID()}">\n'
@@ -1255,7 +1648,40 @@ class DispWidget(ExampWidget):
 
     def __init__(self, name, label, data, anno, lineno):
         ExampWidget.__init__(self, WidgetTypes.DISP, name, label, data, anno, lineno)
-        self.check_required_fields(['build'])
+
+    @classmethod
+    def generate_arg_spec(cls):
+        spec = {
+            "REQ": {
+                'build': {
+                    'type': IType.STR,
+                },
+            },
+            "OPT": {
+                'import': {
+                    'type': IType.DICT,
+                    'keytype': {
+                        'type': IType.STR,
+                    },
+                    'valtype': {
+                        'type': IType.RELPATH,
+                        'is_Libpath_instance': True,
+                    },
+                },
+                'export': {
+                    'type': IType.LIST,
+                    'itemtype': {
+                        'type': IType.STR,
+                    },
+                },
+            },
+        }
+        cls.add_common_options_to_arg_spec(spec)
+        return spec
+
+    def check_fields(self):
+        spec = self.generate_arg_spec()
+        self.check(spec)
 
     def make_generator(self):
         make_disp = from_import('pfsc_examp', 'make_disp')

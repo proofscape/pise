@@ -51,11 +51,11 @@ const ChartWidget = declare(NavWidget, {
     activate: function activate(wdq, uid, nm, pane) {
         // Let our superclass set up the click handler.
         this.inherited(activate, arguments);
-        // If we have hovercolor, set that up.
+        // If we have hoverColor, set that up.
         const info = this.origInfo;
-        if (info.hovercolor) {
-            const over = info.hovercolor.over,
-                out  = info.hovercolor.out;
+        if (info.hoverColor) {
+            const over = info.hoverColor.over,
+                out  = info.hoverColor.out;
             wdq.on('mouseover', async () => {
                 const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId);
                 for (const targetUuid of targetUuids) {

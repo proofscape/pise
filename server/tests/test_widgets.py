@@ -24,10 +24,12 @@ from pfsc.build.repo import RepoInfo
 
 widget_data_1 = """{
     "test-foo-bar-expansions-Notes1-w10_WIP": {
-        "view": "test.foo.bar.results.Pf",
+        "view": [
+            "test.foo.bar.results.Pf"
+        ],
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "type": "CHART",
         "src_line": 22,
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "uid": "test-foo-bar-expansions-Notes1-w10_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:",
         "versions": {
@@ -38,11 +40,13 @@ widget_data_1 = """{
         "version": "WIP"
     },
     "test-foo-bar-expansions-Notes1-w20_WIP": {
-        "view": "test.foo.bar.expansions.X",
+        "view": [
+            "test.foo.bar.expansions.X"
+        ],
         "group": 2,
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
         "type": "CHART",
         "src_line": 26,
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w20",
         "uid": "test-foo-bar-expansions-Notes1-w20_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:2",
         "versions": {
@@ -129,12 +133,9 @@ mod_text_fragment_4 = """\
 <chart:w20>[]{
     "view": "X",
     "group": 2,
-    "checkboxes": {
-        "deducs": "Pf",
-        "checked": [
-            "Pf.S",
-            "Pf.R"
-        ]
+    "viewOpts": {
+        "maxZoom": 3,
+        "insetAware": false
     }
 }"""
 
@@ -148,7 +149,7 @@ def test_widget_data_sub_4(app):
         bc = mod.getBlockChunker()
         text = bc.write_module_text({
             "test.foo.bar.expansions.Notes1.w20": {
-                "checkboxes.checked": ["Pf.S", "Pf.R"]
+                "viewOpts.insetAware": False
             }
         })
         print()
@@ -167,7 +168,7 @@ def test_widget_data_sub_5(app):
         bc = mod.getBlockChunker()
         text = bc.write_module_text({
             "test.foo.bar.expansions.Notes1.w20": {
-                "checkboxes.checked": ["Pf.S", "Pf.R"]
+                "viewOpts.insetAware": False
             }
         })
         print()
@@ -314,7 +315,7 @@ Here is <chart:>[a widget]{
 @pytest.mark.psm
 @pytest.mark.parametrize("group_spec, expected_err_code", [
     ['"this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long_this_spec_is_too_long"',
-     PECode.WIDGET_GROUP_NAME_TOO_LONG],
+     PECode.INPUT_WRONG_TYPE],
     ['"...this_has_too_many_dots"',
      PECode.PARENT_DOES_NOT_EXIST],
 ])
@@ -349,3 +350,51 @@ def test_widget_group_spec(app, group_spec, expected_group_id):
         widget = anno.widget_seq[0]
         group_id = widget.data['pane_group']
         assert group_id == expected_group_id
+
+
+@pytest.mark.psm
+def test_unexpected_field_error(app):
+    """
+    Show that widgets raise an exception if there is an unexpected field.
+    """
+    with app.app_context():
+        text = """
+        anno Notes @@@
+        Here is <chart:>[a widget]{
+            foobar: "that defines an unexpected field",
+        }
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        assert ei.value.code() == PECode.UNEXPECTED_INPUT
+
+
+@pytest.mark.psm
+def test_err_in_ctl_default_value(app):
+    """
+    Examine what happens when a default field value is defined in
+    a ctl widget, but the value is malformed.
+    """
+    with app.app_context():
+        text = """
+        anno Notes @@@
+        <ctl:>[]{
+            default_chart_group: 3.14159
+        }
+        
+        <chart:>[Foo]{
+            coords: [0, 0, 1],
+        }
+        @@@
+        """
+        with pytest.raises(PfscExcep) as ei:
+            mod = build_module_from_text(text, 'test._foo._bar')
+            mod.resolve()
+        pe = ei.value
+        assert pe.code() == PECode.INPUT_WRONG_TYPE
+        s = str(pe)
+        # The error message should contain information about the ctl widget that
+        # set the value.
+        assert s.find("Field value was set by ctl widget &#34;w1&#34; at line 2") > 0

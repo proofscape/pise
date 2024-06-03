@@ -4,8 +4,8 @@ anno Notes2 @@@
 # Great Title Again
 
 <ctl:>[]{
-    section_numbers: {
-        top_level: 2
+    sectionNumbers: {
+        topLevel: 2
     }
 }
 

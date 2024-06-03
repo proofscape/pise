@@ -330,7 +330,7 @@ class ChartRequest(TypeRequest):
         # We start by recording just the one libpath and version in the type description.
         # If you are planning to add "copaths" later, you just need to call the
         # `finalize_libpaths` method when you are done, in order to override this.
-        self.type_descrip['on_board'] = [libpath]
+        self.type_descrip['onBoard'] = [libpath]
         self.type_descrip['versions'] = {libpath: version}
 
         self.libpath = libpath
@@ -421,7 +421,7 @@ class ChartRequest(TypeRequest):
         if self.copaths:
             versions = {k:v for k, v in [parse_repo_versioned_libpath(rvlp) for rvlp in self.copaths]}
             self.type_descrip['versions'].update(versions)
-            self.type_descrip['on_board'].extend(list(versions.keys()))
+            self.type_descrip['onBoard'].extend(list(versions.keys()))
 
 class AugmentedLibpath:
 

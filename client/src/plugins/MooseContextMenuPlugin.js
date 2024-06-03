@@ -432,7 +432,7 @@ var MooseContextMenuPlugin = declare(null, {
                     label: 'Close',
                     onClick: function(){
                         forest.requestState({
-                            off_board: theUID,
+                            offBoard: theUID,
                             transition: true
                         });
 

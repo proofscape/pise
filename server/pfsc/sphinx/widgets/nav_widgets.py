@@ -16,8 +16,11 @@
 
 import re
 
+from lark.exceptions import LarkError
 from sphinx.util.docutils import SphinxRole
 
+from pfsc.lang.freestrings import build_pfsc_json
+from pfsc.lang.widgets import WIDGET_TYPE_TO_CLASS
 from pfsc.sphinx.widgets.base import finish_run
 from pfsc.sphinx.widgets.util import process_widget_subtext
 from pfsc.excep import PfscExcep
@@ -33,12 +36,19 @@ class PfscNavWidgetRole(SphinxRole):
 
     Subclasses must override:
         widget_class (e.g. ChartWidget -- which class from pfsc.lang.widgets to use)
-        widget_type_name (e.g. 'chart' -- appears in error messages)
         target_field_name (e.g. 'view' -- key under which target will be passed on to widget instance)
     """
     widget_class = None
-    widget_type_name = 'nav'
     target_field_name = 'target'
+
+    @property
+    def widget_type_name(self):
+        name = 'nav'
+        for uppercase_name, widget_class in WIDGET_TYPE_TO_CLASS.items():
+            if widget_class is self.widget_class:
+                name = uppercase_name.lower()
+                break
+        return name
 
     def write_error_return_values(self, msg_text):
         msg = self.inliner.reporter.error(msg_text, line=self.lineno)
@@ -52,7 +62,7 @@ class PfscNavWidgetRole(SphinxRole):
                 f'Inline Proofscape {self.widget_type_name} widgets must have'
                 f' the form `SUBTEXT <{self.target_field_name.upper()}>`.'
             )
-        subtext, target = [g.strip() for g in M.groups()]
+        subtext, raw_target = [g.strip() for g in M.groups()]
 
         try:
             widget_name, widget_label = process_widget_subtext(subtext)
@@ -61,6 +71,12 @@ class PfscNavWidgetRole(SphinxRole):
                 'Widget name (text before colon in subtext) malformed.'
                 ' Must be valid libpath segment, or empty.'
             )
+
+        try:
+            target = build_pfsc_json(raw_target)
+        except (PfscExcep, LarkError) as e:
+            msg = f'The "{self.target_field_name}" field is malformed.\n{e}'
+            return self.write_error_return_values(msg)
 
         fields = {
             self.target_field_name: target,

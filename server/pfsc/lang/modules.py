@@ -122,7 +122,7 @@ class PfscModule(PfscObj):
                 cache = {}
 
             if prog_mon:
-                prog_mon.set_message(f'Reolving imports from {self.libpath}...')
+                prog_mon.set_message(f'Resolving imports from {self.libpath}...')
 
             for pi in self.pending_imports:
                 lrt = pi.resolve(cache=cache, prog_mon=prog_mon, load_only=load_only)
@@ -202,7 +202,7 @@ class PfscModule(PfscObj):
             elif isinstance(obj, PfscAssignment):
                 obj.rhs = replace_or_replace_within(obj.rhs, obj)
             elif isinstance(obj, Widget):
-                replace_or_replace_within(obj.data, obj)
+                replace_or_replace_within(obj.raw_data, obj)
 
         self.recursiveItemVisit(visit)
 

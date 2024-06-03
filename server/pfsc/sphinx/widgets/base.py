@@ -15,14 +15,11 @@
 # --------------------------------------------------------------------------- #
 
 from docutils import nodes
-from docutils.parsers.rst.directives import unchanged
 from sphinx.util.docutils import SphinxDirective
 from sphinx.errors import SphinxError
 
 from pfsc.sphinx.pages import get_sphinx_page
-from pfsc.sphinx.widgets.util import (
-    process_widget_subtext, check_widget_name,
-)
+from pfsc.sphinx.widgets.util import process_widget_subtext
 from pfsc.excep import PfscExcep
 
 
@@ -74,30 +71,25 @@ def depart_pfsc_widget_html(self, node):
 
 class PfscOneArgWidgetDirective(SphinxDirective):
     """
-    Base class for Proofscape widget directives that accept a single argument,
-    where the name, and possibly label, of the widget can be specified.
+    Base class for Proofscape widget directives that accept a single argument, being
+    the SUBTEXT, i.e. where the name, and possibly label, of the widget can be specified.
 
     Handles both the one optional arg, and the `alt` option, in order
-    to process the name/label including when used with the rST substitution
+    to process the SUBTEXT including when used with the rST substitution
     pattern.
 
     Subclasses must override:
         widget_class (e.g. ChartWidget -- which class from pfsc.lang.widgets to use)
 
     Subclasses may override:
-        * has_content (set True if the directive has content)
-        * content_field_name (name of widget data field under which content should
-            be passed to the widget class, when `has_content` is `True`)
-        * label_allowed (set False if only a name may be passed)
-        * label_required (set True if a label must be given)
-
-    Subclasses should extend:
-        option_spec (defines the fields to be passed on to the widget instance)
-            Can do it like this:
-                option_spec = {
-                    **PfscOneArgWidgetDirective.option_spec,
-                    "some_special_field_name": unchanged,
-                }
+        * has_content: set True if the directive has content.
+        * content_field_name: the name of the widget data field under which content
+            should be passed to the widget class, when `has_content` is `True`.
+            The entire content value is interpreted as a string, i.e. it is *not*
+            passed through the PF-JSON parser, and should *not* be surrounded by
+            quotation marks.
+        * label_allowed: default True. Set False if *only* a name may be passed.
+        * label_required: default False. Set True if a label *must* be given.
     """
     optional_arguments = 1
     final_argument_whitespace = True
@@ -108,10 +100,6 @@ class PfscOneArgWidgetDirective(SphinxDirective):
 
     has_content = False
     content_field_name = ''
-
-    option_spec = {
-        "alt": unchanged,
-    }
 
     def get_name_and_label(self, label_allowed=True, required=False):
         """
@@ -178,8 +166,16 @@ class PfscOneArgWidgetDirective(SphinxDirective):
             label_allowed=self.label_allowed, required=self.label_required
         )
 
-        opts = self.options.copy()
+        opts = {
+            self.proper_casing[k]: v
+            for k, v in self.options.items()
+            if k != 'alt'  # Skip the one "meta field" where rST passes the SUBTEXT.
+        }
         if self.has_content:
+            # `self.content` is an instance of the `docutils.statemachine.StringList` class.
+            # It behaves like a list, and contains the list of *un-indented* lines of the directive
+            # content. So we can simply pass it to `'\n'.join()` to reconstitute the given content,
+            # without indentation.
             opts[self.content_field_name] = '\n'.join(self.content)
 
         node = finish_run(

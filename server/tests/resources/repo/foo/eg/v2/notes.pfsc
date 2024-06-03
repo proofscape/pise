@@ -3,7 +3,7 @@ anno Notes @@@
 <param:eg1_n>[]{
     ptype: "Integer",
     name: "n",
-    default: 12,
+    init: 12,
     args: {
         gt: 5,
     },
@@ -13,7 +13,7 @@ anno Notes @@@
     ptype: "Divisor",
     name: "d1",
     tex: "d_1",
-    default: 3,
+    init: 3,
     import: {
         dividing: eg1_n,
     },
@@ -45,7 +45,7 @@ anno Notes @@@
     ptype: "Prime",
     name: "p1",
     tex: "p_1",
-    default: 11,
+    init: 11,
 }
 
 <param:eg1_p2>[]{
@@ -64,7 +64,7 @@ anno Notes @@@
 <param:eg1_p4>[]{
     ptype: "Prime",
     name: "p4",
-    default: 13,
+    init: 13,
     args: {
         chooser_upper_bound: 71,
     }
@@ -73,7 +73,7 @@ anno Notes @@@
 <param:eg1_p5>[]{
     ptype: "Prime",
     name: "p5",
-    default: 17,
+    init: 17,
     args: {
         chooser_upper_bound: 163,
     }
@@ -82,7 +82,7 @@ anno Notes @@@
 <param:eg1_p6>[]{
     ptype: "Prime",
     name: "p6",
-    default: 101,
+    init: 101,
     args: {
         chooser_upper_bound: 163,
     }
@@ -91,7 +91,7 @@ anno Notes @@@
 <param:eg1_p7>[]{
     ptype: "Prime",
     name: "p7",
-    default: 23,
+    init: 23,
     import: {
         n: eg1_n,
     },
@@ -138,7 +138,7 @@ anno Notes @@@
 <param:eg1_K1>[]{
     ptype: "NumberField",
     name: "K1",
-    default: "cyc(7)",
+    init: "cyc(7)",
     args: {
         gen: "zeta",
     }
@@ -147,7 +147,7 @@ anno Notes @@@
 <param:eg1_K2>[]{
     ptype: "NumberField",
     name: "K2",
-    default: "cyclotomic_poly(7)",
+    init: "cyclotomic_poly(7)",
     args: {
         gen: "zeta",
     }
@@ -156,7 +156,7 @@ anno Notes @@@
 <param:eg1_K3>[]{
     ptype: "NumberField",
     name: "K3",
-    default: "x^2 + 5",
+    init: "x^2 + 5",
     args: {
         gen: "alpha",
         var: "t",
@@ -166,7 +166,7 @@ anno Notes @@@
 <param:eg1_K4>[]{
     ptype: "NumberField",
     name: "K4",
-    default: "y^3 + 4*y - 7",
+    init: "y^3 + 4*y - 7",
     args: {
         var: "u",
     }
@@ -188,7 +188,7 @@ anno Notes @@@
     ptype: "PrimeIdeal",
     name: "P2",
     tex: "\mathfrak{p}_2",
-    default: 2,
+    init: 2,
     import: {
         k: eg1_K1,
         p: eg1_p4,

@@ -25,7 +25,7 @@ from pfsc.lang.freestrings import (
 )
 from pfsc.lang.widgets import (
     UnknownTypeWidget, MalformedWidget,
-    WIDGET_TYPE_TO_CLASS, replace_data
+    WIDGET_TYPE_TO_CLASS,
 )
 
 
@@ -199,6 +199,7 @@ class Annotation(EnrichmentPage):
         # Now we can assemble the desired text.
         raw = self.raw_parts
         text_parts = [raw[0]]
+        transformer = PfscJsonTransformer(scope=None)
         for k in range(self.Nw):
             rwd, text = raw[2*k+1:2*k+3]
             data_replacements = lookup.get(rwd.name)
@@ -212,7 +213,8 @@ class Annotation(EnrichmentPage):
                     new_data = data_replacements['']
                 else:
                     # We are not replacing the entire widget data.
-                    new_data = json.loads(rwd.data)
+                    tree = json_parser.parse(rwd.data)
+                    new_data = transformer.transform(tree)
                     replace_data(new_data, data_replacements.keys(), (lambda path, d, p: data_replacements[path]), accept_absent=True)
             else:
                 new_data = None
@@ -250,3 +252,76 @@ class Annotation(EnrichmentPage):
             "html": html,
             "data": data
         }
+
+
+def replace_data(data, datapaths, replacer, accept_absent=False):
+    """
+    Use this function to replace data at various places within a JSON object.
+
+    Any location within a JSON object can be specified by a sequence of keys. When these keys (which
+    should all be strings) are joined together with dots ("."), we refer to such a string as a "datapath".
+
+    :param data: the JSON object in which data is to be replaced.
+
+    :param datapaths: list of datapaths where replacement should occur.
+
+                      The datapaths are interpreted as optional. This means the data they refer to need
+                      not be present; but if it is, then we try to replace it.
+
+    :param replacer: a function that accepts three arguments `(path, d, p)`, where `d` is an element
+                     in the data, `p` its parent, and `path` the path that got us there.
+
+                     Should either return the value by which `d` is to be replaced, or else
+                     raise a `ValueError` if no replacement should be made after all.
+
+    :param accept_absent: if True, then `replacer(path, None, p)` will be called in the case of a
+                          datapath `path` every key of which was present _except the very last_.
+                          In other words, this means we accept the case in which the item in question
+                          is not defined, but its parent is.
+
+    :return: nothing. The given data object is modified in-place.
+    """
+    for datapath in datapaths:
+        keys = datapath.split('.')
+        p = None
+        d = data
+        found_data = False
+        n = len(keys)
+        for i, key in enumerate(keys):
+            try:
+                p = d
+                d = p[key]
+            except TypeError:
+                # This case can arise when multiple types are allowed for certain data members.
+                # E.g. when updating the Forest in Moose, you can pass a string or a dict under
+                # the `view` parameter. Therefore ChartWidgets consider both `view` and `view.objects`
+                # as datapaths. If the user has set a string under the `view` parameter, then we
+                # will get a `TypeError` when we examine the datapath `view.objects`.
+                break
+            except KeyError:
+                if accept_absent and i == n - 1:
+                    d = None
+                else:
+                    break
+                # Error message to use if we do want to have "required" data at some point:
+                #msg = "Key '%s' in datapath '%s' could not be located in data %s" % (
+                #    key, datapath, data
+                #)
+                #raise PfscExcep(msg)
+        else:
+            # Only if we did _not_ break out of the above loop do we conclude that we
+            # did manage to find some data.
+            found_data = True
+        # There is (at least for now) no "required" data; if we found nothing under a given
+        # datapath, we just move on.
+        if not found_data: continue
+        # At this point, `d` should be the item pointed to by the datapath,
+        # `p` should be that item's parent, and `key` should satisfy `p[key] = d`.
+        try:
+            r = replacer(datapath, d, p)
+        except ValueError:
+            # The replacer function can raise a ValueError to indicate that it doesn't
+            # actually want to replace the data item after all.
+            pass
+        else:
+            p[key] = r

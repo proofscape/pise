@@ -71,29 +71,6 @@ def check_widget_name(raw):
     check_libseg('', raw, {})
 
 
-def parse_box_listing(box_listing):
-    """
-    Return a list of libpath strings, or raise a SphinxError.
-
-    Example:
-
-        foo.bar, foo.{spam.baz, cat}
-
-    is transformed into
-
-        ['foo.bar', 'foo.spam.baz', foo.cat]
-    """
-    try:
-        bl = check_boxlisting('', box_listing, {
-            'libpath_type': {
-                'short_okay': True,
-            },
-        })
-    except PfscExcep as pe:
-        raise SphinxError(str(pe))
-    return bl.get_libpaths()
-
-
 def parse_dict_lines(text, keytype, valtype, key=None):
     """
     Parse the value of a single rST directive option, where the value is in a

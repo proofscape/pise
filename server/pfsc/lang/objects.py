@@ -713,6 +713,18 @@ class Enrichment(PfscObj):
         )
 
 
+class CtlWidgetSetting:
+    """
+    Represents a setting made by a ctl widget.
+    """
+
+    def __init__(self, field_name, field_value, ctl_widget_name, ctl_widget_lineno):
+        self.field_name = field_name
+        self.field_value = field_value
+        self.ctl_widget_name = ctl_widget_name
+        self.ctl_widget_lineno = ctl_widget_lineno
+
+
 class EnrichmentPage(Enrichment):
     """
     Essentially, an EnrichmentPage is something that contains Widgets.
@@ -725,25 +737,39 @@ class EnrichmentPage(Enrichment):
 
         # Pages can have "control widgets" in them, which can make settings
         # that affect other things at build time. This is where their settings
-        # are recorded:
+        # are recorded.
+        # FORMAT:
+        #  key: the name of a field that has been set
+        #  value: pair (v, n) where v is the value for that field, and n is the
+        #    name of the CtlWidget that made the setting.
         self.ctl_widget_settings = {}
 
     def get_proper_widgets(self):
         raise NotImplementedError
 
     def resolve(self):
-        self.resolveLibpathsRec()
-        for widget in self.get_proper_widgets():
+        widgets = self.get_proper_widgets()
+        # Resolve all widgets...
+        for widget in widgets:
+            widget.resolve()
+        # ...before any of them tries to enrich data.
+        # Doing it this way is important e.g. for `ExampWidget.compute_dependency_closure()`
+        # to work correctly.
+        for widget in widgets:
             widget.enrich_data()
 
-    def make_ctl_widget_setting(self, key, value):
-        self.ctl_widget_settings[key] = value
+    def make_ctl_widget_setting(self, key, value, ctl_widget):
+        self.ctl_widget_settings[key] = CtlWidgetSetting(
+            key, value, ctl_widget.name, ctl_widget.lineno
+        )
 
     def read_ctl_widget_setting(self, key, default=None):
         """
         See also: check_ctl_widget_setting_defined()
         """
-        return self.ctl_widget_settings.get(key, default)
+        if key in self.ctl_widget_settings:
+            return self.ctl_widget_settings[key]
+        return default
 
     def check_ctl_widget_setting_defined(self, key):
         """

@@ -376,10 +376,12 @@ with a <a class="widget chartWidget test-foo-bar-expansions-Notes1-w10_WIP" href
 
 foo_bar_widget_data = {
     "test-foo-bar-expansions-Notes1-w10_WIP": {
-        "view": "test.foo.bar.results.Pf",
+        "view": [
+            "test.foo.bar.results.Pf"
+        ],
+        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "type": "CHART",
         "src_line": 22,
-        "widget_libpath": "test.foo.bar.expansions.Notes1.w10",
         "uid": "test-foo-bar-expansions-Notes1-w10_WIP",
         "pane_group": "test.foo.bar@WIP.expansions.Notes1:CHART:",
         "versions": {
@@ -415,16 +417,16 @@ anno_text_ctl_0 = ""
 
 anno_text_ctl_1 = """
 <ctl:>[]{
-    section_numbers: {
-        top_level: 1,
+    sectionNumbers: {
+        topLevel: 1,
     }
 }
 """
 
 anno_text_ctl_2 = """
 <ctl:>[]{
-    section_numbers: {
-        top_level: 2,
+    sectionNumbers: {
+        topLevel: 2,
     }
 }
 """
@@ -450,6 +452,7 @@ def test_section_numbers_1(app, ctl_text, depth):
         anno = Annotation('foo', [], ctl_text + anno_text_section_numbers_1, None)
         anno.build()
         anno.cascadeLibpaths()
+        anno.resolve()
         h = anno.get_escaped_html()
         print()
         print(h)

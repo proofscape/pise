@@ -15,6 +15,18 @@
 # --------------------------------------------------------------------------- #
 
 from pfsc.excep import PfscExcep, PECode
+from pfsc.lang.freestrings import Libpath
+
+
+def check_any(key, raw, typedef):
+    """
+    This is useful in cases where the `check_input()` function has been called
+    with `err_on_unexpected=True`. Then every legal field has to be "checked" in
+    some way, lest an error be raised when it is defined. If no further checking
+    is desired, then this is the "checker" function to use.
+    """
+    return raw
+
 
 def check_boolean(key, raw, typedef):
     """
@@ -40,6 +52,7 @@ def check_boolean(key, raw, typedef):
         return raw.lower() == 'true'
     return False
 
+
 def check_integer(key, raw, typedef):
     """
     :param raw: either an actual integer, or a string rep of integer, base 10
@@ -51,6 +64,9 @@ def check_integer(key, raw, typedef):
             divisors: list of integers that must divide the given one
     :return: int
     """
+    if not isinstance(raw, (str, int)):
+        msg = 'Expecting int or string rep thereof.'
+        raise PfscExcep(msg, PECode.INPUT_WRONG_TYPE)
     lb = typedef.get('min')
     ub = typedef.get('max')
     if 'default_on_empty' in typedef and raw == '':
@@ -73,6 +89,43 @@ def check_integer(key, raw, typedef):
             raise PfscExcep(f'Integer must be divisible by {d}', PECode.BAD_INTEGER, bad_field=key)
 
     return n
+
+
+def check_float(key, raw, typedef):
+    """
+    :param raw: either an actual float, or a string rep thereof
+    :param typedef:
+        opt:
+            gte: must be greater than or equal to this
+            lte: must be less than or equal to this
+            gt: must be greater than this
+            lt: must be less than this
+    :return: float
+    """
+    gte = typedef.get('gte')
+    lte = typedef.get('lte')
+    gt = typedef.get('gt')
+    lt = typedef.get('lt')
+
+    try:
+        f = float(raw)
+    except Exception:
+        raise PfscExcep('Bad float', PECode.BAD_FLOAT, bad_field=key)
+
+    try:
+        if gte is not None:
+            assert f >= gte
+        if lte is not None:
+            assert f <= lte
+        if gt is not None:
+            assert f > gt
+        if lt is not None:
+            assert f < lt
+    except Exception:
+        raise PfscExcep('Float out of range', PECode.BAD_FLOAT, bad_field=key)
+
+    return f
+
 
 def check_simple_dict(key, raw, typedef):
     """
@@ -108,6 +161,7 @@ def check_simple_dict(key, raw, typedef):
                 raise PfscExcep('Value of wrong type in dictionary', PECode.INPUT_WRONG_TYPE, bad_field=key)
     return d
 
+
 def check_string(key, raw, typedef):
     """
     Check that the input is a string.
@@ -117,9 +171,15 @@ def check_string(key, raw, typedef):
         optional:
             values: list of strings giving the only allowed values
             max_len: maximum allowable length of the string
+            is_Libpath_instance: boolean, default False. Set True to require
+                that this string actually be an instance of the
+                `pfsc.lang.freestrings.Libpath` class.
     """
     if not isinstance(raw, str):
         raise PfscExcep('Expecting string', PECode.INPUT_WRONG_TYPE, bad_field=key)
+
+    if typedef.get('is_Libpath_instance') and not isinstance(raw, Libpath):
+        raise PfscExcep('Expecting Libpath', PECode.INPUT_WRONG_TYPE, bad_field=key)
 
     values = typedef.get('values')
     if values is not None:
@@ -132,6 +192,7 @@ def check_string(key, raw, typedef):
             raise PfscExcep('String too long.', PECode.INPUT_TOO_LONG, bad_field=key)
 
     return raw
+
 
 def check_json(key, raw, typedef):
     """

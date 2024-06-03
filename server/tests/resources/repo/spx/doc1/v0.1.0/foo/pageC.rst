@@ -64,18 +64,20 @@ that can be passed to them.
     :view: Pf
 
 .. |w000: substitutions| pfsc-chart::
-    :view: Thm.C, Pf.{R,S}
-    :on_board: comment.xpan_S
-    :off_board: comment.xpan_T
-    :color:
+    :view: "Thm.C, Pf.{R,S}"
+    :onBoard: comment.xpan_S
+    :offBoard: comment.xpan_T
+    :color: """
         olB: Pf.{R,S}
         bgG: Thm.C
+        """
 
 .. |w001: one-line color definition| pfsc-chart::
     :view: Pf
-    :color: olB: Pf.{R,S}
+    :color: "olB: Pf.{R,S}"
 
 .. |w002: color defn with: repeated LHS, plus use of update| pfsc-chart::
-    :color: update
+    :color: """update
         bgG: Pf.{R,S}
         bgG: Thm.C
+        """
