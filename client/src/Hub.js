@@ -1269,7 +1269,14 @@ var Hub = declare(null, {
     alert: function({title, content}) {
         title = title || 'Info';
         content = content || '(nothing here)';
-        content = `<div class="padded20 mw48">${content}</div>`;
+
+        let classes = "padded20";
+        // Set a max width, for error alerts:
+        if (title === "Error") {
+            classes += " mw48";
+        }
+
+        content = `<div class="${classes}">${content}</div>`;
         const dlg = new Dialog({
             title: title,
             content: content,
