@@ -1042,7 +1042,7 @@ var EditManager = declare(AbstractContentManager, {
      * needed.
      *
      * param info: the info object defining the item to be opened.
-     * param elt: the DOM elmeent where the editor is to be placed.
+     * param elt: the DOM element where the editor is to be placed.
      * param paneId: the id of the ContentPane where this content is being opened.
      *
      * return: promise that resolves when the content is loaded.

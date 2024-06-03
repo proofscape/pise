@@ -325,6 +325,7 @@ export class BasePageViewer extends Listenable {
                 version: desc.version,
                 useExisting: true,
                 sourceRow: desc.sourceRow,
+                is_rst: (this.pageType === "SPHINX"),
             };
             this.mgr.hub.contentManager.openContentInActiveTC(info);
         }
