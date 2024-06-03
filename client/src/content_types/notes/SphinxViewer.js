@@ -287,6 +287,13 @@ export class SphinxViewer extends BasePageViewer {
             loc.scrollFrac = current.scrollFrac;
             loc.scrollSel = current.scrollSel;
         }
+        // By passing a location with a `url`, but without a `libpath` (or `version`),
+        // we can force a reload for pages that are already loaded. This will happen
+        // because, when control reaches our `pageContentsUpdateStep()` method, it will
+        // call `this.describeLocationUpdate()`, which will call it a "page change" on
+        // the grounds that the new location has a different `libpath` (namely none).
+        // In cases viewed as "page change," our `pageContentsUpdateStep()` method goes
+        // on to (re)load the iframe.
         await super.reloadPage(loc);
     }
 

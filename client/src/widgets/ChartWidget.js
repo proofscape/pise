@@ -57,14 +57,14 @@ const ChartWidget = declare(NavWidget, {
             const over = info.hoverColor.over,
                 out  = info.hoverColor.out;
             wdq.on('mouseover', async () => {
-                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId);
+                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId());
                 for (const targetUuid of targetUuids) {
                     this.hub.contentManager.updateContentAnywhereByUuid(
                         {type: "CHART", color: over}, targetUuid, { selectPane: true });
                 }
             });
             wdq.on('mouseout', async () => {
-                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId);
+                const targetUuids = await nm.linkingMap.get(info.uuid, this.groupId());
                 for (const targetUuid of targetUuids) {
                     this.hub.contentManager.updateContentAnywhereByUuid(
                         {type: "CHART", color: out}, targetUuid, { selectPane: true });

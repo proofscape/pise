@@ -343,7 +343,7 @@ var NotesManager = declare(AbstractContentManager, {
      */
     groupHasRepresentative: function(groupId) {
         for (let [uid, widget] of this.widgets) {
-            if (widget.groupId === groupId) {
+            if (widget.groupId() === groupId) {
                 return true;
             }
         }
@@ -909,7 +909,7 @@ var NotesManager = declare(AbstractContentManager, {
         const LN = this.linkingMap;
 
         const widget = this.widgets.get(uid);
-        const gid = widget.groupId;
+        const gid = widget.groupId();
 
         const cm = this.hub.contentManager;
         const clickedPane = pane;
