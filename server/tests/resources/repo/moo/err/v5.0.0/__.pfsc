@@ -2,7 +2,7 @@
 # it's supposed to be relative to the repo, not absolute.
 # This shouldn't raise an exception, but should cause a warning to be printed.
 
-change_log = {
+changeLog = {
     moved: {
         "test.moo.err.foo": null
     }

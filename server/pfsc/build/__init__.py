@@ -73,6 +73,7 @@ from pfsc.build.lib.libpath import PathInfo
 from pfsc.build.products import get_dashgraph_dir_and_filename, get_annotation_dir_and_filenames
 from pfsc.build.repo import RepoInfo, checkout, get_repo_info, parse_module_filename
 from pfsc.build.versions import version_string_is_valid
+from pfsc.checkinput import check_repo_dependencies_format
 from pfsc.gdb import get_graph_writer, get_graph_reader, building_in_gdb
 from pfsc.constants import IndexType, PFSC_EXT, RST_EXT
 from pfsc import get_js_url
@@ -499,10 +500,21 @@ class Builder:
 
         :return: nothing
         """
-        self.build()
-        self.update_index()
-        self.write_all()
-        self.monitor.declare_complete()
+        try:
+            self.build()
+            self.update_index()
+            self.write_all()
+            self.monitor.declare_complete()
+        except PfscExcep:
+            # We try to offer an ACID-type guarantee that, if anything goes wrong during the
+            # build-and-index process, no products are left behind in the build dir or graphdb.
+            # However, we do *not* clear out the cache dirs. It's normal for builds to fail during
+            # development, e.g. all you need is a syntax error in one module. In such cases, you
+            # don't want to lose the entire cache, and thereby make the next build attempt become
+            # unnecessarily slow, as it rebuilds everything from scratch.
+            self.repo_info.delete_all_build_output(self.version, clear_cache=False)
+            self.graph_writer.delete_full_build_at_version(self.repopath, version=self.version)
+            raise
 
     def build(self, force_reread_rst_paths=None, no_sphinx_write=False):
         """
@@ -912,6 +924,7 @@ class Builder:
         )
         # No need to call module.resolve(), since we are only interested in
         # a couple of assignments made in this module (which need no resolution).
+
         # Change log
         cl = module.getAsgnValue(pfsc.constants.CHANGE_LOG_LHS)
         if is_release and not is_major_zero:
@@ -929,14 +942,54 @@ class Builder:
                     # but for now we are just printing a warning. We'll see how it goes.
                     print(f'WARNING: {msg}')
         self.mii.set_change_log(cl or {})
+
         # Dependencies
         deps = module.getAsgnValue(pfsc.constants.DEPENDENCIES_LHS, default={})
+        checked_deps = check_repo_dependencies_format(deps, self.repopath)
         self.repo_dependencies = deps
         if is_release:
             if pfsc.constants.WIP_TAG in deps.values():
                 msg = f'Repo `{repopath}` imports from one or more other repos at WIP,'
                 msg += ' but this is not allowed in a release build.'
                 raise PfscExcep(msg, PECode.NO_WIP_IMPORTS_IN_NUMBERED_RELEASES)
+
+        missing_deps = []
+
+        def note_missing_dep(repopath, version, present):
+            """
+            For each missing dependency, we record the repopath and version that is missing,
+            and a boolean `present` which is True if the repo has been cloned but not yet
+            built at the required version; False if the repo has not even been cloned yet.
+            """
+            missing_deps.append({
+                'repopath': repopath, 'version': version, 'present': present
+            })
+
+        gr = get_graph_reader()
+        for external_rp, external_vers in checked_deps.items():
+            try:
+                get_repo_info(external_rp)
+            except PfscExcep as e:
+                code = e.code()
+                if code == PECode.INVALID_REPO:
+                    # Looks like the dependency is not even present, i.e. still needs to be cloned.
+                    note_missing_dep(external_rp, external_vers, False)
+                else:
+                    raise e
+            else:
+                # Repo appears to be present. Is the required version built yet?
+                indexed_version_prop_dicts = gr.get_versions_indexed(external_rp, include_wip=True)
+                versions_indexed = {d['version'] for d in indexed_version_prop_dicts}
+                if external_vers not in versions_indexed:
+                    note_missing_dep(external_rp, external_vers, True)
+        if missing_deps:
+            msg = f'Cannot build `{self.repopath}@{self.version}` since not all dependencies could be found:'
+            for m in missing_deps:
+                problem = 'needs to be built' if m['present'] else 'needs to be cloned and built'
+                msg += f'\n* {m["repopath"]}@{m["version"]}: {problem}'
+            pe = PfscExcep(msg, PECode.REPO_DEPENDENCIES_NOT_BUILT)
+            pe.extra_data(missing_deps)
+            raise pe
 
     def walk(self, root_fs_path):
         """
@@ -1284,30 +1337,3 @@ class Builder:
         """
         self.mii.setup_monitor()
         self.graph_writer.index_module(self.mii)
-
-
-def index(obj):
-    """
-    Convenience function to accept a variety of arguments, and perform just the indexing operation
-    on the appropriate module.
-
-    :param obj: Can be a variety of argument types:
-
-                libpath (str): we construct a Builder on this libpath, and ask it to index.
-                RepoInfo: we construct a Builder on this RepoInfo's libpath, and ask it to index.
-                Builder: we ask it to index.
-
-    :return: The report from the indexing operation.
-    """
-    if isinstance(obj, str):
-        b = Builder(obj)
-    elif isinstance(obj, RepoInfo):
-        b = Builder(obj.libpath)
-    elif isinstance(obj, Builder):
-        b = obj
-    else:
-        raise PfscExcep("Unrecognized type.")
-    # Build.
-    b.build()
-    # And index.
-    return b.update_index()

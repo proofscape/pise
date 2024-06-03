@@ -338,3 +338,43 @@ def unindent(text, space=' ', newline='\n', tabwidth=4, nocr=True, strip_empty_l
 
 def dict_to_url_args(d):
     return "&".join([f'{k}={v}' for k, v in d.items()])
+
+
+def conditionally_unlink_files(dir_path, condition, recursive=False, rmdirs=False):
+    """
+    Unlink any and all files satisfying a given condition, in (and optionally under)
+    a given directory.
+
+    :param dir_path: pathlib.Path specifying the directory under which to search.
+    :param condition: a unary callable, accepting a pathlib.Path pointing to a file,
+        and returning boolean True iff that file should be unlinked.
+    :param recursive: set True if you want to recurse on all nested directories.
+    :param rmdirs: set True if you also want to remove directories that are or
+        become empty.
+
+    :return: the total number of files and directories unlinked
+    """
+    if not dir_path.exists():
+        return 0
+
+    count_total = 0
+    count_this_dir = 0
+    # Don't want to use an iterator while unlinking files under it, so convert
+    # to a list. This also lets us get the total number of subpaths.
+    subpaths = list(dir_path.iterdir())
+    N = len(subpaths)
+    for path in subpaths:
+        if recursive and path.is_dir():
+            count_total += conditionally_unlink_files(path, condition, recursive=True, rmdirs=rmdirs)
+            # If we're trying to remove directories, and if the subdir has ceased to exist,
+            # then count it as one deletion from this dir.
+            if rmdirs and not path.exists():
+                count_this_dir += 1
+        if path.is_file() and condition(path):
+            path.unlink()
+            count_this_dir += 1
+            count_total += 1
+    if rmdirs and count_this_dir == N:
+        dir_path.rmdir()
+        count_total += 1
+    return count_total

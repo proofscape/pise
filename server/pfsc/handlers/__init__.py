@@ -123,9 +123,10 @@ class Handler:
         self.raise_anticipated = False
         self.err_lvl = 0
         self.err_msg = ''
+        self.err_info = None
         self.is_prepared = False
         self.success = False
-        self.reserved_response_fields = ['err_lvl', 'err_msg', 'orig_req']
+        self.reserved_response_fields = ['err_lvl', 'err_msg', 'err_info', 'orig_req']
         # MAY OVERRIDE:
         self.post_preparation_hooks = []
         self.success_response = {}
@@ -180,6 +181,7 @@ class Handler:
         if pe is None:
             pe = PfscExcep('', PECode.UNKNOWN)
         self.err_lvl = pe.code()
+        self.err_info = pe.extra_data()
         if self.err_lvl in self.pub_err_msg_overrides:
             self.err_msg = self.pub_err_msg_overrides[self.err_lvl]
         else:
@@ -205,7 +207,10 @@ class Handler:
             response = self.success_response
         else:
             self.generate_error_message()
-            response = {'err_msg': self.err_msg}
+            response = {
+                'err_msg': self.err_msg,
+                'err_info': self.err_info
+            }
         # Redirect?
         if 'redirect' not in response:
             redir = self.redir_by_err_code.get(self.err_lvl)

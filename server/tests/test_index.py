@@ -18,9 +18,23 @@ import json
 
 import pytest
 
-from pfsc.build import index
+from pfsc.build import Builder
 from pfsc.build.repo import RepoInfo
 from pfsc.excep import PfscExcep, PECode
+
+
+def index(obj):
+    if isinstance(obj, str):
+        b = Builder(obj)
+    elif isinstance(obj, RepoInfo):
+        b = Builder(obj.libpath)
+    elif isinstance(obj, Builder):
+        b = obj
+    else:
+        assert False
+    b.build()
+    return b.update_index()
+
 
 alex_v1_summary="""
 {

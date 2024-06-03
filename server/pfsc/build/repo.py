@@ -28,7 +28,7 @@ from pfsc.constants import PFSC_EXT, RST_EXT
 from pfsc import check_config, get_build_dir
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
-from pfsc.util import run_cmd_in_dir
+from pfsc.util import run_cmd_in_dir, conditionally_unlink_files
 
 
 class RepoInfo:
@@ -277,6 +277,37 @@ class RepoInfo:
         root_dir = get_build_dir(cache_dir=cache_dir, sphinx_dir=sphinx_dir)
         full_dir = root_dir.joinpath(self.family, self.user, self.project, version)
         return full_dir
+
+    def delete_all_build_output(self, version=pfsc.constants.WIP_TAG, clear_cache=True):
+        """
+        Delete any and all existing build output for this repo, at a given version.
+
+        :param version: the version for which you want to delete all build output.
+        :param clear_cache: When True (the default), the cache dirs will be deleted
+          too. Set False if you do *not* want to delete the cache dirs.
+
+        :return: number of files and directories unlinked
+        """
+        count = 0
+
+        html_build_dir = get_build_dir()
+        assert html_build_dir.name == 'html'
+        root_build_dir = html_build_dir.parent
+
+        cache_options = [False, True] if clear_cache else [False]
+        for cache_dir in cache_options:
+            for sphinx_dir in [False, True]:
+                dir_to_clear = self.get_build_dir(
+                    version=version, cache_dir=cache_dir, sphinx_dir=sphinx_dir)
+                count += conditionally_unlink_files(
+                    dir_to_clear,
+                    # Use the condition function as a double-check that we are
+                    # unlinking something under the configured build output dir:
+                    lambda path: root_build_dir in path.parents,
+                    recursive=True,
+                    rmdirs=True
+                )
+        return count
 
     def get_repo_build_dir(self, version=pfsc.constants.WIP_TAG,
                            cache_dir=False, sphinx_dir=False):

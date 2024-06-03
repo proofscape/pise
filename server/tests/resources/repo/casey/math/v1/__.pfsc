@@ -1,9 +1,9 @@
-change_log = {
+changeLog = {
     moved: {
         "expand.W2": null,
     }
 }
 
-dependencies = {
+deps = {
     "test.brook.math": "v1.0.0",
 }

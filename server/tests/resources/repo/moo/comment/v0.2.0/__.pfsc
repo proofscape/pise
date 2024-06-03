@@ -1,8 +1,8 @@
-dependencies = {
+deps = {
     "test.moo.bar": "v1.0.0"
 }
 
-change_log = {
+changeLog = {
     "moved": {
         "bar.NotesU": "bar.NotesU2"
     }

@@ -16,6 +16,7 @@
 
 import { BuildTreeManager } from "./BuildTreeManager";
 import { FsTreeManager } from "./FsTreeManager";
+import { BUILD_JOB_TYPES, BuildManagerJobDefinition, manageBuildJob } from "../mgr/BuildManager";
 import { NodeExpandTask } from "../delayed";
 import { util as iseUtil } from "../util";
 
@@ -172,12 +173,14 @@ export class RepoManager {
             return;
         }
 
-        this.openRepo({
+        const job = {
             repopathv: repopathv,
             // If user omits version, let server decide for
             // WIP or latest, depending on its config:
             defaultVersion: null,
-        });
+        };
+        manageBuildJob(this, job);
+        this.openRepo(job);
     }
 
     selectTab(tabName) {
@@ -199,7 +202,7 @@ export class RepoManager {
         return null;
     }
 
-    /* Open a proofscape repository.
+    /* Open a Proofscape repository.
      *
      * @param repopathv: tail-versioned libpath of the repo to be loaded. In fact version may
      *   be omitted (use a pure libpath), in which case use the defaultVersion arg (see below).
@@ -211,6 +214,7 @@ export class RepoManager {
      *   even if the server provides it.
      * @param ignoreFsTree: boolean; if true, we do not (re)load the filesystem
      *   tree, even if the server provides it.
+     * @param buildMgrCallback: optional callback to manage building of missing dependencies.
      * @param defaultVersion: version to request if repopathv is a pure libpath with no
      *   version. Defaults to "WIP". Set to null to let server decide which version you
      *   want (WIP or latest numbered, depending on server config).
@@ -218,12 +222,18 @@ export class RepoManager {
      *   Note that this is distinct from any delayed response that may come later,
      *   if the request results in any asynchronous processing.
      */
-    openRepo({repopathv, doBuild, doClone, fail_silently, ignoreBuildTree, ignoreFsTree, defaultVersion = "WIP"}) {
+    openRepo({repopathv, doBuild, doClone, fail_silently,
+                 ignoreBuildTree, ignoreFsTree, buildMgrCallback, defaultVersion = "WIP"}) {
         let {libpath, version} = iseUtil.parseTailVersionedLibpath(repopathv, {
             defaultVersion: defaultVersion,
         });
         const repopath = libpath;
-        const query = { repopath: repopath, doBuild: doBuild + "", doClone: doClone + "" };
+        const query = {
+            repopath: repopath, doBuild: doBuild + "", doClone: doClone + "",
+            // Add `ignoreBuildTree` to the request not because the server cares, but only so that
+            // we can see its value in the reflected `orig_req` in our `noteRepoIsBuilt()` method.
+            ignoreBuildTree: ignoreBuildTree,
+        };
         if (version) {
             query.vers = version;
         }
@@ -233,7 +243,18 @@ export class RepoManager {
         }).then(parts => {
             const resp = parts.immediate;
             if (parts.delayed) {
-                parts.delayed.then(this.hub.errAlert3.bind(this.hub));
+                parts.delayed.then(delayedResp => {
+                    if (buildMgrCallback) {
+                        // Here, be sure to use the version returned by the server:
+                        const repopathv = `${repopath}@${resp.version}`;
+                        const jobDefn = new BuildManagerJobDefinition(BUILD_JOB_TYPES.REPO_MGR_OPEN_REPO, {
+                            repopathv, ignoreBuildTree,
+                        });
+                        buildMgrCallback(delayedResp, jobDefn);
+                    } else {
+                        this.hub.errAlert3(delayedResp);
+                    }
+                });
             }
             if (this.hub.errAlert3(resp)) return resp;
             const success = resp.fs_model || resp.model || resp.will_clone || resp.will_build;
@@ -256,13 +277,13 @@ export class RepoManager {
                 }
             }
             if (!success) {
-                this.handleOpenRepoFailures(repopath, version, resp, fail_silently);
+                this.handleOpenRepoFailures(repopath, version, resp, buildMgrCallback, fail_silently);
             }
             return resp;
         });
     }
 
-    handleOpenRepoFailures(repopath, version, resp, fail_silently=false) {
+    handleOpenRepoFailures(repopath, version, resp, buildMgrCallback, fail_silently=false) {
         if (fail_silently) return;
         if (resp.privileged) {
             let doClone = false;
@@ -290,7 +311,7 @@ export class RepoManager {
                 }
             }
             msg += question;
-            if (doBuild && version !== "WIP") {
+            if (doBuild && version !== "WIP" && this.hub.OCA_version === null) {
                 msg += `<p>WARNING: once a numbered release has been built, this CANNOT BE UNDONE.</p>`
             }
             const mgr = this;
@@ -302,6 +323,7 @@ export class RepoManager {
                         repopathv: iseUtil.lv(repopath, version),
                         doBuild: doBuild,
                         doClone: doClone,
+                        buildMgrCallback: buildMgrCallback,
                     });
                 },
             });
@@ -365,7 +387,13 @@ export class RepoManager {
         });
     }
 
-    noteRepoIsBuilt({ repopath, version }) {
+    noteRepoIsBuilt({ repopath, version, orig_req }) {
+        // While the `ignoreBuildTree` parameter of the original request starts out as
+        // boolean or undefined, it will be converted to string by the time it gets here.
+        // (Conversion happens when we turn params into URL args for XHR.)
+        if (orig_req.ignoreBuildTree === "true") {
+            return;
+        }
         const repopathv = iseUtil.lv(repopath, version);
         if (this.buildMgr.repoIsOpen(repopathv)) {
             this.reloadBuildTree(repopathv);

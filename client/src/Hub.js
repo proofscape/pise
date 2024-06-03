@@ -1269,7 +1269,7 @@ var Hub = declare(null, {
     alert: function({title, content}) {
         title = title || 'Info';
         content = content || '(nothing here)';
-        content = `<div class="padded20">${content}</div>`;
+        content = `<div class="padded20 mw48">${content}</div>`;
         const dlg = new Dialog({
             title: title,
             content: content,

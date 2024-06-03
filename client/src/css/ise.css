@@ -1270,6 +1270,10 @@ a {
     padding: 20px;
 }
 
+.mw48 {
+    max-width: 48em;
+}
+
 .vpadded5 {
     padding: 5px 0px;
 }

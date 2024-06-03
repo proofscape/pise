@@ -77,7 +77,7 @@ MAX_NUMERICAL_VERSION_COMPONENT = 10**7 - 1
 #   repopath: version,
 #   ...
 # }
-DEPENDENCIES_LHS = "dependencies"
+DEPENDENCIES_LHS = "deps"
 
 # LHS for repo change log declaration.
 # Internally, a change log should look like:
@@ -91,7 +91,7 @@ DEPENDENCIES_LHS = "dependencies"
 # Here, "rel" ("relative") means the libpath must be relative to
 # that of the repo; "prefix" means the mapping is applied to all
 # libpaths that begin this way.
-CHANGE_LOG_LHS = "change_log"
+CHANGE_LOG_LHS = "changeLog"
 MOVE_MAPPING_NAME = "moved"
 
 # LHS for version number declaration.

@@ -1,8 +1,8 @@
 # This time we define a change log, but we claim to depend
 # on a release that doesn't exist (yet).
 
-change_log = {}
+changeLog = {}
 
-dependencies = {
+deps = {
     "test.moo.bar": "v3.0.0"
 }

@@ -1,5 +1,5 @@
-change_log={}
+changeLog={}
 
-dependencies={
-    "test.moo.bar": "WIP",
+deps={
+    "test.moo.comment": "WIP",
 }

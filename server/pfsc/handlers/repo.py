@@ -230,12 +230,16 @@ class RepoLoader(RepoTaskHandler):
             'type': 'repoIsBuilt',
             'repopath': self.repo_info.libpath,
             'version': self.version,
+            # Include original request info, so client can determine how to behave.
+            'orig_req': self.request_info,
         })
 
     def emit_repo_present_event(self):
         self.emit("listenable", {
             'type': 'repoIsPresent',
             'repopath': self.repo_info.libpath,
+            # Include original request info, so client can determine how to behave.
+            'orig_req': self.request_info,
         })
 
     def go_ahead(self):

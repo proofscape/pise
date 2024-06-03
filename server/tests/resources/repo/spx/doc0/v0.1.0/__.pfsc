@@ -1,4 +1,4 @@
-dependencies = {
+deps = {
     'test.moo.bar': 'v1.0.0'
 }
 
