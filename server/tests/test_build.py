@@ -61,6 +61,13 @@ def test_build(libpath, clean):
     j = json.dumps(d, indent=4)
     print(j)
 
+#######################################################################
+# DO NOT USE THIS UNIT TEST
+#   We are currently in a trial period, with the new `trial_build.py`
+#   script. If that proves to fill all of our "build test" needs, then
+#   we should come back and delete this unit test (which has long been
+#   skipped anyway).
+#######################################################################
 # Try full build, index, & write
 @pytest.mark.skip(reason="just for manual testing")
 @pytest.mark.parametrize("libpath, clean", (
@@ -113,6 +120,13 @@ def test_make_repos(app, only):
     make_repos(only=only)
 
 
+#######################################################################
+# DO NOT USE THIS UNIT TEST
+#   We are currently in a trial period, with the new `trial_build.py`
+#   script. If that proves to fill all of our "build test" needs, then
+#   we should come back and delete this unit test (which has long been
+#   skipped anyway).
+#######################################################################
 # NOTE: Must skip this test during ordinary unit testing!
 # This test clears test indexing, so if included in the overall test suite,
 # will cause many tests to error out.
