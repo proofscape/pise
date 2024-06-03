@@ -79,8 +79,6 @@ def test_build(libpath, clean):
     #("test.moo.study.expansions", True),
     #("test.moo.links.deducs1", True),
     #("test.comment.notes.H.ilbert.ZB.Thm17", True),
-    #("gh.skieffer.notes", False),
-    #("gh.toepproj.lit", True),
 ))
 @pytest.mark.psm
 def test_full_build(app, libpath, clean):
