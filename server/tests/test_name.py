@@ -21,8 +21,9 @@ import pytest
 
 from tests import handleAsJson
 from pfsc.constants import ISE_PREFIX, SYNC_JOB_RESPONSE_KEY
-from pfsc.excep import PECode
+from pfsc.excep import PfscExcep, PECode
 from pfsc.build.lib.libpath import PathInfo
+from pfsc.lang.modules import build_module_from_text
 
 err_lvl_key = 'err_lvl'
 
@@ -33,6 +34,8 @@ err_lvl_key = 'err_lvl'
     ['test.spx.doc1.foo', 'bar.spam', PECode.BAD_MODULE_FILENAME, 0],
     # User-supplied libpath segment cannot begin with reserved char.
     ['test.spx.doc1.foo', '_bar.pfsc', PECode.BAD_LIBPATH, 0],
+    # Can't use a name that is an illegal libpath segment.
+    ['test.spx.doc1.foo', 'true.pfsc', PECode.BAD_LIBPATH, 0],
     # Can't use a name whose stem is already taken.
     ['test.spx.doc1.foo', 'pageC.rst', 0, PECode.LIBSEG_UNAVAILABLE],
     ['test.spx.doc1.foo', 'pageC.pfsc', 0, PECode.LIBSEG_UNAVAILABLE],
@@ -220,3 +223,52 @@ def test_rename(
     print(new_path)
     print(old_path)
     new_path.replace(old_path)
+
+
+DEF_TEXTS = {
+    'deduc': """
+    deduc %s {
+            asrt C { sy = "C" }
+            meson = "C"
+        }
+    """,
+    'node': """
+    deduc foo {
+            asrt %s { sy = "C" }
+            meson = "C"
+        }
+    """,
+    'lhs': """
+    %s = ['foo', 'bar']
+    """,
+    'anno': """
+    anno %s @@@
+    Blah blah blah.
+    @@@
+    """,
+    'widget': """
+    anno foo @@@
+    Here's <chart:%s>[a chart widget]{coords: [0, 0, 1]}.
+    @@@
+    """,
+}
+
+def test_cannot_use_illegal_names(app):
+    """
+    Show that we cannot use illegal names for Proofscape entities.
+    """
+    print()
+    with app.app_context():
+        for place, pre_text in DEF_TEXTS.items():
+            for name in ['true', 'false', 'null', 'foobar']:
+                print(f'{place}: {name}')
+                text = pre_text % name
+                if name == 'foobar':
+                    # No error
+                    build_module_from_text(text, 'test._foo._bar')
+                    print('  ok')
+                else:
+                    with pytest.raises(PfscExcep) as ei:
+                        build_module_from_text(text, 'test._foo._bar')
+                    assert ei.value.code() == PECode.BAD_LIBPATH
+                    print('  raises')

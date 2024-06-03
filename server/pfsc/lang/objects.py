@@ -19,6 +19,7 @@ from collections import defaultdict
 from pfsc.build.versions import get_major_version_part
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang.doc import DocReference
+from pfsc.checkinput.libpath import check_libseg
 from pfsc.constants import ContentDescriptorType
 
 
@@ -58,6 +59,22 @@ class PfscObj:
         self.parent = None
         self.origin = None
         self.textRange = None
+
+    @property
+    def user_supplied_name(self):
+        """
+        Say whether the name of this object was user-supplied.
+        Subclasses should override as appropriate.
+        """
+        return True
+
+    def get_lineno_within_module(self):
+        """
+        Return the line number at which the definition of this object starts,
+        or `None` if not known.
+        Subclasses should override as appropriate.
+        """
+        return None
 
     def listAllItems(self):
         return list(self.items.keys())
@@ -141,7 +158,20 @@ class PfscObj:
         parentLibpath = ''
         if self.parent:
             parentLibpath = self.parent.getLibpath()
-        self.libpath = '%s.%s'%(parentLibpath, self.name)
+
+        self.libpath = '%s.%s' % (parentLibpath, self.name)
+
+        # We take this opportunity to check whether the name of the object is acceptable.
+        try:
+            check_libseg('', self.name, {'user_supplied': self.user_supplied_name})
+        except PfscExcep as pe:
+            msg = f'Cannot use this as name for {self.__class__.__name__} "{self.libpath}"'
+            n = self.get_lineno_within_module()
+            if n is not None:
+                msg += f' at line {n}'
+            pe.extendMsg(msg)
+            raise pe
+
         for item in self.items.values():
             if callable(getattr(item, 'cascadeLibpaths', None)):
                 item.cascadeLibpaths()

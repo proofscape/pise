@@ -52,6 +52,10 @@ class SphinxPage(EnrichmentPage):
         self.name = FIXED_PAGE_NAME
         self.widgets = []
 
+    @property
+    def user_supplied_name(self):
+        return False
+
     def get_index_type(self):
         return pfsc.constants.IndexType.SPHINX
 

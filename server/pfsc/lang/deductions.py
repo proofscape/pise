@@ -168,6 +168,10 @@ class Deduction(Enrichment, NodeLikeObj):
         self.target_paths = target_paths
         self.pending_clones = deque()
 
+    @property
+    def user_supplied_name(self):
+        return not self.libpath.startswith('special.')
+
     def resolve(self):
         """
         RESOLUTION steps that are delayed so that we can have a pure READ phase,
@@ -228,6 +232,9 @@ class Deduction(Enrichment, NodeLikeObj):
 
     def getFirstRowNum(self):
         return None if self.textRange is None else self.textRange[0]
+
+    def get_lineno_within_module(self):
+        return self.getFirstRowNum()
 
     def get_index_type(self):
         return IndexType.DEDUC
@@ -927,6 +934,16 @@ class Node(NodeLikeObj):
         self.name = name
         self.subnodeSeq = []
         self.docReference = None
+
+    @property
+    def user_supplied_name(self):
+        # dummy nodes get names like `_pre` and `_post`.
+        # As for QSTN and UCON nodes, their names *are* user-supplied, in the sense that
+        # users write them in meson scripts; however, this `user_supplied_name` property
+        # is designed to serve a test that names are acceptable, and if we return `True`
+        # then they will be required not to begin with `?` or `!`. So, it's a bit hacky,
+        # but for now it's what we're doing.
+        return self.nodeType not in ['dummy', NodeType.QSTN, NodeType.UCON]
 
     def add_as_content(self, owner):
         owner.addNode(self)
