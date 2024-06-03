@@ -37,6 +37,22 @@ It probably won't be too common in actual usage, but let's at least see that we
 .. pfsc-chart:: name2: This is a standalone chart widget.
     :view: Pf
 
+
+.. pfsc::
+
+    anno Foo @@@
+    <ctl:>[]{
+        default_chart_group: "foo",
+    }
+
+    <chart:>[foobar]{view: Pf.R}
+    @@@
+
+
+.. pfsc-ctl::
+    :default_chart_group: "bar"
+
+
 Finally, we'll need a series of chart widgets, to test the various options
 that can be passed to them.
 

@@ -190,7 +190,7 @@ def test_manifest(app):
         model = []
         root.build_relational_model(model)
         sphinx_indices = [i for i, item in enumerate(model) if item['type'] == "SPHINX"]
-        assert sphinx_indices == [5, 7, 11, 13, 15, 17]
+        assert sphinx_indices == [5, 8, 12, 14, 16, 18]
 
 
 def test_spx_doc1(app):
@@ -333,7 +333,7 @@ PAGE_A_PAGE_DATA = {
 }
 
 PAGE_C_WIDGET_NAMES = [
-    '_w0', '_w1', 'name1', 'w000', '_w2', 'name2', 'w001', 'w002'
+    '_w0', '_w1', 'name1', 'w000', '_w3', 'name2', 'w001', 'w002'
 ]
 
 PAGE_C_WIDGET_LABELS = [
@@ -409,16 +409,17 @@ PAGE_C_PAGE_DATA = {
             "icon_type": "nav",
             "version": "v0.1.0"
         },
-        "test-spx-doc1-foo-pageC-_page-_w2_v0-1-0": {
+        "test-spx-doc1-foo-pageC-_page-_w3_v0-1-0": {
             "alt": ": like: this one",
             "view": [
                 "test.moo.bar.results.Pf"
             ],
             "type": "CHART",
-            "src_line": 47,
-            "widget_libpath": "test.spx.doc1.foo.pageC._page._w2",
-            "uid": "test-spx-doc1-foo-pageC-_page-_w2_v0-1-0",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "src_line": 63,
+            "group": "bar",
+            "widget_libpath": "test.spx.doc1.foo.pageC._page._w3",
+            "uid": "test-spx-doc1-foo-pageC-_page-_w3_v0-1-0",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:bar",
             "versions": {
                 "test.moo.bar": "v1.0.0"
             },
@@ -445,13 +446,14 @@ PAGE_C_PAGE_DATA = {
                 ]
             },
             "type": "CHART",
-            "src_line": 50,
+            "src_line": 66,
+            "group": "bar",
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w000",
             "uid": "test-spx-doc1-foo-pageC-_page-w000_v0-1-0",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:bar",
             "versions": {
-                "test.moo.comment": "v0.1.0",
-                "test.moo.bar": "v1.0.0"
+                "test.moo.bar": "v1.0.0",
+                "test.moo.comment": "v0.1.0"
             },
             "title_libpath": "test.spx.doc1.foo.pageC._page",
             "icon_type": "nav",
@@ -469,10 +471,11 @@ PAGE_C_PAGE_DATA = {
                 ]
             },
             "type": "CHART",
-            "src_line": 58,
+            "src_line": 74,
+            "group": "bar",
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w001",
             "uid": "test-spx-doc1-foo-pageC-_page-w001_v0-1-0",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:bar",
             "versions": {
                 "test.moo.bar": "v1.0.0"
             },
@@ -491,10 +494,11 @@ PAGE_C_PAGE_DATA = {
                 ":update": True
             },
             "type": "CHART",
-            "src_line": 62,
+            "src_line": 78,
+            "group": "bar",
             "widget_libpath": "test.spx.doc1.foo.pageC._page.w002",
             "uid": "test-spx-doc1-foo-pageC-_page-w002_v0-1-0",
-            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageC._page:CHART:bar",
             "versions": {
                 "test.moo.bar": "v1.0.0"
             },
@@ -510,7 +514,7 @@ PAGE_C_PAGE_DATA = {
 }
 
 PAGE_D_WIDGET_NAMES = [
-    '_w0', 'wDirPdf1',
+    '_w1', '_w2', 'wDirPdf1',
 ]
 
 PAGE_D_WIDGET_LABELS = [
@@ -522,23 +526,35 @@ PAGE_D_PAGE_DATA = {
     "libpath": "test.spx.doc1.foo.pageD._page",
     "version": "v0.1.0",
     "widgets": {
-        "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0": {
+        "test-spx-doc1-foo-pageD-_page-_w1_v0-1-0": {
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
             "type": "PDF",
-            "src_line": 35,
-            "widget_libpath": "test.spx.doc1.foo.pageD._page._w0",
-            "uid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+            "src_line": 38,
+            "widget_libpath": "test.spx.doc1.foo.pageD._page._w1",
+            "uid": "test-spx-doc1-foo-pageD-_page-_w1_v0-1-0",
             "docId": "pdffp:fedcba9876543210",
             "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:DOC:pdffp:fedcba9876543210:",
-            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-_w1_v0-1-0",
             "url": "https://example.org/pdf/foo1.pdf",
+            "version": "v0.1.0"
+        },
+        "test-spx-doc1-foo-pageD-_page-_w2_v0-1-0": {
+            "sel": "v2;s3;(1:1758:2666:400:200:100:50)",
+            "type": "PDF",
+            "src_line": 42,
+            "widget_libpath": "test.spx.doc1.foo.pageD._page._w2",
+            "uid": "test-spx-doc1-foo-pageD-_page-_w2_v0-1-0",
+            "docId": "pdffp:0123456789abcdef",
+            "pane_group": "test.spx.doc1@v0_1_0.foo.pageD._page:DOC:pdffp:0123456789abcdef:",
+            "highlightId": "test.spx.doc1.foo.pageD._page:test-spx-doc1-foo-pageD-_page-_w2_v0-1-0",
+            "url": "https://example.org/pdf/foo2.pdf",
             "version": "v0.1.0"
         },
         "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0": {
             "alt": "wDirDoc1: a directive doc widget",
             "sel": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
             "type": "PDF",
-            "src_line": 40,
+            "src_line": 45,
             "widget_libpath": "test.spx.doc1.foo.pageD._page.wDirDoc1",
             "uid": "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",
             "docId": "pdffp:fedcba9876543210",
@@ -553,19 +569,31 @@ PAGE_D_PAGE_DATA = {
             "pdffp:fedcba9876543210": {
                 "url": "https://example.org/pdf/foo1.pdf",
                 "docId": "pdffp:fedcba9876543210"
+            },
+            "pdffp:0123456789abcdef": {
+                "url": "https://example.org/pdf/foo2.pdf",
+                "docId": "pdffp:0123456789abcdef"
             }
         },
         "refs": {
             "pdffp:fedcba9876543210": [
                 {
                     "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
-                    "siid": "test-spx-doc1-foo-pageD-_page-_w0_v0-1-0",
+                    "siid": "test-spx-doc1-foo-pageD-_page-_w1_v0-1-0",
                     "slp": "test.spx.doc1.foo.pageD._page",
                     "stype": "SPHINX"
                 },
                 {
                     "ccode": "v2;s3;(1:1758:2666:400:200:100:50);n;x+35;y+4;(1:1758:2666:400:250:110:49)",
                     "siid": "test-spx-doc1-foo-pageD-_page-wDirDoc1_v0-1-0",
+                    "slp": "test.spx.doc1.foo.pageD._page",
+                    "stype": "SPHINX"
+                }
+            ],
+            "pdffp:0123456789abcdef": [
+                {
+                    "ccode": "v2;s3;(1:1758:2666:400:200:100:50)",
+                    "siid": "test-spx-doc1-foo-pageD-_page-_w2_v0-1-0",
                     "slp": "test.spx.doc1.foo.pageD._page",
                     "stype": "SPHINX"
                 }
@@ -683,4 +711,4 @@ def test_lineno_offset(app):
         j_d = load_dashgraph('test.spx.doc1.foo.pageD.Thm', version='v0.1.0')
         d_d = json.loads(j_d)
         #print(json.dumps(d_d, indent=4))
-        assert d_d['textRange'][0] == 20
+        assert d_d['textRange'][0] == 23

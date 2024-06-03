@@ -183,10 +183,14 @@ class Widget(PfscObj):
         self.label = label
         self.lineno_within_anno = lineno
         self.is_inline = None
+
         # Enrich the data object with the typename and lineno of the widget.
         data["type"] = type_
         data["src_line"] = self.get_lineno_within_module()
         self.data = data
+        # Grab any default values that may have been set by now.
+        self.accept_defaults_from_ctl_widgets()
+
         # In order to resolve relative libpaths, widget subclasses need only specify in this
         # field the "datapaths" where libpaths can (optionally) be found in their data.
         # See doctext for the `resolve_libpaths_in_data` method of this class, for more details.
@@ -195,6 +199,15 @@ class Widget(PfscObj):
         self.repos = []
         # A lookup for referenced objects, by absolute libpath:
         self.objects_by_abspath = {}
+
+    def has_presence_in_page(self):
+        """
+        Say whether this widget is meant to "appear" in the page in some way.
+        Controls whether we will record an info object for this widget in the
+        page data. Usually true. False for e.g. `CtlWidget`, which just controls
+        various things at build time.
+        """
+        return True
 
     def get_lineno_within_module(self):
         base = 1
@@ -283,6 +296,16 @@ class Widget(PfscObj):
         # we can be sure to get the module's _represented_ version (not its "loading version").
         self.data["version"] = self.getVersion()
         return self.data
+
+    def accept_defaults_from_ctl_widgets(self):
+        lowercase_type = self.get_type().lower()
+        for default_field_name in SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS:
+            _, widget_type, field_name = default_field_name.split('_')
+            if widget_type == lowercase_type and field_name not in self.data:
+                if self.parent.check_ctl_widget_setting_defined(default_field_name):
+                    self.data[field_name] = self.parent.read_ctl_widget_setting(
+                        default_field_name
+                    )
 
     def enrich_data(self):
         """
@@ -413,26 +436,49 @@ class UnknownTypeWidget(Widget):
         Widget.__init__(self, "<unknown-type>", name, label, data, anno, lineno)
 
 
+"""
+Each field name must be of the form
+    default_WIDGETTYPE_FIELDNAME
+This is required for the current implementation of `Widget.accept_defaults_from_ctl_widgets()` to work.
+Note that snake case is deliberately used here, so that the camel-cased FIELDNAME can easily fit inside.
+At some point, we may just open it up and support all fields, but for the moment
+we're listing those that are supported.
+"""
+SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS = [
+    'default_chart_group',
+    'default_doc_group', 'default_doc_doc',
+]
+
+
 class CtlWidget(Widget):
     """
-    A widget for passing control codes to control the Markdown rendering.
+    This widget just provides a way to control various things at build time.
+    It does not have any actual presence in the page.
 
     Currently supported options:
 
-        section_numbers: {
-            on: boolean (default True),
-            top_level: int from 1 to 6 (default 1), indicating at what heading
-                level numbers should begin to be automatically inserted
-        }
+        * Everything in `SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS`
 
-    If `section_numbers` is defined at all, then its `on` property defaults to
-    True; but, until a CtlWidget is found that switches section numbering on, it
-    is off.
+        * Stuff for controlling Markdown rendering:
+
+            section_numbers: {
+                on: boolean (default True),
+                top_level: int from 1 to 6 (default 1), indicating at what heading
+                    level numbers should begin to be automatically inserted
+            }
+
+            If `section_numbers` is defined at all, then its `on` property defaults to
+            True; but, until a CtlWidget is found that switches section numbering on, it
+            is off.
     """
 
     def __init__(self, name, label, data, anno, lineno):
         Widget.__init__(self, WidgetTypes.CTL, name, label, data, anno, lineno)
+        self.supported_default_fields = SUPPORTED_CTL_WIDGET_DEFAULT_FIELDS
         self.check_data()
+
+    def has_presence_in_page(self):
+        return False
 
     @staticmethod
     def malformed(detail):
@@ -445,6 +491,22 @@ class CtlWidget(Widget):
         Check that the passed control codes/cmds are well-formed.
         This method can evolve as we add more options.
         """
+        self.check_supported_default_fields()
+        self.check_section_numbers()
+
+    def check_supported_default_fields(self):
+        """
+        Look for definitions of defaults, and record them.
+
+        NOTE: It is critical that this method be called at construction time, so that
+        the values set here can be available when subsequent widgets are constructed.
+        """
+        for field_name in self.supported_default_fields:
+            if field_name in self.data:
+                value = self.data[field_name]
+                self.parent.make_ctl_widget_setting(field_name, value)
+
+    def check_section_numbers(self):
         sn = self.data.get('section_numbers')
         if sn is not None:
             if not isinstance(sn, dict):
@@ -467,6 +529,12 @@ class CtlWidget(Widget):
         if sn is not None:
             renderer.sn_do_number = sn.get('on')
             renderer.sn_top_level = sn.get('top_level')
+
+    def writeHTML(self, label=None, sphinx=False):
+        """
+        Ctl widget has no page elements.
+        """
+        return ''
 
 
 class NavWidget(Widget):
