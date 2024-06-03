@@ -29,10 +29,9 @@ import pfsc.util
 from pfsc.excep import PfscExcep, PECode
 from pfsc.lang import meson as meson
 from pfsc.build.repo import get_repo_part
-from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj, Enrichment, PfscDefn, EnrichmentType
-from pfsc import util
+from pfsc import util, libpath_is_trusted
 from pfsc.constants import IndexType
 from pfsc.lang.comparisons import Comparison
 from pfsc.lang.doc import doc_ref_factory
@@ -209,7 +208,8 @@ class Deduction(Enrichment, NodeLikeObj):
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
-            self._trusted = libpath_is_trusted(libpath)
+            version = self.getVersion()
+            self._trusted = libpath_is_trusted(libpath, version)
         return self._trusted
 
     def getCloneSubstitution(self, libpath):

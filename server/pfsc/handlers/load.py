@@ -22,7 +22,8 @@ import pfsc.constants
 from pfsc.handlers import Handler
 from pfsc.checkinput import CheckedLibpath, IType
 import pfsc.build.products as products
-from pfsc.build.lib.libpath import get_modpath, libpath_is_trusted
+from pfsc.build.lib.libpath import get_modpath
+from pfsc import libpath_is_trusted
 from pfsc.build.repo import get_repo_part
 from pfsc.gdb import get_graph_reader
 from pfsc.gdb.user import should_load_user_notes_from_gdb
@@ -232,7 +233,7 @@ class AnnotationLoader(Handler):
         h1 = products.load_annotation_with_cache.cache_info().hits
 
         # Load and inject extra info
-        anno_trusted = libpath_is_trusted(annopath)
+        anno_trusted = libpath_is_trusted(annopath, vers.full)
 
         approvals = set()
         if not anno_trusted:

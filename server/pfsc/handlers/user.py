@@ -62,7 +62,9 @@ class UserHandler(Handler):
 
     def check_permissions(self):
         if not current_user.is_authenticated:
-            super().check_permissions()
+            # The method of the `Handler` base class raises the exception we want
+            # in this case, so we just call that.
+            Handler.check_permissions(self)
 
 
 class UserNotesHandler(UserHandler):
@@ -76,6 +78,19 @@ class UserNotesHandler(UserHandler):
         if not check_config("OFFER_SERVER_SIDE_NOTE_RECORDING"):
             raise PfscExcep('Server-side note recording not enabled.',
                             PECode.SSNR_SERVICE_DISABLED)
+        super().check_enabled()
+
+
+class UserTrustHandler(UserHandler):
+    """
+    Superclass for any handler where (a) the user must be logged in,
+    and (b) server-side user trust recording must be an available service.
+    """
+
+    def check_enabled(self):
+        if not check_config("RECORD_PER_USER_TRUST_SETTINGS"):
+            raise PfscExcep('Per-user trust setting recording not enabled.',
+                            PECode.SERVICE_DISABLED)
         super().check_enabled()
 
 
@@ -129,6 +144,55 @@ class UserSettingsUpdater(UserHandler):
             for k, v in self.fields.items():
                 current_user.prop(k, v)
             get_graph_writer().update_user(current_user)
+
+
+class UserTrustSettingsHandler(UserTrustHandler):
+    """
+    Record per-user trust settings of repos at versions.
+    """
+
+    def check_input(self):
+        self.check({
+            "REQ": {
+                'repopath': {
+                    'type': IType.LIBPATH,
+                    'repo_format': True,
+                },
+                'vers': {
+                    'type': IType.FULL_VERS,
+                },
+                'trust': {
+                    'type': IType.BOOLEAN,
+                },
+            },
+        })
+
+    def go_ahead(self, repopath, vers, trust):
+        made_change = current_user.makeTrustSetting(repopath.value, vers.full, trust)
+        self.set_response_field('made_change', made_change)
+
+
+class UserTrustChecker(UserTrustHandler):
+    """
+    Check per-user trust settings of repos at versions.
+    """
+
+    def check_input(self):
+        self.check({
+            "REQ": {
+                'repopath': {
+                    'type': IType.LIBPATH,
+                    'repo_format': True,
+                },
+                'vers': {
+                    'type': IType.FULL_VERS,
+                },
+            },
+        })
+
+    def go_ahead(self, repopath, vers):
+        user_trust_setting = current_user.trusts(repopath.value, vers.full)
+        self.set_response_field('user_trust_setting', user_trust_setting)
 
 
 class UserInfoExporter(UserHandler):

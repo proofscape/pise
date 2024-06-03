@@ -46,7 +46,7 @@ const ParamWidget = declare(ExampWidget, {
         }
     },
 
-    okayToBuild: function() {
+    okayToBuild: async function() {
         return true;
     },
 

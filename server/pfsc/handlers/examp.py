@@ -16,11 +16,10 @@
 
 import json
 
-from pfsc import check_config
+from pfsc import check_config, libpath_is_trusted
 from pfsc.handlers import SocketHandler
 from pfsc.excep import PfscExcep, PECode
 from pfsc.checkinput import IType
-from pfsc.build.lib.libpath import libpath_is_trusted
 from pfsc.build.products import load_annotation
 from pfsc.lang.widgets import make_widget_uid, WidgetTypes, WIDGET_TYPE_TO_CLASS
 

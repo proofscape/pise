@@ -18,6 +18,7 @@ import { ExtensionClient } from "browser-peers/src/ext";
 import { SocketManager } from "./mgr/SocketManager";
 import { WindowManager } from "./mgr/WindowManager";
 import { RepoManager } from "./trees/RepoManager";
+import { TrustManager } from "./mgr/TrustManager";
 import { util as iseUtil } from "./util";
 
 require("pfsc-moose/src/css/moose.css")
@@ -163,6 +164,7 @@ function construct(ISE_state) {
     // Instantiate each of the remaining "Manager" types that we need.
     const socketManager = new SocketManager(ISE_state);
     const windowManager = new WindowManager(tct);
+    const trustManager = new TrustManager(ISE_state);
     const menuManager = new MenuManager(tct);
     const navManager = new NavManager(tct);
     const repoManager = new RepoManager(appLayout.librarySocket, ISE_state);
@@ -185,6 +187,7 @@ function construct(ISE_state) {
         keyListener,
         socketManager,
         windowManager,
+        trustManager,
         menuManager,
         navManager,
         repoManager,

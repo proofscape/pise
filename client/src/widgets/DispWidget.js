@@ -86,7 +86,7 @@ const DispWidget = declare(ExampWidget, {
         this.inherited(activate, arguments);
         const activation = this.activationByPaneId.get(pane.id);
         activation.then(() => {
-            // Procede only if the pane still exists. It could have been closed while waiting
+            // Proceed only if the pane still exists. It could have been closed while waiting
             // for Pyodide to load, and the math worker to be ready.
             if (this.existsInPane(pane.id)) {
                 const widgetElement = this.widgetElementByPaneId.get(pane.id);
@@ -276,14 +276,27 @@ const DispWidget = declare(ExampWidget, {
         return code;
     },
 
-    okayToBuild: function() {
-        const selfOkay = (this.liveInfo.trusted || this.liveInfo.approved);
+    /* Check whether this widget is currently marked as trusted, under either site-wide
+     * or per-user settings.
+     */
+    isTrusted: async function() {
+        const repopath = iseUtil.getRepoPart(this.libpath);
+        return await this.hub.trustManager.checkCombinedTrustSetting(
+            repopath, this.version
+        );
+    },
+
+    okayToBuild: async function() {
+        // Note: We used to consult `this.liveInfo.trusted`, but that is now defunct as
+        // we instead check live settings. (To-do: Could probably stop recording this at build time.)
+        const selfOkay = (this.liveInfo.approved || await this.isTrusted());
         if (!selfOkay) {
             return false;
         }
         let ancestorsOkay = true;
         for (let w of this.ancestorDisplays.values()) {
-            if (!w.okayToBuild()) {
+            const ok = await w.okayToBuild();
+            if (!ok) {
                 return false;
             }
         }

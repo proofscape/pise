@@ -131,8 +131,9 @@ export class AnnoViewer extends BasePageViewer {
             this.setPageContents(loc.contents.html, loc.contents.data);
         }
         // If not, then retrieve page contents from server if we want
-        // a different libpath or version than the current one.
-        else if (loc.libpath !== currentPath || loc.version !== currentVers) {
+        // a different libpath or version than the current one, or if it's
+        // a forced reload.
+        else if (loc.libpath !== currentPath || loc.version !== currentVers || loc.forceReload) {
             const contents = await this.loadPageContents(loc);
             this.setPageContents(contents.html, contents.data);
         }

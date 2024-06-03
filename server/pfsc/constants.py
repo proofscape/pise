@@ -276,6 +276,11 @@ class UserProps:
         ALL_ = [BROWSER_ONLY, BROWSER_AND_SERVER]
         INCLUDES_SERVER = [BROWSER_AND_SERVER]
 
+    # Per-repo trust settings
+    K_TRUST = 'TRUST'
+    # Value for K_TRUST is a dictionary in which repopaths point to
+    # lists of trusted full version strings for that repo.
+
     # Per-repo hosting settings
     K_HOSTING = 'HOSTING'
     class V_HOSTING:

@@ -20,6 +20,7 @@ from flask_login import UserMixin, current_user
 
 from config import HostingStance
 from pfsc import check_config
+from pfsc.build.repo import get_repo_part
 from pfsc.constants import UserProps
 import pfsc.constants
 from pfsc.permissions import check_is_psm
@@ -80,6 +81,7 @@ def make_new_user_properties_dict(usertype, email, orgs_owned_by_user):
         UserProps.K_EMAIL: email,
         UserProps.K_OWNED_ORGS: orgs_owned_by_user,
         UserProps.K_NOTES_STORAGE: initial_notes_storage,
+        UserProps.K_TRUST: {},
         UserProps.K_HOSTING: {},
     }
 
@@ -122,6 +124,11 @@ class User(UserMixin):
     """A user of the site. """
 
     def __init__(self, username, props):
+        """
+        User instances are formed by `pfsc.gdb.reader.GraphReader.load_user()`,
+        which reads the properties dictionary off of the existing User node
+        in the GDB, and passes that under `props`.
+        """
         self.username = username
         self.props = props
 
@@ -148,6 +155,17 @@ class User(UserMixin):
         return f'<User {self.username}>'
 
     def prop(self, *args):
+        """
+        Getter/setter for properties in the user's props dict.
+
+        Pass one key, to read the current value under that key,
+        or pass key and value, to set a new value.
+
+        NOTE: Reads are NOT from the GDB, but from the dict currently
+        held in this User object; writes are NOT to the GDB but only
+        to the dict currently held in this User object; must call
+        `self.commit_properties()` to write current props dict to GDB.
+        """
         if len(args) == 1:
             return self.props[args[0]]
         elif len(args) == 2:
@@ -155,6 +173,9 @@ class User(UserMixin):
             self.props[k] = v
 
     def commit_properties(self):
+        """
+        Update GDB with current props in this User object.
+        """
         from pfsc.gdb import get_graph_writer
         gw = get_graph_writer()
         gw.update_user(self)
@@ -184,6 +205,56 @@ class User(UserMixin):
         if p[0] != host:
             return False
         return p[1] in self.owned_orgs
+
+    def makeTrustSetting(self, libpath, version, trusted):
+        """
+        Make a trust setting, for a repo at a version.
+
+        @param libpath: any absolute libpath at or under the repopath.
+        @param version: full version string.
+        @param trusted: `True` if repo@version should be marked as trusted;
+            `False` if not.
+        @return: boolean True if made a change, False if did not
+        """
+        repopath = get_repo_part(libpath)
+        trust_settings_for_all_repos = self.prop(UserProps.K_TRUST)
+        trusted_versions_for_this_repo = trust_settings_for_all_repos.get(
+            repopath, []
+        )
+
+        made_change = False
+        if trusted and version not in trusted_versions_for_this_repo:
+            trusted_versions_for_this_repo.append(version)
+            made_change = True
+        elif version in trusted_versions_for_this_repo and not trusted:
+            trusted_versions_for_this_repo.remove(version)
+            made_change = True
+
+        if made_change:
+            trust_settings_for_all_repos[repopath] = trusted_versions_for_this_repo
+            self.commit_properties()
+
+        return made_change
+
+    def trusts(self, libpath, version):
+        """
+        Check whether the user has marked a repo@version as trusted.
+
+        @param libpath: any absolute libpath at or under the repopath.
+        @param version: full version string.
+
+        @return: `True` if user has trusted this repo at this version;
+            `None` if user has not made such a setting.
+            Note: We return `None` instead of `False`, since the user
+            does not explicitly say "do not trust;" the user simply
+            has not said "trust."
+        """
+        repopath = get_repo_part(libpath)
+        trust_settings_for_all_repos = self.prop(UserProps.K_TRUST)
+        trusted_versions_for_this_repo = trust_settings_for_all_repos.get(
+            repopath, []
+        )
+        return version in trusted_versions_for_this_repo or None
 
     def split_owned_repopath(self, repopath):
         """

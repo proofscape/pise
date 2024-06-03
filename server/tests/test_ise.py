@@ -117,12 +117,29 @@ def test_load_enrichment(app, client, repos_ready):
 
 
 def test_load_annotation(app, client, repos_ready):
-    """Test loading of user notes along with an annotation. """
+    """Test loading of user notes & trust along with an annotation. """
     with app.app_context():
         app.config["ALLOW_TEST_REPO_LOGINS"] = True
         app.config["OFFER_SERVER_SIDE_NOTE_RECORDING"] = True
-        libpath = 'test.wid.get.notes.Notes'
+        app.config["RECORD_PER_USER_TRUST_SETTINGS"] = True
+        repopath = 'test.wid.get'
+        libpath = f'{repopath}.notes.Notes'
         vers = 'v0.2.0'
+
+        def get_anno_data(dump=False):
+            response = client.post(f'{ISE_PREFIX}/loadAnnotation?libpath={libpath}&vers={vers}')
+            d = handleAsJson(response)
+            # print(json.dumps(d, indent=4))
+            data_str = d['data_json']
+            data = json.loads(data_str)
+            if dump:
+                print(json.dumps(data, indent=4))
+            return data
+
+        def check_trust():
+            res = client.get(f'/ise/checkUserTrust?repopath={repopath}&vers={vers}')
+            d = handleAsJson(res)
+            return d['user_trust_setting']
 
         with login_context(client, 'moo'):
             client.post(f'/ise/requestSsnr', data={'activate': 1, 'confirm': 1})
@@ -130,12 +147,7 @@ def test_load_annotation(app, client, repos_ready):
                 'goal_id': f'{libpath}.w2@0', 'state': 'checked', 'notes': 'bar',
             })
 
-            response = client.post(f'{ISE_PREFIX}/loadAnnotation?libpath={libpath}&vers={vers}')
-            d = handleAsJson(response)
-            #print(json.dumps(d, indent=4))
-            data_str = d['data_json']
-            data = json.loads(data_str)
-            print(json.dumps(data, indent=4))
+            data = get_anno_data()
 
             # Test that a widget gets the correct auto-generated pane_group field:
             pg = "test.wid.get@v0_2_0.notes.Notes:CHART:"
@@ -147,6 +159,29 @@ def test_load_annotation(app, client, repos_ready):
                 "state": "checked",
                 "notes": "bar"
             }
+
+            # Initially, repo is not trusted:
+            w1_uid = 'test-wid-get-notes-Notes-w1_v0-2-0'
+            assert data['widgets'][w1_uid]['trusted'] is False
+
+            # User sets trust:
+            client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=true')
+            data = get_anno_data()
+            assert data['widgets'][w1_uid]['trusted'] is True
+            assert check_trust() is True
+
+            # User revokes trust:
+            client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=false')
+            data = get_anno_data()
+            assert data['widgets'][w1_uid]['trusted'] is False
+            assert check_trust() is None
+
+            # User sets trust, but at a different version:
+            other_vers = 'v0.3.0'
+            client.get(f'/ise/setUserTrust?repopath={repopath}&vers={other_vers}&trust=true')
+            data = get_anno_data()
+            assert data['widgets'][w1_uid]['trusted'] is False
+            assert check_trust() is None
 
 
 def test_load_annotation_02(app, client, repos_ready):
@@ -204,6 +239,46 @@ def test_load_annotation_02(app, client, repos_ready):
         assert w1.get('approved') is None
         assert w2['trusted'] is True
         assert w2.get('approved') is None
+
+
+def test_user_trust_setting_rejected(app, client, repos_ready):
+    """
+    Check that requests to user trust setting endpoint are rejected
+    when not configured to be accepted.
+    """
+    with app.app_context():
+        app.config["ALLOW_TEST_REPO_LOGINS"] = True
+        # NOTE: We are deliberately *not* making any setting on the
+        # 'RECORD_PER_USER_TRUST_SETTINGS' config var. We want to test that
+        # the default mode is to reject.
+        repopath = 'test.wid.get'
+        vers = 'v0.2.0'
+
+        with login_context(client, 'moo'):
+            response = client.get(f'/ise/setUserTrust?repopath={repopath}&vers={vers}&trust=true')
+            d = handleAsJson(response)
+            print(json.dumps(d, indent=4))
+            assert d['err_lvl'] == PECode.SERVICE_DISABLED
+
+
+def test_user_trust_check_rejected(app, client, repos_ready):
+    """
+    Check that requests to user trust checker endpoint are rejected
+    when not configured to be accepted.
+    """
+    with app.app_context():
+        app.config["ALLOW_TEST_REPO_LOGINS"] = True
+        # NOTE: We are deliberately *not* making any setting on the
+        # 'RECORD_PER_USER_TRUST_SETTINGS' config var. We want to test that
+        # the default mode is to reject.
+        repopath = 'test.wid.get'
+        vers = 'v0.2.0'
+
+        with login_context(client, 'moo'):
+            response = client.get(f'/ise/checkUserTrust?repopath={repopath}&vers={vers}')
+            d = handleAsJson(response)
+            print(json.dumps(d, indent=4))
+            assert d['err_lvl'] == PECode.SERVICE_DISABLED
 
 
 def test_load_source(app, client, repos_ready):
@@ -646,6 +721,7 @@ user_info_01 = {
         "USERTYPE": "USER",
         "EMAIL": "test.moo@localhost",
         "OWNED_ORGS": [],
+        "TRUST": {},
         "NOTES_STORAGE": "BROWSER_AND_SERVER",
         "HOSTING": {}
     },
@@ -789,4 +865,5 @@ def test_whoami(app, client):
                 UserProps.K_HOSTING: {},
                 UserProps.K_NOTES_STORAGE: UserProps.V_NOTES_STORAGE.BROWSER_ONLY,
                 UserProps.K_OWNED_ORGS: [],
+                UserProps.K_TRUST: {},
             }

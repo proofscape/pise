@@ -19,7 +19,7 @@ import os
 from flask_login import current_user
 from pygit2 import clone_repository, GitError, RemoteCallbacks
 
-from pfsc import check_config
+from pfsc import check_config, libpath_is_trusted
 import pfsc.constants
 from pfsc.permissions import have_repo_permission, ActionType
 from pfsc.excep import PfscExcep, PECode
@@ -213,9 +213,10 @@ class RepoLoader(RepoTaskHandler):
         manifest = load_manifest(repopath, cache_control_code=ccc, version=self.version)
         root = manifest.get_root_node()
 
-        # Since only the tree model is sent to the client, we load certain
-        # extra information from the manifest into the root node.
-        root.update_data({'docInfo': manifest.doc_infos})
+        root.update_data({
+            'docInfo': manifest.doc_infos,
+            'repoTrustedSiteWide': libpath_is_trusted(repopath, self.version, ignore_user=True),
+        })
 
         model = []
         root.build_relational_model(model, lift_sphinx_pages=True)

@@ -120,6 +120,10 @@
     border-color: #545400;
 }
 
+.widgetHasError .dispWidgetInputArea {
+    display: initial;
+}
+
 .widgetHasError .dispWidgetInputArea,
 .widgetHasError .dispWidgetOutputArea,
 .widgetHasError.paramWidget {

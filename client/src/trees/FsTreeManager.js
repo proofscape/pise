@@ -131,8 +131,25 @@ export class FsTreeManager extends TreeManager {
         return items[0];
     }
 
+    /* Given the libpath of any item in a repo,
+     * retrieve the root item for that tree.
+     *
+     * See also: BuildTreeManager.getRootItemForMemberLibpathAndVersion()
+     */
+    getRootItemForMemberLibpath(libpath) {
+        const repopath = iseUtil.getRepoPart(libpath);
+        return this.lookupItemByLibpathAndType(repopath, "DIR");
+    }
+
     /* Locate a TreeNode by the libpath and type it represents.
      *
+     * Note: type is required since some items have the same libpath.
+     * For example, in a non-terminal module, the directory and the
+     * dunder file both have the same libpath, whereas one is of type
+     * "DIR" while the other is of type "FILE".
+     *
+     * @param libpath: the libpath of the item
+     * @param type: the type of the item, such as "DIR" or "FILE"
      * @return: the TreeNode, or null if it could not be found.
      *   NOTE: If a node has not yet been loaded into a tree (by expansion
      *   of its ancestors, if any), then this method will fail to find it.
@@ -222,6 +239,12 @@ export class FsTreeManager extends TreeManager {
         } else {
             // It is the repo.
             cm.addChild(new dojo.MenuSeparator());
+            cm.addChild(new dojo.MenuItem({
+                label: "Trust...",
+                onClick: function(evt){
+                    mgr.hub.trustManager.showTrustDialog(repopath, "WIP", item.repoTrustedSiteWide);
+                }
+            }));
             cm.addChild(new dojo.MenuItem({
                 label: "Refresh",
                 onClick: function(evt){

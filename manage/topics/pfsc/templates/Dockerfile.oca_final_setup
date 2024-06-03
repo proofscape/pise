@@ -36,7 +36,11 @@ ENV FLASK_CONFIG OCA
 ENV LOAD_PFSC_CONF_FROM_STANDARD_DEPLOY_DIR 1
 # Want to distribute an image that's ready to work with some of the more
 # obvious candidate libraries, without requiring tricky configuration steps
-# for brand new users.
+# for brand new users. If in-app trust settings should, in future versions,
+# become *actively prompted*, then could consider taking these defaults away.
+# Note that we do not need to name "gh.proofscape" as a trusted libpath here,
+# since that is already set by the `TRUST_LIBPATH_GH_PROOFSCAPE` config var,
+# which defaults to true.
 ENV PFSC_DEFAULT_TRUSTED_LIBPATHS "gh.toepproj"
 # For continuous logging from the Flask web app:
 ENV PYTHONUNBUFFERED 1

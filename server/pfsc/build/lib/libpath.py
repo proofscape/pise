@@ -24,7 +24,6 @@ import re
 import tempfile
 from functools import lru_cache
 
-from flask import current_app
 from pygit2 import init_repository
 
 from pfsc import check_config, get_build_dir
@@ -32,17 +31,6 @@ import pfsc.constants
 from pfsc.excep import PfscExcep, PECode
 from pfsc.build.repo import RepoFamily, RepoInfo, get_repo_part, add_all_and_commit
 from pfsc.gdb import get_graph_reader, building_in_gdb
-
-
-def libpath_is_trusted(libpath):
-    """
-    Check whether a libpath is considered to be trusted, according to
-    the current configuration.
-    @param libpath: the libpath to be tested
-    @return: boolean: True if libpath is trusted, False if not.
-    """
-    tpm = current_app.config['trusted_prefix_mapping']
-    return libpath in tpm([libpath])
 
 
 @lru_cache(maxsize=32)

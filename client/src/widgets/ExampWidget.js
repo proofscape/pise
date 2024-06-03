@@ -116,6 +116,23 @@ const ExampWidget = declare(Widget, {
         }
     },
 
+    /* Comparison function for topological sorting of examp widgets by dependency.
+     *
+     * To use, form an array E of examp widgets and use
+     *
+     *   E.sort((a, b) => a.compareByDependency(b));
+     *
+     */
+    compareByDependency: function(other) {
+        if (other.allDeps.has(this.uid)) {
+            return -1;
+        } else if (this.allDeps.has(other.uid)) {
+            return 1;
+        } else {
+            return 0;
+        }
+    },
+
     val: function(paneId) {
         return null;
     },
@@ -145,7 +162,7 @@ const ExampWidget = declare(Widget, {
     },
 
     makePyProxyAndBuild: async function(paneId, writeHtml) {
-        if (this.okayToBuild()) {
+        if (await this.okayToBuild()) {
             // At present, the `okayToBuild()` test is not really necessary here, as nothing
             // risky happens in the `__init__()` method of the `ExampDisplay` class. But we
             // don't want to count on this never changing during future development.
@@ -246,7 +263,7 @@ const ExampWidget = declare(Widget, {
         }
     },
 
-    okayToBuild: function() {
+    okayToBuild: async function() {
         return false;
     },
 
@@ -268,7 +285,7 @@ const ExampWidget = declare(Widget, {
             value = null,
             writeHtml = false,
         } = options || {};
-        if (this.okayToBuild()) {
+        if (await this.okayToBuild()) {
             await this.hub.mathWorkerReady;
             return this.hub.mathWorkerPeer.postRequest('rebuild', {
                 uid: this.uid,

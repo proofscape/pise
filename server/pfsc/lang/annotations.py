@@ -17,7 +17,7 @@
 import json
 
 from pfsc.lang.objects import EnrichmentPage, EnrichmentType
-from pfsc.build.lib.libpath import libpath_is_trusted
+from pfsc import libpath_is_trusted
 from pfsc.excep import PfscExcep, PECode
 from pfsc.constants import IndexType
 from pfsc.lang.freestrings import (
@@ -91,7 +91,8 @@ class Annotation(EnrichmentPage):
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
-            self._trusted = libpath_is_trusted(libpath)
+            version = self.getVersion()
+            self._trusted = libpath_is_trusted(libpath, version)
         return self._trusted
 
     def getFirstRowNum(self):

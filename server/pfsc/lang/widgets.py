@@ -34,13 +34,13 @@ from pfsc.lang.freestrings import render_anno_markdown, Libpath
 from pfsc.build.lib.libpath import (
     expand_multipath,
     get_formal_moditempath,
-    libpath_is_trusted,
 )
+from pfsc import libpath_is_trusted
 from pfsc.build.repo import get_repo_part, make_repo_versioned_libpath
 from pfsc.gdb import get_graph_reader
 from pfsc.lang.objects import PfscObj
 from pfsc.lang.doc import doc_ref_factory
-from pfsc.util import topological_sort
+from pfsc.util import topological_sort, unindent
 from pfsc.excep import PfscExcep, PECode
 from pfsc_util.imports import from_import
 
@@ -1466,7 +1466,8 @@ class ExampWidget(Widget):
     def trusted(self):
         if self._trusted is None:
             assert (libpath := self.getLibpath()) is not None
-            self._trusted = libpath_is_trusted(libpath)
+            version = self.getVersion()
+            self._trusted = libpath_is_trusted(libpath, version)
         return self._trusted
 
     def raise_excep_if_untrusted(self):
@@ -1759,6 +1760,10 @@ class DispWidget(ExampWidget):
         if not isinstance(build_code, Markup):
             build_code = Markup(build_code)
         build_code = build_code.unescape()
+
+        # Strip leading and trailing blank lines, normalize whitespace,
+        # and remove basic indentation set by first non-blank line
+        build_code = unindent(build_code, cut_inner_blank_lines=False)
 
         # Split on "BEGIN EDIT" / "END EDIT" comments
         parts = self.split_build_code(build_code)

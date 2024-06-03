@@ -24,8 +24,8 @@ from pygit2 import (
 )
 
 import pfsc.constants
-from pfsc.constants import PFSC_EXT, RST_EXT
-from pfsc import check_config, get_build_dir
+from pfsc.constants import PFSC_EXT, RST_EXT, WIP_TAG
+from pfsc import check_config, get_build_dir, libpath_is_trusted
 from pfsc.build.versions import VersionTag, VERSION_TAG_REGEX
 from pfsc.excep import PfscExcep, PECode
 from pfsc.util import run_cmd_in_dir, conditionally_unlink_files
@@ -386,7 +386,9 @@ class RepoInfo:
     def load_fs_model(self):
         if not self.is_dir:
             return []
-        root_node = FilesystemNode(self.libpath, '.', self.libpath, FilesystemNode.DIR)
+        root_node = FilesystemNode(self.libpath, '.', self.libpath, FilesystemNode.DIR, extra_data={
+            'repoTrustedSiteWide': libpath_is_trusted(self.libpath, WIP_TAG, ignore_user=True),
+        })
         root_node.explore(self.abs_fs_path_to_dir)
         items = []
         root_node.build_relational_model(items)
@@ -424,7 +426,7 @@ class FilesystemNode:
     DIR = "DIR"
     FILE = "FILE"
 
-    def __init__(self, name, id, libpath, kind):
+    def __init__(self, name, id, libpath, kind, extra_data=None):
         self.name = name
         self.id = id
         self.libpath = libpath
@@ -432,6 +434,7 @@ class FilesystemNode:
         self.parent = None
         self.children = []
         self.num_files = 0
+        self.extra_data = extra_data or {}
 
     def explore(self, fspath, omit_fileless_dirs=True, cur_depth=0):
         if cur_depth > pfsc.constants.MAX_REPO_DIR_DEPTH:
@@ -484,14 +487,16 @@ class FilesystemNode:
         :param siblingOrder: Value for the `sibling` attribute.
         :return: nothing. The `items` list you pass is modified in-place.
         """
-        items.append({
+        item = {
             "id": self.id,
             "name": self.name,
             "libpath": self.libpath,
             "parent": self.parent.id if self.parent else None,
             "type": self.kind,
             "sibling": siblingOrder,
-        })
+        }
+        item.update(self.extra_data)
+        items.append(item)
         for i, child in enumerate(self.children):
             if omit_fileless_dirs and child.kind == FilesystemNode.DIR and child.num_files == 0:
                 continue
@@ -597,6 +602,10 @@ def get_repo_info(libpath):
 
 
 def get_repo_part(libpath):
+    """
+    Purely syntactic operation to extract the first three parts of an absolute
+    libpath. Does NOT require that such a repo actually be present in the library.
+    """
     parts = libpath.split('.')
     if len(parts) < 3:
         raise PfscExcep("libpath %s does not lie within a repo" % libpath, PECode.LIBPATH_TOO_SHORT)
