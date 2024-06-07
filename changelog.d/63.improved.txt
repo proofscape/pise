@@ -1,1 +1,0 @@
-Improve error message if a docref begins with a "#" character.

@@ -1,6 +1,0 @@
-* Support automatically building repo dependencies (recursively) in PISE.
-* Improve build process:
-  - Report missing dependencies earlier.
-  - Roll back build outputs and graph db indexing, upon failed build.
-* Add startup check for sync between build output and graph db.
-  Automatically clean up any excess build output.

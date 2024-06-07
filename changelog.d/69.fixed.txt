@@ -1,2 +1,0 @@
-Repaired issue with chart widget `select` field, where libpath
-was interpreted as `false`.

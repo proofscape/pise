@@ -1,3 +1,72 @@
+## [v0.30.0](https://github.com/proofscape/pise/tree/v0.30.0) - 2024-06-07
+
+
+### Breaking Changes
+
+- * Uniformize widget field names to always use lower camel case.
+  * Uniformize widget field value types across annos and Sphinx pages.
+      Now the same JSON types that are used in annos are also required
+      in Sphinx.
+  * `param` widget `default` arg is renamed to `init`.
+
+  ([#66](https://github.com/proofscape/pise/issues/66))
+- * Authors must supply names for `goal` widgets. ([#67](https://github.com/proofscape/pise/issues/67))
+- Rename root module fields:
+  - `dependencies` --> `deps`
+  - `change_log` --> `changeLog`
+
+  ([#76](https://github.com/proofscape/pise/issues/76))
+- In `param` widgets, `tex` field is now required, and `name` field is
+  no longer accepted. ([#80](https://github.com/proofscape/pise/issues/80))
+- Require proper libpaths (not strings) in `link` widget `ref` field. ([#83](https://github.com/proofscape/pise/issues/83))
+
+### Improvements
+
+- Improve `ctl` widgets
+    * Add support for several "default" settings.
+    * Extend support to Sphinx pages. ([#61](https://github.com/proofscape/pise/issues/61))
+- Improve error message if a docref begins with a "#" character. ([#63](https://github.com/proofscape/pise/issues/63))
+- Support multi-page widget groups. ([#64](https://github.com/proofscape/pise/issues/64))
+- * Introduce type checking for widget fields.
+  * Raise exception on presence of unexpected widget fields.
+  * The string format that was introduced for `color` and `hoverColor` in
+      Sphinx is now accepted both in Sphinx and in annos, as an alternative
+      to the older, dictionary format. The older format is also still accepted
+      in both places.
+  * Improve error reporting on malformed JSON in widgets in Sphinx pages.
+
+  ([#66](https://github.com/proofscape/pise/issues/66))
+- * Support automatically building repo dependencies (recursively) in PISE.
+  * Improve build process:
+    - Report missing dependencies earlier.
+    - Roll back build outputs and graph db indexing, upon failed build.
+  * Add startup check for sync between build output and graph db.
+    Automatically clean up any excess build output.
+
+  ([#76](https://github.com/proofscape/pise/issues/76))
+- * Support making trust settings through PISE.
+  * More flexible whitespace on `build` field in `disp` widgets: leading
+    and trailing blank lines, and basic indentation, are ignored.
+
+  ([#82](https://github.com/proofscape/pise/issues/82))
+
+### Bug Fixes
+
+- Prevent `ctl` widgets from having any presence in generated HTML or page data. ([#61](https://github.com/proofscape/pise/issues/61))
+- * Require angle brackets around boxlisting keywords. ([#66](https://github.com/proofscape/pise/issues/66))
+- * Auto-generated widget names in annotations now begin with underscore. ([#67](https://github.com/proofscape/pise/issues/67))
+- Repair context menus in Sphinx pages, so that they load source panels with
+  proper `rst` syntax highlighting. ([#68](https://github.com/proofscape/pise/issues/68))
+- Repaired issue with chart widget `select` field, where libpath
+  was interpreted as `false`. ([#69](https://github.com/proofscape/pise/issues/69))
+- Raise exception if user supplies entity with prohibited name
+  (`true`, `false`, or `null`). ([#74](https://github.com/proofscape/pise/issues/74))
+- Error messages on `disp` widgets are now visible. ([#82](https://github.com/proofscape/pise/issues/82))
+- Repair node --> anno link click functionality. ([#84](https://github.com/proofscape/pise/issues/84))
+- The OCA now fails gracefully when checking for updates, if you have
+  no internet connection. (Previously, reported a 500 error.) ([#85](https://github.com/proofscape/pise/issues/85))
+
+
 ## 0.29.1 (240101)
 
 Bug Fixes:

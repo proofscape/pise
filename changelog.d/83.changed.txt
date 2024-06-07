@@ -1,1 +1,0 @@
-Require proper libpaths (not strings) in `link` widget `ref` field.

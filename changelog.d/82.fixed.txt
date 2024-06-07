@@ -1,1 +1,0 @@
-Error messages on `disp` widgets are now visible.

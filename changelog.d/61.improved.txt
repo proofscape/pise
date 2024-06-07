@@ -1,3 +1,0 @@
-Improve `ctl` widgets
-  * Add support for several "default" settings.
-  * Extend support to Sphinx pages.
