@@ -1,2 +1,0 @@
-* Auto-generated widget names in annotations now begin with underscore.
-

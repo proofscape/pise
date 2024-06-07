@@ -1,3 +1,0 @@
-Rename root module fields:
-- `dependencies` --> `deps`
-- `change_log` --> `changeLog`

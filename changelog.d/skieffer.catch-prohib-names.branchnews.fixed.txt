@@ -1,2 +1,0 @@
-Raise exception if user supplies entity with prohibited name
-(`true`, `false`, or `null`).

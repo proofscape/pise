@@ -1,2 +1,0 @@
-Repair context menus in Sphinx pages, so that they load source panels with
-proper `rst` syntax highlighting.

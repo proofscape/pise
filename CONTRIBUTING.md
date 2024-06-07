@@ -75,7 +75,11 @@ a PR, please follow the steps below.
    describing your changes. Tips:
 
    * The file will be found in the `changelog.d` directory.
-   * You can use markdown.
+   * You can use markdown. Please observe the rules:
+     - If only declaring one change, do *not* use a bullet point.
+     - If declaring multiple changes, then do use bullet points, but first put a
+       title line (no bullet).
+   * Use present tense. (E.g. "Repair context menus" not "Repaired context menus")
    * Try to keep the entry brief.
    * Remember that this is for human consumption, and intended more for *users* of the
      software, than for developers.
