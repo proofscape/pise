@@ -1,3 +1,14 @@
+## [v0.30.1](https://github.com/proofscape/pise/tree/v0.30.1) - 2024-06-10
+
+
+### Bug Fixes
+
+- Make the new startup sync check introduced in `v0.30.0` opt-in only.
+  This prevents possible race conditions between one process performing
+  startup cleanup of the build directory, while another process is
+  attempting to build new output. ([#87](https://github.com/proofscape/pise/issues/87))
+
+
 ## [v0.30.0](https://github.com/proofscape/pise/tree/v0.30.0) - 2024-06-07
 
 

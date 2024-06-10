@@ -1,4 +1,0 @@
-Make the new startup sync check introduced in v0.30.0 opt-in only.
-This prevents possible race conditions between one process performing
-startup cleanup of the build directory, while another process is
-attempting to build new output.
