@@ -34,7 +34,7 @@ os.environ["FLASK_CONFIG"] = testing_config
 
 
 def make_test_app():
-    return make_app(testing_config)
+    return make_app(testing_config, sync_check=True)
 
 
 @pytest.fixture

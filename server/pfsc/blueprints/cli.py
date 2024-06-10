@@ -29,7 +29,7 @@ from pygit2 import clone_repository, GitError, RemoteCallbacks
 
 import pfsc.constants
 from pfsc.constants import UserProps
-from pfsc import pfsc_cli, make_app
+from pfsc import pfsc_cli, make_app, get_app
 from pfsc.build import build_repo
 from pfsc.build.repo import RepoInfo
 from pfsc.checkinput import check_type, IType
@@ -74,9 +74,7 @@ def build(repopath, tag, clean, verbose=False, auto_deps=False, debug=False):
     Build the proofscape repo at REPOPATH.
     """
     try:
-        # By invoking the `make_app` function with no arguments, we allow it to
-        # determine the configuration based on the FLASK_CONFIG environment variable.
-        app = make_app()
+        app, _ = get_app()
         # However we force PSM, since when you are working from the CLI you should
         # be able to do whatever you want.
         app.config["PERSONAL_SERVER_MODE"] = True

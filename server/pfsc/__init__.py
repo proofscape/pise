@@ -270,6 +270,33 @@ def check_build_dir_and_graph_db_sync(app, clean_up=False, skip_cache=False, ski
                 raise PfscExcep(msg, PECode.BUILD_DIR_AND_GRAPH_DB_OUT_OF_SYNC)
 
 
+def log_make_app():
+    """
+    This log can be useful for debugging issues with the multiple apps that are often
+    formed during different startup scenarios.
+
+    For example, in the `pfsc-repo-build-action` (https://github.com/proofscape/pfsc-repo-build-action)
+    a `pise` container is started (which forms two apps), and then a `flask pfsc build` command
+    is issued, forming a third app.
+
+    The log will be found at `PFSC_BUILD_ROOT/html/make_app_log.txt`.
+
+    It is important to keep a log on disk, instead of printing to stdout, since some apps may
+    be formed by processes that are not connected to stdout.
+    """
+    q = get_build_dir()
+    q.mkdir(parents=True, exist_ok=True)
+    q /= 'make_app_log.txt'
+    import datetime
+    import traceback
+    with q.open(mode='a') as f:
+        f.write('=' * 80 + '\n')
+        f.write(f'Make app at: {datetime.datetime.now()}\n')
+        f.write(f'  PID: {os.getpid()}\n')
+        f.write(f'  Parent PID: {os.getppid()}\n')
+        traceback.print_stack(file=f)
+
+
 def get_app():
     """
     Get a Proofscape Flask app, preferring the current one, or making a new
@@ -283,9 +310,19 @@ def get_app():
     return make_app(), True
 
 
-def make_app(config_name=None):
+def make_app(config_name=None, sync_check=None):
     """
     Form a new Proofscape Flask app.
+
+    :param config_name: Value of the `ConfigName` enum class, naming the
+        desired configuration.
+    :param sync_check: Set True if you want to check synchronization between build
+        dir and graph DB, deleting excess build output if detected.
+
+        WARNING: In scenarios where multiple apps are formed, it is dangerous to ask
+        for sync check more than once, esp. if any building is happening. There can be
+        a race condition, where one process is trying to build, and another is deleting
+        its output, in the name of "cleaning up" the "excess" build output.
     """
     # Make sure we have a config_name, for settings below that may use this.
     if config_name is None:
@@ -362,7 +399,14 @@ def make_app(config_name=None):
     from pfsc.build.lib.prefix import LibpathPrefixMapping
     app.config['trusted_prefix_mapping'] = LibpathPrefixMapping(trusted_prefixes)
 
-    check_build_dir_and_graph_db_sync(app, clean_up=True, skip_cache=True)
+    # Can be useful for debugging issues with the multiple apps that are often
+    # formed during different startup scenarios:
+    record_make_app_log = False
+    if record_make_app_log:
+        log_make_app()
+
+    if sync_check:
+        check_build_dir_and_graph_db_sync(app, clean_up=True, skip_cache=True)
 
     socketio.init_app(
         app,
