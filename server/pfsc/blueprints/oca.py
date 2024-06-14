@@ -90,14 +90,19 @@ def latest_version():
             int_parts_padded.append(([int(n) for n in parts], name))
         else:
             # Is there a label (i.e. fourth part)?
-            # New-style numbers may use a fourth part with an 'a' or 'b' for alpha
-            # and beta releases. We turn such labels into two integers.
+            # New-style numbers may use a fourth part with an 'a', 'b', or 'rc',
+            # for alpha, beta, and release candidate versions. Here we've elected to follow
+            # some of the conventions defined by Python Packaging Authority:
+            #   https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases
+            # We turn such labels into a pair of integers.
             if len(parts) == 4:
                 n = parts[-1]
                 if n[0] == 'a':
                     x, y = 1, n[1:]
                 elif n[0] == 'b':
                     x, y = 2, n[1:]
+                elif n[:2] == 'rc':
+                    x, y = 3, n[2:]
                 else:
                     x, y = 0, n
                 parts[-1] = x
