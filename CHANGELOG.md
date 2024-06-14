@@ -1,16 +1,4 @@
-## [v0.30.1](https://github.com/proofscape/pise/tree/v0.30.1) - 2024-06-10
-
-
-### Bug Fixes
-
-- Make the new startup sync check introduced in `v0.30.0` opt-in only.
-  This prevents possible race conditions between one process performing
-  startup cleanup of the build directory, while another process is
-  attempting to build new output. ([#87](https://github.com/proofscape/pise/issues/87))
-
-
-## [v0.30.0](https://github.com/proofscape/pise/tree/v0.30.0) - 2024-06-07
-
+## [v0.30.2-rc1](https://github.com/proofscape/pise/tree/v0.30.2-rc1) - 2024-06-14
 
 ### Breaking Changes
 
@@ -51,13 +39,13 @@
   ([#66](https://github.com/proofscape/pise/issues/66))
 - Improve build process
   * Support automatically building repo dependencies (recursively) in PISE.
-  * Improve build process:
-    - Report missing dependencies earlier.
-    - Roll back build outputs and graph db indexing, upon failed build.
-  * Add startup check for sync between build output and graph db.
-    Automatically clean up any excess build output.
+  * Report missing dependencies earlier.
+  * Roll back build outputs and graph db indexing, upon failed build.
+  * Add opt-in-only startup check for sync between build output and graph db.
+    Automatically cleans up any excess build output.
 
   ([#76](https://github.com/proofscape/pise/issues/76))
+  ([#87](https://github.com/proofscape/pise/issues/87))
 - Improve `disp` widgets
   * Support making trust settings through PISE.
   * More flexible whitespace on `build` field in `disp` widgets: leading
