@@ -527,7 +527,7 @@ export class RepoManager {
     /* Check whether a repo is marked as being trusted site-wide.
      */
     repoIsTrustedSiteWide(repopath, version) {
-        const repopathv = iseUtil.lv(repopath, "WIP");
+        const repopathv = iseUtil.lv(repopath, version);
         const loaded = this.repoIsLoaded({repopathv});
         let item = {};
         if (loaded.fs) {
