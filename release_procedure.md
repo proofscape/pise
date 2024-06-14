@@ -103,12 +103,17 @@ Step 5. Approve the publication job, and confirm availability of the published
 products at Docker Hub and npm, after it completes.
 
 Step 6. Return to the `main` branch, and merge the release branch.
-There should be merge conflicts in the `package.json` and `package-lock.json`
+Use the `--no-ff` switch here, for rare cases in which you may not have made
+any changes on `main` (such as bumping the dev version, as described above).
+
+    $ git checkout main
+    $ git merge --no-ff releases/0.26.0
+
+If you did bump the dev version on `main` as described above, then
+there should be merge conflicts in the `package.json` and `package-lock.json`
 files under the `client` dir, regarding the version number. We want to keep the
 version from the `main` branch:
 
-    $ git checkout main
-    $ git merge releases/0.26.0
     $ git checkout --ours client/package*.json
     $ git add client/package*.json
 
