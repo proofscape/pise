@@ -143,8 +143,9 @@ COPYRIGHT_INFO_PER_REPO = {
         },
         "dirs": {
             '': ['setup.py', 'manage.py'],
+            'tests': ['**/*.py'],
             'tools': ['**/*.py'],
-            'topics': ['**/*.py', '**/Dockerfile*'],
+            'topics': ['**/*.py', '**/Dockerfile*', '**/*.conf'],
         }
     },
     "moose": {
