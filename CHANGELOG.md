@@ -1,4 +1,4 @@
-## [v0.30.2-rc1](https://github.com/proofscape/pise/tree/v0.30.2-rc1) - 2024-06-14
+## [v0.30.2-rc2](https://github.com/proofscape/pise/tree/v0.30.2-rc2) - 2024-06-14
 
 ### Breaking Changes
 
