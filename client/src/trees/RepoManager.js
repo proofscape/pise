@@ -71,6 +71,10 @@ export class RepoManager {
 
         this.buildMgr = new BuildTreeManager(this.buildDiv);
         this.fsMgr = new FsTreeManager(this.fsDiv);
+
+        // Map from repopathv's to build tree root items.
+        // Currently only used for checking site-wide trust settings.
+        this.rootItemCache = new Map();
     }
 
     activate() {
@@ -405,10 +409,25 @@ export class RepoManager {
         }
     }
 
+    dropRootItemCacheEntry(repopathv) {
+        this.rootItemCache.delete(repopathv);
+    }
+
+    closeBuildTree(repopathv) {
+        this.buildMgr.closeRepo(repopathv);
+        this.dropRootItemCacheEntry(repopathv);
+    }
+
+    closeFileSystemTree(repopath) {
+        this.fsMgr.closeRepo(repopath);
+        const repopathv = iseUtil.lv(repopath, "WIP");
+        this.dropRootItemCacheEntry(repopathv);
+    }
+
     closeRepo(repopath, version = "WIP") {
         const repopathv = iseUtil.lv(repopath, version);
-        this.buildMgr.closeRepo(repopathv);
-        this.fsMgr.closeRepo(repopath);
+        this.closeBuildTree(repopathv);
+        this.closeFileSystemTree(repopath);
     }
 
     /* Describe the set of open repos.
@@ -526,7 +545,7 @@ export class RepoManager {
 
     /* Check whether a repo is marked as being trusted site-wide.
      */
-    repoIsTrustedSiteWide(repopath, version) {
+    async repoIsTrustedSiteWide(repopath, version) {
         const repopathv = iseUtil.lv(repopath, version);
         const loaded = this.repoIsLoaded({repopathv});
         let item = {};
@@ -534,8 +553,35 @@ export class RepoManager {
             item = this.fsMgr.getRootItemForMemberLibpath(repopath);
         } else if (loaded.build) {
             item = this.buildMgr.getRootItemForMemberLibpathAndVersion(repopath, version);
+        } else {
+            item = await this.loadBuildTreeRootItem(repopath, version);
         }
         return item.repoTrustedSiteWide;
+    }
+
+    async loadBuildTreeRootItem(repopath, version) {
+        const repopathv = iseUtil.lv(repopath, version);
+        if (!this.rootItemCache.has(repopathv)) {
+            const parts = await this.hub.socketManager.splitXhrFor('loadRepoTree', {
+                query: {
+                    repopath: repopath,
+                    vers: version,
+                },
+                handleAs: 'json',
+            });
+            const model = parts?.immediate?.model;
+            if (model) {
+                for (const item of model) {
+                    if (item?.libpath === repopath) {
+                        this.rootItemCache.set(repopathv, item);
+                        break;
+                    }
+                }
+            }
+        }
+        const item = this.rootItemCache.get(repopathv);
+        // Ensure that we return at least an empty object.
+        return item || {};
     }
 
     expandNodesPlusAncestors(repopathv, toExpand) {
@@ -550,7 +596,7 @@ export class RepoManager {
 
     reloadBuildTree(repopathv) {
         const itemIds = this.buildMgr.findEssentialExpandedIds([repopathv]).get(repopathv);
-        this.buildMgr.closeRepo(repopathv);
+        this.closeBuildTree(repopathv);
         return this.openRepo({
             repopathv: repopathv,
             ignoreFsTree: true,
@@ -563,7 +609,7 @@ export class RepoManager {
 
     reloadFsTree(repopath) {
         const itemIds = this.fsMgr.findEssentialExpandedIds([repopath]).get(repopath);
-        this.fsMgr.closeRepo(repopath);
+        this.closeFileSystemTree(repopath);
         return this.openRepo({
             repopathv: iseUtil.lv(repopath, "WIP"),
             ignoreBuildTree: true,

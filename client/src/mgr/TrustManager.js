@@ -182,7 +182,8 @@ export class TrustManager {
      *   RepoManager.repoIsTrustedSiteWide()
      */
     async checkCombinedTrustSetting(repopath, version) {
-        if (this.hub.repoManager.repoIsTrustedSiteWide(repopath, version)) {
+        const siteWide = await this.hub.repoManager.repoIsTrustedSiteWide(repopath, version);
+        if (siteWide) {
             return true;
         }
         return await this.checkPerUserTrustSetting(repopath, version);
