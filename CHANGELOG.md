@@ -1,3 +1,13 @@
+## [v0.30.3-rc1](https://github.com/proofscape/pise/tree/v0.30.3-rc1) - 2024-06-17
+
+
+### Bug Fixes
+
+- Ensure that site-wide repo trust settings are correctly reflected for
+  content that is loaded without its repo currently being open in the
+  sidebar. ([#91](https://github.com/proofscape/pise/issues/91))
+
+
 ## [v0.30.2](https://github.com/proofscape/pise/tree/v0.30.2) - 2024-06-16
 
 ### Breaking Changes

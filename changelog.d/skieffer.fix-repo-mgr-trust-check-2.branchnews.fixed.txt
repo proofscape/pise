@@ -1,3 +1,0 @@
-Ensure that site-wide repo trust settings are correctly reflected for
-content that is loaded without its repo currently being open in the
-sidebar.
