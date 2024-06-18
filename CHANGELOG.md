@@ -1,4 +1,4 @@
-## [v0.30.3-rc1](https://github.com/proofscape/pise/tree/v0.30.3-rc1) - 2024-06-17
+## [v0.30.3](https://github.com/proofscape/pise/tree/v0.30.3) - 2024-06-18
 
 
 ### Bug Fixes
