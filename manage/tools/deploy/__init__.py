@@ -108,8 +108,8 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
               help='Use `pise:TEXT` docker image.')
 @click.option('--official', is_flag=True, help='Use official docker images under "proofscape/"')
 @click.option('-n', '--workers', type=int, default=1, prompt='How many RQ workers', help='Number of worker containers you want to run')
-@click.option('--demos/--no-demos', default=False, prompt='Serve demo repos', help="Serve demo repos.")
-@click.option('--mount-code/--no-mount-code', default=False, prompt='Volume-mount code for development',
+@click.option('--demos/--no-demos', default=True, prompt='Serve demo repos', help="Serve demo repos.")
+@click.option('--mount-code/--no-mount-code', default=True, prompt='Volume-mount code for development',
               help='Volume-mount code (server,client,pdf,pyodide,whl) for live updates during development.')
 @click.option('--mount-pkg', default=None,
               help='Volume-mount pkg dir TEXT from local venv, e.g. for testing upgrade before docker rebuild. May be comma-delimited list.')
