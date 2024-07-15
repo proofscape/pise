@@ -504,7 +504,7 @@ jobs:
       # If building and debugging, upload context file as artifact for inspection
       - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 2 }}
         name: Upload pise-server context tar file as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pise-server-context.tar.gz
           path: ${{ env.PISE_SERVER_CTX_TAR }}
@@ -628,7 +628,7 @@ jobs:
       # Upload selenium results now as artifact only if at debug level 2.
       - if: ${{ always() && env.DEBUG_WORKFLOW >= 2 }}
         name: Upload selenium results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: selenium_results
           path: ${{ env.PFSC_ROOT }}/selenium_results
@@ -756,7 +756,7 @@ jobs:
           docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-rg-stderr.txt 2>&1
       - if: ${{ inputs.pub-prep && always() }}
         name: Upload selenium results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: selenium_results
           path: ${{ env.PFSC_ROOT }}/selenium_results
@@ -775,13 +775,13 @@ jobs:
           cp contexts/*.tar.gz pise_contexts
       - if: ${{ inputs.pub-prep }}
         name: Upload client/dist/ise
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: client-dist-ise-${{env.PISE_VERS}}
           path: pise/client/dist/ise
       - if: ${{ inputs.pub-prep }}
         name: Upload pise docker context files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pise-contexts-${{env.PISE_VERS}}
           path: pise_contexts
