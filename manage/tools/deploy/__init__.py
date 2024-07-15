@@ -122,6 +122,9 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
               type=click.Choice(['dockerdev', 'production']),
               default='dockerdev', prompt='Flask config',
               help='Set the FLASK_CONFIG env var for the websrv and worker docker containers.')
+@click.option('--per-deploy-dirs/--no-per-deploy-dirs', default=True,
+              prompt='Use build,lib,graphdb dirs local to the deployment directory',
+              help='Use build,lib,graphdb dirs local to the deployment directory')
 @click.option('--static-redir', default=None, help='Redirect all static requests to domain TEXT.')
 @click.option('--static-acao', is_flag=True, help='Serve all static assets with `Access-Control-Allow-Origin *` header.')
 @click.option('--dummy', is_flag=True, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
@@ -130,7 +133,7 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
 @click.option('--no-redis', is_flag=True, help='Only allowed when RedisGraph is sole GDB, which is then used in place of Redis.')
 def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
-             dirname, no_local, flask_config, static_redir, static_acao, dummy,
+             dirname, no_local, flask_config, per_deploy_dirs, static_redir, static_acao, dummy,
              lib_vol, build_vol, gdb_vol, no_redis=False,
              production_mode=False):
     """
@@ -190,7 +193,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
     # mca-docker-compose.yml
     y = write_docker_compose_yaml(new_dir_name, new_dir_path,
                                   gdb, pfsc_tag, frontend_tag, official, workers, demos,
-                                  mount_code, mount_pkg, flask_config,
+                                  mount_code, mount_pkg, per_deploy_dirs, flask_config,
                                   lib_vol, build_vol, gdb_vol, no_redis)
     y_full = y['full']
     y_layers = y['layers']
@@ -221,7 +224,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
     # oca-docker-compose.yml and run script
     if not production_mode:
         y_oca = write_oca_docker_compose_yaml(new_dir_name, new_dir_path, oca_tag,
-                                              mount_code, mount_pkg,
+                                              mount_code, mount_pkg, per_deploy_dirs,
                                               lib_vol=lib_vol, build_vol=build_vol, gdb_vol=gdb_vol)
         if dump_dc:
             click.echo(y_oca)
@@ -714,7 +717,7 @@ def write_run_oca_sh_script(oca_tag):
 
 
 def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, frontend_tag, official,
-                              workers, demos, mount_code, mount_pkg, flask_config,
+                              workers, demos, mount_code, mount_pkg, per_deploy_dirs, flask_config,
                               lib_vol, build_vol, gdb_vol, no_redis):
     s_full, s_db = {}, {}
     if not no_redis:
@@ -726,12 +729,14 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
             'redis': copy.deepcopy(svc_redis),
         }
 
+    altdir = f'{deploy_dir_path}/mca' if per_deploy_dirs else None
+
     for code in gdb:
         if code not in GdbCode.via_container:
             continue
         name = GdbCode.service_name(code)
         writer = GdbCode.service_defn_writer(code)
-        svc_defn = writer()
+        svc_defn = writer(altdir=altdir)
 
         if gdb_vol:
             # TODO: Provide support for use of named volumes with other GDBs besides RedisGraph
@@ -759,7 +764,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
     def write_pfsc_service(cmd):
         return services.pise_server(deploy_dir_path, cmd, flask_config,
             tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
-            mount_code=mount_code, mount_pkg=mount_pkg, official=official,
+            mount_code=mount_code, mount_pkg=mount_pkg, official=official, altdir=altdir,
             lib_vol=lib_vol, build_vol=build_vol, no_redis=no_redis)
 
     for n in range(workers):
@@ -837,14 +842,15 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
 
 
 def write_oca_docker_compose_yaml(deploy_dir_name, deploy_dir_path, oca_tag,
-                                  mount_code, mount_pkg,
+                                  mount_code, mount_pkg, per_deploy_dirs=False,
                                   lib_vol=None, build_vol=None, gdb_vol=None):
+    altdir = f'{deploy_dir_path}/oca' if per_deploy_dirs else None
     d = {
         'version': '3.5',
         'services': {
             'pise': services.proofscape_oca(
                 deploy_dir_path, tag=oca_tag,
-                mount_code=mount_code, mount_pkg=mount_pkg,
+                mount_code=mount_code, mount_pkg=mount_pkg, altdir=altdir,
                 lib_vol=lib_vol, build_vol=build_vol, gdb_vol=gdb_vol
             ),
         },
