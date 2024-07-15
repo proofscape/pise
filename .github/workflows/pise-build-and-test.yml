@@ -67,13 +67,13 @@ jobs:
       # -----------------------------------------
       # Install Python
       - name: Install Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       # -----------------------------------------
       # Checkout pise
       - name: Checkout pise
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'pise'
       # -----------------------------------------
@@ -84,7 +84,7 @@ jobs:
       # Install server/venv, preferably from cache
       - name: Cache server/venv
         id: cache-server-venv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pise/server/venv
           key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
@@ -160,13 +160,13 @@ jobs:
       # -----------------------------------------
       # Install Python
       - name: Install Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       # -----------------------------------------
       # Checkout pise
       - name: Checkout pise
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: 'pise'
       - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
@@ -177,7 +177,7 @@ jobs:
       # Install manage/venv, preferably from cache
       - name: Cache manage/venv
         id: cache-manage-venv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pise/manage/venv
           key: cache-manage-venv-${{ hashFiles('pise/manage/setup.py') }}
@@ -214,7 +214,7 @@ jobs:
       # Install server/venv, preferably from cache
       - name: Cache server/venv
         id: cache-server-venv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pise/server/venv
           key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
@@ -230,7 +230,7 @@ jobs:
       # Install client/node_modules, preferably from cache
       - name: Cache client/node_modules
         id: cache-client-node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pise/client/node_modules
           key: cache-client-node_modules-${{ hashFiles('pise/client/package-lock.json') }}
@@ -254,7 +254,7 @@ jobs:
           echo "chromedriver-url=https://storage.googleapis.com/chrome-for-testing-public/$CHR_DRIVER_VERS/linux64/chromedriver-linux64.zip" >> $GITHUB_ENV
       - name: Cache chromedriver
         id: cache-chromedriver
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /usr/local/bin/chromedriver
           key: cache-chromedriver-${{ env.chromedriver-url }}
@@ -294,7 +294,7 @@ jobs:
       # Obtain RedisGraph image, preferably from cache
       - name: Cache redisgraph
         id: cache-redisgraph
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: images/redisgraph.tar
           key: cache-redisgraph-${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
@@ -310,7 +310,7 @@ jobs:
       # Obtain Nginx image, preferably from cache
       - name: Cache nginx
         id: cache-nginx
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: images/nginx.tar
           key: cache-nginx-${{ steps.vers-nums.outputs.NGINX_VERS }}
@@ -326,13 +326,13 @@ jobs:
       # Install pfsc-pdf, preferably from cache
       - name: Cache pfsc-pdf
         id: cache-pfsc-pdf
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-pdf/build/generic
           key: cache-pfsc-pdf-${{ steps.vers-nums.outputs.PFSC_PDF_VERS }}
       - if: ${{ steps.cache-pfsc-pdf.outputs.cache-hit != 'true' }}
         name: Install pfsc-pdf
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-pdf
           repository: proofscape/pfsc-pdf
@@ -348,13 +348,13 @@ jobs:
       # Install pfsc-demo-repos, preferably from cache
       - name: Cache pfsc-demo-repos
         id: cache-pfsc-demo-repos
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
           key: cache-pfsc-demo-repos-${{ steps.vers-nums.outputs.DEMO_REPO_VERS }}
       - if: ${{ steps.cache-pfsc-demo-repos.outputs.cache-hit != 'true' }}
         name: Install pfsc-demo-repos
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/pfsc-demo-repos
           repository: proofscape/pfsc-demo-repos
@@ -368,7 +368,7 @@ jobs:
       # Install Pyodide, preferably from cache
       - name: Cache Pyodide
         id: cache-pyodide
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/pyodide/v${{steps.vers-nums.outputs.PYODIDE_VERS}}
           key: cache-pyodide-${{ steps.vers-nums.outputs.PYODIDE_VERS }}
@@ -387,7 +387,7 @@ jobs:
       # Install wheels, preferably from cache
       - name: Cache wheels
         id: cache-wheels
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{env.PFSC_ROOT}}/src/whl
           key: cache-wheels-${{ steps.vers-nums.outputs.PFSC_EXAMP_VERS }}
@@ -482,7 +482,7 @@ jobs:
       - if: ${{!inputs.pub-prep}}
         name: Cache pise-server
         id: cache-pise-server
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: images/pise-server.tar
           key: cache-pise-server-${{env.PISE_VERS}}
@@ -504,7 +504,7 @@ jobs:
       # If building and debugging, upload context file as artifact for inspection
       - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 2 }}
         name: Upload pise-server context tar file as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pise-server-context.tar.gz
           path: ${{ env.PISE_SERVER_CTX_TAR }}
@@ -628,7 +628,7 @@ jobs:
       # Upload selenium results now as artifact only if at debug level 2.
       - if: ${{ always() && env.DEBUG_WORKFLOW >= 2 }}
         name: Upload selenium results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: selenium_results
           path: ${{ env.PFSC_ROOT }}/selenium_results
@@ -756,7 +756,7 @@ jobs:
           docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-rg-stderr.txt 2>&1
       - if: ${{ inputs.pub-prep && always() }}
         name: Upload selenium results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: selenium_results
           path: ${{ env.PFSC_ROOT }}/selenium_results
@@ -775,13 +775,13 @@ jobs:
           cp contexts/*.tar.gz pise_contexts
       - if: ${{ inputs.pub-prep }}
         name: Upload client/dist/ise
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: client-dist-ise-${{env.PISE_VERS}}
           path: pise/client/dist/ise
       - if: ${{ inputs.pub-prep }}
         name: Upload pise docker context files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pise-contexts-${{env.PISE_VERS}}
           path: pise_contexts
