@@ -435,6 +435,7 @@ jobs:
               -n 1 --demos \
               --dirname ${{ env.TEST_DEPLOY_DIR }} \
               --flask-config dockerdev \
+              --no-per-deploy-dirs \
               --lib-vol=${{ env.LIB_VOLUME }} \
               --build-vol=${{ env.BUILD_VOLUME }} \
               --gdb-vol=${{ env.GDB_VOLUME }}
