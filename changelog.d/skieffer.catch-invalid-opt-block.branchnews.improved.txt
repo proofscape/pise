@@ -1,0 +1,2 @@
+Provide a helpful error message in case of invalid option blocks
+in pfsc directives in Sphinx pages.

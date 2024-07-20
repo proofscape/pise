@@ -459,36 +459,36 @@ Expected one of:
 
 .. pfsc-chart::
     :view: Thm.C, Pf.{R,S}
-""".strip()
-
-@pytest.mark.psm
-def test_sphinx_directive_widget_field_pf_json_parse_err(app):
-    """
-    Check that we get the expected error message when we try to build a Sphinx
-    page in which a widget (in directive form) field has a PF-JSON parse error.
-    """
-    with app.app_context():
-        with pytest.raises(PfscExcep) as ei:
-            build_repo('test.spx.err', version='v0.1.0', quiet=True)
-        pe = ei.value
-        s = str(pe)
-        n = s.find(spx_err_txt_1)
-        assert n > 0
+"""
 
 spx_err_txt_2 = """
 /lib/test/spx/err/index.rst:23:PROOFSCAPE-SPHINX-ERROR: Inline Proofscape chart widgets must have the form `SUBTEXT &lt;VIEW&gt;`.
-""".strip()
+"""
+
+spx_err_txt_3 = """
+/lib/test/spx/err/index.rst:26:Error in &#34;pfsc-chart&#34; directive:
+invalid option block.
+"""
 
 @pytest.mark.psm
-def test_sphinx_role_widget_malformed(app):
+@pytest.mark.parametrize('version, err_msg', [
+    # A widget in directive form has a field with a PF-JSON parse error.
+    ['v0.1.0', spx_err_txt_1],
+    # A widget in role form has malformed interpreted text.
+    ['v0.2.0', spx_err_txt_2],
+    # A widget in directive form uses improper indentation in its option block.
+    ['v0.3.0', spx_err_txt_3],
+])
+def test_sphinx_widget_errors(app, version, err_msg):
     """
-    Check that we get the expected error message when we try to build a Sphinx
-    page in which a widget in role form has malformed interpreted text.
+    Check that we get the expected error messages when we try to build a Sphinx
+    pages with malformed widgets.
     """
     with app.app_context():
         with pytest.raises(PfscExcep) as ei:
-            build_repo('test.spx.err', version='v0.2.0', quiet=True)
+            build_repo('test.spx.err', version=version, quiet=True)
         pe = ei.value
         s = str(pe)
-        n = s.find(spx_err_txt_2)
+        print('\n', s)
+        n = s.find(err_msg.strip())
         assert n > 0

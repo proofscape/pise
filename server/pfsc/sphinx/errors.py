@@ -14,9 +14,35 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import re
+
 import sphinx.util.logging
 
 from pfsc.constants import PFSC_SPHINX_CRIT_ERR_MARKER
+
+
+# Catch cases in which the option block of a pfsc- directive is malformed.
+# If these are allowed to be mere warnings, then your Proofscape repo can build, and yet
+# you may have Sphinx pages in which some of your widgets simply don't appear at all!
+INVALID_OPT_BLOCK_RE = re.compile('Error in "pfsc-\\w+" directive:\ninvalid option block\\.')
+
+
+def should_elevate(record):
+    """
+    Return a boolean saying whether the given warning record is one that should
+    be elevated to a build-halting error.
+    """
+    # Our custom directives and roles will start their messages with the value
+    # of the `PFSC_SPHINX_CRIT_ERR_MARKER` constant if they want to halt the build.
+    if record.msg.find(PFSC_SPHINX_CRIT_ERR_MARKER) >= 0:
+        return True
+
+    # Below we catch special built-in Sphinx/docutils warnings that are serious enough
+    # that the build should stop.
+    if INVALID_OPT_BLOCK_RE.search(record.msg):
+        return True
+
+    return False
 
 
 class ProofscapeWarningIsErrorFilter(sphinx.util.logging.WarningIsErrorFilter):
@@ -47,13 +73,12 @@ class ProofscapeWarningIsErrorFilter(sphinx.util.logging.WarningIsErrorFilter):
     the bottom of this module, so importing this into our Sphinx extension is enough.
 
     When we form our `Sphinx` instance, we set ``warningiserror=False`; however, our
-    custom filter looks for a special substring, the value of `PFSC_SPHINX_CRIT_ERR_MARKER`,
-    in the warning message. When that is present, then we ensure that the warning *is* raised
-    as a build-halting exception.
+    custom filter checks the warning message for special cases that we have determined
+    (see `should_elevate()` function) should be raised as build-halting exceptions.
     """
 
     def filter(self, record):
-        if record.msg.find(PFSC_SPHINX_CRIT_ERR_MARKER) >= 0:
+        if should_elevate(record):
             # Since we're about to cause an exception to be raised, it doesn't matter
             # if we permanently alter the Sphinx app's `warningiserror` setting.
             # That app instance is not going to do anything more anyway.
