@@ -29,6 +29,10 @@ When TRIAL_BUILD_VERSION is any numbered version, e.g. v0.1.0, then we use the
 existing indexing of test repos, and then builds the desired version plus all
 its dependencies, in topological order.
 
+Setting TRIAL_BUILD_CLEAN=1 means that, if the version is WIP, we will set the
+builder to erase any and all existing pickle files for the modules in this repo,
+as well as to `make clean` with Sphinx (if a part of the build).
+
 We use a script instead of a unit test because sometimes these builds can mess up
 other unit tests. In particular, our procedure when building at a numbered version
 messes them up by clearing indexing, and you must do
