@@ -320,6 +320,11 @@ class GremlinGraphReader(GraphReader):
 
         infos = tr.coalesce(
             __.has('origin'),
+            # Note: Here we are using pattern matching using a `where()` step.
+            #  https://kelvinlawrence.net/book/Gremlin-Graph-Guide.html#patternwhere
+            # This means the `as_()` step inside the `where()` does not assign a
+            # label, but instead requires the object to equal the one that previously
+            # received that label, outside of the `where()` step.
             __.in_e(IndexType.NOTES).where(
                 __.out_v().as_('u')
             )
