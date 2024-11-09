@@ -22,5 +22,9 @@ from tests.util import build_all, build_at_wip, build_big
 
 if __name__ == "__main__":
     #build_big()
+
     build_all()
+    # To show timings:
+    #build_all(verbose=2)
+
     build_at_wip()
