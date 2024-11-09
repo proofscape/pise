@@ -19,6 +19,8 @@ from flask import g as flask_g
 from gremlin_python.process.anonymous_traversal import traversal
 from gremlin_python.process.graph_traversal import GraphTraversalSource
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
+from gremlin_python.driver.serializer import GraphSONSerializersV3d0
+from gremlite import SQLiteConnection
 from wsc_grempy_transport.transport import websocket_client_transport_factory
 import neo4j
 
@@ -31,14 +33,13 @@ from pfsc.gdb.cypher.writer import CypherGraphWriter
 from pfsc.gdb.cypher.rg import RedisGraphWrapper
 
 from pfsc.gdb.gremlin.reader import GremlinGraphReader
-from pfsc.gdb.gremlin.writer import GremlinGraphWriter
+from pfsc.gdb.gremlin.writer import GremlinGraphWriter, GREMLIN_REMOTE_NAME
 from pfsc.gdb.gremlin.util import GtxTx_Gts
 
 
 GDB_OBJECT_NAME = "gdb"
 GRAPH_READER_NAME = "graph_reader"
 GRAPH_WRITER_NAME = "graph_writer"
-GREMLIN_REMOTE_NAME = "gremlin_remote"
 
 
 def get_gdb():
@@ -48,14 +49,36 @@ def get_gdb():
     if GDB_OBJECT_NAME not in flask_g:
         uri = current_app.config["GRAPHDB_URI"]
         # Decide by the form of the URI which graph database system we are using.
-        if uri.endswith('/gremlin'):
-            remote = DriverRemoteConnection(
-                uri, transport_factory=websocket_client_transport_factory)
+        protocol = uri.split(":")[0]
+        if uri.endswith('/gremlin') or protocol == 'file':
+            if protocol == 'file':
+                path = uri[7:]
+                # We ignore pise/server's `USE_TRANSACTIONS` config var and never allow
+                # sqlite to work in its native autocommit mode, because it is horribly slow.
+                remote = SQLiteConnection(path, autocommit=False)
+            else:
+                # Starting with gremlinpython==3.6.1, we have to explicitly request the
+                # `GraphSONSerializersV3d0` message serializer. This was the default in 3.6.0,
+                # but in 3.6.1 they changed the default to `GraphBinarySerializersV1`.
+                # See https://tinkerpop.apache.org/docs/current/upgrade/#_tinkerpop_3_6_1
+                #
+                # One consequence of the change is that, while the `E()` step still requires IDs
+                # to be passed as instances of `gremlin_python.statics.long`, the 3.6.1 serializer
+                # *reports* IDs to you as `int`, whereas 3.6.0 reported them as `long`.
+                #
+                # Our code sometimes stores edge IDs as returned from certain Gremlin queries, and
+                # then attempts to pass these same objects right back as arguments to `E()` steps.
+                # (For example this happens in `pfsc.gdb.gremlin.writer.GremlinGraphWriter.ix0200()`.)
+                # In order for this to work from gremlinpython 3.6.1 and onward, without having to
+                # explicitly recast the IDs as longs, we need to use the old serializer.
+                remote = DriverRemoteConnection(
+                    uri, transport_factory=websocket_client_transport_factory,
+                    message_serializer=GraphSONSerializersV3d0()
+                )
             # Store the remote so it can be closed later.
             setattr(flask_g, GREMLIN_REMOTE_NAME, remote)
             gdb = traversal(GtxTx_Gts).with_remote(remote)
         else:
-            protocol = uri.split(":")[0]
             if protocol in ['redis', 'rediss']:
                 gdb = RedisGraphWrapper(uri)
             elif protocol in ['bolt', 'neo4j']:
@@ -94,6 +117,10 @@ def get_graph_writer() -> GraphWriter:
             use_transactions = current_app.config["USE_TRANSACTIONS"]
             writer = GremlinGraphWriter(reader, use_transactions)
         else:
+            # Here we're not consulting the USE_TRANSACTIONS config var at all,
+            # because we've only contemplated two GDBs that use Cypher, namely,
+            # Neo4j and RedisGraph. With the former we automatically use transactions (since
+            # it supports them), and with the latter we do not (because it doesn't).
             writer = CypherGraphWriter(reader)
         setattr(flask_g, GRAPH_WRITER_NAME, writer)
     return getattr(flask_g, GRAPH_WRITER_NAME)

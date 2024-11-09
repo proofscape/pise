@@ -308,9 +308,13 @@ class Config:
     GDB_USERNAME = os.getenv("GDB_USERNAME") or ''
     GDB_PASSWORD = os.getenv("GDB_PASSWORD") or ''
 
-    # Some GDB systems support transactions, some do not. If we can tell based
-    # on the GRAPHDB_URI (such as RedisGraph versus Neo4j) then we ignore this
-    # variable; if we cannot (such as with a Gremlin URI) then we follow this.
+    # For certain, known GDB systems, whether we use transactions or not is fixed and
+    # not configurable. For Neo4j we use them (because it supports them), for RedisGraph
+    # we do not (because it doesn't), and for gremlite we do, because it doesn't work
+    # properly otherwise.
+    #
+    # For any other GDB system you might use, you can control whether transactions are
+    # used or not, using this config var.
     USE_TRANSACTIONS = bool(int(os.getenv("USE_TRANSACTIONS", 0)))
 
     # NOTE: math job timeouts are only relevant if you are performing math jobs

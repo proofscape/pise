@@ -14,6 +14,8 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+from contextlib import contextmanager
+import functools
 import json
 
 import pfsc.constants
@@ -23,12 +25,23 @@ from pfsc.gdb.reader import GraphReader
 from pfsc.gdb.user import User, make_new_user_properties_dict
 
 
+def as_transaction():
+    def decor(func):
+        @functools.wraps(func)
+        def wrapper(graph_writer, *args, **kwargs):
+            with graph_writer.embed_new_transaction():
+                return func(graph_writer, *args, **kwargs)
+        return wrapper
+    return decor
+
+
 class GraphWriter:
     """Abstract base class for graph database writers. """
 
     def __init__(self, reader):
         self.gdb = reader.gdb
         self._reader = reader
+        self._tx = None
 
     @property
     def reader(self) -> GraphReader:
@@ -37,6 +50,22 @@ class GraphWriter:
     def new_transaction(self):
         """Start a new transaction. """
         raise NotImplementedError
+
+    @contextmanager
+    def embed_new_transaction(self):
+        if self._tx is None:
+            self._tx = tx = self.new_transaction()
+            try:
+                yield tx
+            except Exception as e:
+                self.rollback_transaction(tx)
+                raise e from None
+            else:
+                self.commit_transaction(tx)
+            finally:
+                self._tx = None
+        else:
+            yield self._tx
 
     def commit_transaction(self, tx):
         """Commit a transaction. """
@@ -67,17 +96,12 @@ class GraphWriter:
                 msg = f'Release `{mii.version}` of repo `{mii.repopath}`' \
                       ' has already been indexed.'
                 raise PfscExcep(msg, PECode.ATTEMPTED_RELEASE_REINDEX)
-        tx = self.new_transaction()
-        try:
+
+        with self.embed_new_transaction() as tx:
             self.ix0100(mii, tx)
             new_targeting_relns = self.ix0200(mii, tx)
             self.ix0300(mii, new_targeting_relns, tx)
             self.ix0400(mii, tx)
-        except Exception as e:
-            self.rollback_transaction(tx)
-            raise e from None
-        else:
-            self.commit_transaction(tx)
 
     def clear_wip_indexing(self, mii, tx):
         """
@@ -157,12 +181,30 @@ class GraphWriter:
         """
         raise NotImplementedError
 
+# -------------------v
+
+    """
+    As a general pattern in this abstract base class, every method has a counterpart
+    whose name is the same except with a leading underscore. The second method is
+    abstract, and is to be implemented by the concrete subclasses; the first method
+    sometimes has some work to do, but other times serves only to receive the
+    `@as_transaction` decorator, and invoke the abstract method. (We do it this way
+    because if you simply decorate an abstract method, the decorator has no effect
+    on the concrete implementations. We could decorate the latter, but then we'd have
+    to repeat ourselves.)
+    """
+
+    @as_transaction()
     def clear_test_indexing(self):
         """
         Clear all indexing under the `test` repo family.
         """
+        return self._clear_test_indexing()
+
+    def _clear_test_indexing(self):
         raise NotImplementedError
 
+    @as_transaction()
     def delete_everything_under_repo(self, repopath):
         """
         Delete all nodes and edges under a given repopath, at all versions.
@@ -181,12 +223,14 @@ class GraphWriter:
         """
         raise NotImplementedError
 
+    @as_transaction()
     def delete_full_wip_build(self, repopath):
         """
         Delete everything for a given repo @WIP.
         """
         self.delete_full_build_at_version(repopath, version=pfsc.constants.WIP_TAG)
 
+    @as_transaction()
     def delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
         """
         Delete everything for a given repo at a given version.
@@ -195,10 +239,14 @@ class GraphWriter:
         mode, then deleting any but the latest numbered version for a given
         repo will result in an inconsistent state in the index.
         """
+        return self._delete_full_build_at_version(repopath, version=version)
+
+    def _delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
         raise NotImplementedError
 
     # ----------------------------------------------------------------------
 
+    @as_transaction()
     def add_user(self, username, usertype, email, orgs_owned_by_user):
         """
         Add a new user.
@@ -220,6 +268,7 @@ class GraphWriter:
     def _add_user(self, username, j_props):
         raise NotImplementedError
 
+    @as_transaction()
     def merge_user(self, username, usertype, email, orgs_owned_by_user):
         """
         Load a user if they already exist; otherwise add them as new.
@@ -237,6 +286,7 @@ class GraphWriter:
             user.update_owned_orgs(orgs_owned_by_user)
         return user, is_new
 
+    @as_transaction()
     def delete_user(self, username, *,
                     definitely_want_to_delete_this_user=False):
         """
@@ -247,8 +297,13 @@ class GraphWriter:
         @param definitely_want_to_delete_this_user: bool, a programming check
         @return: int, being the number of User nodes deleted (always 0 or 1)
         """
+        return self._delete_user(username, definitely_want_to_delete_this_user=definitely_want_to_delete_this_user)
+
+    def _delete_user(self, username, *,
+                    definitely_want_to_delete_this_user=False):
         raise NotImplementedError
 
+    @as_transaction()
     def delete_all_notes_of_one_user(self, username, *,
                     definitely_want_to_delete_all_notes=False):
         """
@@ -257,8 +312,15 @@ class GraphWriter:
         @param username: the user whose notes are to be deleted.
         @param definitely_want_to_delete_all_notes: bool, a programming check
         """
+        return self._delete_all_notes_of_one_user(
+            username,
+            definitely_want_to_delete_all_notes=definitely_want_to_delete_all_notes)
+
+    def _delete_all_notes_of_one_user(self, username, *,
+                                         definitely_want_to_delete_all_notes=False):
         raise NotImplementedError
 
+    @as_transaction()
     def update_user(self, user):
         """
         Update the properties of an existing user.
@@ -272,6 +334,7 @@ class GraphWriter:
     def _update_user(self, username, j_props):
         raise NotImplementedError
 
+    @as_transaction()
     def record_user_notes(self, username, user_notes):
         """
         Record a user's notes on a goal.
@@ -282,10 +345,14 @@ class GraphWriter:
         @param username: str, the user
         @param user_notes: UserNotes to be recorded
         """
+        return self._record_user_notes(username, user_notes)
+
+    def _record_user_notes(self, username, user_notes):
         raise NotImplementedError
 
     # ----------------------------------------------------------------------
 
+    @as_transaction()
     def record_module_source(self, modpath, version, modtext):
         """
         Record the pfsc source code for a given module at a given version.
@@ -294,8 +361,12 @@ class GraphWriter:
         @param version: the version of the module
         @param modtext: the pfsc source code of the module
         """
+        return self._record_module_source(modpath, version, modtext)
+
+    def _record_module_source(self, modpath, version, modtext):
         raise NotImplementedError
 
+    @as_transaction()
     def record_repo_manifest(self, repopath, version, manifest_json):
         """
         Record the JSON for a given repo's manifest, at a given version.
@@ -304,8 +375,12 @@ class GraphWriter:
         @param version: the version of the repo
         @param manifest_json: the JSON of the repo's manifest
         """
+        return self._record_repo_manifest(repopath, version, manifest_json)
+
+    def _record_repo_manifest(self, repopath, version, manifest_json):
         raise NotImplementedError
 
+    @as_transaction()
     def record_dashgraph(self, deducpath, version, dg_json):
         """
         Record the JSON for a given deduc's dashgraph, at a given version.
@@ -314,8 +389,12 @@ class GraphWriter:
         @param version: the version of the deduc
         @param dg_json: the JSON of the deduc's dashgraph
         """
+        return self._record_dashgraph(deducpath, version, dg_json)
+
+    def _record_dashgraph(self, deducpath, version, dg_json):
         raise NotImplementedError
 
+    @as_transaction()
     def record_annobuild(self, annopath, version, anno_html, anno_json):
         """
         Record the HTML and JSON for a given anno, at a given version.
@@ -325,8 +404,12 @@ class GraphWriter:
         @param anno_html: the anno's HTML
         @param anno_json: the anno's JSON
         """
+        return self._record_annobuild(annopath, version, anno_html, anno_json)
+
+    def _record_annobuild(self, annopath, version, anno_html, anno_json):
         raise NotImplementedError
 
+    @as_transaction()
     def delete_builds_under_module(self, modpath, version):
         """
         Delete all edges and nodes representing built products, under a given
@@ -337,10 +420,14 @@ class GraphWriter:
         @param modpath: the libpath of the module
         @param version: the version of the module
         """
+        return self._delete_builds_under_module(modpath, version)
+
+    def _delete_builds_under_module(self, modpath, version):
         raise NotImplementedError
 
     # ----------------------------------------------------------------------
 
+    @as_transaction()
     def set_approval(self, widgetpath, version, approved):
         """
         This provides a mechanism for reviewing display code on `disp` widgets

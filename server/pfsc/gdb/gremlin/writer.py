@@ -14,8 +14,10 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+from flask import g as flask_g
 from gremlin_python.process.graph_traversal import __
 from gremlin_python.process.traversal import TextP
+from gremlite import SQLiteConnection
 
 from pfsc.constants import WIP_TAG, IndexType
 from pfsc.gdb.writer import GraphWriter
@@ -29,6 +31,17 @@ from pfsc.build.versions import get_padded_components
 from pfsc.excep import PfscExcep
 
 
+GREMLIN_REMOTE_NAME = "gremlin_remote"
+
+
+def using_sqlite():
+    """
+    Check whether we are using SQLite.
+    """
+    remote = getattr(flask_g, GREMLIN_REMOTE_NAME)
+    return isinstance(remote, SQLiteConnection)
+
+
 class GremlinGraphWriter(GraphWriter):
     """
     GraphWriter that speaks Gremlin.
@@ -38,11 +51,19 @@ class GremlinGraphWriter(GraphWriter):
 
     def __init__(self, reader, use_transactions=True):
         super().__init__(reader)
-        self.use_transactions = use_transactions
+
+        # If we are using an SQLiteConnection, then we force use of transactions,
+        # since otherwise we actually don't function properly. (This is probably something
+        # to fix in the future -- we have largely relied on GDB systems like RedisGraph that
+        # do autocommit throughout, so the issue simply doesn't arise. And we cannot similarly
+        # use autocommit with SQLiteConnection, since it is horribly slow.)
+        self.use_transactions = True if using_sqlite() else use_transactions
+
+        self._tx = None
 
     @property
     def g(self) -> GTX:
-        return self.gdb
+        return self._tx if self._tx is not None else self.gdb
 
     def new_transaction(self):
         return self.g.tx().begin() if self.use_transactions else self.g
@@ -155,7 +176,7 @@ class GremlinGraphWriter(GraphWriter):
             'version': mii.version
         }, mii.write_version_node_props()).iterate()
 
-    def clear_test_indexing(self):
+    def _clear_test_indexing(self):
         self.g.V().has('repopath', TextP.starting_with('test.')).union(
             __.identity(),
             __.out(IndexType.BUILD),
@@ -168,7 +189,7 @@ class GremlinGraphWriter(GraphWriter):
             __.out(IndexType.BUILD),
         ).barrier().drop().iterate()
 
-    def delete_full_build_at_version(self, repopath, version=WIP_TAG):
+    def _delete_full_build_at_version(self, repopath, version=WIP_TAG):
         M, m, p = get_padded_components(version)
         self.g.V().has('repopath', repopath).or_(
             __.has('version', version),
@@ -189,7 +210,7 @@ class GremlinGraphWriter(GraphWriter):
             'properties': j_props
         }, label_order=1).iterate()
 
-    def delete_user(self, username, *,
+    def _delete_user(self, username, *,
                     definitely_want_to_delete_this_user=False):
         if not definitely_want_to_delete_this_user:
             return 0
@@ -200,7 +221,7 @@ class GremlinGraphWriter(GraphWriter):
         c1 = is_user(username, self.g.V()).count().next()
         return c0 - c1
 
-    def delete_all_notes_of_one_user(self, username, *,
+    def _delete_all_notes_of_one_user(self, username, *,
                     definitely_want_to_delete_all_notes=False):
         if not definitely_want_to_delete_all_notes:
             return
@@ -212,7 +233,7 @@ class GremlinGraphWriter(GraphWriter):
             __.property('properties', j_props)
         ).iterate()
 
-    def record_user_notes(self, username, user_notes):
+    def _record_user_notes(self, username, user_notes):
         major0 = self.reader.adaptall(user_notes.goal_major)
 
         is_goal = lambda tr: lp_maj(user_notes.goalpath, major0, tr)
@@ -247,7 +268,7 @@ class GremlinGraphWriter(GraphWriter):
 
     # ----------------------------------------------------------------------
 
-    def record_module_source(self, modpath, version, modtext):
+    def _record_module_source(self, modpath, version, modtext):
         major0 = self.reader.adaptall(version)
         lp_covers(modpath, major0, self.g.V()).as_('m') \
             .add_v(IndexType.MOD_SRC) \
@@ -255,14 +276,14 @@ class GremlinGraphWriter(GraphWriter):
             .add_e(IndexType.BUILD).from_('m') \
             .property(IndexType.P_BUILD_VERS, version).iterate()
 
-    def record_repo_manifest(self, repopath, version, manifest_json):
+    def _record_repo_manifest(self, repopath, version, manifest_json):
         self.g.V().has_label(IndexType.VERSION) \
             .has('repopath', repopath).has('version', version).union(
                 __.properties('manifest').drop(),
                 __.property('manifest', manifest_json)
             ).iterate()
 
-    def record_dashgraph(self, deducpath, version, dg_json):
+    def _record_dashgraph(self, deducpath, version, dg_json):
         major0 = self.reader.adaptall(version)
         lp_covers(deducpath, major0, self.g.V()).as_('d') \
             .add_v(IndexType.DEDUC_BUILD) \
@@ -270,7 +291,7 @@ class GremlinGraphWriter(GraphWriter):
             .add_e(IndexType.BUILD).from_('d') \
             .property(IndexType.P_BUILD_VERS, version).iterate()
 
-    def record_annobuild(self, annopath, version, anno_html, anno_json):
+    def _record_annobuild(self, annopath, version, anno_html, anno_json):
         major0 = self.reader.adaptall(version)
         lp_covers(annopath, major0, self.g.V()).as_('a') \
             .add_v(IndexType.ANNO_BUILD) \
@@ -279,7 +300,7 @@ class GremlinGraphWriter(GraphWriter):
             .add_e(IndexType.BUILD).from_('a') \
             .property(IndexType.P_BUILD_VERS, version).iterate()
 
-    def delete_builds_under_module(self, modpath, version):
+    def _delete_builds_under_module(self, modpath, version):
         self.g.V().has('modpath', modpath) \
             .out_e(IndexType.BUILD).has(IndexType.P_BUILD_VERS, version) \
             .in_v().drop().iterate()
