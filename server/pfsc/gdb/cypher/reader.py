@@ -41,7 +41,7 @@ class CypherGraphReader(GraphReader):
         return check_count(res)
 
     def num_edges_in_db(self):
-        res = self.session.run("MATCH ()-[e]-() RETURN count(e)")
+        res = self.session.run("MATCH ()-[e]->() RETURN count(e)")
         return check_count(res)
 
     def all_nodes_under_repo(self, repopath):
