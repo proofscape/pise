@@ -21,6 +21,10 @@ Build and index the test repos.
 from tests.util import build_all, build_at_wip, build_big
 
 if __name__ == "__main__":
+    # Uncomment to record logs:
+    #import logging
+    #logging.basicConfig(filename='build_repos.log', level=logging.INFO)
+
     #build_big()
 
     build_all()

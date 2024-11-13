@@ -53,10 +53,14 @@ def get_gdb():
         if uri.endswith('/gremlin') or protocol == 'file':
             if protocol == 'file':
                 path = uri[7:]
+                # Set these True to log low level SQLite usage:
+                log_plans = False
+                check_qqc_patterns = False
                 # As can be seen in the `GremlinGraphWriter.__init__()` method, we will
                 # ignore pise/server's `USE_TRANSACTIONS` config var and will always use
                 # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
-                remote = SQLiteConnection(path, autocommit=False)
+                remote = SQLiteConnection(path, autocommit=False,
+                                          log_plans=log_plans, check_qqc_patterns=check_qqc_patterns)
             else:
                 # Starting with gremlinpython==3.6.1, we have to explicitly request the
                 # `GraphSONSerializersV3d0` message serializer. This was the default in 3.6.0,
