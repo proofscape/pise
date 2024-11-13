@@ -308,13 +308,31 @@ class Config:
     GDB_USERNAME = os.getenv("GDB_USERNAME") or ''
     GDB_PASSWORD = os.getenv("GDB_PASSWORD") or ''
 
-    # For certain, known GDB systems, whether we use transactions or not is fixed and
-    # not configurable. For Neo4j we use them (because it supports them), for RedisGraph
-    # we do not (because it doesn't), and for gremlite we do, because it doesn't work
-    # properly otherwise.
+    # Some GDB systems support transactions, allowing us to control atomicity by grouping
+    # changes together before committing them, while others do not. The others must work
+    # instead in an "autocommit" mode, where all changes are immediately committed.
     #
-    # For any other GDB system you might use, you can control whether transactions are
-    # used or not, using this config var.
+    # Where transactions are supported, they are to be preferred. They provide better
+    # atomicity, and in some cases may make operations significantly faster (for example,
+    # GremLite is much, much faster when we group our changes using transactions).
+    #
+    # The current design in pise/server is influenced by the set of GDB systems against
+    # which it has ever been tested. Among Cypher systems, there are only two: Neo4j,
+    # and RedisGraph. The former supports transactions, the latter does not. As a consequence,
+    # pise/server will always use transactions when using Cypher, unless connecting to RedisGraph.
+    # Thus, the `USE_TRANSACTIONS` config var currently has no effect when connecting to any
+    # Cypher GDB.
+    #
+    # If you are trying to use pise/server with a Cypher GDB other than RedisGraph that does
+    # not support transactions, please open an issue at the PISE GitHub page.
+    #
+    # On the Gremlin side, we have tested against GremLite, where transactions are supported,
+    # and other systems such as TinkerGraph where they are not. With GremLite, we always
+    # use transactions, and the `USE_TRANSACTIONS` config var again has no effect.
+    #
+    # It is only with other Gremlin systems, besides GremLite, where `USE_TRANSACTIONS`
+    # controls anything. So if you are using a Gremlin system other than GremLite, and it
+    # does support transactions, then you should set this to 1.
     USE_TRANSACTIONS = bool(int(os.getenv("USE_TRANSACTIONS", 0)))
 
     # NOTE: math job timeouts are only relevant if you are performing math jobs

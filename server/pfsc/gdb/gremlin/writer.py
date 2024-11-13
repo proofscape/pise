@@ -52,11 +52,8 @@ class GremlinGraphWriter(GraphWriter):
     def __init__(self, reader, use_transactions=True):
         super().__init__(reader)
 
-        # If we are using an SQLiteConnection, then we force use of transactions,
-        # since otherwise we actually don't function properly. (This is probably something
-        # to fix in the future -- we have largely relied on GDB systems like RedisGraph that
-        # do autocommit throughout, so the issue simply doesn't arise. And we cannot similarly
-        # use autocommit with SQLiteConnection, since it is horribly slow.)
+        # If we are using an SQLiteConnection, then we force use of transactions, since
+        # it supports them and they are to be preferred (both for atomicity and increased speed).
         self.use_transactions = True if using_sqlite() else use_transactions
 
         self._tx = None

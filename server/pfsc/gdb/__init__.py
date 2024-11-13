@@ -53,8 +53,9 @@ def get_gdb():
         if uri.endswith('/gremlin') or protocol == 'file':
             if protocol == 'file':
                 path = uri[7:]
-                # We ignore pise/server's `USE_TRANSACTIONS` config var and never allow
-                # sqlite to work in its native autocommit mode, because it is horribly slow.
+                # As can be seen in the `GremlinGraphWriter.__init__()` method, we will
+                # ignore pise/server's `USE_TRANSACTIONS` config var and will always use
+                # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
                 remote = SQLiteConnection(path, autocommit=False)
             else:
                 # Starting with gremlinpython==3.6.1, we have to explicitly request the
@@ -62,15 +63,16 @@ def get_gdb():
                 # but in 3.6.1 they changed the default to `GraphBinarySerializersV1`.
                 # See https://tinkerpop.apache.org/docs/current/upgrade/#_tinkerpop_3_6_1
                 #
-                # One consequence of the change is that, while the `E()` step still requires IDs
-                # to be passed as instances of `gremlin_python.statics.long`, the 3.6.1 serializer
-                # *reports* IDs to you as `int`, whereas 3.6.0 reported them as `long`.
+                # One consequence of the change is that, while TinkerGraph still uses longs (not ints)
+                # as edge IDs, so that the `E()` step still requires IDs to be passed as instances
+                # of `gremlin_python.statics.long`, the 3.6.1 serializer *reports* edge IDs to you
+                # as `int` (whereas 3.6.0 reported them as `long`).
                 #
                 # Our code sometimes stores edge IDs as returned from certain Gremlin queries, and
                 # then attempts to pass these same objects right back as arguments to `E()` steps.
                 # (For example this happens in `pfsc.gdb.gremlin.writer.GremlinGraphWriter.ix0200()`.)
-                # In order for this to work from gremlinpython 3.6.1 and onward, without having to
-                # explicitly recast the IDs as longs, we need to use the old serializer.
+                # In order for this to work with TinkerGraph from gremlinpython 3.6.1 and onward,
+                # without having to explicitly recast the IDs as longs, we need to use the old serializer.
                 remote = DriverRemoteConnection(
                     uri, transport_factory=websocket_client_transport_factory,
                     message_serializer=GraphSONSerializersV3d0()
