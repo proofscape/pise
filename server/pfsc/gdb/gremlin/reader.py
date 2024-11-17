@@ -15,9 +15,10 @@
 # --------------------------------------------------------------------------- #
 
 import json
+import time
 
 from gremlin_python.process.graph_traversal import __
-from gremlin_python.process.traversal import TextP
+from gremlin_python.process.traversal import TextP, P
 
 from pfsc.constants import IndexType, WIP_TAG
 from pfsc.gdb.k import make_kNode_from_jNode, make_kReln_from_jReln
@@ -69,6 +70,15 @@ class GremlinGraphReader(GraphReader):
             # The node in question could not be found.
             return None
 
+        # Note: the usages here of `.out_e().in_v()` are deliberate, and can *not*
+        # be simplified to `out()`. The reason for this is that we need both edges and
+        # vertices to be reported by the `path()` step.
+        #
+        # Note 2: Because the `repeat()` step is following outgoing UNDER edges, there
+        # is no need for a `limit(1)`. No vertex in our database can ever have more than
+        # one outgoing `UNDER` edge, so the BFS conducted by `repeat()` has nowhere else
+        # to go, no other paths to explore. Once we hit the `until()` condition, the search
+        # will stop, without need of a `limit(1)` to make it stop.
         tr2 = self.g.V(tr1.next()) \
             .until(__.out_e(IndexType.MOVE)) \
             .repeat(__.out_e(IndexType.UNDER).in_v()) \
@@ -77,8 +87,8 @@ class GremlinGraphReader(GraphReader):
                 __.path() \
                     .by(__.id_()) \
                     # The UNDER relns have a 'segment' property, but the MOVE
-                    # relns do not, so we need a coalesce. (On Neptune the entire
-                    # path query fails if any part fails its `by()`.)
+                    # relns do not, so we need a coalesce. (A path step returns no
+                    # result at all if any of its `by()` modulators is non-productive.)
                     .by(__.coalesce(
                         __.values('segment'),
                         __.constant(0)
@@ -107,7 +117,8 @@ class GremlinGraphReader(GraphReader):
             props = self.g.V(sp).element_map().next()
             return make_kNode_from_jNode(props)
 
-        segments = [p[n - 4 - 2 * i] for i in range((n - 3) // 2)]
+        # `Path` instances do not accept slices, so we slice the `objects` attr, which is a list.
+        segments = p.objects[-4::-2]
 
         tr = self.g.V(sp)
         for seg in segments:
@@ -115,8 +126,105 @@ class GremlinGraphReader(GraphReader):
         props = tr.element_map().next()
         return make_kNode_from_jNode(props)
 
+    ################################################################################
+    # Get existing objects
+
+    """
+    What is the most efficient way to query the database for all existing objects (both
+    vertices and edges) at and under a given modpath, and for a given major version?
+    
+    At this time we have written two different methods, which are implemented in the
+    `get_existing_j_objects_0()` and `get_existing_j_objects_1()` methods below.
+    
+    For now, we are simply using method 0, but I'm not convinced we really know which
+    method (one of these, or perhaps another we haven't thought of yet) is really best.
+    
+    If you want to experiment with these methods again, here is how to do it:
+    
+        * In `get_existing_objects()`, pass `[0, 1]` to the `methods` kwarg of
+            the `get_existing_objects_MULTI()` method. The latter tries both methods
+            and compares their results.
+        
+        * In your `instance/.env`, set
+            
+                DUPLICATE_TEST_HIST_LIT=1
+        
+            which will cause there to be a `v1.0.0` of the `test.hist.lit` repo. This is
+            important so that we can see, for a fairly large repo, how long it takes to
+            fetch all existing objects for the previous version.
+            See also the `tests.util.gather_repo_info()` function on this.
+    """
+
     def get_existing_objects(self, modpath, major, recursive):
-        # Nodes
+        # For now we're sticking with method 0.
+        # Tests showed that both methods were taking about the same time.
+        # I do wonder which one might scale better, but for now we leave this question for future work.
+        methods = [0]
+        # methods = [0, 1]
+        return self.get_existing_objects_MULTI(modpath, major, recursive, methods=methods)
+
+    def get_existing_objects_MULTI(self, modpath, major, recursive, methods=None):
+        """
+        All args are as for the `get_existing_objects()` method, except for `methods`,
+        where you can pass a list of integers, being the numbers of the methods you
+        want to employ. If more than one, we will compare their results.
+        """
+        if methods is None:
+            methods = [0, 1]
+        comparing = len(methods) > 1
+
+        N, R = [], []
+        for m in methods:
+            get_existing_j_objects = getattr(self, f'get_existing_j_objects_{m}')
+
+            existing_j_nodes, existing_j_relns = get_existing_j_objects(
+                modpath, major, recursive, print_times=comparing)
+
+            # Convert from j-nodes to k-nodes.
+            existing_k_nodes = {}
+            for j in existing_j_nodes:
+                k = make_kNode_from_jNode(j)
+                existing_k_nodes[k.uid] = k
+
+            # Convert from j-relns to k-relns.
+            existing_k_relns = {}
+            for j in existing_j_relns:
+                k = make_kReln_from_jReln(j)
+                # Reject inferred relations.
+                if k.reln_type in IndexType.INFERRED_RELNS:
+                    continue
+                existing_k_relns[k.uid] = k
+
+            N.append(existing_k_nodes)
+            R.append(existing_k_relns)
+
+        N0, R0 = N[0], R[0]
+
+        if comparing:
+            # Did we get the same results?
+            for m in methods[1:]:
+                print(f'\nComparing method {m}')
+                N, R = N[m], R[m]
+                k1 = set(N.keys())
+                k0 = set(N0.keys())
+                if k1 != k0:
+                    print('  Got different set of node keys.')
+                else:
+                    print('  Got same set of node keys.')
+                if set(R.keys()) != set(R0.keys()):
+                    print('  Got different set of reln keys.')
+                else:
+                    print('  Got same set of reln keys.')
+
+        return N0, R0
+
+    def get_existing_j_objects_0(self, modpath, major, recursive, print_times=False):
+        """
+        Use `starting_with()` to locate all objects having modpath with the right prefix.
+        """
+
+        t0 = time.time()
+
         existing_j_nodes = covers(
             major, self.g.V().has('modpath', modpath)
         ).element_map().to_list()
@@ -128,12 +236,9 @@ class GremlinGraphReader(GraphReader):
                 self.g.V().has('modpath', TextP.starting_with(basepath))
             ).element_map().to_list()
             existing_j_nodes += existing_j_nodes_under_module
-        # Convert from j-nodes to k-nodes.
-        existing_k_nodes = {}
-        for j in existing_j_nodes:
-            k = make_kNode_from_jNode(j)
-            existing_k_nodes[k.uid] = k
-        # Relations
+
+        t1 = time.time()
+
         existing_j_relns = edge_info(covers(
             major, self.g.E().has('modpath', modpath)
         )).to_list()
@@ -144,15 +249,56 @@ class GremlinGraphReader(GraphReader):
                 self.g.E().has('modpath', TextP.starting_with(basepath))
             )).to_list()
             existing_j_relns += existing_j_relns_under_module
-        # Convert from j-relns to k-relns.
-        existing_k_relns = {}
-        for j in existing_j_relns:
-            k = make_kReln_from_jReln(j)
-            # Reject inferred relations.
-            if k.reln_type in IndexType.INFERRED_RELNS:
-                continue
-            existing_k_relns[k.uid] = k
-        return existing_k_nodes, existing_k_relns
+
+        t2 = time.time()
+
+        if print_times:
+            print('get_existing_j_objects_0 internal times:')
+            print(f'  {t1 - t0}')
+            print(f'  {t2 - t1}')
+
+        return existing_j_nodes, existing_j_relns
+
+    def get_existing_j_objects_1(self, modpath, major, recursive, print_times=False):
+        """
+        First do a BFS with `repeat()` to determine all the modpaths that begin with the
+        right prefix, and then return all objects having any of these modpaths.
+        """
+        t0 = time.time()
+
+        if not recursive:
+            modpaths = [modpath]
+        else:
+            modpaths = covers(
+                major,
+                covers(
+                    major, self.g.V().has('libpath', modpath)
+                ).emit().repeat(__.in_(IndexType.UNDER).has_label(IndexType.MODULE))
+            ).values('modpath').to_list()
+
+        t1 = time.time()
+
+        existing_j_nodes = covers(
+            major, self.g.V().has('modpath', P.within(modpaths))
+        ).element_map().to_list()
+
+        t2 = time.time()
+
+        existing_j_relns = edge_info(covers(
+            major, self.g.E().has('modpath', P.within(modpaths))
+        )).to_list()
+
+        t3 = time.time()
+
+        if print_times:
+            print('get_existing_j_objects_1 internal times:')
+            print(f'  {t1 - t0} ({len(modpaths)} modpaths)')
+            print(f'  {t2 - t1} ({len(existing_j_nodes)} nodes)')
+            print(f'  {t3 - t2} ({len(existing_j_relns)} relns)')
+
+        return existing_j_nodes, existing_j_relns
+
+    ################################################################################
 
     def _get_origins_internal(self, label, libpaths, major0):
         M = lps_covers(libpaths, major0, self.g.V().has_label(label)). \
@@ -193,6 +339,9 @@ class GremlinGraphReader(GraphReader):
         ).values('libpath').to_set()
 
     def _get_deduction_closure_internal(self, libpaths, major0):
+        # Note: As noted earlier in this module, a `repeat()` that only follows
+        # outgoing UNDER edges has no need of a `limit(1)`, since there can be
+        # no branching on such paths.
         res = among_lps(libpaths, self.g.V()).as_('u') \
             .repeat(
                 covers(major0, __.out_e(IndexType.UNDER)).in_v()
@@ -236,6 +385,9 @@ class GremlinGraphReader(GraphReader):
         if realm is None:
             realm = '.'.join(deducpath.split('.')[:3])
         realmbase = realm + '.'
+        # Note: As noted earlier in this module, a `repeat()` that only follows
+        # outgoing UNDER edges has no need of a `limit(1)`, since there can be
+        # no branching on such paths.
         return covers(
             major0,
             lp_covers(deducpath, major0, self.g.V()).in_e(IndexType.GHOSTOF)
@@ -418,14 +570,18 @@ class GremlinGraphReader(GraphReader):
 
     def check_approvals_under_anno(self, annopath, version):
         major0 = self.adaptall(version)
-        basepath = annopath + '.'
+        # Note: Here our goal is to find *all* widgets under a given annotation,
+        # so we do *not* want a `limit(1)` on this `repeat()`.
         elt_maps = covers(
-            major0, self.g.V().has_label(IndexType.WIDGET)
-        ).has('libpath', TextP.starting_with(basepath)). \
-            element_map('libpath', IndexType.P_APPROVALS).to_list()
+            major0,
+            lp_covers(
+                annopath, major0, self.g.V()
+            ).repeat(__.in_(IndexType.UNDER))
+             .until(__.has_label(IndexType.WIDGET))
+        ).element_map('libpath', IndexType.P_APPROVALS).to_list()
         approved = []
         for elt_map in elt_maps:
-            j = elt_map.get('approvals')
+            j = elt_map.get(IndexType.P_APPROVALS)
             if j is not None:
                 approvals = json.loads(j)
                 if approvals.get(version, False):

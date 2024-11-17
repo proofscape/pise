@@ -14,7 +14,10 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import os
 import json
+
+import pytest
 
 from tests import handleAsJson
 from pfsc.constants import ISE_PREFIX, IndexType
@@ -57,6 +60,8 @@ def test_cf_out(client, repos_ready):
     ]
 
 
+# See `tests.util.gather_repo_info()` function, on the reason for the conditional skip here.
+@pytest.mark.skipif(bool(int(os.getenv("DUPLICATE_TEST_HIST_LIT", 0))), reason="fails when test.hist.lit has a v1")
 def test_cf_in(client, repos_ready):
     libpath = 'test.hist.lit.K.ummer.Cr040_08.Pf'
     vers = 'v0.0.0'

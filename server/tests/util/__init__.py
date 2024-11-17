@@ -80,6 +80,21 @@ def gather_repo_info():
                     vers_dirs.sort(key=lambda d: VersionTag(d))
                 # For tag names, pad pre-multi-versioning names with zeros.
                 tag_names = [f'{vers}.0.0' if vers.find('.') < 0 else vers for vers in vers_dirs]
+
+                # Set env var DUPLICATE_TEST_HIST_LIT=1 to activate this.
+                if bool(int(os.getenv("DUPLICATE_TEST_HIST_LIT", 0))):
+                    # This is a hack, to provide us with a second "version" of the `test.hist.lit`
+                    # repo, under `v1`. The content is actually the same. The purpose of doing this
+                    # is to be able to test methods like `pfsc.gdb.reader.GraphReader.get_existing_objects()`,
+                    # which only really have work to do when indexing a *second* version, on a fairly
+                    # large repo. We do it as a hack instead of simply adding a second version
+                    # of that repo in the source code because, apart from efficiency experiments like
+                    # this one, I don't think we want to slow down our regular unit tests with such
+                    # a thing.
+                    if user == 'hist' and proj == 'lit':
+                        vers_dirs.append('v0')
+                        tag_names.append('v1.0.0')
+
                 REPOS.append(Repo(root_dir, user, proj, vers_dirs, tag_names))
     return REPOS
 
