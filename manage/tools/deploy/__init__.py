@@ -24,7 +24,7 @@ import click
 import jinja2
 
 import conf
-from manage import cli, PFSC_ROOT
+from manage import cli, PFSC_ROOT, PFSC_MANAGE_ROOT
 import tools.deploy.services as services
 from tools.deploy.services import GdbCode
 from tools import simple_yaml
@@ -149,7 +149,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
 
       * docker.env
 
-      * conf.py (a copy of the conf.py you used when you ran this command)
+      * user_conf.py (a copy of the user_conf.py you used when you ran this command)
 
       * layers (a directory of docker-compose ymls to deploy by layers)
 
@@ -312,14 +312,17 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
         f.write(docker_dot_env)
     click.echo('Wrote docker.env')
 
-    # conf.py
-    with open(pfsc_conf.__file__) as f:
-        conf_py_text = f.read()
-    conf_py_text = CONF_PY_COPY_HEADER + conf_py_text
-    conf_py_out_path = os.path.join(new_dir_path, 'conf.py')
-    with open(conf_py_out_path, 'w') as f:
-        f.write(conf_py_text)
-    click.echo('Copied conf.py')
+    # user_conf.py
+    user_conf_path = pathlib.Path(PFSC_MANAGE_ROOT) / 'conf' / 'user_conf.py'
+    user_conf_text = ''
+    if user_conf_path.exists():
+        with open(user_conf_path) as f:
+            user_conf_text = f.read()
+    user_conf_text = CONF_PY_COPY_HEADER + user_conf_text
+    user_conf_out_path = os.path.join(new_dir_path, 'user_conf.py')
+    with open(user_conf_out_path, 'w') as f:
+        f.write(user_conf_text)
+    click.echo('Wrote copy of user_conf.py')
 
     if not no_local:
         try:
@@ -334,7 +337,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
 CONF_PY_COPY_HEADER = """\
 ##############################################################################
 # This deployment dir was generated with the pfsc-manage `pfsc deploy generate`
-# command, using the following `conf.py` module.
+# command, using the following `user_conf.py` module.
 ##############################################################################
 
 """

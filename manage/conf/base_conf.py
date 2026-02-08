@@ -1,6 +1,14 @@
 # Proofscape Configuration
 
 import os
+import pathlib
+from dotenv import load_dotenv
+
+# Python version
+DOTENV_PATH = pathlib.Path(__file__).parent.parent / 'pise_python_vers.env'
+load_dotenv(DOTENV_PATH)
+PYTHON_VERSION = os.getenv("PISE_PYTHON_VERS")
+PYTHON_MAJ_MIN = '.'.join(PYTHON_VERSION.split('.')[:2])
 
 # Root Directory for Proofscape.
 #
@@ -168,7 +176,7 @@ SEL_WINDOW_HEIGHT = 1080 - 100
 #
 # These are the default docker image tags that will be used, for various
 # services, or as starting points for building our own docker images.
-PYTHON_IMAGE_TAG = '3.8.16-slim-bullseye'
+PYTHON_IMAGE_TAG = f'{PYTHON_VERSION}-slim-bullseye'
 REDIS_IMAGE_TAG = '6.2.1'
 REDISGRAPH_IMAGE_TAG = '6.2.6-v6'
 NEO4J_IMAGE_TAG = '4.0.6'
@@ -198,8 +206,8 @@ APP_URL_PREFIX = None
 # Docker
 #
 # In `DOCKER_CMD` set the (basic) command name that is used for all Docker
-# operations (such as `docker build`, `docker run`, etc.). Depending on your
-# environment (e.g. Ubuntu), you may need to substitute 'sudo docker' here.
+# operations (such as `docker build`, `docker run`, etc.). On certain
+# platforms (e.g. Ubuntu), you may need to substitute 'sudo docker' here.
 DOCKER_CMD = 'docker'
 # In `DOCKER_PLATFORM` you can specify your system's platform, so that the
 # correct images are used. Depending on your architecture, you may need to

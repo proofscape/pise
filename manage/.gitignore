@@ -14,8 +14,8 @@ htmlcov/
 
 # resulting from `$ pip install -e .`:
 pfsc_manage.egg-info
-# conf.py is the user's customized copy of sample_conf.py:
-conf.py
-# Alternatively, user may store multiple custom confs in conf_dir,
-# and activate by making top-level conf.py a symlink to one of these.
-conf_dir/*.py
+# user_conf.py is the user's place to override settings in base_conf.py:
+conf/user_conf.py
+# Alternatively, user may store multiple custom confs under conf/user,
+# and activate by making user_conf.py a symlink to one of these.
+conf/user/*.py

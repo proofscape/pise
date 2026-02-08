@@ -72,7 +72,7 @@ def check_app_url_prefix():
     raw_prefix = getattr(pfsc_conf, 'APP_URL_PREFIX', None) or ''
     if not isinstance(raw_prefix, str):
         msg = 'APP_URL_PREFIX must be string or undefined.'
-        msg += ' Please correct your conf.py.'
+        msg += ' Please correct your user_conf.py.'
         raise click.UsageError(msg)
     pre = raw_prefix.strip('/')
     app_url_prefix = f'/{pre}' if pre else ''
