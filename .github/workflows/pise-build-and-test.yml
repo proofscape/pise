@@ -65,17 +65,24 @@ jobs:
       SECRET_KEY: fixed_value_for_testing
     steps:
       # -----------------------------------------
-      # Install Python
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
-      # -----------------------------------------
       # Checkout pise
       - name: Checkout pise
         uses: actions/checkout@v4
         with:
           path: 'pise'
+      # -----------------------------------------
+      # Determine Python version
+      - name: Determine Python version
+        working-directory: pise/manage
+        run: |
+          . pise_python_vers.env
+          echo "PISE_PYTHON_VERS=$PISE_PYTHON_VERS" >> $GITHUB_ENV
+      # -----------------------------------------
+      # Install Python
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PISE_PYTHON_VERS }}
       # -----------------------------------------
       - name: Make directory structure
         run: |
@@ -158,12 +165,6 @@ jobs:
       # -----------------------------------------
       # INSTALL
       # -----------------------------------------
-      # Install Python
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
-      # -----------------------------------------
       # Checkout pise
       - name: Checkout pise
         uses: actions/checkout@v4
@@ -173,6 +174,19 @@ jobs:
         name: Check working directory of pise
         working-directory: pise
         run: pwd -P
+      # -----------------------------------------
+      # Determine Python version
+      - name: Determine Python version
+        working-directory: pise/manage
+        run: |
+          . pise_python_vers.env
+          echo "PISE_PYTHON_VERS=$PISE_PYTHON_VERS" >> $GITHUB_ENV
+      # -----------------------------------------
+      # Install Python
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PISE_PYTHON_VERS }}
       # -----------------------------------------
       # Install manage/venv, preferably from cache
       - name: Cache manage/venv
@@ -195,9 +209,6 @@ jobs:
         run: |
           source venv/bin/activate
           pip install -e .
-      - name: Make manage/conf.py
-        working-directory: pise/manage
-        run: cp sample_conf.py conf.py
       # -----------------------------------------
       # Check version number
       - name: Get version number from pise/client/package.json
