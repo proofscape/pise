@@ -151,13 +151,30 @@ def write_dockerignore_for_pyc():
         f.write(PYC_DOCKERIGNORE)
 
 
+def build_license_info_dict(skip_licensing: bool, tag: str) -> dict:
+    skip_key = 'Deliberately skipping license file generation for development purposes.'
+    if skip_licensing:
+        if not tag.endswith('-dev'):
+            raise click.UsageError(
+                'When using the --skip-licensing switch, your TAG must end with "-dev".\n'
+                'The purpose of the switch is to let you skip updating license info when\n'
+                'trying out new packages (or package upgrades) during development.'
+            )
+        license_info = {skip_key: True}
+    else:
+        license_info = tools.license.gather_licensing_info()
+        assert skip_key not in license_info
+    return license_info
+
+
 @build.command()
 @click.option('--demos/--no-demos', default=True, help="Include demo repos.")
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+@click.option('--skip-licensing', is_flag=True, default=False, help='Skip gathering of license info. For dev only.')
 @click.argument('tag')
-def server(demos, dump, dry_run, tar_path, tag):
+def server(demos, dump, dry_run, tar_path, skip_licensing, tag):
     """
     Build a `pise-server` docker image, and give it a TAG.
     """
@@ -167,7 +184,7 @@ def server(demos, dump, dry_run, tar_path, tag):
             if not os.path.exists(demos_path):
                 raise click.UsageError(f'Could not find {demos_path}.')
 
-    license_info = tools.license.gather_licensing_info()
+    license_info = build_license_info_dict(skip_licensing, tag)
     pfsc_topics = pathlib.Path(PFSC_MANAGE_ROOT) / 'topics' / 'pfsc'
     with open(pfsc_topics / 'templates' / 'combined_license_file_server.txt') as f:
         license_template = f.read()
@@ -191,15 +208,16 @@ def server(demos, dump, dry_run, tar_path, tag):
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+@click.option('--skip-licensing', is_flag=True, default=False, help='Skip gathering of license info. For dev only.')
 @click.argument('tag')
-def frontend(dump, dry_run, tar_path, tag):
+def frontend(dump, dry_run, tar_path, skip_licensing, tag):
     """
     Build a `pise-frontend` docker image, and give it a TAG.
     """
     if not dry_run:
         oca_readiness_checks(client=True, client_min=True, pdf=True, pyodide=True, whl=True)
 
-    license_info = tools.license.gather_licensing_info()
+    license_info = build_license_info_dict(skip_licensing, tag)
     licenses_txt, notice_txt = write_license_files.build_frontend_files(license_info)
 
     from topics.pfsc import write_frontend_dockerfile
@@ -265,8 +283,9 @@ def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True,
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
+@click.option('--skip-licensing', is_flag=True, default=False, help='Skip gathering of license info. For dev only.')
 @click.argument('tag')
-def oca(dump, dry_run, tar_path, tag):
+def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
     """
     Build a `pise` (one-container app) docker image, and give it a TAG.
 
@@ -278,7 +297,7 @@ def oca(dump, dry_run, tar_path, tag):
     if not dry_run:
         oca_readiness_checks(client=True, client_min=False, pdf=True, pyodide=True, whl=True)
 
-    license_info = tools.license.gather_licensing_info()
+    license_info = build_license_info_dict(skip_licensing, tag)
     pfsc_topics = pathlib.Path(PFSC_MANAGE_ROOT) / 'topics' / 'pfsc'
     with open(pfsc_topics / 'templates' / 'combined_license_file_oca.txt') as f:
         license_template = f.read()
