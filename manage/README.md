@@ -6,23 +6,21 @@ It is designed for Unix-based systems, such as Linux or macOS.
 If anyone with expertise would like to help develop a Windows version, this would
 be most welcome.
 
-You will need `git` and `docker`, and the ability to install
-a Python 3.8 virtual environment. If you want to develop client-side code, you
-need `npm`.
+You will need `git`, `docker`, and [`pyenv`](https://github.com/pyenv/pyenv).
+If you want to develop client-side code, you will need `npm`.
 
 
-## Make a `conf.py`
+## Optional: Make a `user_conf.py`
 
-Make a copy of the sample config file, in this `manage` directory:
+You should review the `conf/base_conf.py` module, so that you understand the range
+of settings you can make. When you are first getting started, you can ignore this.
 
-    $ cp sample_conf.py conf.py
+If you determine that you need to change any of the settings made in `base_conf.py`,
+you may define a module called `user_conf.py`, in the `pise/manage/conf` directory.
+Any variables you define in `user_conf.py` will override the values set in
+`base_conf.py`.
 
-The copy _must_ be called `conf.py`.
-
-You can use `conf.py` to make various settings, which should help you tailor
-the tools provided by this project to your use cases.
-
-Note that `conf.py` is listed in `.gitignore`. It is not under
+Note that `user_conf.py` is listed in `.gitignore`. It is not under
 version control, so you should make backup copies as you see fit.
 
 
@@ -32,23 +30,16 @@ Choose a place in your filesystem for Proofscape to live. We recommend
 `~/proofscape`, but you can choose any directory you want. For the remainder
 of this guide, we will refer to this directory as `PFSC_ROOT`.
 
-In your `conf.py` file, set the `PFSC_ROOT` variable now.
+In your `user_conf.py` file, set the `PFSC_ROOT` variable now, if you chose
+a value different from the default value set in `base_conf.py`.
 
 
 ## Establish and activate a virtual environment
 
-This project is designed for Python 3.8. If this is not available on
-your system, we recommend using [`pyenv`](https://github.com/pyenv/pyenv) to
-make it available.
-
-Here and later in this guide, we will write a `pyenv` line to remind you to
-use the right version of Python. If you choose to use an alternative way of
-setting up a Python virtual environment at the desired version, you can ignore
-these lines.
-
 Set up the virtual environment as follows:
 
-    $ pyenv shell 3.8.12
+    $ . pise_python_vers.env
+    $ pyenv shell $PISE_PYTHON_VERS
     $ python -m venv venv
     $ . venv/bin/activate
     (venv) $ pip install -U pip
@@ -63,13 +54,13 @@ container networks, etc.
 
 ### Multiple configurations
 
-As an alternative to defining a single `conf.py` file, you may make as many
-copies of `sample_conf.py` as  you want, and store them in the `conf_dir`
-directory under any names you choose. `*.py` files in this directory are
-ignored by `git`, so you should again make your own backup copies.
+As an alternative to defining a single `user_conf.py` file, you may make as many
+versions as you want, and store them in the `conf/user`
+directory. `*.py` files in this directory are ignored by `git`, so you should
+again make your own backup copies.
 
-Under this design, the `conf.py` at the top level of the project should not
-be a file, but a symlink to one of the modules you define in `conf_dir`.
+If you take this approach, then your `user_conf.py` should not be a file,
+but a symlink to one of the modules you define in `conf/user`.
 
 
 ## Build the directory structure
@@ -111,10 +102,12 @@ active in each one. If you don't want to do that, you can always
 
 before switching between projects.
 
-Now enter the `server` project directory, and install the dependencies:
+However, you still need to set the Python version from the `pise/manage` directory,
+so, starting there, you can do the following:
 
-    $ cd server
-    $ pyenv shell 3.8.12
+    $ . pise_python_vers.env
+    $ cd ../server
+    $ pyenv shell $PISE_PYTHON_VERS
     $ python -m venv venv
     $ . venv/bin/activate
     (venv) $ pip install -U pip
@@ -136,7 +129,7 @@ Docker image. The first time you build this can be slow, since we need
 to begin by pulling base images.
 
 First make sure the `DOCKER_CMD` and `DOCKER_PLATFORM` settings in your
-`conf.py` are what they need to be (see comments in `conf.py`).
+`user_conf.py` are what they need to be (see comments in `base_conf.py`).
 
 Next, you're encouraged to look at
 
@@ -186,12 +179,12 @@ Before we move on, you should `cd` into `FIRST_DEPLOY_DIR` and take a look aroun
 Examine the contents of each of the generated files, and understand (or at least guess)
 what they will do for you.
 
-NOTE: Among the generated files is a copy of `conf.py` as it stood at the time
+NOTE: Among the generated files is a copy of `user_conf.py` as it stood at the time
 that you ran `pfsc deploy generate`. This should help you to recreate the same
 deployment later, if need be.
 
-WARNING: If your `conf.py` contains any secret tokens, passwords, etc., be
-aware that these are now also in the copy of `conf.py` in the deployment
+WARNING: If your `user_conf.py` contains any secret tokens, passwords, etc., be
+aware that these are now also in the copy of `user_conf.py` in the deployment
 directory.
 
 
@@ -225,7 +218,7 @@ indexes in the graph database.
 
 Before taking down the Neo4j container, you might want to navigate to
 `localhost:7474` in a web browser (substitute your chosen port number if you changed
-this setting in your `conf.py`) and run
+this setting in your `user_conf.py`) and run
 
     CALL db.indexes()
 
