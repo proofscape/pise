@@ -932,9 +932,9 @@ def make_new_deployment_dir(desired_name=None, prefix=None):
         msg = f'The deployment dir `{desired_name}` already exists.'
         raise click.UsageError(msg)
     elif desired_name is None:
-        from tools.word import random_adj_and_name
-        adj, name = random_adj_and_name(dodge_prefixes=existing_names)
-        new_dir_name = f'{adj}_{name}_{simple_timestamp()}'
+        from tools.word import random_math_name
+        math_name = random_math_name(dodge_prefixes=existing_names)
+        new_dir_name = f'{math_name}_{simple_timestamp()}'
         if prefix:
             new_dir_name = prefix + new_dir_name
     else:
