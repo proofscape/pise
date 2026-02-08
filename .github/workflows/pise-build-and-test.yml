@@ -147,7 +147,7 @@ jobs:
         name: Configure for basic run
         run: |
           echo "USE_BASE_NGINX_FRONTEND=1" >> $GITHUB_ENV
-          echo "PISE_VERS=testing" >> $GITHUB_ENV
+          echo "PISE_VERS=testing-dev" >> $GITHUB_ENV
           echo "DEBUG_WORKFLOW=${{ inputs.debug-level || 2 }}" >> $GITHUB_ENV
       - if: ${{ inputs.pub-prep }}
         name: Configure for pub-prep
@@ -500,7 +500,8 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build server --tar-path=${{ env.PISE_SERVER_CTX_TAR }} ${{ env.PISE_VERS }}
+          pfsc build server ${{ !inputs.pub-prep && '--skip-licensing' || '' }} \
+              --tar-path=${{ env.PISE_SERVER_CTX_TAR }} ${{ env.PISE_VERS }}
       # If building and debugging, upload context file as artifact for inspection
       - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 2 }}
         name: Upload pise-server context tar file as artifact
@@ -532,8 +533,8 @@ jobs:
           tags: pise-server:${{env.PISE_VERS}}
           cache-to: type=gha
           cache-from: type=gha
-      # If building, check contents of image's working directory
-      - if: ${{ env.BUILDING }}
+      # If building and it's pub-prep, check contents of image's working directory
+      - if: ${{ env.BUILDING && inputs.pub-prep }}
         name: Check working directory contents of pise-server
         env:
           WDLL: pise-server-wdll
