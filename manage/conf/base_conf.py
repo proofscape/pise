@@ -1,6 +1,14 @@
 # Proofscape Configuration
 
 import os
+import pathlib
+from dotenv import load_dotenv
+
+# Python version
+DOTENV_PATH = pathlib.Path(__file__).parent.parent / 'pise_python_vers.env'
+load_dotenv(DOTENV_PATH)
+PYTHON_VERSION = os.getenv("PISE_PYTHON_VERS")
+PYTHON_MAJ_MIN = '.'.join(PYTHON_VERSION.split('.')[:2])
 
 # Root Directory for Proofscape.
 #
@@ -168,7 +176,7 @@ SEL_WINDOW_HEIGHT = 1080 - 100
 #
 # These are the default docker image tags that will be used, for various
 # services, or as starting points for building our own docker images.
-PYTHON_IMAGE_TAG = '3.8.16-slim-bullseye'
+PYTHON_IMAGE_TAG = f'{PYTHON_VERSION}-slim-bullseye'
 REDIS_IMAGE_TAG = '6.2.1'
 REDISGRAPH_IMAGE_TAG = '6.2.6-v6'
 NEO4J_IMAGE_TAG = '4.0.6'
