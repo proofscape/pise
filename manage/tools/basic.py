@@ -34,7 +34,7 @@ def makestruct(yes):
     to know where the root directory is to be located.
 
     If you want to override the default behavior, you may set the location of the
-    root directory in the variable `PFSC_ROOT` in your `conf.py`.
+    root directory in the variable `PFSC_ROOT` in your `user_conf.py`.
     """
     if PFSC_ROOT is None or (isinstance(PFSC_ROOT, str) and len(PFSC_ROOT) == 0):
         raise click.UsageError('PFSC_ROOT undefined.')

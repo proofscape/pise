@@ -18,19 +18,8 @@ import os
 
 import click
 
-MISSING_CONF_ERR_MSG = """
-Did not find conf.py. You should copy the file sample_conf.py
+import conf
 
-    $ cp sample_conf.py conf.py
-
-and then adapt conf.py as desired.
-"""
-try:
-    import conf
-except ModuleNotFoundError:
-    print(MISSING_CONF_ERR_MSG)
-    import sys
-    sys.exit(1)
 
 PFSC_MANAGE_ROOT = os.path.dirname(__file__)
 PISE_ROOT = os.path.dirname(PFSC_MANAGE_ROOT)
