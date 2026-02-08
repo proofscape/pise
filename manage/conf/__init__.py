@@ -4,11 +4,8 @@ module, overridden by any definitions made in a user_conf.py module (if it exist
 """
 
 from conf.base_conf import *
-print('pise/manage base_conf loaded')
 
 try:
     from conf.user_conf import *
 except ModuleNotFoundError:
-    print("pise/manage found no user_conf")
-else:
-    print("pise/manage user_conf loaded")
+    pass
