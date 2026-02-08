@@ -24,6 +24,9 @@ import sys
 import jinja2
 
 
+skip_key = 'Deliberately skipping license file generation for development purposes.'
+
+
 def check_present_python_pkgs(image=None):
     """
     Use `pip freeze` to determine the actual list of python packages that are
@@ -223,6 +226,10 @@ def build_frontend_files(license_info, license_template=None):
     In testing on the host, can call this function directly.
     `license_info` should be as computed by `tools.license.gather_licensing_info()`.
     """
+    if skip_key in license_info:
+        print(skip_key)
+        return '', ''
+
     if license_template is None:
         license_template = get_template('frontend')
     template = jinja2.Template(license_template)
@@ -293,17 +300,20 @@ def main():
     and writes the generated license files into an `output` subdirectory (which
     need not already exist, but may).
     """
+    outputdir = pathlib.Path('.') / 'output'
+    outputdir.mkdir(exist_ok=True)
     # The license_info.json and license_template.txt files must be present:
     with open('./license_info.json', 'r') as f:
         license_info = json.load(f)
+        if skip_key in license_info:
+            print(skip_key)
+            return
     with open('./license_template.txt', 'r') as f:
         license_template = f.read()
     # The name of the image must be passed as argument.
     # Should be one of 'oca', 'server', 'frontend'.
     image_name = sys.argv[1]
     files = build_files(license_info, license_template, image_name)
-    outputdir = pathlib.Path('.') / 'output'
-    outputdir.mkdir(exist_ok=True)
     for filename, contents in files:
         with open(outputdir / filename, 'w') as f:
             f.write(contents)
