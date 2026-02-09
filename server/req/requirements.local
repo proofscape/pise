@@ -5,4 +5,4 @@
 # used to have. During development, may once again need to install these
 # editable, from local, working copy.
 
-#-e ../pfsc-util
+#-e ../../pfsc-examp

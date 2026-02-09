@@ -19,15 +19,12 @@ FROM --platform={{platform}} python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
 # `libgomp1` is needed by redisgraph.
 # `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
-# hasn't been added yet) is given passwordless sudo.
-# The rm command in /tmp is to clean up a cert file that is left there for some
-# reason; see <https://github.com/docker-library/python/issues/609>
+# isn't added until later in the Dockerfile) is given passwordless sudo.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 sudo less \
     && rm -rf /var/lib/apt/lists/* \
     && echo "pfsc ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers \
-    && mkdir -p /usr/lib/redis/modules \
-    && rm /tmp/*
+    && mkdir -p /usr/lib/redis/modules
 COPY --from=rg /opt/redis-stack/lib/redisgraph.so /usr/lib/redis/modules
 # We don't need redisearch.so for our purposes; we load it only so that we
 # can successfully read RDB files that were dumped by a Redis that does have

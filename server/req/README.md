@@ -10,8 +10,8 @@
   telling `pip` _not_ to add their dependencies.
 
 * `requirements.local`: Manually listed packages that are required to run, and
-  which are _not_ available on PyPI, but which are expected to be found as
-  siblings of `pfsc-server`.
+  which are _not_ available on PyPI, but which are expected to be found in
+  sibling or cousin directories of `pise/server`.
 
 * `requirements.txt`: Automatically generated from `requirements.in` using the
   `pip-tools` package.

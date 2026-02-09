@@ -13,4 +13,4 @@ pytest-cov==4.0.0
 # is instead delivered to the user's browser via Pyodide) we do have unit
 # tests here in pfsc-server that help test code living in the pfsc-examp
 # project. So for testing we do install it.
-pfsc-examp==0.24.1
+pfsc-examp==0.25.0

@@ -13,16 +13,16 @@
 # Users can log in; we send error emails to operators, and transactional emails
 # to users; we use websockets to emit results of long-running jobs like
 # building a pfsc repo.
-Flask==2.3.2
-Flask-Login==0.6.2
+Flask==3.1.2
+Flask-Login==0.6.3
 Flask-Mail==0.9.1
-Flask-SocketIO==5.3.5
+Flask-SocketIO==5.6.0
 
 # We use the Eventlet web server to support websockets via Flask-SocketIO.
-eventlet==0.33.3
+eventlet==0.40.4
 
 # We need to talk to graph databases.
-neo4j==4.2.1
+neo4j==4.4.13
 redisgraph==2.4.4
 # We want the `gremlinpython` package, but don't want to install all of its
 # dependencies, since our use of `wsc-grempy-transport` obviates a substantial
@@ -78,7 +78,7 @@ pottery==1.1.7
 # use with the math worker. This was before we moved to Pyodide. We keep
 # the requirement though, since at this time the server is still _capable_ of
 # running math jobs (if so configured).
-dill==0.3.4
+dill==0.4.0
 
 # The server needs to be able to perform Git actions on the repos under the
 # `PFSC_ROOT/lib` directory. Mainly, we need to be able to checkout a branch
@@ -92,12 +92,7 @@ python-dotenv==0.17.0
 #  * OAuth logins
 #  * the PDF proxy service
 #  * a few places where you can configure a URL to replace some built-in HTML
-requests==2.31.0
-# It is only for the `requests` package that we have `certifi`, but the former
-# only requires a very old version of the latter. Therefore we must explicitly
-# request a recent `certifi`, to stay up to date with removed certificates, as
-# noted by Dependabot alerts.
-certifi==2023.7.22
+requests==2.32.4
 
 # At this time, our only use of `tenacity` is to ensure that calls to Redis's
 # BGSAVE capture all updates, in cases where RedisGraph is being used as the
@@ -106,7 +101,3 @@ tenacity==6.2.0
 
 # We have a utility library
 pfsc-util==0.22.8
-
-# Address Dependabot alerts 231231
-urllib3==2.0.7
-werkzeug==2.3.8
