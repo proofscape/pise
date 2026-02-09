@@ -6,6 +6,6 @@
 -c requirements.txt
 -c test-requirements.txt
 
-pip-tools==7.3.0
+pip-tools==7.5.2
 rq-dashboard==0.6.1
-invoke==2.2.0
+invoke==2.2.1
