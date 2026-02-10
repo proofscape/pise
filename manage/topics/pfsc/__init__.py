@@ -200,7 +200,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
     )
     startup_system = write_startup_system(
         '/home/pfsc', numbered_inis={
-            100: 'redisgraph',
+            100: 'redis',
             200: 'pfsc',
         }, tmp_dir_name=tmp_dir_name
     )
@@ -213,7 +213,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
     template = jinja_env.get_template('Dockerfile.oca')
     df = template.render(
         python_image_tag=conf.PYTHON_IMAGE_TAG,
-        redisgraph_image_tag=conf.REDISGRAPH_IMAGE_TAG,
+        redis_image_tag=conf.REDIS_IMAGE_TAG,
         platform=conf.DOCKER_PLATFORM,
         pfsc_install=pfsc_install,
         startup_system=startup_system,

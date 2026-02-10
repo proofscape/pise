@@ -14,27 +14,17 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
-FROM --platform={{platform}} redis/redis-stack-server:{{redisgraph_image_tag}} AS rg
+FROM --platform={{platform}} redis:{{redis_image_tag}} AS redis_image
 FROM --platform={{platform}} python:{{python_image_tag}} AS basis
 ARG DEBIAN_FRONTEND=noninteractive
-# `libgomp1` is needed by redisgraph.
 # `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
 # isn't added until later in the Dockerfile) is given passwordless sudo.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 sudo less \
+    && apt-get install -y --no-install-recommends sudo less \
     && rm -rf /var/lib/apt/lists/* \
-    && echo "pfsc ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers \
-    && mkdir -p /usr/lib/redis/modules
-COPY --from=rg /opt/redis-stack/lib/redisgraph.so /usr/lib/redis/modules
-# We don't need redisearch.so for our purposes; we load it only so that we
-# can successfully read RDB files that were dumped by a Redis that does have
-# redisearch.so. See <https://github.com/RediSearch/RediSearch/issues/3120>
-# The latter occurs e.g. when the dump file was created by pise/server unit
-# tests, running against a redis/redis-stack-server image.
-COPY --from=rg /opt/redis-stack/lib/redisearch.so /usr/lib/redis/modules
-COPY --from=rg /usr/bin/redis-server /usr/local/bin
-# Note: Could save 6MB by ignoring redis-cli, which is just a debugging tool.
-COPY --from=rg /usr/bin/redis-cli /usr/local/bin
+    && echo "pfsc ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
+COPY --from=redis_image /usr/local/bin/redis-server /usr/local/bin
+
 # For the sake of casual users, I think it's important that the Proofscape ISE
 # app port 7372 get top billing in Docker Dashboard, in particular in the
 # "Run" dialog. Therefore, we don't expose 6379. Casual users shouldn't have

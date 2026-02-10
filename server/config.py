@@ -661,7 +661,7 @@ class OcaConfig(DockerDevConfig):
     RECORD_PER_USER_TRUST_SETTINGS = True
     REDIS_URI = "redis://localhost:6379"
     SOCKETIO_MESSAGE_QUEUE = "redis://localhost:6379"
-    GRAPHDB_URI = "redis://localhost:6379"
+    GRAPHDB_URI = "file:///home/pfsc/proofscape/graphdb/gl/gremlite.db"
 
     # The app URL prefix is important, so that the URL at which the ISE loads,
     # `localhost:7372/ProofscapeISE` is recognizable by the PBE (Proofscape

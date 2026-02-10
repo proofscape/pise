@@ -176,8 +176,8 @@ SEL_WINDOW_HEIGHT = 1080 - 100
 #
 # These are the default docker image tags that will be used, for various
 # services, or as starting points for building our own docker images.
-PYTHON_IMAGE_TAG = f'{PYTHON_VERSION}-slim-bullseye'
-REDIS_IMAGE_TAG = '6.2.1'
+PYTHON_IMAGE_TAG = f'{PYTHON_VERSION}-slim-bookworm'
+REDIS_IMAGE_TAG = '8.4.0-bookworm'
 REDISGRAPH_IMAGE_TAG = '6.2.6-v6'
 NEO4J_IMAGE_TAG = '4.4.46'
 GREMLIN_SERVER_IMAGE_TAG = '3.7.5'

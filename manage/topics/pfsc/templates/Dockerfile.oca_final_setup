@@ -21,14 +21,8 @@ USER pfsc
 WORKDIR {{final_workdir}}
 
 # redis.conf
-# In particular, `save 1 1` means that, when there are any changes in our GDB
-# (RedisGraph), it will be at most 1 second before Redis initiates a BGSAVE to
-# commit them to disk. Combined with use of `pfsc.gdb.cypher.rg.redis_bg_save()`
-# in pfsc-server, this should achieve pretty robust persistence.
-RUN echo "loadmodule /usr/lib/redis/modules/redisgraph.so" >> redis.conf \
- && echo "loadmodule /usr/lib/redis/modules/redisearch.so" >> redis.conf \
- && echo "dir /proofscape/graphdb/re" >> redis.conf \
- && echo "save 1 1" >> redis.conf
+RUN echo "# For now, we need no special config." >> redis.conf
+RUN echo "# If and when we do, use this file." >> redis.conf
 
 # Use the One-Container App config:
 ENV FLASK_CONFIG OCA

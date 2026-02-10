@@ -180,7 +180,7 @@ def get_redis_server_version_for_oca():
     """
     Get the version number of redis-server that is installed in the OCA image.
     """
-    cmd = f'docker run --rm --entrypoint=bash redis/redis-stack-server:{pfsc_conf.REDISGRAPH_IMAGE_TAG} -c "redis-server --version"'
+    cmd = f'docker run --rm --entrypoint=bash redis:{pfsc_conf.REDIS_IMAGE_TAG} -c "redis-server --version"'
     out = subprocess.check_output(cmd, shell=True)
     text = out.decode()
 

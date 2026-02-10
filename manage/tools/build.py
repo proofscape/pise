@@ -307,7 +307,7 @@ def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
     from topics.pfsc import write_oca_eula_file
     from topics.pfsc import write_worker_and_web_supervisor_ini
     from topics.pfsc import write_proofscape_oca_dockerfile
-    from topics.redis import write_redisgraph_ini
+    from topics.redis import write_redis_ini
     with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
         with open(os.path.join(tmp_dir_name, 'license_info.json'), 'w') as f:
             f.write(json.dumps(license_info, indent=4))
@@ -322,8 +322,8 @@ def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
             ini = write_worker_and_web_supervisor_ini(
                 worker=False, web=True, use_venv=False, oca=True)
             f.write(ini)
-        with open(os.path.join(tmp_dir_name, 'redisgraph.ini'), 'w') as f:
-            ini = write_redisgraph_ini(use_conf_file=True)
+        with open(os.path.join(tmp_dir_name, 'redis.ini'), 'w') as f:
+            ini = write_redis_ini(use_conf_file=True)
             f.write(ini)
         with open(os.path.join(tmp_dir_name, 'oca_version.txt'), 'w') as f:
             f.write(tag)
