@@ -107,7 +107,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: pise/server/venv
-          key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
+          key: cache-server-venv-${{ hashFiles('pise/server/req/*', 'pise/manage/pise_python_vers.env') }}
       - if: ${{ steps.cache-server-venv.outputs.cache-hit != 'true' }}
         name: Install server/venv
         working-directory: pise/server
@@ -123,17 +123,17 @@ jobs:
           git config --global user.email "pfsc.unit.tester@localhost"
           git config --global user.name "pfsc unit tester"
           source venv/bin/activate
-          python -m tests.util.make_repos
+          inv mtr
       - name: Build test repos
         working-directory: pise/server
         run : |
           source venv/bin/activate
-          python -m tests.util.build_repos
+          inv btr
       - name: Run unit tests
         working-directory: pise/server
         run: |
           source venv/bin/activate
-          pytest tests
+          inv unit
 # =============================================================================
   builds-and-functional-tests:
     needs: server-unit-tests
@@ -207,7 +207,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: pise/manage/venv
-          key: cache-manage-venv-${{ hashFiles('pise/manage/setup.py') }}
+          key: cache-manage-venv-${{ hashFiles('pise/manage/setup.cfg', 'pise/manage/pise_python_vers.env') }}
       - if: ${{ steps.cache-manage-venv.outputs.cache-hit != 'true' }}
         name: Form the manage/venv directory
         working-directory: pise/manage
@@ -241,7 +241,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: pise/server/venv
-          key: cache-server-venv-${{ hashFiles('pise/server/req/*') }}
+          key: cache-server-venv-${{ hashFiles('pise/server/req/*', 'pise/manage/pise_python_vers.env') }}
       - if: ${{ steps.cache-server-venv.outputs.cache-hit != 'true' }}
         name: Install server/venv
         working-directory: pise/server
@@ -473,7 +473,7 @@ jobs:
           git config --global user.email "pfsc.test.runner@localhost"
           git config --global user.name "pfsc test runner"
           source venv/bin/activate
-          python -m tests.util.make_repos
+          inv mtr
       # List test repo owners
       - if: ${{ env.DEBUG_WORKFLOW >= 1 }}
         name: List test repo owners
@@ -711,7 +711,8 @@ jobs:
           test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
           test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
       # -----------------------------------------
-      # Remake the lib, build, gdb volumes
+      # We remake the lib, build, gdb volumes fresh for use with the OCA.
+      # First remove the existing ones
       - if: ${{ inputs.pub-prep }}
         name: Remove existing lib, build, gdb volumes
         run: docker volume rm ${{env.LIB_VOLUME}} ${{env.BUILD_VOLUME}} ${{env.GDB_VOLUME}}
