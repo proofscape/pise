@@ -24,18 +24,9 @@ eventlet==0.40.4
 # We need to talk to graph databases.
 neo4j==4.4.13
 redisgraph==2.4.4
-# We want the `gremlinpython` package, but don't want to install all of its
-# dependencies, since our use of `wsc-grempy-transport` obviates a substantial
-# number of them. So we list these in the `requirements.nodeps` file instead.
-# However, this means we must list here those of their dependencies that we do
-# want to install.
-# NOTE: Any time you upgrade `gremlinpython`, you must review its latest
-# dependencies, and update this list accordingly.
-# For gremlinpython==3.6.0:
-aenum>=1.4.5,<4.0.0
-isodate>=0.6.0,<1.0.0
-# For wsc-grempy-transport==0.1.0:
-websocket-client==1.3.2
+gremlinpython==3.7.5
+wsc-grempy-transport==0.1.0
+gremlite==0.1.1
 
 # Lark parses all of our basic languages, such as the pfsc module syntax,
 # and the Meson proof script language.

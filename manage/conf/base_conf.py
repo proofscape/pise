@@ -180,7 +180,7 @@ PYTHON_IMAGE_TAG = f'{PYTHON_VERSION}-slim-bullseye'
 REDIS_IMAGE_TAG = '6.2.1'
 REDISGRAPH_IMAGE_TAG = '6.2.6-v6'
 NEO4J_IMAGE_TAG = '4.4.46'
-GREMLIN_SERVER_IMAGE_TAG = '3.6.0'
+GREMLIN_SERVER_IMAGE_TAG = '3.7.5'
 JANUSGRAPH_IMAGE_TAG = '0.6.0'
 NGINX_IMAGE_TAG = '1.24.0'
 # If you want RedisInsight to be dispatched as part of the MCA when RedisGraph
