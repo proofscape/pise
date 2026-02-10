@@ -311,25 +311,8 @@ jobs:
           echo "PFSC_PDF_VERS=`pfsc check version pfsc-pdf`" >> $GITHUB_OUTPUT
           echo "PFSC_EXAMP_VERS=`pfsc check version pfsc-examp`" >> $GITHUB_OUTPUT
           echo "PYODIDE_VERS=`pfsc check version pyodide`" >> $GITHUB_OUTPUT
-          echo "REDISGRAPH_VERS=`pfsc check version redisgraph-tag`" >> $GITHUB_OUTPUT
           echo "NGINX_VERS=`pfsc check version nginx-tag`" >> $GITHUB_OUTPUT
           echo "DEMO_REPO_VERS=`pfsc check version demo-repos`" >> $GITHUB_OUTPUT
-      # -----------------------------------------
-      # Obtain RedisGraph image, preferably from cache
-      - name: Cache redisgraph
-        id: cache-redisgraph
-        uses: actions/cache@v4
-        with:
-          path: images/redisgraph.tar
-          key: cache-redisgraph-${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
-      - if: ${{ steps.cache-redisgraph.outputs.cache-hit == 'true' }}
-        name: Load redisgraph
-        run: docker load --input=images/redisgraph.tar
-      - if: ${{ steps.cache-redisgraph.outputs.cache-hit != 'true' }}
-        name: Pull redisgraph
-        run: |
-          docker pull redis/redis-stack-server:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
-          docker save --output=images/redisgraph.tar redis/redis-stack-server:${{ steps.vers-nums.outputs.REDISGRAPH_VERS }}
       # -----------------------------------------
       # Obtain Nginx image, preferably from cache
       - name: Cache nginx
@@ -452,8 +435,8 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc deploy generate --gdb re \
-              ${{ !inputs.pub-prep && '--no-redis --mount-code' || '--no-mount-code' }} \
+          pfsc deploy generate --gdb gl \
+              ${{ !inputs.pub-prep && '--mount-code' || '--no-mount-code' }} \
               --pfsc-tag ${{ env.PISE_VERS }} \
               --oca-tag ${{ env.PISE_VERS }} \
               -n 1 --demos \
@@ -777,8 +760,8 @@ jobs:
           docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
           docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-stdout.txt 2>&1
           docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-stderr.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-rg-stdout.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-rg-stderr.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stdout*.log" > selenium_results/docker_logs/pise-1-redis-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stderr*.log" > selenium_results/docker_logs/pise-1-redis-stderr.txt 2>&1
       - if: ${{ inputs.pub-prep && always() }}
         name: Upload selenium results
         uses: actions/upload-artifact@v4
