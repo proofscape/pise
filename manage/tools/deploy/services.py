@@ -257,8 +257,8 @@ def get_proofscape_subdir_abs_fs_path_on_host(subdir_name, altdir=None):
         return resolve_pfsc_root_subdir(subdir_name)
 
 
-def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
-                gdb=None, workers=1, demos=False,
+def pise_server(deploy_dir_path, mode, flask_config, gdb, tag='latest',
+                workers=1, demos=False,
                 mount_code=False, mount_pkg=None,
                 official=False, altdir=None,
                 lib_vol=None, build_vol=None,
@@ -277,8 +277,10 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     }
 
     if no_redis:
+        # When this is set, gdb is required to be equal to [GdbCode.RE].
+        assert gdb == [GdbCode.RE]
         if mode == 'websrv':
-            # redisgraph will be added below, as GDB dependency
+            # redisgraph will be added below, as GDB dependency, so we don't add it here.
             pass
         else:
             d['depends_on'].append('redisgraph')
@@ -301,7 +303,6 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     }[mode]
     d['environment'][mode_env_var] = 1
 
-    gdb = gdb or [GdbCode.RE]
     if mode == 'websrv':
         d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
         d['depends_on'].extend([f'pfscwork{n}' for n in range(workers)])

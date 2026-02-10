@@ -170,7 +170,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
         raise click.UsageError(f'Legal GDB codes are: {", ".join(GdbCode.all)}')
     if len(gdb) > len(s):
         raise click.UsageError('Cannot repeat graph database selections.')
-    if no_redis and s != {'re'}:
+    if no_redis and s != {GdbCode.RE}:
         raise click.UsageError('RedisGraph must be sole GDB selection, when using --no-redis.')
 
     dirname_prefix = 'production_' if production_mode else None
@@ -180,7 +180,7 @@ def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mou
 
     # admin shell script
     admin_sh_script = write_admin_sh_script(
-        new_dir_name, new_dir_path, pfsc_tag, flask_config,
+        new_dir_name, new_dir_path, pfsc_tag, flask_config, gdb,
         demos=demos, mount_code=mount_code, mount_pkg=mount_pkg,
         official=official, no_redis=no_redis
     )
@@ -673,14 +673,14 @@ ADMIN_SH_SCRIPT_TPLT = jinja2.Template(r"""#!/usr/bin/env sh
 
 
 def write_admin_sh_script(
-        deploy_dir_name, deploy_dir_path, pfsc_tag, flask_config,
+        deploy_dir_name, deploy_dir_path, pfsc_tag, flask_config, gdb,
         demos=False, mount_code=False, mount_pkg=None,
         official=False, no_redis=False
     ):
     # Want all the same bind mounts that are used in a pfsc worker container,
     # so that admin can do anything a worker can do.
     d = services.pise_server(
-        deploy_dir_path, 'worker', flask_config, tag=pfsc_tag,
+        deploy_dir_path, 'worker', flask_config, gdb, tag=pfsc_tag,
         demos=demos, mount_code=mount_code, mount_pkg=mount_pkg,
         official=official, no_redis=no_redis
     )
@@ -765,8 +765,8 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
 
     s_app = {}
     def write_pfsc_service(cmd):
-        return services.pise_server(deploy_dir_path, cmd, flask_config,
-            tag=pfsc_tag, gdb=gdb, workers=workers, demos=demos,
+        return services.pise_server(deploy_dir_path, cmd, flask_config, gdb,
+            tag=pfsc_tag, workers=workers, demos=demos,
             mount_code=mount_code, mount_pkg=mount_pkg, official=official, altdir=altdir,
             lib_vol=lib_vol, build_vol=build_vol, no_redis=no_redis)
 
