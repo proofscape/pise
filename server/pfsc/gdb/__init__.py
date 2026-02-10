@@ -14,6 +14,8 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+import pathlib
+
 from flask import current_app
 from flask import g as flask_g
 from gremlin_python.process.anonymous_traversal import traversal
@@ -50,9 +52,15 @@ def get_gdb():
         uri = current_app.config["GRAPHDB_URI"]
         # Decide by the form of the URI which graph database system we are using.
         protocol = uri.split(":")[0]
-        if uri.endswith('/gremlin') or protocol == 'file':
+        if protocol == 'file' or (protocol in ['ws', 'wss'] and uri.endswith('/gremlin')):
+            # It looks like you are using Gremlin.
             if protocol == 'file':
-                path = uri[7:]
+                # We assume you want to use GremLite.
+                path = pathlib.Path(uri[7:])
+                # We ensure the named directory and any missing parent dirs exist.
+                path_dir = path.parent
+                if not path_dir.exists():
+                    path_dir.mkdir(parents=True)
                 # Set these True to log low level SQLite usage:
                 log_plans = False
                 check_qqc_patterns = False
@@ -62,6 +70,8 @@ def get_gdb():
                 remote = SQLiteConnection(path, autocommit=False,
                                           log_plans=log_plans, check_qqc_patterns=check_qqc_patterns)
             else:
+                # We assume you are connecting to a Gremlin server.
+                #
                 # Starting with gremlinpython==3.6.1, we have to explicitly request the
                 # `GraphSONSerializersV3d0` message serializer. This was the default in 3.6.0,
                 # but in 3.6.1 they changed the default to `GraphBinarySerializersV1`.
