@@ -340,7 +340,7 @@ class OriginInjectionVisitor:
 
         if isinstance(item, GhostNode):
             real_obj = item.realObj()
-            if not real_obj.getOrigin():
+            if self.takes_origin(real_obj) and not real_obj.getOrigin():
                 realpath = real_obj.getLibpath()
                 if realpath in self.lp2origin:
                     real_obj.setOrigin(self.lp2origin[realpath])
