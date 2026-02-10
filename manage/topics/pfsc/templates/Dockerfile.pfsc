@@ -20,7 +20,7 @@
 RUN adduser --disabled-password --gecos "" pfsc \
  && sed -i -e "s/#alias ll=/alias ll=/" /home/pfsc/.bashrc \
  && sed -i -e "s%# \(export\|eval\|alias l\)%\1%" /root/.bashrc \
- && bash -c "mkdir -p /proofscape/{lib,build/_sphinx,graphdb/re,deploy,PDFLibrary}"
+ && bash -c "mkdir -p /proofscape/{lib,build/_sphinx,graphdb,deploy,PDFLibrary}"
 {% else %}
 RUN adduser -D pfsc \
  && mkdir /proofscape

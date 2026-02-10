@@ -39,7 +39,7 @@ RUN chown -R pfsc:pfsc super
 ARG STARTUP=/usr/local/bin/startup
 RUN echo "#!/bin/bash" > $STARTUP \
 {% if ensure_dirs %} \
- && echo "mkdir -p /proofscape/{lib,build,graphdb/re,deploy,PDFLibrary}" >> $STARTUP \
+ && echo "mkdir -p /proofscape/{lib,build,graphdb,deploy,PDFLibrary}" >> $STARTUP \
 {% endif %} \
  && echo "exec supervisord -n -c {{dir_where_startup_system_lives}}/super/supervisord.conf" >> $STARTUP \
  && chmod +x $STARTUP
