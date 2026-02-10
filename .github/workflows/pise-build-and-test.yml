@@ -43,6 +43,10 @@ jobs:
   server-unit-tests:
     runs-on: ubuntu-22.04
     services:
+      redis:
+        image: "redis:8.4.0-bookworm"
+        ports:
+          - "6379:6379"
       redisgraph:
         image: "redis/redis-stack-server:6.2.6-v6"
         ports:
@@ -53,13 +57,22 @@ jobs:
           - "8182:8182"
     strategy:
       matrix:
-        graphdb: ['Cypher: RedisGraph', 'Gremlin: TinkerGraph']
+        include:
+          - name: GremLite
+            graphdb_uri: ${{ format('file://{0}/graphdb/gl/gremlite.db', github.workspace) }}
+            redis_uri: redis://localhost:6379
+          - name: RedisGraph
+            graphdb_uri: redis://localhost:6381
+            redis_uri: redis://localhost:6381
+          - name: TinkerGraph
+            graphdb_uri: ws://localhost:8182/gremlin
+            redis_uri: redis://localhost:6379
     defaults:
       run:
         shell: bash
     env:
-      REDIS_URI: redis://localhost:6381
-      GRAPHDB_URI: ${{ startsWith(matrix.graphdb, 'C') && 'redis://localhost:6381' || 'ws://localhost:8182/gremlin' }}
+      REDIS_URI: ${{ matrix.redis_uri }}
+      GRAPHDB_URI: ${{ matrix.graphdb_uri }}
       PFSC_LIB_ROOT: ${{ format('{0}/lib', github.workspace) }}
       PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
       SECRET_KEY: fixed_value_for_testing
