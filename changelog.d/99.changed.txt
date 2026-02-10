@@ -1,0 +1,4 @@
+The [PISE one-container app Docker image](https://hub.docker.com/r/proofscape/pise) now
+uses `GremLite` instead of `RedisGraph` as its built-in graph database system.
+Users of previous versions of the app will have to rebuild all Proofscape repos in their
+library, as the new app will not be able to read the old graph database files.
