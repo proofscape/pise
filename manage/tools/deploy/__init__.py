@@ -130,7 +130,7 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 @click.option('--dummy', is_flag=True, help='Write a docker compose yml for a dummy deployment (Hello World web app).')
 @click.option('--lib-vol', help="A pre-existing docker volume to be mounted to /proofscape/lib")
 @click.option('--build-vol', help="A pre-existing docker volume to be mounted to /proofscape/build")
-@click.option('--gdb-vol', help="A pre-existing docker volume for the graph db. Only RedisGraph currently supported.")
+@click.option('--gdb-vol', help="A pre-existing docker volume for the graph db.")
 @click.option('--no-redis', is_flag=True, help='Only allowed when RedisGraph is sole GDB, which is then used in place of Redis.')
 def generate(gdb, pfsc_tag, frontend_tag, oca_tag, official, workers, demos, mount_code, mount_pkg, dump_dc,
              dirname, no_local, flask_config, per_deploy_dirs, static_redir, static_acao, dummy,
@@ -742,10 +742,13 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
         svc_defn = writer(altdir=altdir)
 
         if gdb_vol:
-            # TODO: Provide support for use of named volumes with other GDBs besides RedisGraph
-            if code == GdbCode.RE:
+            data_vol_mount_pt = GdbCode.service_container_data_vol_mount_point(code)
+            if data_vol_mount_pt is None:
+                name = GdbCode.service_name(code)
+                raise click.UsageError(f'--gdb-vol switch is not currently supported for {name}')
+            else:
                 svc_defn['volumes'] = [
-                    f'{gdb_vol}:/data'
+                    f'{gdb_vol}:{data_vol_mount_pt}'
                 ]
 
         s_full[name] = svc_defn
@@ -768,7 +771,7 @@ def write_docker_compose_yaml(deploy_dir_name, deploy_dir_path, gdb, pfsc_tag, f
         return services.pise_server(deploy_dir_path, cmd, flask_config, gdb,
             tag=pfsc_tag, workers=workers, demos=demos,
             mount_code=mount_code, mount_pkg=mount_pkg, official=official, altdir=altdir,
-            lib_vol=lib_vol, build_vol=build_vol, no_redis=no_redis)
+            lib_vol=lib_vol, build_vol=build_vol, gdb_vol=gdb_vol, no_redis=no_redis)
 
     for n in range(workers):
         svc_pfscwork = write_pfsc_service('worker')

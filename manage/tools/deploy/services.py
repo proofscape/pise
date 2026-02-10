@@ -121,6 +121,15 @@ class GdbCode:
         }[code]
 
     @classmethod
+    def service_container_data_vol_mount_point(cls, code):
+        """
+        Give the mount point within the service container where the GDB stores its data.
+        """
+        return {
+            cls.RE: '/data',
+        }.get(code, None)
+
+    @classmethod
     def GremLite_URI(cls, pfsc_root_path):
         db_file_path = pathlib.Path(pfsc_root_path) / 'graphdb/gl/gremlite.db'
         return f'file://{db_file_path}'
@@ -261,7 +270,7 @@ def pise_server(deploy_dir_path, mode, flask_config, gdb, tag='latest',
                 workers=1, demos=False,
                 mount_code=False, mount_pkg=None,
                 official=False, altdir=None,
-                lib_vol=None, build_vol=None,
+                lib_vol=None, build_vol=None, gdb_vol=None,
                 no_redis=False):
     d = {
         'image': f"{'proofscape/' if official else ''}pise-server:{tag}",
@@ -303,23 +312,36 @@ def pise_server(deploy_dir_path, mode, flask_config, gdb, tag='latest',
     }[mode]
     d['environment'][mode_env_var] = 1
 
+    # Both web server and workers should wait for any GDB services to be ready.
+    d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
+
+    # Web server depends on workers.
     if mode == 'websrv':
-        d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
         d['depends_on'].extend([f'pfscwork{n}' for n in range(workers)])
+
+    # Both web server and all workers should have access to the same GremLite db file, if using GremLite.
     if GdbCode.GL in gdb:
         direc = 'graphdb/gl'
-        d['volumes'].append(f'{get_proofscape_subdir_abs_fs_path_on_host(direc, altdir=altdir)}:/proofscape/{direc}')
+        # It is only for this use case that this function accepts a `gdb_vol` kwarg.
+        volume = gdb_vol or get_proofscape_subdir_abs_fs_path_on_host(direc, altdir=altdir)
+        d['volumes'].append(f'{volume}:/proofscape/{direc}')
+
     if conf.EMAIL_TEMPLATE_DIR:
         d['volumes'].append(f'{resolve_fs_path("EMAIL_TEMPLATE_DIR")}:/home/pfsc/proofscape/src/_email_templates:ro')
+
+    # If mounting code, it goes into all web server and workers
     if mount_code:
         if demos:
             d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-demo-repos")}:/home/pfsc/demos:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/pfsc")}:/home/pfsc/proofscape/src/pfsc-server/pfsc:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/config.py")}:/home/pfsc/proofscape/src/pfsc-server/config.py:ro')
         d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-ise/package.json")}:/home/pfsc/proofscape/src/client/package.json:ro')
+
+    # Likewise for packages
     if mount_pkg:
         for pkg in [s.strip() for s in mount_pkg.split(',')]:
             d['volumes'].append(f'{resolve_pfsc_root_subdir("src/pfsc-server/venv/lib/python3.8/site-packages")}/{pkg}:/usr/local/lib/python3.8/site-packages/{pkg}')
+
     return d
 
 
