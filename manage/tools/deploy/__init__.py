@@ -98,8 +98,8 @@ def production(gdb, workers, demos, dump_dc, dirname, official, pfsc_tag):
 
 @deploy.command()
 @click.option('--gdb',
-              default=GdbCode.RE, prompt='Graph database (re, nj, tk, ja, np)',
-              help='List one or more graph DBs. re=RedisGraph, nj=Neo4j, tk=TinkerGraph, ja=JanusGraph, np=Neptune')
+              default=GdbCode.GL, prompt='Graph database (gl, re, nj, tk, ja, np)',
+              help='List one or more graph DBs. gl=GremLite, re=RedisGraph, nj=Neo4j, tk=TinkerGraph, ja=JanusGraph, np=Neptune')
 @click.option('--pfsc-tag', default='testing', prompt='pise-server image tag',
               help='Use `pise-server:TEXT` docker image.')
 @click.option('--frontend-tag',
@@ -597,7 +597,7 @@ def write_gdb_dot_env(d, gdb, uri_lookup_method, comment=False):
                 'out': i > 0 or GdbCode.requires_manual_URI(code),
             }
             if comment:
-                v['comment'] = GdbCode.service_name(code) + ":"
+                v['comment'] = GdbCode.comment_name(code) + ":"
             d[f"GRAPHDB_URI_{i}"] = v
         d['post-gdb-block'] = {'comment': ''}
 

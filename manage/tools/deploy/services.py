@@ -22,6 +22,8 @@ from tools.util import resolve_fs_path, get_version_numbers, get_server_version
 
 
 class GdbCode:
+    # GremLite
+    GL = 'gl'
     # RedisGraph
     RE = 're'
     # Neo4j
@@ -33,7 +35,7 @@ class GdbCode:
     # Neptune
     NP = 'np'
 
-    all = [RE, NJ, TK, JA, NP]
+    all = [GL, RE, NJ, TK, JA, NP]
 
     # Those that are deployed via container:
     via_container = [RE, NJ, TK, JA]
@@ -68,6 +70,12 @@ class GdbCode:
         }[code]
 
     @classmethod
+    def comment_name(cls, code):
+        if code == cls.GL:
+            return 'GremLite'
+        return cls.service_name(code)
+
+    @classmethod
     def service_name(cls, code):
         return {
             cls.RE: 'redisgraph',
@@ -89,13 +97,17 @@ class GdbCode:
 
     @classmethod
     def localhost_URI(cls, code):
-        if code == cls.NP:
+        if code == cls.GL:
+            return cls.GremLite_URI(PFSC_ROOT)
+        elif code == cls.NP:
             return cls.Neptune_URI()
         return f'{cls.protocol(code)}://localhost:{cls.host_port(code)}{cls.uri_path(code)}'
 
     @classmethod
     def docker_URI(cls, code):
-        if code == cls.NP:
+        if code == cls.GL:
+            return cls.GremLite_URI('/proofscape')
+        elif code == cls.NP:
             return cls.Neptune_URI()
         return f'{cls.protocol(code)}://{cls.service_name(code)}:{cls.standard_port(code)}{cls.uri_path(code)}'
 
@@ -107,6 +119,11 @@ class GdbCode:
             cls.TK: tinkergraph,
             cls.JA: janusgraph,
         }[code]
+
+    @classmethod
+    def GremLite_URI(cls, pfsc_root_path):
+        db_file_path = pathlib.Path(pfsc_root_path) / 'graphdb/gl/gremlite.db'
+        return f'file://{db_file_path}'
 
     @classmethod
     def Neptune_URI(cls):
@@ -288,6 +305,9 @@ def pise_server(deploy_dir_path, mode, flask_config, tag='latest',
     if mode == 'websrv':
         d['depends_on'].extend(GdbCode.service_name(code) for code in gdb if code in GdbCode.via_container)
         d['depends_on'].extend([f'pfscwork{n}' for n in range(workers)])
+    if GdbCode.GL in gdb:
+        direc = 'graphdb/gl'
+        d['volumes'].append(f'{get_proofscape_subdir_abs_fs_path_on_host(direc, altdir=altdir)}:/proofscape/{direc}')
     if conf.EMAIL_TEMPLATE_DIR:
         d['volumes'].append(f'{resolve_fs_path("EMAIL_TEMPLATE_DIR")}:/home/pfsc/proofscape/src/_email_templates:ro')
     if mount_code:
