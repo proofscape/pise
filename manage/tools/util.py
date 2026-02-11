@@ -156,6 +156,7 @@ def get_version_numbers(include_tags=False, include_other=False):
         # Could add others; atm this is all we need
         nums['redis-tag'] = pfsc_conf.REDIS_IMAGE_TAG
         nums['redisgraph-tag'] = pfsc_conf.REDISGRAPH_IMAGE_TAG
+        nums['tinkergraph-tag'] = pfsc_conf.GREMLIN_SERVER_IMAGE_TAG
         nums['nginx-tag'] = pfsc_conf.NGINX_IMAGE_TAG
 
     if include_other:

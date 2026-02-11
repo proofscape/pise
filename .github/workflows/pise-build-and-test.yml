@@ -40,19 +40,72 @@ on:
         default: 1
         required: false
 jobs:
+  # =============================================================================
+  # This job determines the version numbers of the service containers that are
+  # needed for the next job, which runs the pise/server unit tests.
+  set-svc-versions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout pise
+        uses: actions/checkout@v4
+        with:
+          path: 'pise'
+      - name: Determine Python version
+        working-directory: pise/manage
+        run: |
+          . pise_python_vers.env
+          echo "PISE_PYTHON_VERS=$PISE_PYTHON_VERS" >> $GITHUB_ENV
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PISE_PYTHON_VERS }}
+      # -----------------------------------------
+      # Install pise/manage
+      - name: Cache manage/venv
+        id: cache-manage-venv
+        uses: actions/cache@v4
+        with:
+          path: pise/manage/venv
+          key: cache-manage-venv-${{ hashFiles('pise/manage/setup.cfg', 'pise/manage/pise_python_vers.env') }}
+      - if: ${{ steps.cache-manage-venv.outputs.cache-hit != 'true' }}
+        name: Initialize manage/venv directory
+        working-directory: pise/manage
+        run: |
+          python -m venv venv
+      - name: Install pfsc-manage
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pip install -e .
+      # -----------------------------------------
+      - name: Determine version numbers
+        id: vers-nums
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          echo "redis_tag=`pfsc check version redis-tag`" >> $GITHUB_OUTPUT
+          echo "redisgraph_tag=`pfsc check version redisgraph-tag`" >> $GITHUB_OUTPUT
+          echo "tinkergraph_tag=`pfsc check version tinkergraph-tag`" >> $GITHUB_OUTPUT
+    outputs:
+      redis_tag: ${{ steps.vers-nums.outputs.redis_tag }}
+      redisgraph_tag: ${{ steps.vers-nums.outputs.redisgraph_tag }}
+      tinkergraph_tag: ${{ steps.vers-nums.outputs.tinkergraph_tag }}
+  # =============================================================================
+  # This job runs the pise/server unit tests, against several graph databases.
   server-unit-tests:
+    needs: set-svc-versions
     runs-on: ubuntu-22.04
     services:
       redis:
-        image: "redis:8.4.0-bookworm"
+        image: ${{ format('redis:{0}', needs.set-svc-versions.outputs.redis_tag) }}
         ports:
           - "6379:6379"
       redisgraph:
-        image: "redis/redis-stack-server:6.2.6-v6"
+        image: ${{ format('redis/redis-stack-server:{0}', needs.set-svc-versions.outputs.redisgraph_tag) }}
         ports:
           - "6381:6379"
       tinkergraph:
-        image: "tinkerpop/gremlin-server:3.7.5"
+        image: ${{ format('tinkerpop/gremlin-server:{0}', needs.set-svc-versions.outputs.tinkergraph_tag) }}
         ports:
           - "8182:8182"
     strategy:
@@ -134,7 +187,9 @@ jobs:
         run: |
           source venv/bin/activate
           inv unit
-# =============================================================================
+  # =============================================================================
+  # This job builds docker images and the client-side code, does functional tests
+  # of PISE, and, in the case of a pub-prep run, uploads the products as artifacts.
   builds-and-functional-tests:
     needs: server-unit-tests
     runs-on: ubuntu-22.04
