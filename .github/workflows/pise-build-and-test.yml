@@ -112,7 +112,9 @@ jobs:
       matrix:
         include:
           - name: GremLite
-            graphdb_uri: ${{ format('file://{0}/graphdb/gl/gremlite.db', github.workspace) }}
+            # Note: Cannot interpolate `github.workspace` into the `{0}` here because apparently
+            # it is not defined yet. (Returns empty string.) So we interpolate it below instead.
+            graphdb_uri: 'file://{0}/graphdb/gl/gremlite.db'
             redis_uri: redis://localhost:6379
           - name: RedisGraph
             graphdb_uri: redis://localhost:6381
@@ -125,7 +127,11 @@ jobs:
         shell: bash
     env:
       REDIS_URI: ${{ matrix.redis_uri }}
-      GRAPHDB_URI: ${{ matrix.graphdb_uri }}
+      GRAPHDB_URI: ${{
+        startsWith(matrix.graphdb_uri, 'file://')
+        && format(matrix.graphdb_uri, github.workspace)
+        || matrix.graphdb_uri
+        }}
       PFSC_LIB_ROOT: ${{ format('{0}/lib', github.workspace) }}
       PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
       SECRET_KEY: fixed_value_for_testing
