@@ -22,7 +22,7 @@ from gremlin_python.process.anonymous_traversal import traversal
 from gremlin_python.process.graph_traversal import GraphTraversalSource
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from gremlin_python.driver.serializer import GraphSONSerializersV3d0
-from gremlite import SQLiteConnection
+from gremlite import SQLiteConnection, GremliteConfig
 from wsc_grempy_transport.transport import websocket_client_transport_factory
 import neo4j
 
@@ -64,11 +64,16 @@ def get_gdb():
                 # Set these True to log low level SQLite usage:
                 log_plans = False
                 check_qqc_patterns = False
+                # Experimentally trying the read-all-at-once setting:
+                glconf = GremliteConfig()
+                glconf.read_all_at_once = True
                 # As can be seen in the `GremlinGraphWriter.__init__()` method, we will
                 # ignore pise/server's `USE_TRANSACTIONS` config var and will always use
                 # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
                 remote = SQLiteConnection(path, autocommit=False,
-                                          log_plans=log_plans, check_qqc_patterns=check_qqc_patterns)
+                                          timeout=300,
+                                          log_plans=log_plans, check_qqc_patterns=check_qqc_patterns,
+                                          config=glconf)
             else:
                 # We assume you are connecting to a Gremlin server.
                 #
