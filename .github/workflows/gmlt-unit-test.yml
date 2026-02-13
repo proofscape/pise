@@ -1,0 +1,127 @@
+name: gmlt-unit-test
+on:
+  push:
+    branches:
+      - 'gmlt-gha'
+  workflow_call:
+    inputs:
+      pub-prep:
+        description: 'Do extra steps in preparation for publication'
+        type: boolean
+        default: false
+        required: true
+      v-tag:
+        description: 'Version tag vM.m.p for pub-prep builds'
+        type: string
+        required: true
+      debug-level:
+        description: 'Debug level'
+        type: number
+        default: 1
+        required: false
+  workflow_dispatch:
+    inputs:
+      pub-prep:
+        description: 'Do extra steps in preparation for publication'
+        type: boolean
+        default: false
+        required: true
+      v-tag:
+        description: 'Version tag vM.m.p for pub-prep builds'
+        type: string
+        default: 'v0.0.0'
+        required: false
+      debug-level:
+        description: 'Debug level'
+        type: number
+        default: 1
+        required: false
+jobs:
+  # =============================================================================
+  # This job runs the pise/server unit tests, against several graph databases.
+  server-unit-tests:
+    runs-on: ubuntu-22.04
+    services:
+      redis:
+        image: "redis:8.4.0-bookworm"
+        ports:
+          - "6379:6379"
+    strategy:
+      matrix:
+        include:
+          - name: GremLite
+            # Note: Cannot interpolate `github.workspace` into the `{0}` here because apparently
+            # it is not defined yet. (Returns empty string.) So we interpolate it below instead.
+            graphdb_uri: 'file://{0}/graphdb/gl/gremlite.db'
+            redis_uri: redis://localhost:6379
+    defaults:
+      run:
+        shell: bash
+    env:
+      REDIS_URI: ${{ matrix.redis_uri }}
+      GRAPHDB_URI: ${{
+        startsWith(matrix.graphdb_uri, 'file://')
+        && format(matrix.graphdb_uri, github.workspace)
+        || matrix.graphdb_uri
+        }}
+      PFSC_LIB_ROOT: ${{ format('{0}/lib', github.workspace) }}
+      PFSC_BUILD_ROOT: ${{ format('{0}/build', github.workspace) }}
+      SECRET_KEY: fixed_value_for_testing
+    steps:
+      # -----------------------------------------
+      # Checkout pise
+      - name: Checkout pise
+        uses: actions/checkout@v4
+        with:
+          path: 'pise'
+      # -----------------------------------------
+      # Determine Python version
+      - name: Determine Python version
+        working-directory: pise/manage
+        run: |
+          . pise_python_vers.env
+          echo "PISE_PYTHON_VERS=$PISE_PYTHON_VERS" >> $GITHUB_ENV
+      # -----------------------------------------
+      # Install Python
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PISE_PYTHON_VERS }}
+      # -----------------------------------------
+      - name: Make directory structure
+        run: |
+          mkdir -p {lib,build}
+      # -----------------------------------------
+      # Install server/venv, preferably from cache
+      - name: Cache server/venv
+        id: cache-server-venv
+        uses: actions/cache@v4
+        with:
+          path: pise/server/venv
+          key: cache-server-venv-${{ hashFiles('pise/server/req/*', 'pise/manage/pise_python_vers.env') }}
+      - if: ${{ steps.cache-server-venv.outputs.cache-hit != 'true' }}
+        name: Install server/venv
+        working-directory: pise/server
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          ./req/install.sh
+      # -----------------------------------------
+      - name: Make test repos
+        working-directory: pise/server
+        run: |
+          git config --global user.email "pfsc.unit.tester@localhost"
+          git config --global user.name "pfsc unit tester"
+          source venv/bin/activate
+          inv mtr
+      - name: Build test repos
+        working-directory: pise/server
+        run : |
+          source venv/bin/activate
+          time inv btr
+      - name: Run unit tests
+        working-directory: pise/server
+        run: |
+          source venv/bin/activate
+          inv unit

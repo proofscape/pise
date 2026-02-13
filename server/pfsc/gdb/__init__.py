@@ -71,7 +71,7 @@ def get_gdb():
                 # ignore pise/server's `USE_TRANSACTIONS` config var and will always use
                 # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
                 remote = SQLiteConnection(path, autocommit=False,
-                                          timeout=300,
+                                          timeout=3,
                                           log_plans=log_plans, check_qqc_patterns=check_qqc_patterns,
                                           config=glconf)
             else:
