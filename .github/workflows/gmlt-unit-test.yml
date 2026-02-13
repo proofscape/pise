@@ -3,29 +3,10 @@ on:
   push:
     branches:
       - 'gmlt-gha'
-  workflow_call:
-    inputs:
-      pub-prep:
-        description: 'Do extra steps in preparation for publication'
-        type: boolean
-        default: false
-        required: true
-      v-tag:
-        description: 'Version tag vM.m.p for pub-prep builds'
-        type: string
-        required: true
-      debug-level:
-        description: 'Debug level'
-        type: number
-        default: 1
-        required: false
+    tags:
+      - 'gmlt'
   workflow_dispatch:
     inputs:
-      pub-prep:
-        description: 'Do extra steps in preparation for publication'
-        type: boolean
-        default: false
-        required: true
       v-tag:
         description: 'Version tag vM.m.p for pub-prep builds'
         type: string
