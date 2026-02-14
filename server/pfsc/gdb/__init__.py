@@ -73,6 +73,7 @@ def get_gdb():
                 remote = SQLiteConnection(path, autocommit=False,
                                           timeout=5,
                                           log_plans=log_plans, check_qqc_patterns=check_qqc_patterns,
+                                          log_open_close=True,
                                           config=glconf)
             else:
                 # We assume you are connecting to a Gremlin server.

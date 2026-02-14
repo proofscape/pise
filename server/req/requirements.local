@@ -6,3 +6,4 @@
 # editable, from local, working copy.
 
 #-e ../../pfsc-examp
+gremlite @ git+https://github.com/skieffer/gremlite.git@log-open-close

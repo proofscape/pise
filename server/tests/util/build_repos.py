@@ -18,17 +18,27 @@
 Build and index the test repos.
 """
 
+import sqlite3
+
 from tests.util import build_all, build_at_wip, build_big
 
+from gremlite.connection import print_open_cursor_traces
+
 if __name__ == "__main__":
-    # Uncomment to record logs:
-    #import logging
-    #logging.basicConfig(filename='build_repos.log', level=logging.INFO)
 
-    #build_big()
+    try:
+        # Uncomment to record logs:
+        #import logging
+        #logging.basicConfig(filename='build_repos.log', level=logging.INFO)
 
-    build_all()
-    # To show timings:
-    #build_all(verbose=2)
+        #build_big()
 
-    build_at_wip()
+        build_all()
+        # To show timings:
+        #build_all(verbose=2)
+
+        build_at_wip()
+
+    except sqlite3.OperationalError:
+        print_open_cursor_traces()
+        raise

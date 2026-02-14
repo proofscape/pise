@@ -613,12 +613,7 @@ gremlinpython==3.7.5 \
     --hash=sha256:da3fe1de14db63a29f0fe274b7a24270b99cfe84186312e18069da0bf9fa4476
     # via
     #   -r requirements.in
-    #   gremlite
     #   wsc-grempy-transport
-gremlite==0.1.1 \
-    --hash=sha256:111b71f0528b41a660d8da66f1367ae39d962094285481a240ba7604f8a8bcd5 \
-    --hash=sha256:a0e1173a3170a809a3dc33aa0a82064055552d3f573c4361fa235757cb730982
-    # via -r requirements.in
 h11==0.16.0 \
     --hash=sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
