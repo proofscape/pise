@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - 'gmlt-gha'
+      - 'gmlt-gha-reader-tx'
     tags:
       - 'gmlt*'
   workflow_dispatch:
