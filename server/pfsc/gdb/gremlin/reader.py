@@ -32,7 +32,7 @@ class GremlinGraphReader(GraphReader):
 
     @property
     def g(self):
-        return self.gdb
+        return self.writer.g if self.writer is not None else self.gdb
 
     def num_nodes_in_db(self):
         return self.g.V().count().next()

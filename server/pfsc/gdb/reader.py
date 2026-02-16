@@ -80,6 +80,14 @@ class GraphReader:
 
     def __init__(self, gdb):
         self.gdb = gdb
+        self._writer = None
+
+    def set_writer(self, w):
+        self._writer = w
+
+    @property
+    def writer(self):
+        return self._writer
 
     @staticmethod
     def adaptall(version):

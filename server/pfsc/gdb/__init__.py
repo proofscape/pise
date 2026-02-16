@@ -72,7 +72,8 @@ def get_gdb():
                 # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
 
                 # DEBUG
-                autocommit = True
+                #autocommit = True
+                autocommit = False
                 #
                 remote = SQLiteConnection(path, autocommit=autocommit,
                                           timeout=5,

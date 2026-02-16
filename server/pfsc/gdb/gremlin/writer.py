@@ -56,8 +56,8 @@ class GremlinGraphWriter(GraphWriter):
         # it supports them and they are to be preferred (both for atomicity and increased speed).
 
         # DEBUG
-        #self.use_transactions = True if using_sqlite() else use_transactions
-        self.use_transactions = False if using_sqlite() else use_transactions
+        self.use_transactions = True if using_sqlite() else use_transactions
+        #self.use_transactions = False if using_sqlite() else use_transactions
         #
 
         self._tx = None
