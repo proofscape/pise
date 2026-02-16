@@ -54,7 +54,11 @@ class GremlinGraphWriter(GraphWriter):
 
         # If we are using an SQLiteConnection, then we force use of transactions, since
         # it supports them and they are to be preferred (both for atomicity and increased speed).
-        self.use_transactions = True if using_sqlite() else use_transactions
+
+        # DEBUG
+        #self.use_transactions = True if using_sqlite() else use_transactions
+        self.use_transactions = False if using_sqlite() else use_transactions
+        #
 
         self._tx = None
 

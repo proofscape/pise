@@ -70,7 +70,11 @@ def get_gdb():
                 # As can be seen in the `GremlinGraphWriter.__init__()` method, we will
                 # ignore pise/server's `USE_TRANSACTIONS` config var and will always use
                 # transactions with GremLite. Therefore here we want to turn off its autocommit mode.
-                remote = SQLiteConnection(path, autocommit=False,
+
+                # DEBUG
+                autocommit = True
+                #
+                remote = SQLiteConnection(path, autocommit=autocommit,
                                           timeout=5,
                                           log_plans=log_plans, check_qqc_patterns=check_qqc_patterns,
                                           log_open_close=True,
