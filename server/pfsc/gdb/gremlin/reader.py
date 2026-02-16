@@ -32,6 +32,8 @@ class GremlinGraphReader(GraphReader):
 
     @property
     def g(self):
+        # We use `writer.g` if possible, since that might be a transaction,
+        # in which case we should participate in it.
         return self.writer.g if self.writer is not None else self.gdb
 
     def num_nodes_in_db(self):
