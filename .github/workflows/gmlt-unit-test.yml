@@ -4,7 +4,7 @@ on:
     branches:
       - 'gmlt-gha'
     tags:
-      - 'gmlt'
+      - 'gmlt*'
   workflow_dispatch:
     inputs:
       v-tag:
