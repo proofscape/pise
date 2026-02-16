@@ -47,11 +47,13 @@ RUN venv/bin/pip install --upgrade pip
 
 COPY pfsc-server/req/requirements.nodeps requirements.nodeps
 COPY pfsc-server/req/requirements.txt requirements.txt
+COPY pfsc-server/req/requirements.local requirements.local
 
 {{local_reqs}}
 
 RUN {{ 'venv/bin/pip' if use_venv else 'pip' }} install --no-deps -r requirements.nodeps \
  && {{ 'venv/bin/pip' if use_venv else 'pip' }} install -r requirements.txt \
+ && {{ 'venv/bin/pip' if use_venv else 'pip' }} install -r requirements.local \
  {% if local_reqs %}&& {{ 'venv/bin/pip' if use_venv else 'pip' }} install -r requirements.local {% endif %}\
  && find / -name "*.pyc" | xargs -I % rm %
 
