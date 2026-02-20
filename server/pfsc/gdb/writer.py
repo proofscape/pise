@@ -38,9 +38,10 @@ def as_transaction():
 class GraphWriter:
     """Abstract base class for graph database writers. """
 
-    def __init__(self, reader):
+    def __init__(self, reader: GraphReader):
         self.gdb = reader.gdb
         self._reader = reader
+        reader.set_writer(self)
         self._tx = None
 
     @property
