@@ -187,7 +187,7 @@ jobs:
         working-directory: pise/server
         run : |
           source venv/bin/activate
-          inv btr
+          time inv btr
       - name: Run unit tests
         working-directory: pise/server
         run: |
