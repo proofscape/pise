@@ -26,7 +26,7 @@ neo4j==4.4.13
 redisgraph==2.4.4
 gremlinpython==3.7.5
 wsc-grempy-transport==0.1.0
-gremlite==0.1.1
+gremlite==0.37.0rc1
 
 # Lark parses all of our basic languages, such as the pfsc module syntax,
 # and the Meson proof script language.
