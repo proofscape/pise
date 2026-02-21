@@ -296,7 +296,8 @@ def gather_licensing_info(verbose=False):
     vers['python'] = get_python_version_for_images()
     vers['supervisor'] = pfsc_conf.SUPERVISOR_VERSION
     vers['redisgraph'] = pfsc_conf.REDISGRAPH_IMAGE_TAG
-    vers['redis-server'] = get_redis_server_version_for_oca()
+    vers['redis-server-rg-oca'] = pfsc_conf.REDISGRAPH_IMAGE_TAG.split('-')[0]
+    vers['redis-server-gl-oca'] = get_redis_server_version_for_oca()
     vers['nginx'] = pfsc_conf.NGINX_IMAGE_TAG
 
     # These are the one-off cases:

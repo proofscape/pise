@@ -27,6 +27,7 @@ import click
 import conf
 from manage import cli, PFSC_ROOT, PFSC_MANAGE_ROOT
 from conf import DOCKER_CMD, DOCKER_PLATFORM
+from tools.deploy.services import GdbCode
 import tools.license
 from tools.util import get_version_numbers
 import topics.pfsc.write_license_files as write_license_files
@@ -280,12 +281,15 @@ def oca_readiness_checks(release=False, client=True, client_min=False, pdf=True,
 
 
 @build.command()
+@click.option('--gdb',
+              default=GdbCode.GL, prompt='Graph database (gl, re)',
+              help='Choose the graph DB to be built into the image. gl=GremLite, re=RedisGraph')
 @click.option('--dump', is_flag=True, help="Dump Dockerfile to stdout before building.")
 @click.option('--dry-run', is_flag=True, help="Do not actually build; just print docker command.")
 @click.option('--tar-path', help="Instead of building, save the context tar file to this path.")
 @click.option('--skip-licensing', is_flag=True, default=False, help='Skip gathering of license info. For dev only.')
 @click.argument('tag')
-def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
+def oca(gdb, dump, dry_run, tar_path, skip_licensing, tag: str):
     """
     Build a `pise` (one-container app) docker image, and give it a TAG.
 
@@ -294,6 +298,14 @@ def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
     content repos. It is configured in "personal server mode" and comes with
     RedisGraph as the GDB.
     """
+    if gdb not in [GdbCode.GL, GdbCode.RE]:
+        raise click.UsageError('Must select one of the graph databases GL (GremLite) or RE (RedisGraph).')
+
+    gdb_tag_segment_lookup = {GdbCode.GL: 'gl', GdbCode.RE: 'rg'}
+    segment = gdb_tag_segment_lookup[gdb]
+    if segment not in tag.split('-'):
+        raise click.UsageError(f'When using the {gdb} graph database, the tag must contain "-{segment}".')
+
     if not dry_run:
         oca_readiness_checks(client=True, client_min=False, pdf=True, pyodide=True, whl=True)
 
@@ -307,7 +319,7 @@ def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
     from topics.pfsc import write_oca_eula_file
     from topics.pfsc import write_worker_and_web_supervisor_ini
     from topics.pfsc import write_proofscape_oca_dockerfile
-    from topics.redis import write_redis_ini
+    from topics.redis import write_redis_ini, write_redisgraph_ini
     with tempfile.TemporaryDirectory(dir=SRC_TMP_ROOT) as tmp_dir_name:
         with open(os.path.join(tmp_dir_name, 'license_info.json'), 'w') as f:
             f.write(json.dumps(license_info, indent=4))
@@ -322,14 +334,23 @@ def oca(dump, dry_run, tar_path, skip_licensing, tag: str):
             ini = write_worker_and_web_supervisor_ini(
                 worker=False, web=True, use_venv=False, oca=True)
             f.write(ini)
-        with open(os.path.join(tmp_dir_name, 'redis.ini'), 'w') as f:
-            ini = write_redis_ini(use_conf_file=True)
-            f.write(ini)
+
+        if gdb == GdbCode.GL:
+            with open(os.path.join(tmp_dir_name, 'redis.ini'), 'w') as f:
+                ini = write_redis_ini(use_conf_file=True)
+                f.write(ini)
+        else:
+            assert gdb == GdbCode.RE
+            with open(os.path.join(tmp_dir_name, 'redisgraph.ini'), 'w') as f:
+                ini = write_redisgraph_ini(use_conf_file=True)
+                f.write(ini)
+
         with open(os.path.join(tmp_dir_name, 'oca_version.txt'), 'w') as f:
             f.write(tag)
+
         tmp_dir_rel_path = os.path.relpath(tmp_dir_name, start=SRC_ROOT)
         write_dockerignore_for_pyc()
-        df = write_proofscape_oca_dockerfile(tmp_dir_rel_path)
+        df = write_proofscape_oca_dockerfile(gdb, tmp_dir_rel_path)
         finalize(df, 'pise', tag, dump, dry_run, tar_path=tar_path)
 
 

@@ -1,2 +1,12 @@
 `pise/server` now supports the [GremLite](https://pypi.org/project/gremlite/)
 graph database system.
+
+FOR NOW: Two versions of the
+[PISE one-container app Docker image](https://hub.docker.com/r/proofscape/pise)
+will be offered, one using RedisGraph (tags ending in `-rg`), and one using
+GremLite (tags ending in `-gl`).
+
+FUTURE: The RedisGraph versions of the Docker image will eventually be dropped,
+and only GremLite versions will be produced. Users of RedisGraph versions of the
+app will have to rebuild all Proofscape repos in their library, as the GremLite
+versions will not be able to read the old graph database files.

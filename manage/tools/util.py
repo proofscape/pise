@@ -179,7 +179,7 @@ def get_server_version():
 
 def get_redis_server_version_for_oca():
     """
-    Get the version number of redis-server that is installed in the OCA image.
+    Get the version number of redis-server that is installed in the GremLite OCA image.
     """
     cmd = f'docker run --rm --entrypoint=bash redis:{pfsc_conf.REDIS_IMAGE_TAG} -c "redis-server --version"'
     out = subprocess.check_output(cmd, shell=True)

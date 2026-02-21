@@ -24,6 +24,7 @@ import conf
 from manage import PFSC_ROOT
 from tools.util import squash
 from tools.deploy import list_wheel_filenames
+from tools.deploy.services import GdbCode
 from tools.util import get_version_numbers, get_server_version
 
 
@@ -129,10 +130,11 @@ def write_oca_static_setup(tmp_dir_name):
     )
 
 
-def write_oca_final_setup(tmp_dir_name, final_workdir='/home/pfsc'):
+def write_oca_final_setup(gdb, tmp_dir_name, final_workdir='/home/pfsc'):
     template = jinja_env.get_template('Dockerfile.oca_final_setup')
     versions = get_version_numbers()
     return template.render(
+        gdb=gdb,
         tmp_dir_name=tmp_dir_name,
         final_workdir=final_workdir,
     )
@@ -192,7 +194,8 @@ def write_frontend_dockerfile(tmp_dir_name):
     return squash(df)
 
 
-def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
+def write_proofscape_oca_dockerfile(gdb, tmp_dir_name, demos=False):
+    assert gdb in [GdbCode.GL, GdbCode.RE]
     pfsc_install = write_pfsc_installation(
         ubuntu=True, demos=demos, use_venv=False,
         oca_version_file=f'{tmp_dir_name}/oca_version.txt',
@@ -200,7 +203,7 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
     )
     startup_system = write_startup_system(
         '/home/pfsc', numbered_inis={
-            100: 'redis',
+            100: 'redisgraph' if gdb == GdbCode.RE else 'redis',
             200: 'pfsc',
         }, tmp_dir_name=tmp_dir_name
     )
@@ -208,12 +211,14 @@ def write_proofscape_oca_dockerfile(tmp_dir_name, demos=False):
         tmp_dir_name
     )
     final_setup = write_oca_final_setup(
-        tmp_dir_name, final_workdir='/home/pfsc'
+        gdb, tmp_dir_name, final_workdir='/home/pfsc'
     )
     template = jinja_env.get_template('Dockerfile.oca')
     df = template.render(
+        gdb=gdb,
         python_image_tag=conf.PYTHON_IMAGE_TAG,
         redis_image_tag=conf.REDIS_IMAGE_TAG,
+        redisgraph_image_tag=conf.REDISGRAPH_IMAGE_TAG,
         platform=conf.DOCKER_PLATFORM,
         pfsc_install=pfsc_install,
         startup_system=startup_system,
