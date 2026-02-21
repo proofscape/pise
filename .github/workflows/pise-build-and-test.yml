@@ -554,7 +554,7 @@ jobs:
         with:
           path: images/pise-server.tar
           key: cache-pise-server-${{env.PISE_VERS}}-${{
-              hashFiles('pise/server/req/*', 'pise/manage/pise_python_vers.env')
+              hashFiles('pise/server/req/*', 'pise/manage/pise_python_vers.env', 'pise/manage/topics/pfsc/templates')
             }}
       # If basic testing and had a cache hit, load from tar file into Docker.
       - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit == 'true' }}
