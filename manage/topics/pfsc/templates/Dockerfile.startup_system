@@ -36,10 +36,15 @@ COPY {{tmp_dir_name}}/{{name}}.ini super/{{num}}_{{name}}.ini
 RUN chown -R pfsc:pfsc super
 
 # `-n` switch runs supervisord in the foreground. See <http://supervisord.org/running.html>.
+# Note: We form graphdb subdirectories like graphdb/gl etc. now so that they
+# have the right ownership in the container. If they are instead formed by docker when
+# the container is started up (due to volume mount), then they will be owned by root,
+# and the pfsc user cannot write to them.
 ARG STARTUP=/usr/local/bin/startup
 RUN echo "#!/bin/bash" > $STARTUP \
 {% if ensure_dirs %} \
  && echo "mkdir -p /proofscape/{lib,build,graphdb,deploy,PDFLibrary}" >> $STARTUP \
+ && echo "mkdir -p /proofscape/graphdb/{gl,re}" >> $STARTUP \
 {% endif %} \
  && echo "exec supervisord -n -c {{dir_where_startup_system_lives}}/super/supervisord.conf" >> $STARTUP \
  && chmod +x $STARTUP
