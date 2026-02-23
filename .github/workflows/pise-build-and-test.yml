@@ -231,6 +231,9 @@ jobs:
           echo "USE_BASE_NGINX_FRONTEND=0" >> $GITHUB_ENV
           echo "${{inputs.v-tag}}" | sed 's/v/PISE_VERS=/' >> $GITHUB_ENV
           echo "DEBUG_WORKFLOW=${{ inputs.debug-level }}" >> $GITHUB_ENV
+      - name: Set OCA-gl tag
+        run: |
+          echo "PISE_OCA_GL_TAG=${{ format('{0}-gl', env.PISE_VERS) }}" >> $GITHUB_ENV
       # -----------------------------------------
       # INSTALL
       # -----------------------------------------
@@ -494,7 +497,7 @@ jobs:
           pfsc deploy generate --gdb gl \
               ${{ !inputs.pub-prep && '--mount-code' || '--no-mount-code' }} \
               --pfsc-tag ${{ env.PISE_VERS }} \
-              --oca-tag ${{ env.PISE_VERS }} \
+              --oca-tag ${{ env.PISE_OCA_GL_TAG }} \
               -n 1 --demos \
               --dirname ${{ env.TEST_DEPLOY_DIR }} \
               --flask-config dockerdev \
@@ -713,7 +716,7 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build oca --gdb=gl --skip-licensing --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_VERS}}
+          pfsc build oca --gdb=gl --skip-licensing --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_OCA_GL_TAG}}
           mkdir ${{env.PISE_OCA_CTX_DIR}}
           tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
@@ -722,7 +725,7 @@ jobs:
         with:
           context: ${{env.PISE_OCA_CTX_DIR}}
           load: true
-          tags: pise:${{env.PISE_VERS}}
+          tags: pise:${{env.PISE_OCA_GL_TAG}}
           cache-to: type=gha
           cache-from: type=gha
       # -----------------------------------------
