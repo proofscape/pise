@@ -731,11 +731,11 @@ jobs:
         working-directory: ${{ env.PFSC_ROOT }}
         run: |
           mkdir -p selenium_results/docker_logs
-          docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-rg-stdout.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-rg-stderr.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-redisgraph-stdout.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-redisgraph-stderr.txt 2>&1
+          docker logs ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1-rg.txt 2>&1
+          docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-rg-stdout.txt 2>&1
+          docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-rg-stderr.txt 2>&1
+          docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-redisgraph-stdout.txt 2>&1
+          docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-redisgraph-stderr.txt 2>&1
       - if: ${{ inputs.pub-prep && always() }}
         name: Upload selenium results
         uses: actions/upload-artifact@v4
