@@ -570,7 +570,7 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build server ${{ !inputs.pub-prep && '--skip-licensing' || '' }} \
+          pfsc build server --skip-licensing \
               --tar-path=${{ env.PISE_SERVER_CTX_TAR }} ${{ env.PISE_VERS }}
       # If building and debugging, upload context file as artifact for inspection
       - if: ${{ env.BUILDING && env.DEBUG_WORKFLOW >= 2 }}
@@ -651,7 +651,7 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build frontend --tar-path=${{env.PISE_FRONTEND_CTX_TAR}} ${{env.PISE_VERS}}
+          pfsc build frontend --skip-licensing --tar-path=${{env.PISE_FRONTEND_CTX_TAR}} ${{env.PISE_VERS}}
           mkdir ${{env.PISE_FRONTEND_CTX_DIR}}
           tar -x -f ${{env.PISE_FRONTEND_CTX_TAR}} -C ${{env.PISE_FRONTEND_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
@@ -744,7 +744,7 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build oca --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_VERS}}
+          pfsc build oca --gdb=gl --skip-licensing --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_VERS}}
           mkdir ${{env.PISE_OCA_CTX_DIR}}
           tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
@@ -870,7 +870,7 @@ jobs:
         working-directory: pise/manage
         run: |
           source venv/bin/activate
-          pfsc build oca --gdb=re --tar-path=${{env.PISE_OCA_RG_CTX_TAR}} ${{ env.PISE_OCA_RG_TAG }}
+          pfsc build oca --gdb=re --skip-licensing --tar-path=${{env.PISE_OCA_RG_CTX_TAR}} ${{ env.PISE_OCA_RG_TAG }}
           mkdir ${{env.PISE_OCA_RG_CTX_DIR}}
           tar -x -f ${{env.PISE_OCA_RG_CTX_TAR}} -C ${{env.PISE_OCA_RG_CTX_DIR}}
       - if: ${{ inputs.pub-prep }}
