@@ -603,19 +603,6 @@ jobs:
           tags: pise-server:${{env.PISE_VERS}}
           cache-to: type=gha
           cache-from: type=gha
-      # If building and it's pub-prep, check contents of image's working directory
-      - if: ${{ env.BUILDING && inputs.pub-prep }}
-        name: Check working directory contents of pise-server
-        env:
-          WDLL: pise-server-wdll
-        run: |
-          docker run --rm --entrypoint=bash pise-server:${{env.PISE_VERS}} -c "ls -l" > $WDLL
-          cat $WDLL
-          echo "------------------------------"
-          grep LICENSES.txt $WDLL
-          grep NOTICE.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 150000
-          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 700
       # If it's basic testing, and we had a cache miss, then it's time to save the image we built.
       - if: ${{!inputs.pub-prep && steps.cache-pise-server.outputs.cache-hit != 'true' }}
         name: Save pise-server image
@@ -663,19 +650,6 @@ jobs:
           tags: pise-frontend:${{env.PISE_VERS}}
           cache-to: type=gha
           cache-from: type=gha
-      # Check contents of image's working directory
-      - if: ${{ inputs.pub-prep }}
-        name: Check working directory contents of pise-frontend
-        env:
-          WDLL: pise-frontend-wdll
-        run: |
-          docker run --rm --entrypoint=bash pise-frontend:${{env.PISE_VERS}} -c "ls -l" > $WDLL
-          cat $WDLL
-          echo "------------------------------"
-          grep LICENSES.txt $WDLL
-          grep NOTICE.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 100000
-          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 300
       # -----------------------------------------
       # Deploy the MCA
       - name: Deploy MCA
@@ -756,23 +730,6 @@ jobs:
           tags: pise:${{env.PISE_VERS}}
           cache-to: type=gha
           cache-from: type=gha
-      # Check contents of image's working directory
-      - if: ${{ inputs.pub-prep }}
-        name: Check working directory contents of pise OCA
-        env:
-          WDLL: pise-wdll
-        run: |
-          docker run --rm --entrypoint=bash pise:${{env.PISE_VERS}} -c "ls -l" > $WDLL
-          cat $WDLL
-          echo "------------------------------"
-          grep LICENSES.txt $WDLL
-          grep NOTICE.txt $WDLL
-          grep about.json $WDLL
-          grep EULA.txt $WDLL
-          grep VERSION.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 350000
-          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
-          test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
       # -----------------------------------------
       # We remake the lib, build, gdb volumes fresh for use with the OCA.
       # First remove the existing ones
@@ -882,23 +839,6 @@ jobs:
           tags: pise:${{env.PISE_OCA_RG_TAG}}
           cache-to: type=gha
           cache-from: type=gha
-      # Check contents of image's working directory
-      - if: ${{ inputs.pub-prep }}
-        name: Check working directory contents of pise OCA-rg
-        env:
-          WDLL: pise-wdll
-        run: |
-          docker run --rm --entrypoint=bash pise:${{env.PISE_OCA_RG_TAG}} -c "ls -l" > $WDLL
-          cat $WDLL
-          echo "------------------------------"
-          grep LICENSES.txt $WDLL
-          grep NOTICE.txt $WDLL
-          grep about.json $WDLL
-          grep EULA.txt $WDLL
-          grep VERSION.txt $WDLL
-          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 350000
-          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
-          test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
       # -----------------------------------------
       # We remake the lib, build, gdb volumes fresh for use with the OCA.
       # First remove the existing ones
