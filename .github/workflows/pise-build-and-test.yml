@@ -519,7 +519,7 @@ jobs:
         name: Upload selenium results
         uses: actions/upload-artifact@v4
         with:
-          name: selenium_results
+          name: debug_selenium_results
           path: ${{ env.PFSC_ROOT }}/selenium_results
       # If not doing pub prep, at least dump logs for manual inspection
       - if: ${{ always() && !inputs.pub-prep }}
@@ -555,90 +555,6 @@ jobs:
         run: docker compose -f mca-docker-compose.yml down
       # -----------------------------------------
       # OCA
-      # -----------------------------------------
-      # If pub-prep, build pise (OCA) image
-      - if: ${{ inputs.pub-prep }}
-        name: Make pise OCA build context
-        working-directory: pise/manage
-        run: |
-          source venv/bin/activate
-          pfsc build oca --gdb=gl --skip-licensing --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_OCA_GL_TAG}}
-          mkdir ${{env.PISE_OCA_CTX_DIR}}
-          tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
-      - if: ${{ inputs.pub-prep }}
-        name: Build and export pise OCA image to Docker
-        uses: docker/build-push-action@v4
-        with:
-          context: ${{env.PISE_OCA_CTX_DIR}}
-          load: true
-          tags: pise:${{env.PISE_OCA_GL_TAG}}
-          cache-to: type=gha
-          cache-from: type=gha
-      # -----------------------------------------
-      # We remake the lib, build, gdb volumes fresh for use with the OCA.
-      # First remove the existing ones
-      - if: ${{ inputs.pub-prep }}
-        name: Remove existing lib, build, gdb volumes
-        run: docker volume rm ${{env.LIB_VOLUME}} ${{env.BUILD_VOLUME}} ${{env.GDB_VOLUME}}
-      # Form and populate a `lib` volume
-      - if: ${{ inputs.pub-prep }}
-        name: Form and populate lib volume for OCA
-        run: |
-          docker run --rm --entrypoint=bash \
-            -v ${{env.PFSC_ROOT}}/lib:/usr/local/share/proofscape_lib:ro \
-            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
-            pise-server:${{ env.PISE_VERS }} \
-            -c "cp -r /usr/local/share/proofscape_lib/* ~/proofscape/lib"
-      # Check population of lib volume
-      - if: ${{ inputs.pub-prep && env.DEBUG_WORKFLOW >= 1 }}
-        name: Check population of lib volume for OCA
-        run: |
-          docker run --rm --entrypoint=bash \
-            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
-            pise-server:${{ env.PISE_VERS }} \
-            -c "cd ~/proofscape/lib; ls -l; ls -l test/hist/lit"
-      # Form `build` and `gdb` volumes
-      - if: ${{ inputs.pub-prep }}
-        name: Form build and gdb volumes for OCA
-        run: |
-          docker volume create ${{env.BUILD_VOLUME}}
-          docker volume create ${{env.GDB_VOLUME}}
-      # -----------------------------------------
-      # Run the OCA
-      - if: ${{ inputs.pub-prep }}
-        name: Run the OCA
-        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
-        run: docker compose -f oca-docker-compose.yml up -d
-      # -----------------------------------------
-      # Run OCA Selenium tests
-      - if: ${{ inputs.pub-prep }}
-        name: Run OCA Selenium tests
-        working-directory: pise/manage
-        run: |
-          source venv/bin/activate
-          pytest tests/selenium/test_basic_run_oca.py
-      - if: ${{ inputs.pub-prep && always() }}
-        name: Record docker logs
-        working-directory: ${{ env.PFSC_ROOT }}
-        run: |
-          mkdir -p selenium_results/docker_logs
-          docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-stdout.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-stderr.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stdout*.log" > selenium_results/docker_logs/pise-1-redis-stdout.txt 2>&1
-          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stderr*.log" > selenium_results/docker_logs/pise-1-redis-stderr.txt 2>&1
-      - if: ${{ inputs.pub-prep && always() }}
-        name: Upload selenium results
-        uses: actions/upload-artifact@v4
-        with:
-          name: selenium_results
-          path: ${{ env.PFSC_ROOT }}/selenium_results
-      # -----------------------------------------
-      # Stop the OCA
-      - if: ${{ inputs.pub-prep }}
-        name: Stop the OCA
-        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
-        run: docker compose -f oca-docker-compose.yml down
       # -----------------------------------------
       # -------------------------------------------------------------------------------------------
       # As long as we are distributing two OCA images (one with GremLite and one with RedisGraph) we
@@ -736,12 +652,6 @@ jobs:
           docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-rg-stderr.txt 2>&1
           docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-redisgraph-stdout.txt 2>&1
           docker exec ${{env.TEST_RG_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-redisgraph-stderr.txt 2>&1
-      - if: ${{ inputs.pub-prep && always() }}
-        name: Upload selenium results
-        uses: actions/upload-artifact@v4
-        with:
-          name: selenium_results
-          path: ${{ env.PFSC_ROOT }}/selenium_results
       # -----------------------------------------
       # Stop the OCA-rg
       - if: ${{ inputs.pub-prep }}
@@ -750,6 +660,90 @@ jobs:
         run: docker compose -f oca-docker-compose.yml down
       # End of auxiliary OCA section
       # -------------------------------------------------------------------------------------------
+      # -----------------------------------------
+      # If pub-prep, build pise (OCA) image
+      - if: ${{ inputs.pub-prep }}
+        name: Make pise OCA build context
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc build oca --gdb=gl --skip-licensing --tar-path=${{env.PISE_OCA_CTX_TAR}} ${{env.PISE_OCA_GL_TAG}}
+          mkdir ${{env.PISE_OCA_CTX_DIR}}
+          tar -x -f ${{env.PISE_OCA_CTX_TAR}} -C ${{env.PISE_OCA_CTX_DIR}}
+      - if: ${{ inputs.pub-prep }}
+        name: Build and export pise OCA image to Docker
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{env.PISE_OCA_CTX_DIR}}
+          load: true
+          tags: pise:${{env.PISE_OCA_GL_TAG}}
+          cache-to: type=gha
+          cache-from: type=gha
+      # -----------------------------------------
+      # We remake the lib, build, gdb volumes fresh for use with the OCA.
+      # First remove the existing ones
+      - if: ${{ inputs.pub-prep }}
+        name: Remove existing lib, build, gdb volumes
+        run: docker volume rm ${{env.LIB_VOLUME}} ${{env.BUILD_VOLUME}} ${{env.GDB_VOLUME}}
+      # Form and populate a `lib` volume
+      - if: ${{ inputs.pub-prep }}
+        name: Form and populate lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            -v ${{env.PFSC_ROOT}}/lib:/usr/local/share/proofscape_lib:ro \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cp -r /usr/local/share/proofscape_lib/* ~/proofscape/lib"
+      # Check population of lib volume
+      - if: ${{ inputs.pub-prep && env.DEBUG_WORKFLOW >= 1 }}
+        name: Check population of lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cd ~/proofscape/lib; ls -l; ls -l test/hist/lit"
+      # Form `build` and `gdb` volumes
+      - if: ${{ inputs.pub-prep }}
+        name: Form build and gdb volumes for OCA
+        run: |
+          docker volume create ${{env.BUILD_VOLUME}}
+          docker volume create ${{env.GDB_VOLUME}}
+      # -----------------------------------------
+      # Run the OCA
+      - if: ${{ inputs.pub-prep }}
+        name: Run the OCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml up -d
+      # -----------------------------------------
+      # Run OCA Selenium tests
+      - if: ${{ inputs.pub-prep }}
+        name: Run OCA Selenium tests
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pytest tests/selenium/test_basic_run_oca.py
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Record docker logs
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          mkdir -p selenium_results/docker_logs
+          docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-stderr.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stdout*.log" > selenium_results/docker_logs/pise-1-redis-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redis-stderr*.log" > selenium_results/docker_logs/pise-1-redis-stderr.txt 2>&1
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Upload selenium results
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium_results
+          path: ${{ env.PFSC_ROOT }}/selenium_results
+      # -----------------------------------------
+      # Stop the OCA
+      - if: ${{ inputs.pub-prep }}
+        name: Stop the OCA
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml down
       # -----------------------------------------
       # Upload artifacts for publication job
       - if: ${{ inputs.pub-prep }}
