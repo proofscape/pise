@@ -155,9 +155,9 @@ def write_dockerignore_for_pyc():
 def build_license_info_dict(skip_licensing: bool, tag: str) -> dict:
     skip_key = 'Deliberately skipping license file generation for development purposes.'
     if skip_licensing:
-        if not tag.endswith('-dev'):
+        if 'dev' not in tag.split('-'):
             raise click.UsageError(
-                'When using the --skip-licensing switch, your TAG must end with "-dev".\n'
+                'When using the --skip-licensing switch, your TAG must contain "-dev".\n'
                 'The purpose of the switch is to let you skip updating license info when\n'
                 'trying out new packages (or package upgrades) during development.'
             )
