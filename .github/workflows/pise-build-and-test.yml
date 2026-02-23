@@ -839,6 +839,134 @@ jobs:
         working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_DEPLOY_DIR) }}
         run: docker compose -f oca-docker-compose.yml down
       # -----------------------------------------
+      # -------------------------------------------------------------------------------------------
+      # As long as we are distributing two OCA images (one with GremLite and one with RedisGraph) we
+      # have this next section to build and test the RedisGraph image.
+      - if: ${{ inputs.pub-prep }}
+        name: Set up vars for OCA-rg build
+        run: |
+          echo "PISE_OCA_RG_TAG=${{ format('{0}-rg', env.PISE_VERS) }}" >> $GITHUB_ENV
+          echo "PISE_OCA_RG_CTX_TAR=${{ format('{0}/contexts/pise-oca-rg-context.tar.gz', github.workspace) }}" >> $GITHUB_ENV
+          echo "PISE_OCA_RG_CTX_DIR=${{ format('{0}/contexts/pise-oca-rg-context', github.workspace) }}" >> $GITHUB_ENV
+          echo "TEST_RG_DEPLOY_DIR=testing-rg" >> $GITHUB_ENV
+      - if: ${{ inputs.pub-prep }}
+        name: Generate RG deployment directory
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc deploy generate --gdb re \
+              --no-local --no-mount-code \
+              --pfsc-tag ${{ env.PISE_VERS }} \
+              --oca-tag ${{ env.PISE_OCA_RG_TAG }} \
+              -n 1 --demos \
+              --dirname ${{ env.TEST_RG_DEPLOY_DIR }} \
+              --flask-config dockerdev \
+              --no-per-deploy-dirs \
+              --lib-vol=${{ env.LIB_VOLUME }} \
+              --build-vol=${{ env.BUILD_VOLUME }} \
+              --gdb-vol=${{ env.GDB_VOLUME }}
+      - if: ${{ inputs.pub-prep }}
+        name: Make pise OCA-rg build context
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pfsc build oca --gdb=re --tar-path=${{env.PISE_OCA_RG_CTX_TAR}} ${{ env.PISE_OCA_RG_TAG }}
+          mkdir ${{env.PISE_OCA_RG_CTX_DIR}}
+          tar -x -f ${{env.PISE_OCA_RG_CTX_TAR}} -C ${{env.PISE_OCA_RG_CTX_DIR}}
+      - if: ${{ inputs.pub-prep }}
+        name: Build and export pise OCA-rg image to Docker
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{env.PISE_OCA_RG_CTX_DIR}}
+          load: true
+          tags: pise:${{env.PISE_OCA_RG_TAG}}
+          cache-to: type=gha
+          cache-from: type=gha
+      # Check contents of image's working directory
+      - if: ${{ inputs.pub-prep }}
+        name: Check working directory contents of pise OCA-rg
+        env:
+          WDLL: pise-wdll
+        run: |
+          docker run --rm --entrypoint=bash pise:${{env.PISE_OCA_RG_TAG}} -c "ls -l" > $WDLL
+          cat $WDLL
+          echo "------------------------------"
+          grep LICENSES.txt $WDLL
+          grep NOTICE.txt $WDLL
+          grep about.json $WDLL
+          grep EULA.txt $WDLL
+          grep VERSION.txt $WDLL
+          test `grep LICENSES.txt $WDLL | awk '{print $5}'` -ge 350000
+          test `grep NOTICE.txt $WDLL | awk '{print $5}'` -ge 1000
+          test `grep about.json $WDLL | awk '{print $5}'` -ge 20000
+      # -----------------------------------------
+      # We remake the lib, build, gdb volumes fresh for use with the OCA.
+      # First remove the existing ones
+      - if: ${{ inputs.pub-prep }}
+        name: Remove existing lib, build, gdb volumes
+        run: docker volume rm ${{env.LIB_VOLUME}} ${{env.BUILD_VOLUME}} ${{env.GDB_VOLUME}}
+      # Form and populate a `lib` volume
+      - if: ${{ inputs.pub-prep }}
+        name: Form and populate lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            -v ${{env.PFSC_ROOT}}/lib:/usr/local/share/proofscape_lib:ro \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cp -r /usr/local/share/proofscape_lib/* ~/proofscape/lib"
+      # Check population of lib volume
+      - if: ${{ inputs.pub-prep && env.DEBUG_WORKFLOW >= 1 }}
+        name: Check population of lib volume for OCA
+        run: |
+          docker run --rm --entrypoint=bash \
+            --mount 'type=volume,src=${{env.LIB_VOLUME}},dst=/proofscape/lib' \
+            pise-server:${{ env.PISE_VERS }} \
+            -c "cd ~/proofscape/lib; ls -l; ls -l test/hist/lit"
+      # Form `build` and `gdb` volumes
+      - if: ${{ inputs.pub-prep }}
+        name: Form build and gdb volumes for OCA
+        run: |
+          docker volume create ${{env.BUILD_VOLUME}}
+          docker volume create ${{env.GDB_VOLUME}}
+      # -----------------------------------------
+      # Run the OCA-rg
+      - if: ${{ inputs.pub-prep }}
+        name: Run the OCA-rg
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_RG_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml up -d
+      # -----------------------------------------
+      # Run OCA-rg Selenium tests
+      - if: ${{ inputs.pub-prep }}
+        name: Run OCA-rg Selenium tests
+        working-directory: pise/manage
+        run: |
+          source venv/bin/activate
+          pytest tests/selenium/test_basic_run_oca.py
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Record docker logs for OCA-rg
+        working-directory: ${{ env.PFSC_ROOT }}
+        run: |
+          mkdir -p selenium_results/docker_logs
+          docker logs ${{env.TEST_DEPLOY_DIR}}-pise-1 > selenium_results/docker_logs/pise-1.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stdout*.log" > selenium_results/docker_logs/pise-1-web-rg-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/pfsc_web-stderr*.log" > selenium_results/docker_logs/pise-1-web-rg-stderr.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stdout*.log" > selenium_results/docker_logs/pise-1-redisgraph-stdout.txt 2>&1
+          docker exec ${{env.TEST_DEPLOY_DIR}}-pise-1 bash -c "cat /tmp/redisgraph-stderr*.log" > selenium_results/docker_logs/pise-1-redisgraph-stderr.txt 2>&1
+      - if: ${{ inputs.pub-prep && always() }}
+        name: Upload selenium results
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium_results
+          path: ${{ env.PFSC_ROOT }}/selenium_results
+      # -----------------------------------------
+      # Stop the OCA-rg
+      - if: ${{ inputs.pub-prep }}
+        name: Stop the OCA-rg
+        working-directory: ${{ format('{0}/deploy/{1}', env.PFSC_ROOT, env.TEST_RG_DEPLOY_DIR) }}
+        run: docker compose -f oca-docker-compose.yml down
+      # End of auxiliary OCA section
+      # -------------------------------------------------------------------------------------------
+      # -----------------------------------------
       # Upload artifacts for publication job
       - if: ${{ inputs.pub-prep }}
         name: Make directory for pise docker context tar.gz files
