@@ -1,11 +1,6 @@
 name: pise-build-and-test
 on:
   pull_request:
-  push:
-    branches:
-      - '**'
-    tags-ignore:
-      - '**'
   workflow_call:
     inputs:
       pub-prep:
