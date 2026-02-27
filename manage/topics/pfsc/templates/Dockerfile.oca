@@ -16,6 +16,16 @@
 
 {% if gdb=="re" %}
 
+# Note on the Python base image tag 3.11.13-slim-bullseye used here:
+# RedisGraph was last supported on a version of Redis that requires libssl1.1,
+# and we therefore cannot easily move from Debian Bullseye up to Bookworm, since that
+# comes with an upgrade to libssl3. As of now, a Python 3.11.14 image has not been
+# released for Bullseye; the latest 3.11.x is 3.11.13, so we use that.
+# Meanwhile, GremLite cannot be operated on this OCA image (which might be nice,
+# for some automated transition tools) since it requires libsqlite 3.35 or greater,
+# but Bullseye has an older version. We could think about installing custom, secondary
+# versions of the libssl and/or libsqlite libraries, but I'm putting that off for another
+# time, if ever. For now, we just want to work with ready-made base images.
 FROM --platform={{platform}} redis/redis-stack-server:{{redisgraph_image_tag}} AS rg
 FROM --platform={{platform}} python:3.11.13-slim-bullseye AS basis
 ARG DEBIAN_FRONTEND=noninteractive
