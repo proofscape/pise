@@ -27,8 +27,12 @@ class CypherGraphWriter(GraphWriter):
 
     def __init__(self, reader):
         super().__init__(reader)
-        self.session = self.gdb.session()
+        self._session = self.gdb.session()
         # TODO: Maybe the gdb teardown needs to close the session?
+
+    @property
+    def session(self):
+        return self._tx if self._tx is not None else self._session
 
     def new_transaction(self):
         return self.session.begin_transaction()
@@ -149,7 +153,7 @@ class CypherGraphWriter(GraphWriter):
             props=mii.write_version_node_props()
         )
 
-    def clear_test_indexing(self):
+    def _clear_test_indexing(self):
         self.session.run(f"""
         MATCH (u) WHERE u.repopath STARTS WITH 'test.'
         OPTIONAL MATCH (u)-[:{IndexType.BUILD}]->(b)
@@ -164,7 +168,7 @@ class CypherGraphWriter(GraphWriter):
         DETACH DELETE u, b
         """, repopath=repopath)
 
-    def delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
+    def _delete_full_build_at_version(self, repopath, version=pfsc.constants.WIP_TAG):
         M, m, p = get_padded_components(version)
         self.session.run(f"""
         MATCH (u {{repopath: $repopath}})
@@ -181,7 +185,7 @@ class CypherGraphWriter(GraphWriter):
         SET u.properties = $j_props
         """, username=username, j_props=j_props)
 
-    def delete_user(self, username, *,
+    def _delete_user(self, username, *,
                     definitely_want_to_delete_this_user=False):
         if not definitely_want_to_delete_this_user:
             return 0
@@ -192,7 +196,7 @@ class CypherGraphWriter(GraphWriter):
         info = res.consume()
         return info.counters.nodes_deleted
 
-    def delete_all_notes_of_one_user(self, username, *,
+    def _delete_all_notes_of_one_user(self, username, *,
                     definitely_want_to_delete_all_notes=False):
         if not definitely_want_to_delete_all_notes:
             return
@@ -207,48 +211,35 @@ class CypherGraphWriter(GraphWriter):
         SET u.properties = $j_props
         """, username=username, j_props=j_props)
 
-    def record_user_notes(self, username, user_notes):
+    def _record_user_notes(self, username, user_notes):
         major0 = self.reader.adaptall(user_notes.goal_major)
-        # It's important that we structure this as a transaction, for the case
-        # of the user of the one-container app on their own machine. There we
-        # use RedisGraph, and it's only a call to `commit_transaction()` that
-        # prompts our `RedisGraphWrapper` class to dump to disk. The user's
-        # notes should always be persisted to disk as soon as they're recorded
-        # in the GDB. In other cases -- say, Neo4j in a production setting --
-        # structuring as a transaction does no harm.
-        tx = self.new_transaction()
-        try:
-            res = tx.run(f"""
-            MATCH (g {{libpath: $goalpath, major: $major}}) RETURN id(g)
-            """, goalpath=user_notes.goalpath, major=major0)
-            rec = res.single()
-            if rec is None:
-                raise PfscExcep(f'Cannot record notes. Origin {user_notes.write_origin()} does not exist.')
-            goal_db_id = rec.value()
+        tx = self.session
+        res = tx.run(f"""
+        MATCH (g {{libpath: $goalpath, major: $major}}) RETURN id(g)
+        """, goalpath=user_notes.goalpath, major=major0)
+        rec = res.single()
+        if rec is None:
+            raise PfscExcep(f'Cannot record notes. Origin {user_notes.write_origin()} does not exist.')
+        goal_db_id = rec.value()
 
-            if user_notes.is_blank():
-                tx.run(f"""
-                MATCH (u:{IndexType.USER} {{username: $username}})-[e:{IndexType.NOTES}]->(g)
-                WHERE ID(g) = $goal_db_id
-                DELETE e
-                """, username=username, goal_db_id=goal_db_id)
-            else:
-                tx.run(f"""
-                MATCH (u:{IndexType.USER} {{username: $username}}), (g)
-                WHERE ID(g) = $goal_db_id
-                MERGE (u)-[e:{IndexType.NOTES}]->(g)
-                SET e.state = $state
-                SET e.notes = $notes
-                """, username=username, goal_db_id=goal_db_id, state=user_notes.state, notes=user_notes.notes)
-        except:
-            self.rollback_transaction(tx)
-            raise
+        if user_notes.is_blank():
+            tx.run(f"""
+            MATCH (u:{IndexType.USER} {{username: $username}})-[e:{IndexType.NOTES}]->(g)
+            WHERE ID(g) = $goal_db_id
+            DELETE e
+            """, username=username, goal_db_id=goal_db_id)
         else:
-            self.commit_transaction(tx)
+            tx.run(f"""
+            MATCH (u:{IndexType.USER} {{username: $username}}), (g)
+            WHERE ID(g) = $goal_db_id
+            MERGE (u)-[e:{IndexType.NOTES}]->(g)
+            SET e.state = $state
+            SET e.notes = $notes
+            """, username=username, goal_db_id=goal_db_id, state=user_notes.state, notes=user_notes.notes)
 
     # ----------------------------------------------------------------------
 
-    def record_module_source(self, modpath, version, modtext):
+    def _record_module_source(self, modpath, version, modtext):
         major0 = self.reader.adaptall(version)
         self.session.run(f"""
         MATCH (m:{IndexType.MODULE} {{libpath: $modpath}})
@@ -258,13 +249,13 @@ class CypherGraphWriter(GraphWriter):
         SET s.pfsc = $modtext
         """, modpath=modpath, major=major0, version=version, modtext=modtext)
 
-    def record_repo_manifest(self, repopath, version, manifest_json):
+    def _record_repo_manifest(self, repopath, version, manifest_json):
         self.session.run(f"""
         MATCH (v:{IndexType.VERSION} {{repopath: $repopath, version: $version}})
         SET v.manifest = $manifest_json
         """, repopath=repopath, version=version, manifest_json=manifest_json)
 
-    def record_dashgraph(self, deducpath, version, dg_json):
+    def _record_dashgraph(self, deducpath, version, dg_json):
         major0 = self.reader.adaptall(version)
         self.session.run(f"""
         MATCH (d:{IndexType.DEDUC} {{libpath: $deducpath}})
@@ -274,7 +265,7 @@ class CypherGraphWriter(GraphWriter):
         SET db.json = $dg_json
         """, deducpath=deducpath, major=major0, version=version, dg_json=dg_json)
 
-    def record_annobuild(self, annopath, version, anno_html, anno_json):
+    def _record_annobuild(self, annopath, version, anno_html, anno_json):
         major0 = self.reader.adaptall(version)
         self.session.run(f"""
         MATCH (a:{IndexType.ANNO} {{libpath: $annopath}})
@@ -285,7 +276,7 @@ class CypherGraphWriter(GraphWriter):
         SET ab.json = $anno_json
         """, annopath=annopath, major=major0, version=version, anno_html=anno_html, anno_json=anno_json)
 
-    def delete_builds_under_module(self, modpath, version):
+    def _delete_builds_under_module(self, modpath, version):
         self.session.run(f"""
         MATCH (u {{modpath: $modpath}})-[b:{IndexType.BUILD}]->(v)
         WHERE b.{IndexType.P_BUILD_VERS} = $version

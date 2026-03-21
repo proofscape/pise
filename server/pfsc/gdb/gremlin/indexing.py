@@ -105,9 +105,13 @@ def ix002682(mii, gtx, N=12):
     return new_targeting_relns
 
 
-def ix002681(mii, gtx):
+def ix002681_FULL(mii, gtx):
     """
     Make a separate traversal for each new node and edge.
+
+    This function ("_FULL") does both vertices and edges;
+    see `ix002681()` which does those in separate functions,
+    which can be more informative for profiling.
     """
     lp_maj_to_db_uid = {}
     if mii.V_add:
@@ -120,6 +124,54 @@ def ix002681(mii, gtx):
             db_uid = tr.select('v').by(__.id_()).next()
             lp_maj_to_db_uid[(u.libpath, u.major)] = db_uid
             mii.note_task_element_completed(260)
+    new_targeting_relns = []
+    if mii.E_add:
+        mii.note_begin_indexing_phase(280)
+        kRelns = [mii.get_kReln(uid) for uid in mii.E_add]
+        for r in kRelns:
+            if r.reln_type == IndexType.TARGETS:
+                new_targeting_relns.append(r)
+            head_id = lp_maj_to_db_uid.get((r.head_libpath, r.head_major))
+            if head_id is None:
+                tr = lp_covers(r.head_libpath, r.head_major,
+                               gtx.V().has_label(r.head_type))
+            else:
+                tr = gtx.V(head_id)
+            tr = tr.as_('head')
+            tail_id = lp_maj_to_db_uid.get((r.tail_libpath, r.tail_major))
+            if tail_id is None:
+                tr = lp_covers(r.tail_libpath, r.tail_major,
+                               tr.V().has_label(r.tail_type))
+            else:
+                tr = tr.V(tail_id)
+            tr = tr.add_e(r.reln_type).to('head')
+            tr = set_kReln_reln_props(r, tr)
+            tr.iterate()
+            mii.note_task_element_completed(280)
+    return new_targeting_relns
+
+
+def ix002681(mii, gtx):
+    lp_maj_to_db_uid = ix002681V(mii, gtx)
+    return ix002681E(mii, gtx, lp_maj_to_db_uid)
+
+
+def ix002681V(mii, gtx):
+    lp_maj_to_db_uid = {}
+    if mii.V_add:
+        mii.note_begin_indexing_phase(260)
+        kNodes = [mii.get_kNode(uid) for uid in mii.V_add]
+        for u in kNodes:
+            tr = gtx.add_v(u.node_type).as_('v')
+            for k, v in u.get_property_dict().items():
+                tr = tr.property(k, v)
+            db_uid = tr.select('v').by(__.id_()).next()
+            lp_maj_to_db_uid[(u.libpath, u.major)] = db_uid
+            mii.note_task_element_completed(260)
+    return lp_maj_to_db_uid
+
+
+def ix002681E(mii, gtx, lp_maj_to_db_uid):
     new_targeting_relns = []
     if mii.E_add:
         mii.note_begin_indexing_phase(280)

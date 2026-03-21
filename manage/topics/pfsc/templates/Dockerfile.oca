@@ -14,8 +14,20 @@
 #   limitations under the License.                                            #
 # --------------------------------------------------------------------------- #
 
+{% if gdb=="re" %}
+
+# Note on the Python base image tag 3.11.13-slim-bullseye used here:
+# RedisGraph was last supported on a version of Redis that requires libssl1.1,
+# and we therefore cannot easily move from Debian Bullseye up to Bookworm, since that
+# comes with an upgrade to libssl3. As of now, a Python 3.11.14 image has not been
+# released for Bullseye; the latest 3.11.x is 3.11.13, so we use that.
+# Meanwhile, GremLite cannot be operated on this OCA image (which might be nice,
+# for some automated transition tools) since it requires libsqlite 3.35 or greater,
+# but Bullseye has an older version. We could think about installing custom, secondary
+# versions of the libssl and/or libsqlite libraries, but I'm putting that off for another
+# time, if ever. For now, we just want to work with ready-made base images.
 FROM --platform={{platform}} redis/redis-stack-server:{{redisgraph_image_tag}} AS rg
-FROM --platform={{platform}} python:{{python_image_tag}} AS basis
+FROM --platform={{platform}} python:3.11.13-slim-bullseye AS basis
 ARG DEBIAN_FRONTEND=noninteractive
 # `libgomp1` is needed by redisgraph.
 # `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
@@ -35,6 +47,22 @@ COPY --from=rg /opt/redis-stack/lib/redisearch.so /usr/lib/redis/modules
 COPY --from=rg /usr/bin/redis-server /usr/local/bin
 # Note: Could save 6MB by ignoring redis-cli, which is just a debugging tool.
 COPY --from=rg /usr/bin/redis-cli /usr/local/bin
+
+{% else %}
+
+FROM --platform={{platform}} redis:{{redis_image_tag}} AS redis_image
+FROM --platform={{platform}} python:{{python_image_tag}} AS basis
+ARG DEBIAN_FRONTEND=noninteractive
+# `sudo` and `less` are installed for dev purposes, and user `pfsc` (though it
+# isn't added until later in the Dockerfile) is given passwordless sudo.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends sudo less \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "pfsc ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
+COPY --from=redis_image /usr/local/bin/redis-server /usr/local/bin
+
+{% endif %}
+
 # For the sake of casual users, I think it's important that the Proofscape ISE
 # app port 7372 get top billing in Docker Dashboard, in particular in the
 # "Run" dialog. Therefore, we don't expose 6379. Casual users shouldn't have

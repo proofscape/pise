@@ -156,6 +156,7 @@ def get_version_numbers(include_tags=False, include_other=False):
         # Could add others; atm this is all we need
         nums['redis-tag'] = pfsc_conf.REDIS_IMAGE_TAG
         nums['redisgraph-tag'] = pfsc_conf.REDISGRAPH_IMAGE_TAG
+        nums['tinkergraph-tag'] = pfsc_conf.GREMLIN_SERVER_IMAGE_TAG
         nums['nginx-tag'] = pfsc_conf.NGINX_IMAGE_TAG
 
     if include_other:
@@ -178,9 +179,9 @@ def get_server_version():
 
 def get_redis_server_version_for_oca():
     """
-    Get the version number of redis-server that is installed in the OCA image.
+    Get the version number of redis-server that is installed in the GremLite OCA image.
     """
-    cmd = f'docker run --rm --entrypoint=bash redis/redis-stack-server:{pfsc_conf.REDISGRAPH_IMAGE_TAG} -c "redis-server --version"'
+    cmd = f'docker run --rm --entrypoint=bash redis:{pfsc_conf.REDIS_IMAGE_TAG} -c "redis-server --version"'
     out = subprocess.check_output(cmd, shell=True)
     text = out.decode()
 

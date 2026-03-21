@@ -303,14 +303,61 @@ class Config:
 
     REDIS_URI = os.getenv("REDIS_URI")
 
+    # pise-server records data in a graph database (GDB). It is up to you to choose the
+    # database system, and ensure that it is available. Use the `GRAPHDB_URI` config var
+    # to tell pise-server which system to use and how to connect to it. Your options are
+    # as follows:
+    #
+    #   * Any URI with scheme `file`, such as `file:///filesystem/path/to/my_sqlite_database_file.db`
+    #       In this case, pise-server will assume that you want to use GremLite as your
+    #       GDB. Support is built-in, and you do not need to provide anything else.
+    #       The file you name either should not yet exist, or may already exist iff it is
+    #       from previous use by pise-server. If the directory you name does not yet exist, then
+    #       it and any missing parent directories will be automatically formed by pise-server.
+    #
+    #  * Any URI ending with `/gremlin` and using scheme `ws` or `wss`
+    #       pise-server will assume you want a websocket connection to a Gremlin Server,
+    #       and it will use the `gremlinpython` package to connect to that.
+    #
+    #  * Any URI with scheme `redis` or `rediss`
+    #       pise-server will assume the URI points to an instance of Redis server that has
+    #       loaded the RedisGraph module, and it will use RedisGraph.
+    #
+    #  * Any URI with scheme `bolt` or `neo4j`
+    #       pise-server will assume the URI points to an instance of Neo4j server, and it
+    #       will connect using the `neo4j` Python package.
+    #
+    # Any other URI format will raise an exception.
     GRAPHDB_URI = os.getenv("GRAPHDB_URI")
     # Username and password for the GDB are optional.
     GDB_USERNAME = os.getenv("GDB_USERNAME") or ''
     GDB_PASSWORD = os.getenv("GDB_PASSWORD") or ''
 
-    # Some GDB systems support transactions, some do not. If we can tell based
-    # on the GRAPHDB_URI (such as RedisGraph versus Neo4j) then we ignore this
-    # variable; if we cannot (such as with a Gremlin URI) then we follow this.
+    # Some GDB systems support transactions, allowing us to control atomicity by grouping
+    # changes together before committing them, while others do not. The others must work
+    # instead in an "autocommit" mode, where all changes are immediately committed.
+    #
+    # Where transactions are supported, they are to be preferred. They provide better
+    # atomicity, and in some cases may make operations significantly faster (for example,
+    # GremLite is much, much faster when we group our changes using transactions).
+    #
+    # The current design in pise-server is influenced by the set of GDB systems against
+    # which it has ever been tested. Among Cypher systems, there are only two: Neo4j,
+    # and RedisGraph. The former supports transactions, the latter does not. As a consequence,
+    # pise-server will always use transactions when using Cypher, unless connecting to RedisGraph.
+    # Thus, the `USE_TRANSACTIONS` config var currently has no effect when connecting to any
+    # Cypher GDB.
+    #
+    # If you are trying to use pise-server with a Cypher GDB other than RedisGraph that does
+    # not support transactions, please open an issue at the PISE GitHub page.
+    #
+    # On the Gremlin side, we have tested against GremLite, where transactions are supported,
+    # and other systems such as TinkerGraph where they are not. With GremLite, we always
+    # use transactions, and the `USE_TRANSACTIONS` config var again has no effect.
+    #
+    # It is only with other Gremlin systems, besides GremLite, where `USE_TRANSACTIONS`
+    # controls anything. So if you are using a Gremlin system other than GremLite, and it
+    # does support transactions, then you should set this to 1.
     USE_TRANSACTIONS = bool(int(os.getenv("USE_TRANSACTIONS", 0)))
 
     # NOTE: math job timeouts are only relevant if you are performing math jobs
@@ -639,7 +686,11 @@ class OcaConfig(DockerDevConfig):
     RECORD_PER_USER_TRUST_SETTINGS = True
     REDIS_URI = "redis://localhost:6379"
     SOCKETIO_MESSAGE_QUEUE = "redis://localhost:6379"
-    GRAPHDB_URI = "redis://localhost:6379"
+
+    # As long as we are distributing two different versions of the OCA, one that uses
+    # GremLite and one that uses RedisGraph, we read the GRAPHDB_URI from the environment.
+    # When we go back to distributing only one, we can once again hard-code the value here.
+    GRAPHDB_URI = os.getenv("GRAPHDB_URI")
 
     # The app URL prefix is important, so that the URL at which the ISE loads,
     # `localhost:7372/ProofscapeISE` is recognizable by the PBE (Proofscape

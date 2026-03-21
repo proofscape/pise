@@ -31,6 +31,13 @@ def write_redisgraph_ini(use_conf_file=True):
     )
 
 
+def write_redis_ini(use_conf_file=True):
+    template = jinja_env.get_template('redis.ini')
+    return template.render(
+        use_conf_file=use_conf_file,
+    )
+
+
 REDIS_DOCKERFILE_TPLT = jinja2.Template("""\
 FROM redis:{{redis_image_tag}}
 COPY {{tmp_dir_name}}/redis.conf /usr/local/etc/redis/redis.conf
